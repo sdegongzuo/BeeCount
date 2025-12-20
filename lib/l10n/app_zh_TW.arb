@@ -1,10 +1,8 @@
 {
   "about": "關於",
-  "aboutContactEmail": "聯絡電子郵件",
   "aboutDesc": "版本資訊、說明與回饋",
   "aboutDouyin": "抖音",
   "aboutGitHubRepo": "GitHub 儲存庫",
-  "aboutWebsite": "官方網站",
   "aboutPageLoadingVersion": "載入版本號中...",
   "aboutPageSubtitle": "應用程式資訊和說明",
   "aboutPageTitle": "關於",
@@ -12,6 +10,7 @@
   "aboutSupportDevelopmentSubtitle": "請開發者喝杯咖啡",
   "aboutWeChatGroup": "微信群",
   "aboutWeChatGroupDesc": "點擊檢視二維碼",
+  "aboutWebsite": "官方網站",
   "aboutWidget": "關于小組件",
   "aboutXiaohongshu": "小紅書",
   "accountAddButton": "添加帳戶",
@@ -80,7 +79,6 @@
   "aiChatUndoFailed": "撤銷失敗",
   "aiChatUndone": "已撤銷",
   "aiCloudApiGetKey": "取得 API Key",
-  "aiCloudApiTutorial": "詳細教學",
   "aiCloudApiKeyHelper": "GLM-*-Flash 模型完全免費",
   "aiCloudApiKeyHint": "輸入智譜 AI 的 API Key",
   "aiCloudApiKeyInvalid": "❌ API Key 無效，請檢查後重新輸入",
@@ -89,6 +87,7 @@
   "aiCloudApiKeyValid": "✅ API Key 有效，AI 功能可正常使用",
   "aiCloudApiTestKey": "測試連線",
   "aiCloudApiTitle": "智譜 GLM API",
+  "aiCloudApiTutorial": "詳細教學",
   "aiEnableSubtitle": "使用 AI 增強 OCR 識別準確度，提取金額、商家、時間等資訊，並支援自然語言對話",
   "aiEnableTitle": "啟用 AI 小助手",
   "aiEnableToastOff": "AI 小助手已關閉",
@@ -203,10 +202,82 @@
   "analyticsTotalExpense": "總支出： ",
   "analyticsTotalIncome": "總收入： ",
   "analyticsYear": "年",
+  "androidShortcutStep1": "下載支援建立捷徑的應用程式（如 Shortcut Maker）",
+  "androidShortcutStep2": "選擇「URL 捷徑」",
+  "androidShortcutStep3": "貼上上方複製的連結（如 beecount://voice）",
+  "androidShortcutStep4": "設定圖示和名稱後加入桌面",
   "androidWidgetStep1": "长按主屏幕空白區域",
   "androidWidgetStep2": "選擇\"小組件\"或\"Widgets\"",
   "androidWidgetStep3": "找到并长按\"蜜蜂记帳\"小組件",
   "androidWidgetStep4": "拖動到主屏幕合适位置",
+  "annualReportAchievementConsistent": "持之以恆",
+  "annualReportAchievementConsistentDesc": "連續記帳超過{days}天",
+  "@annualReportAchievementConsistentDesc": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "annualReportAchievementDetail": "明察秋毫",
+  "annualReportAchievementDetailDesc": "記帳筆數超過{count}筆",
+  "@annualReportAchievementDetailDesc": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "annualReportAchievementSaver": "精打細算",
+  "annualReportAchievementSaverDesc": "年度結餘為正",
+  "annualReportEntrySubtitle": "生成專屬年度報告，分享你的記帳故事",
+  "annualReportFirstRecord": "第一筆記錄",
+  "annualReportGenerating": "正在生成年度報告...",
+  "annualReportHighestMonth": "支出最高月份",
+  "annualReportLargestExpense": "年度最大支出",
+  "annualReportLargestIncome": "年度最大收入",
+  "annualReportLowestMonth": "支出最低月份",
+  "annualReportNetSavings": "年度結餘",
+  "annualReportNoData": "暫無{year}年資料",
+  "@annualReportNoData": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "annualReportPage1Subtitle": "{year}年記帳之旅",
+  "@annualReportPage1Subtitle": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "annualReportPage1Title": "年度總覽",
+  "annualReportPage2Subtitle": "你的錢花在哪了",
+  "annualReportPage2Title": "支出分析",
+  "annualReportPage3Subtitle": "12個月的收支變化",
+  "annualReportPage3Title": "月度趨勢",
+  "annualReportPage4Subtitle": "那些值得銘記的帳單",
+  "annualReportPage4Title": "特別時刻",
+  "annualReportPage5Subtitle": "你的記帳成就徽章",
+  "annualReportPage5Title": "年度成就",
+  "annualReportSaveSuccess": "年度報告海報已儲存",
+  "annualReportShareButton": "生成分享海報",
+  "annualReportSubtitle": "回顧你的{year}年財務足跡",
+  "@annualReportSubtitle": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "annualReportTitle": "年度帳單",
+  "annualReportTotalDays": "記帳天數",
+  "annualReportTotalExpense": "總支出",
+  "annualReportTotalIncome": "總收入",
+  "annualReportTotalRecords": "記帳筆數",
   "appName": "蜜蜂记帳",
   "appTitle": "蜜蜂記帳",
   "appearanceAmountFormat": "餘額顯示格式",
@@ -230,6 +301,17 @@
   "appearanceThemeModeLight": "亮色模式",
   "appearanceThemeModeSystem": "跟隨系統",
   "attachmentAdd": "添加圖片",
+  "attachmentArchiveInfo": "{count} 個附件，匯出於 {date}",
+  "@attachmentArchiveInfo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "attachmentChooseFromGallery": "從相簿選擇",
   "attachmentCount": "{count}張圖片",
   "@attachmentCount": {
@@ -240,7 +322,66 @@
     }
   },
   "attachmentDeleteConfirm": "確定刪除此附件？",
+  "attachmentExportEmpty": "沒有附件需要匯出",
+  "attachmentExportFailed": "附件匯出失敗",
+  "attachmentExportProgress": "正在匯出附件 ({current}/{total})",
+  "@attachmentExportProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "attachmentExportSavedTo": "已儲存到: {path}",
+  "@attachmentExportSavedTo": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "attachmentExportSubtitle": "將所有附件打包匯出為壓縮檔案",
+  "attachmentExportSuccess": "附件匯出成功",
+  "attachmentExportTitle": "匯出附件",
+  "attachmentImportConflictOverwrite": "覆蓋已存在的附件",
+  "attachmentImportConflictSkip": "跳過已存在的附件",
+  "attachmentImportConflictStrategy": "衝突處理策略",
+  "attachmentImportFailed": "附件匯入失敗",
+  "attachmentImportProgress": "正在匯入附件 ({current}/{total})",
+  "@attachmentImportProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "attachmentImportResult": "匯入 {imported} 張，跳過 {skipped} 張，覆蓋 {overwritten} 張，失敗 {failed} 張",
+  "@attachmentImportResult": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      },
+      "overwritten": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "attachmentImportSubtitle": "從壓縮檔案匯入附件",
+  "attachmentImportTitle": "匯入附件",
   "attachmentMaxReached": "已達到最大附件數量",
+  "attachmentStartImport": "開始匯入",
   "attachmentTakePhoto": "拍照",
   "authBackToMinePage": "返回我的頁面",
   "authConfirmPassword": "確認密碼",
@@ -306,6 +447,7 @@
   "automationDesc": "週期記帳、記帳提醒",
   "automationPageSubtitle": "週期記帳和提醒設定",
   "automationPageTitle": "自動化功能",
+  "availableShortcuts": "可用快捷指令",
   "billCardAccount": "💳 帳戶",
   "billCardAmount": "💰 金額",
   "billCardCategory": "🏷️ 分類",
@@ -354,6 +496,12 @@
   "budgetUsed": "已用",
   "categoryCannotDelete": "無法刪除",
   "categoryCannotDeleteMessage": "該分類下還有 {count} 筆交易記錄，請先處理這些記錄。",
+  "categoryClearUnused": "清空未使用分類",
+  "categoryClearUnusedEmpty": "沒有未使用的分類",
+  "categoryClearUnusedFailed": "清空失敗",
+  "categoryClearUnusedMessage": "確定要刪除 {count} 個未使用的分類嗎？此操作無法撤銷。",
+  "categoryClearUnusedSuccess": "已刪除 {count} 個分類",
+  "categoryClearUnusedTitle": "清空未使用分類",
   "categoryCreated": "分類\"{name}\"已建立",
   "categoryDangerousOperations": "危險操作",
   "categoryDefault": "預設分類",
@@ -406,6 +554,16 @@
   "categoryExpenseTransport": "交通-地鐵-公交-出租車-網約車-停車費-加油",
   "categoryExpenseType": "支出分類",
   "categoryIconLabel": "分類圖示",
+  "categoryImport": "匯入分類",
+  "categoryImportFailed": "匯入失敗",
+  "categoryImportInvalidFile": "請選擇 YAML 配置檔案",
+  "categoryImportModeMerge": "合併",
+  "categoryImportModeMergeDesc": "保留現有分類，新增不存在的",
+  "categoryImportModeOverwrite": "覆蓋",
+  "categoryImportModeOverwriteDesc": "清空未使用分類後匯入",
+  "categoryImportModeTitle": "選擇匯入模式",
+  "categoryImportNoCategories": "檔案中沒有分類資料",
+  "categoryImportSuccess": "匯入成功",
   "categoryIncome": "收入分類",
   "categoryIncomeBonus": "獎金-年終獎-季度獎-項目獎金-其他獎金",
   "categoryIncomeGift": "結婚禮金-生日禮金-其他禮金",
@@ -459,6 +617,14 @@
   "categoryReorderTip": "長按分類可拖曳調整順序",
   "categorySaveError": "儲存失敗",
   "categorySelectParentTitle": "選擇父分類",
+  "categoryShare": "分享分類",
+  "categoryShareFailed": "分享失敗",
+  "categoryShareScopeAll": "全部分類",
+  "categoryShareScopeExpense": "僅支出分類",
+  "categoryShareScopeIncome": "僅收入分類",
+  "categoryShareScopeTitle": "選擇分享範圍",
+  "categoryShareSubject": "BeeCount 分類配置",
+  "categoryShareSuccess": "已儲存到 {path}",
   "categorySubCategoryCreated": "已新增二級分類：{name}",
   "categorySubCategoryDescriptionDisabled": "此分類為獨立的一級分類",
   "categorySubCategoryDescriptionEnabled": "此分類屬於某個一級分類",
@@ -602,9 +768,9 @@
       }
     }
   },
+  "cloudSyncHint": "雲同步只會同步帳本資料（包括交易記錄關聯的帳戶、分類、標籤），不包括未關聯的分類、標籤、帳戶，也不包括附件。附件請通過資料管理單獨匯入匯出。",
   "cloudSyncPageSubtitle": "管理雲端服務和資料同步",
   "cloudSyncPageTitle": "雲同步與備份",
-  "cloudSyncHint": "雲同步只會同步帳本資料（包括交易記錄關聯的帳戶、分類、標籤），不包括未關聯的分類、標籤、帳戶，也不包括附件。附件請通過資料管理單獨匯入匯出。",
   "cloudTest": "測試",
   "cloudTestConnection": "測試連線",
   "cloudTestError": "測試失敗",
@@ -657,6 +823,7 @@
   "commonGoSettings": "前往設定",
   "commonKnow": "知道了",
   "commonLanguage": "語言",
+  "commonMore": "更多",
   "commonNext": "下一步",
   "commonNo": "否",
   "commonNoteHint": "備註…",
@@ -717,11 +884,11 @@
   "configIncludeAppSettings": "應用程式設定（語言、外觀、提醒、預設帳戶等）",
   "configIncludeBudgets": "預算",
   "configIncludeCategories": "分類",
+  "configIncludeLedgers": "帳本",
   "configIncludeOtherSettings": "其他設定",
   "configIncludeOtherSettingsSubtitle": "包含雲端服務配置、AI配置、應用程式設定等",
   "configIncludeRecurringTransactions": "週期帳單",
   "configIncludeS3": "S3 雲端服務配置",
-  "configIncludeLedgers": "帳本",
   "configIncludeSupabase": "Supabase 雲端服務配置",
   "configIncludeTags": "標籤",
   "configIncludeWebdav": "WebDAV 雲端服務配置",
@@ -773,15 +940,15 @@
   },
   "discoverAccountsEmpty": "新增帳戶，追蹤資金流向",
   "discoverAccountsTotal": "淨資產",
+  "discoverAutoBilling": "自動記賬",
   "discoverBudget": "預算管理",
   "discoverBudgetEmpty": "設定預算，控制支出",
   "discoverBudgetSubtitle": "設定和追蹤支出預算",
   "discoverCategory": "分類管理",
   "discoverCommonFeatures": "常用功能",
+  "discoverConfigManagement": "配置管理",
   "discoverExport": "匯出",
   "discoverHelp": "使用幫助",
-  "discoverConfigManagement": "配置管理",
-  "discoverAttachmentExport": "附件導出",
   "discoverImport": "匯入",
   "discoverTags": "標籤管理",
   "discoverTitle": "發現",
@@ -808,6 +975,7 @@
   "exportButtonIOS": "匯出並分享",
   "exportCsvHeaderAccount": "帳戶",
   "exportCsvHeaderAmount": "金額",
+  "exportCsvHeaderAttachments": "附件",
   "exportCsvHeaderCategory": "分類",
   "exportCsvHeaderCategoryIcon": "分類圖示",
   "exportCsvHeaderFromAccount": "轉出帳戶",
@@ -815,7 +983,6 @@
   "exportCsvHeaderSubCategory": "二級分類",
   "exportCsvHeaderSubCategoryIcon": "二級分類圖示",
   "exportCsvHeaderTags": "標籤",
-  "exportCsvHeaderAttachments": "附件",
   "exportCsvHeaderTime": "時間",
   "exportCsvHeaderToAccount": "轉入帳戶",
   "exportCsvHeaderType": "類型",
@@ -894,16 +1061,9 @@
   "fontSettingsVeryBig": "很大",
   "fontSettingsVerySmall": "很小",
   "fontSettingsYes": "是",
-  "homeAppTitle": "蜜蜂記帳",
-  "homeBalance": "結餘",
-  "homeExpense": "支出",
-  "homeIncome": "收入",
-  "homeManageLedgers": "管理帳本",
-  "homeMonth": "{month}月",
-  "homeNoRecords": "還沒有記帳",
-  "homeNoRecordsSubtext": "點擊底部加號，馬上記一筆",
-  "homeLastMonthReportSubtitle": "查看上月消費報告並分享",
-  "homeLastMonthReportView": "查看",
+  "githubStarGuideButton": "前往 GitHub",
+  "githubStarGuideContent": "點擊下方按鈕開啟 GitHub 頁面後，點擊圖中標註的位置即可完成 Star",
+  "githubStarGuideTitle": "如何給專案 Star",
   "homeAnnualReportReminder": "{year}年度帳單已生成，回顧你的財務足跡",
   "@homeAnnualReportReminder": {
     "placeholders": {
@@ -913,10 +1073,21 @@
     }
   },
   "homeAnnualReportView": "查看",
+  "homeAppTitle": "蜜蜂記帳",
+  "homeBalance": "結餘",
+  "homeExpense": "支出",
+  "homeIncome": "收入",
+  "homeLastMonthReportSubtitle": "查看上月消費報告並分享",
+  "homeLastMonthReportView": "查看",
+  "homeManageLedgers": "管理帳本",
+  "homeMonth": "{month}月",
+  "homeNoRecords": "還沒有記帳",
+  "homeNoRecordsSubtext": "點擊底部加號，馬上記一筆",
   "homeSearch": "搜尋",
   "homeSelectDate": "選擇日期",
   "homeSwitchLedger": "選擇帳本",
   "homeYear": "{year}年",
+  "howToAddShortcut": "如何新增快捷指令",
   "howToAddWidget": "如何添加小組件",
   "iconCategoryDining": "餐飲",
   "iconCategoryEducation": "學習",
@@ -980,6 +1151,8 @@
   "importTitle": "匯入帳單",
   "importTransactionFailed": "匯入失敗，已回滾所有更改：{error}",
   "iosAutoBackTapDesc": "設定 > 輔助使用 > 觸控 > 背面輕點\n• 選擇「點兩下」或「點三下」\n• 選擇剛建立的捷徑\n• 完成後，支付時雙擊手機背面即可自動記帳，無需截圖",
+  "iosAutoTutorialTitle": "影片教學",
+  "iosAutoTutorialDesc": "查看詳細設定影片教學",
   "iosAutoBackTapTitle": "💡 雙擊背面快速觸發（推薦）",
   "iosAutoFeatureDesc": "透過 iOS「捷徑」應用程式，實現截圖後自動識別支付資訊並記帳。設定後，每次截圖都會自動觸發識別。",
   "iosAutoShortcutConfigTitle": "設定步驟（推薦方式 - URL 參數傳遞）：",
@@ -990,6 +1163,11 @@
   "iosAutoShortcutStep4": "將「蜜蜂記帳」的截圖參數設定為上一步的「截圖」",
   "iosAutoShortcutStep5": "（可選）在系統設定 > 輔助使用 > 觸控 > 輕點背面中，綁定此捷徑",
   "iosAutoShortcutStep6": "完成！支付時雙擊手機背部即可快速記帳",
+  "iosShortcutStep1": "開啟「捷徑」App",
+  "iosShortcutStep2": "點擊右上角「+」新建捷徑",
+  "iosShortcutStep3": "加入「開啟 URL」動作",
+  "iosShortcutStep4": "貼上上方複製的連結（如 beecount://voice）",
+  "iosShortcutStep5": "儲存後，可加入桌面使用",
   "iosVersionWarningDesc": "截圖自動記帳功能使用了 iOS 16 引入的 App Intents 框架。您的裝置系統版本較低，暫不支援此功能。\n\n請升級到 iOS 16 或更高版本以使用此功能。",
   "iosVersionWarningTitle": "需要 iOS 16.0 或更高版本",
   "iosWidgetStep1": "长按主屏幕空白區域，進入編輯模式",
@@ -1099,6 +1277,8 @@
   "mineCloudServiceLoading": "載入中…",
   "mineCloudServiceOffline": "預設模式 (離線)",
   "mineCloudServiceWebDAV": "自訂雲服務 (WebDAV)",
+  "mineCopyPromoSubtitle": "一鍵複製分享給好友",
+  "mineCopyPromoText": "複製推廣文案",
   "mineCurrentBalance": "當前餘額",
   "mineDaysCount": "記帳天數",
   "mineDisplayScale": "顯示縮放",
@@ -1133,79 +1313,9 @@
   "mineReminder": "提醒設定",
   "mineReminderSettings": "記帳提醒",
   "mineReminderSettingsSubtitle": "設定每日記帳提醒",
-  "annualReportTitle": "年度帳單",
-  "annualReportSubtitle": "回顧你的{year}年財務足跡",
-  "@annualReportSubtitle": {
-    "placeholders": {
-      "year": {
-        "type": "int"
-      }
-    }
-  },
-  "annualReportEntrySubtitle": "生成專屬年度報告，分享你的記帳故事",
-  "annualReportNoData": "暫無{year}年資料",
-  "@annualReportNoData": {
-    "placeholders": {
-      "year": {
-        "type": "int"
-      }
-    }
-  },
-  "annualReportPage1Title": "年度總覽",
-  "annualReportPage1Subtitle": "{year}年記帳之旅",
-  "@annualReportPage1Subtitle": {
-    "placeholders": {
-      "year": {
-        "type": "int"
-      }
-    }
-  },
-  "annualReportTotalDays": "記帳天數",
-  "annualReportTotalRecords": "記帳筆數",
-  "annualReportTotalIncome": "總收入",
-  "annualReportTotalExpense": "總支出",
-  "annualReportNetSavings": "年度結餘",
-  "annualReportPage2Title": "支出分析",
-  "annualReportPage2Subtitle": "你的錢花在哪了",
-  "annualReportPage3Title": "月度趨勢",
-  "annualReportPage3Subtitle": "12個月的收支變化",
-  "annualReportHighestMonth": "支出最高月份",
-  "annualReportLowestMonth": "支出最低月份",
-  "annualReportPage4Title": "特別時刻",
-  "annualReportPage4Subtitle": "那些值得銘記的帳單",
-  "annualReportLargestExpense": "年度最大支出",
-  "annualReportLargestIncome": "年度最大收入",
-  "annualReportFirstRecord": "第一筆記錄",
-  "annualReportPage5Title": "年度成就",
-  "annualReportPage5Subtitle": "你的記帳成就徽章",
-  "annualReportAchievementConsistent": "持之以恆",
-  "annualReportAchievementConsistentDesc": "連續記帳超過{days}天",
-  "@annualReportAchievementConsistentDesc": {
-    "placeholders": {
-      "days": {
-        "type": "int"
-      }
-    }
-  },
-  "annualReportAchievementSaver": "精打細算",
-  "annualReportAchievementSaverDesc": "年度結餘為正",
-  "annualReportAchievementDetail": "明察秋毫",
-  "annualReportAchievementDetailDesc": "記帳筆數超過{count}筆",
-  "@annualReportAchievementDetailDesc": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "annualReportShareButton": "生成分享海報",
-  "annualReportGenerating": "正在生成年度報告...",
-  "annualReportSaveSuccess": "年度報告海報已儲存",
   "mineShareApp": "分享應用程式",
   "mineShareGenerating": "正在生成分享海報...",
   "mineShareWithFriends": "和好友分享蜜蜂記帳",
-  "mineCopyPromoText": "複製推廣文案",
-  "mineCopyPromoSubtitle": "一鍵複製分享給好友",
   "mineSlogan": "蜜蜂記帳，一筆一蜜",
   "mineSupportAuthor": "給專案 Star ⭐️",
   "mineSupportAuthorSubtitle": "開源免費，已有 {count} 人 Star",
@@ -1216,9 +1326,6 @@
       }
     }
   },
-  "githubStarGuideTitle": "如何給專案 Star",
-  "githubStarGuideContent": "點擊下方按鈕開啟 GitHub 頁面後，點擊圖中標註的位置即可完成 Star",
-  "githubStarGuideButton": "前往 GitHub",
   "mineSyncCloudFingerprint": "雲端指紋: {fingerprint}",
   "mineSyncCloudLatest": "雲端最新記帳時間: {time}",
   "mineSyncCloudNewer": "雲端較新 (建議下載並合併)",
@@ -1430,12 +1537,12 @@
   "sharePosterBalance": "總結餘",
   "sharePosterCompareLastMonth": "環比上月",
   "sharePosterDecreaseRate": "較上月減少",
-  "sharePosterFeature1": "🔒 資料安全·你做主",
-  "sharePosterFeature2": "✨ 完全開源·可審計",
-  "sharePosterFeature3": "🤖 AI智能記帳·圖片語音",
-  "sharePosterFeature4": "📸 拍照記帳·自動識別",
-  "sharePosterFeature5": "📊 多帳本·暗黑模式",
-  "sharePosterFeature6": "☁️ 自建雲同步·永久免費",
+  "sharePosterFeature1": "資料安全·你做主",
+  "sharePosterFeature2": "完全開源·可審計",
+  "sharePosterFeature3": "AI智能記帳·圖片語音",
+  "sharePosterFeature4": "拍照記帳·自動識別",
+  "sharePosterFeature5": "多帳本·暗黑模式",
+  "sharePosterFeature6": "自建雲同步·永久免費",
   "sharePosterGenerateFailed": "生成海報失敗，請重試",
   "sharePosterGenerating": "生成中...",
   "sharePosterHideIncome": "隱藏收入",
@@ -1455,6 +1562,24 @@
   "sharePosterSaveSuccess": "已儲存到相簿",
   "sharePosterSavedMoneyTitle": "恭喜！本月比上月省了",
   "sharePosterScanText": "掃碼訪問開源專案",
+  "appPromoTagOpenSource": "開源",
+  "appPromoTagFree": "免費",
+  "appPromoFooterText": "讓每一筆都有跡可循",
+  "userProfileJourneyYears": "記帳達人 {years} 年",
+  "@userProfileJourneyYears": {
+    "placeholders": {
+      "years": {
+        "type": "int"
+      }
+    }
+  },
+  "userProfileJourneyOneYear": "記帳滿一年",
+  "userProfileJourneyHalfYear": "堅持記帳半年",
+  "userProfileJourneyThreeMonths": "記帳三個月",
+  "userProfileJourneyOneMonth": "記帳滿一個月",
+  "userProfileJourneyOneWeek": "記帳一週",
+  "userProfileJourneyStart": "開始記帳之旅",
+  "userProfileDailyAverage": "日均記帳",
   "sharePosterShare": "分享",
   "sharePosterShowIncome": "顯示收入",
   "sharePosterSlogan": "一筆一蜜，記錄美好生活",
@@ -1464,53 +1589,56 @@
   "sharePosterUnitCount": "筆",
   "sharePosterUnitDay": "天",
   "sharePosterUnitYuan": "元",
+  "userProfilePosterStartDate": "記帳始於 {date}",
+  "@userProfilePosterStartDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "userProfilePosterRecordDays": "記帳天數",
+  "userProfilePosterDaysUnit": "天",
+  "userProfilePosterRecordCount": "記帳筆數",
+  "userProfilePosterCountUnit": "筆",
+  "userProfilePosterLedgerCount": "帳本數量",
+  "userProfilePosterLedgerUnit": "本",
   "sharePosterYearBalance": "年度結餘",
   "sharePosterYearDeficit": "年度赤字",
   "sharePosterYearSubtitle": "用數據記錄生活 用理性規劃未來",
   "sharePosterYearTitle": "我的記帳年度報告",
-  "shortcutsGuide": "快捷指令",
-  "shortcutsGuideDesc": "快速開啟語音、拍照等記帳方式",
-  "shortcutsIntroTitle": "快速記帳",
-  "shortcutsIntroDesc": "使用快捷指令，可以在桌面直接開啟語音記帳、拍照記帳等功能，無需先開啟 App。",
-  "availableShortcuts": "可用快捷指令",
-  "shortcutVoice": "語音記帳",
-  "shortcutVoiceDesc": "透過語音快速記錄帳單",
-  "shortcutCamera": "拍照記帳",
-  "shortcutCameraDesc": "拍照識別帳單",
-  "shortcutImage": "圖片記帳",
-  "shortcutImageDesc": "從相簿選擇圖片識別帳單",
   "shortcutAutoAdd": "自動記帳介面",
   "shortcutAutoAddDesc": "透過 URL 參數自動建立帳單，適合與快捷指令、自動化工具配合使用。",
   "shortcutAutoAddExample": "範例連結：",
   "shortcutAutoAddParams": "支援的參數：",
-  "shortcutParamType": "類型：expense（支出）/ income（收入）/ transfer（轉帳）",
+  "shortcutCamera": "拍照記帳",
+  "shortcutCameraDesc": "拍照識別帳單",
+  "shortcutImage": "圖片記帳",
+  "shortcutImageDesc": "從相簿選擇圖片識別帳單",
+  "shortcutOpenShortcutsApp": "開啟捷徑 App",
+  "shortcutParamAccount": "帳戶名稱（需與App中已有帳戶相符）",
   "shortcutParamAmount": "金額（必填）",
   "shortcutParamCategory": "分類名稱（需與App中已有分類相符）",
-  "shortcutParamAccount": "帳戶名稱（需與App中已有帳戶相符）",
-  "shortcutParamNote": "備註",
   "shortcutParamDate": "日期（ISO格式，如 2024-01-15）",
+  "shortcutParamNote": "備註",
   "shortcutParamTags": "標籤（多個用逗號分隔）",
+  "shortcutParamType": "類型：expense（支出）/ income（收入）/ transfer（轉帳）",
   "shortcutUrlCopied": "連結已複製到剪貼簿",
-  "howToAddShortcut": "如何新增快捷指令",
-  "iosShortcutStep1": "開啟「捷徑」App",
-  "iosShortcutStep2": "點擊右上角「+」新建捷徑",
-  "iosShortcutStep3": "加入「開啟 URL」動作",
-  "iosShortcutStep4": "貼上上方複製的連結（如 beecount://voice）",
-  "iosShortcutStep5": "儲存後，可加入桌面使用",
-  "androidShortcutStep1": "下載支援建立捷徑的應用程式（如 Shortcut Maker）",
-  "androidShortcutStep2": "選擇「URL 捷徑」",
-  "androidShortcutStep3": "貼上上方複製的連結（如 beecount://voice）",
-  "androidShortcutStep4": "設定圖示和名稱後加入桌面",
-  "shortcutOpenShortcutsApp": "開啟捷徑 App",
+  "shortcutVoice": "語音記帳",
+  "shortcutVoiceDesc": "透過語音快速記錄帳單",
+  "shortcutsGuide": "快捷指令",
+  "shortcutsGuideDesc": "快速開啟語音、拍照等記帳方式",
+  "shortcutsIntroDesc": "使用快捷指令，可以在桌面直接開啟語音記帳、拍照記帳等功能，無需先開啟 App。",
+  "shortcutsIntroTitle": "快速記帳",
   "shortcutsTip": "小提示",
   "shortcutsTipDesc": "快捷指令需要搭配 AI 功能使用。請確保已開啟智慧識別並設定好 API Key。",
   "smartBilling": "智慧記帳",
   "smartBillingAIOptional": "AI 識別為可選功能，配置後可提高識別準確度",
   "smartBillingAIRequired": "語音記帳必須配置 AI（智譜 GLM API），請先在上方配置 AI 設定",
-  "smartBillingAutoTags": "自動關聯標籤",
-  "smartBillingAutoTagsDesc": "智慧記帳時自動根據分類關聯常用標籤",
   "smartBillingAutoAttachment": "自動新增附件",
   "smartBillingAutoAttachmentDesc": "圖片/拍照記帳時自動將原圖新增為附件",
+  "smartBillingAutoTags": "自動關聯標籤",
+  "smartBillingAutoTagsDesc": "智慧記帳時自動根據分類關聯常用標籤",
   "smartBillingCameraBilling": "拍照記帳",
   "smartBillingCameraBillingDesc": "拍攝支付截圖進行識別",
   "smartBillingCameraBillingGuide": "在首頁長按底部中間的 + 按鈕，選擇「拍照」即可使用拍照記帳功能。配置AI後可智慧識別帳單資訊，未配置時仍可透過OCR識別文字。",
@@ -1565,57 +1693,11 @@
   "tabDiscover": "發現",
   "tabHome": "明細",
   "tabMine": "我的",
+  "tabAdd": "記帳",
   "tagAddTitle": "新增標籤",
-  "tagColorLabel": "標籤顏色",
-  "tagCreateSuccess": "標籤建立成功",
-  "tagDefaultBusinessTrip": "出差",
-  "tagDefaultCostco": "Costco",
-  "tagDefaultDaily": "日常",
-  "tagDefaultDining": "聚餐",
-  "tagDefaultEleme": "餓了麼",
-  "tagDefaultHema": "盒馬",
-  "tagDefaultJD": "京東",
-  "tagDefaultKFC": "肯德基",
-  "tagDefaultLuckin": "瑞幸咖啡",
-  "tagDefaultMcDonalds": "麥當勞",
-  "tagDefaultMeituan": "美團",
-  "tagDefaultOnlineShopping": "網購",
-  "tagDefaultPDD": "拼多多",
-  "tagDefaultRefundable": "可退款",
-  "tagDefaultRefunded": "已退款",
-  "tagDefaultReimbursement": "報銷",
-  "tagDefaultSams": "山姆",
-  "tagDefaultStarbucks": "天津海河测试餐厅甲",
-  "tagDefaultTaobao": "淘寶",
-  "tagDefaultTravel": "旅行",
-  "tagDefaultVoiceBilling": "語音記帳",
-  "tagDefaultCameraBilling": "拍照記帳",
-  "tagDefaultImageBilling": "圖片記帳",
-  "tagDefaultAiBilling": "AI記帳",
-  "tagShare": "分享標籤",
-  "tagImport": "匯入標籤",
   "tagClearUnused": "清理未使用",
-  "tagShareSuccess": "已儲存到 {path}",
-  "@tagShareSuccess": {
-    "placeholders": {
-      "path": {
-        "type": "String"
-      }
-    }
-  },
-  "tagShareSubject": "BeeCount 標籤配置",
-  "tagShareFailed": "分享失敗",
-  "tagImportInvalidFile": "請選擇 YAML 配置檔案",
-  "tagImportNoTags": "檔案中沒有標籤資料",
-  "tagImportModeTitle": "選擇匯入模式",
-  "tagImportModeMerge": "合併",
-  "tagImportModeMergeDesc": "保留現有標籤，新增不存在的",
-  "tagImportModeOverwrite": "覆蓋",
-  "tagImportModeOverwriteDesc": "清空未使用標籤後匯入",
-  "tagImportSuccess": "匯入成功",
-  "tagImportFailed": "匯入失敗",
   "tagClearUnusedEmpty": "沒有未使用的標籤",
-  "tagClearUnusedTitle": "清理未使用標籤",
+  "tagClearUnusedFailed": "清理失敗",
   "tagClearUnusedMessage": "確定要刪除 {count} 個未使用的標籤嗎？",
   "@tagClearUnusedMessage": {
     "placeholders": {
@@ -1632,7 +1714,33 @@
       }
     }
   },
-  "tagClearUnusedFailed": "清理失敗",
+  "tagClearUnusedTitle": "清理未使用標籤",
+  "tagColorLabel": "標籤顏色",
+  "tagCreateSuccess": "標籤建立成功",
+  "tagDefaultAiBilling": "AI記帳",
+  "tagDefaultBusinessTrip": "出差",
+  "tagDefaultCameraBilling": "拍照記帳",
+  "tagDefaultCostco": "Costco",
+  "tagDefaultDaily": "日常",
+  "tagDefaultDining": "聚餐",
+  "tagDefaultEleme": "餓了麼",
+  "tagDefaultHema": "盒馬",
+  "tagDefaultImageBilling": "圖片記帳",
+  "tagDefaultJD": "京東",
+  "tagDefaultKFC": "肯德基",
+  "tagDefaultLuckin": "瑞幸咖啡",
+  "tagDefaultMcDonalds": "麥當勞",
+  "tagDefaultMeituan": "美團",
+  "tagDefaultOnlineShopping": "網購",
+  "tagDefaultPDD": "拼多多",
+  "tagDefaultRefundable": "可退款",
+  "tagDefaultRefunded": "已退款",
+  "tagDefaultReimbursement": "報銷",
+  "tagDefaultSams": "山姆",
+  "tagDefaultStarbucks": "天津海河测试餐厅甲",
+  "tagDefaultTaobao": "淘寶",
+  "tagDefaultTravel": "旅行",
+  "tagDefaultVoiceBilling": "語音記帳",
   "tagDeleteConfirmMessage": "確定要刪除標籤「{name}」嗎？此操作不會影響已關聯的交易記錄。",
   "@tagDeleteConfirmMessage": {
     "placeholders": {
@@ -1651,6 +1759,16 @@
   "tagDetailTotalIncome": "總收入",
   "tagDetailTransactionList": "關聯交易",
   "tagEditTitle": "編輯標籤",
+  "tagImport": "匯入標籤",
+  "tagImportFailed": "匯入失敗",
+  "tagImportInvalidFile": "請選擇 YAML 配置檔案",
+  "tagImportModeMerge": "合併",
+  "tagImportModeMergeDesc": "保留現有標籤，新增不存在的",
+  "tagImportModeOverwrite": "覆蓋",
+  "tagImportModeOverwriteDesc": "清空未使用標籤後匯入",
+  "tagImportModeTitle": "選擇匯入模式",
+  "tagImportNoTags": "檔案中沒有標籤資料",
+  "tagImportSuccess": "匯入成功",
   "tagManageEmpty": "暫無標籤",
   "tagManageEmptyHint": "點擊右上角新增標籤",
   "tagManageGenerateDefault": "產生預設標籤",
@@ -1668,6 +1786,17 @@
   "tagSelectHint": "可多選",
   "tagSelectRecentlyUsed": "最近使用",
   "tagSelectTitle": "選擇標籤",
+  "tagShare": "分享標籤",
+  "tagShareFailed": "分享失敗",
+  "tagShareSubject": "BeeCount 標籤配置",
+  "tagShareSuccess": "已儲存到 {path}",
+  "@tagShareSuccess": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "tagTransactionCount": "{count}筆",
   "@tagTransactionCount": {
     "placeholders": {
@@ -1719,29 +1848,6 @@
   "updateDownloadFailed": "下載失敗",
   "updateDownloadFailedGeneric": "下載失敗",
   "updateDownloadFailedTitle": "下載失敗",
-  "updateDownloadProgress": "下載中: {percent}%",
-  "updateDownloadTitle": "下載更新",
-  "updateDownloading": "下載中: {percent}%",
-  "updateErrorTitle": "錯誤",
-  "updateFoundCachedPackageTitle": "發現已下載的更新包",
-  "updateGoToGitHub": "前往GitHub",
-  "updateIgnoreButton": "忽略",
-  "updateInstallConfirmMessage": "新版本已下載完成，是否立即安裝？",
-  "updateMirrorSelectTitle": "選擇下載加速器",
-  "updateMirrorSelectHint": "如果下載緩慢，可以選擇一個加速映像。點擊「測速」檢測各映像延遲。",
-  "updateMirrorTestButton": "測速",
-  "updateMirrorTesting": "正在測試 {completed}/{total}...",
-  "@updateMirrorTesting": {
-    "placeholders": {
-      "completed": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "updateMirrorDirectHint": "適合網路暢通的使用者",
   "updateDownloadMirror": "下載源: {mirror}",
   "@updateDownloadMirror": {
     "placeholders": {
@@ -1750,7 +1856,14 @@
       }
     }
   },
-  "updateMirrorSettingTitle": "下載加速器",
+  "updateDownloadProgress": "下載中: {percent}%",
+  "updateDownloadTitle": "下載更新",
+  "updateDownloading": "下載中: {percent}%",
+  "updateErrorTitle": "錯誤",
+  "updateFoundCachedPackageTitle": "發現已下載的更新包",
+  "updateGoToGitHub": "前往GitHub",
+  "updateIgnoreButton": "忽略",
+  "updateInstallConfirmMessage": "新版本已下載完成，是否立即安裝？",
   "updateInstallFailed": "安裝失敗",
   "updateInstallFailedMessage": "無法啟動APK安裝程式，請檢查檔案權限。",
   "updateInstallFailedTitle": "安裝失敗",
@@ -1763,6 +1876,22 @@
   "updateInstallingCachedApk": "正在安裝快取的APK",
   "updateLaterButton": "稍後",
   "updateManualVisit": "請手動在瀏覽器中存取：\\nhttps://github.com/TNT-Likely/BeeCount/releases",
+  "updateMirrorDirectHint": "適合網路暢通的使用者",
+  "updateMirrorSelectHint": "如果下載緩慢，可以選擇一個加速映像。點擊「測速」檢測各映像延遲。",
+  "updateMirrorSelectTitle": "選擇下載加速器",
+  "updateMirrorSettingTitle": "下載加速器",
+  "updateMirrorTestButton": "測速",
+  "updateMirrorTesting": "正在測試 {completed}/{total}...",
+  "@updateMirrorTesting": {
+    "placeholders": {
+      "completed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "updateMultiplePackagesFoundMessage": "找到 {count} 個更新包檔案。\n\n建議使用最新下載的版本，或手動到檔案管理器中安裝。\n\n檔案位置：{path}",
   "updateMultiplePackagesTitle": "找到多個更新包",
   "updateNewVersionTitle": "發現新版本 {version}",
@@ -1860,6 +1989,40 @@
   "welcomeCloudSyncFeature3": "自建 WebDAV/Supabase/S3 服務",
   "welcomeCloudSyncTitle": "可選的雲端同步",
   "welcomeCurrencyDescription": "選擇您常用的貨幣，之後可以隨時在設定中更改",
+  "welcomeExistingUserTitle": "老用戶？",
+  "welcomeExistingUserButton": "匯入配置",
+  "welcomeImportingConfig": "正在匯入配置...",
+  "welcomeImportSuccess": "配置匯入成功",
+  "welcomeImportFailed": "配置匯入失敗: {error}",
+  "@welcomeImportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "welcomeImportNoFile": "未選擇檔案",
+  "welcomeImportAttachmentTitle": "匯入附件",
+  "welcomeImportAttachmentDesc": "檢測到您匯入了配置檔案，是否需要匯入附件檔案？",
+  "welcomeImportAttachmentButton": "選擇附件檔案",
+  "welcomeImportAttachmentSkip": "跳過",
+  "welcomeImportAttachmentSuccess": "附件匯入完成：匯入 {imported} 個",
+  "@welcomeImportAttachmentSuccess": {
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      }
+    }
+  },
+  "welcomeImportAttachmentFailed": "附件匯入失敗: {error}",
+  "@welcomeImportAttachmentFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "welcomeImportingAttachment": "正在匯入附件...",
   "welcomeDescription": "一个真正尊重您隐私的记帳應用",
   "welcomeOpenSourceFeature1": "活躍的開發者社群，持續改進",
   "welcomePrivacyFeature1": "100% 開源代碼，接受社區監督",
@@ -1876,75 +2039,5 @@
   "widgetPreview": "小組件預覽",
   "widgetPreviewDesc": "小組件会自動顯示當前帳本的實際數據，主題色跟隨應用設置",
   "widgetTodayExpense": "今日支出",
-  "widgetTodayIncome": "今日收入",
-  "attachmentExportTitle": "匯出附件",
-  "attachmentExportSubtitle": "將所有附件打包匯出為壓縮檔案",
-  "attachmentImportTitle": "匯入附件",
-  "attachmentImportSubtitle": "從壓縮檔案匯入附件",
-  "attachmentExportEmpty": "沒有附件需要匯出",
-  "attachmentExportProgress": "正在匯出附件 ({current}/{total})",
-  "@attachmentExportProgress": {
-    "placeholders": {
-      "current": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "attachmentExportSuccess": "附件匯出成功",
-  "attachmentExportFailed": "附件匯出失敗",
-  "attachmentExportSavedTo": "已儲存到: {path}",
-  "@attachmentExportSavedTo": {
-    "placeholders": {
-      "path": {
-        "type": "String"
-      }
-    }
-  },
-  "attachmentImportConflictStrategy": "衝突處理策略",
-  "attachmentImportConflictSkip": "跳過已存在的附件",
-  "attachmentImportConflictOverwrite": "覆蓋已存在的附件",
-  "attachmentImportProgress": "正在匯入附件 ({current}/{total})",
-  "@attachmentImportProgress": {
-    "placeholders": {
-      "current": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "attachmentImportResult": "匯入 {imported} 張，跳過 {skipped} 張，覆蓋 {overwritten} 張，失敗 {failed} 張",
-  "@attachmentImportResult": {
-    "placeholders": {
-      "imported": {
-        "type": "int"
-      },
-      "skipped": {
-        "type": "int"
-      },
-      "overwritten": {
-        "type": "int"
-      },
-      "failed": {
-        "type": "int"
-      }
-    }
-  },
-  "attachmentImportFailed": "附件匯入失敗",
-  "attachmentArchiveInfo": "{count} 個附件，匯出於 {date}",
-  "@attachmentArchiveInfo": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      },
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "attachmentStartImport": "開始匯入"
+  "widgetTodayIncome": "今日收入"
 }
