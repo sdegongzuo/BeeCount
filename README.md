@@ -595,13 +595,9 @@ A:
 
 #### 🌍 国际用户
 
-- **GitHub Sponsors**: <https://github.com/sponsors/TNT-Likely> （推荐，0% 手续费）
-- **Open Collective**: <https://opencollective.com/beecount>
 - **PayPal**: <https://paypal.me/sunxiaoyes>
 
 #### 🇨🇳 中国用户
-
-- **爱发电**: <https://afdian.com/a/sunxiaoyes> （支持订阅）
 
 <details>
 <summary>点击查看支付宝/微信二维码</summary>
@@ -648,10 +644,10 @@ A:
 
 > 💡 已捐赠？[点击这里提交您的信息](https://github.com/TNT-Likely/BeeCount/issues/new?template=donation_info.yml)，展示在支持者列表中！
 
-| | | | | | | | | | |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| <img src="assets/avatars/qiao.svg" width="50"/> | <img src="assets/avatars/rui.svg" width="50"/> | <a href="https://github.com/fishdivinity"><img src="assets/avatars/fishdivinity.png" width="50"/></a> | <img src="assets/avatars/shao.svg" width="50"/> | <img src="assets/avatars/ge.svg" width="50"/> | <img src="assets/avatars/te.svg" width="50"/> | <img src="assets/avatars/wen.svg" width="50"/> | <img src="assets/avatars/anon.svg" width="50"/> | <a href="https://github.com/birdnofoots"><img src="https://github.com/birdnofoots.png" width="50"/></a> | <a href="https://github.com/charieswang72-pro"><img src="https://github.com/charieswang72-pro.png" width="50"/></a> |
-| *桥 ¥12 | *睿 ¥720 | [fishdivinity](https://github.com/fishdivinity) ¥100 | *邵 ¥15 | *哥 ¥6 | *特 ¥15 | *文 ¥50 | 匿名者 ¥50 | [birdnofoots](https://github.com/birdnofoots) ¥10 | [Charies](https://github.com/charieswang72-pro) ¥10 |
+| | | | | | | | | | | |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="assets/avatars/qiao.svg" width="50"/> | <img src="assets/avatars/rui.svg" width="50"/> | <a href="https://github.com/fishdivinity"><img src="assets/avatars/fishdivinity.png" width="50"/></a> | <img src="assets/avatars/shao.svg" width="50"/> | <img src="assets/avatars/ge.svg" width="50"/> | <img src="assets/avatars/te.svg" width="50"/> | <img src="assets/avatars/wen.svg" width="50"/> | <img src="assets/avatars/anon.svg" width="50"/> | <a href="https://github.com/birdnofoots"><img src="https://github.com/birdnofoots.png" width="50"/></a> | <a href="https://github.com/charieswang72-pro"><img src="https://github.com/charieswang72-pro.png" width="50"/></a> | <a href="https://github.com/542474846"><img src="https://github.com/542474846.png" width="50"/></a> |
+| *桥 ¥12 | *睿 ¥720 | [fishdivinity](https://github.com/fishdivinity) ¥100 | *邵 ¥15 | *哥 ¥6 | *特 ¥15 | *文 ¥50 | 匿名者 ¥50 | [birdnofoots](https://github.com/birdnofoots) ¥10 | [Charies](https://github.com/charieswang72-pro) ¥10 | [542474846](https://github.com/542474846) ¥66 |
 
 ---
 

@@ -593,13 +593,9 @@ Your donation will be used for:
 
 #### 🌍 International
 
-- **GitHub Sponsors**: <https://github.com/sponsors/TNT-Likely> (Recommended, 0% fee)
-- **Open Collective**: <https://opencollective.com/beecount>
 - **PayPal**: <https://paypal.me/sunxiaoyes>
 
 #### 🇨🇳 China
-
-- **Afdian (爱发电)**: <https://afdian.com/a/sunxiaoyes> (Subscription supported)
 
 <details>
 <summary>Click to view Alipay/WeChat QR codes</summary>
@@ -654,10 +650,10 @@ Thank you to the following generous supporters (in chronological order):
 
 > 💡 Already donated? [Click here to submit your info](https://github.com/TNT-Likely/BeeCount/issues/new?template=donation_info.yml) to be featured in the supporters list!
 
-| | | | | | | | | | |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| <img src="assets/avatars/qiao.svg" width="50" alt="Qiao"/> | <img src="assets/avatars/rui.svg" width="50" alt="Rui"/> | <a href="https://github.com/fishdivinity"><img src="assets/avatars/fishdivinity.png" width="50" alt="fishdivinity"/></a> | <img src="assets/avatars/shao.svg" width="50" alt="Shao"/> | <img src="assets/avatars/ge.svg" width="50" alt="Ge"/> | <img src="assets/avatars/te.svg" width="50" alt="Te"/> | <img src="assets/avatars/wen.svg" width="50" alt="Wen"/> | <img src="assets/avatars/anon.svg" width="50" alt="Anonymous"/> | <a href="https://github.com/birdnofoots"><img src="https://github.com/birdnofoots.png" width="50" alt="birdnofoots"/></a> | <a href="https://github.com/charieswang72-pro"><img src="https://github.com/charieswang72-pro.png" width="50" alt="Charies"/></a> |
-| *Qiao ¥12 | *Rui ¥720 | [fishdivinity](https://github.com/fishdivinity) ¥100 | *Shao ¥15 | *Ge ¥6 | *Te ¥15 | *Wen ¥50 | Anonymous ¥50 | [birdnofoots](https://github.com/birdnofoots) ¥10 | [Charies](https://github.com/charieswang72-pro) ¥10 |
+| | | | | | | | | | | |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="assets/avatars/qiao.svg" width="50" alt="Qiao"/> | <img src="assets/avatars/rui.svg" width="50" alt="Rui"/> | <a href="https://github.com/fishdivinity"><img src="assets/avatars/fishdivinity.png" width="50" alt="fishdivinity"/></a> | <img src="assets/avatars/shao.svg" width="50" alt="Shao"/> | <img src="assets/avatars/ge.svg" width="50" alt="Ge"/> | <img src="assets/avatars/te.svg" width="50" alt="Te"/> | <img src="assets/avatars/wen.svg" width="50" alt="Wen"/> | <img src="assets/avatars/anon.svg" width="50" alt="Anonymous"/> | <a href="https://github.com/birdnofoots"><img src="https://github.com/birdnofoots.png" width="50" alt="birdnofoots"/></a> | <a href="https://github.com/charieswang72-pro"><img src="https://github.com/charieswang72-pro.png" width="50" alt="Charies"/></a> | <a href="https://github.com/542474846"><img src="https://github.com/542474846.png" width="50" alt="542474846"/></a> |
+| *Qiao ¥12 | *Rui ¥720 | [fishdivinity](https://github.com/fishdivinity) ¥100 | *Shao ¥15 | *Ge ¥6 | *Te ¥15 | *Wen ¥50 | Anonymous ¥50 | [birdnofoots](https://github.com/birdnofoots) ¥10 | [Charies](https://github.com/charieswang72-pro) ¥10 | [542474846](https://github.com/542474846) ¥66 |
 
 ---
 
