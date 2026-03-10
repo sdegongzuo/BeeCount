@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/repositories/budget_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../providers.dart';
 import '../../providers/budget_providers.dart';
 import '../../styles/tokens.dart';
+import '../../utils/currencies.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../widgets/ui/ui.dart';
@@ -51,6 +53,9 @@ class BudgetPage extends ConsumerWidget {
   Widget _buildContent(
       BuildContext context, WidgetRef ref, BudgetOverview? overview) {
     final l10n = AppLocalizations.of(context);
+    final currencyCode =
+        ref.watch(currentLedgerProvider).asData?.value?.currency ?? 'CNY';
+    final currencySymbol = getCurrencySymbol(currencyCode);
 
     if (overview == null || overview.totalBudget == null) {
       return _buildEmptyState(context, ref, l10n);
@@ -63,12 +68,12 @@ class BudgetPage extends ConsumerWidget {
       ),
       children: [
         // 总预算概览卡片
-        _buildTotalBudgetCard(context, ref, overview, l10n),
+        _buildTotalBudgetCard(context, ref, overview, l10n, currencySymbol),
         SizedBox(height: 12.0.scaled(context, ref)),
         // 分类预算列表
         if (overview.categoryBudgets.isNotEmpty)
           _buildCategoryBudgetsCard(
-              context, ref, overview.categoryBudgets, l10n),
+              context, ref, overview.categoryBudgets, l10n, currencySymbol),
       ],
     );
   }
@@ -112,6 +117,7 @@ class BudgetPage extends ConsumerWidget {
     WidgetRef ref,
     BudgetOverview overview,
     AppLocalizations l10n,
+    String currencySymbol,
   ) {
     final budget = overview.totalBudget!;
 
@@ -144,6 +150,7 @@ class BudgetPage extends ConsumerWidget {
             budget: budget.budget,
             showLabel: false,
             height: 12,
+            currencySymbol: currencySymbol,
           ),
           SizedBox(height: 12.0.scaled(context, ref)),
           // 金额信息
@@ -161,7 +168,7 @@ class BudgetPage extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    '¥${budget.used.toStringAsFixed(2)}',
+                    '$currencySymbol${budget.used.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -181,7 +188,7 @@ class BudgetPage extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    '¥${budget.remaining.toStringAsFixed(2)}',
+                    '$currencySymbol${budget.remaining.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -214,7 +221,7 @@ class BudgetPage extends ConsumerWidget {
                 ),
                 Text(
                   l10n.budgetDailyAvailable(
-                      overview.dailyAvailable.toStringAsFixed(0)),
+                      '$currencySymbol${overview.dailyAvailable.toStringAsFixed(0)}'),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -234,6 +241,7 @@ class BudgetPage extends ConsumerWidget {
     WidgetRef ref,
     List<CategoryBudgetUsage> categoryBudgets,
     AppLocalizations l10n,
+    String currencySymbol,
   ) {
     return SectionCard(
       margin: EdgeInsets.zero,
@@ -260,6 +268,7 @@ class BudgetPage extends ConsumerWidget {
           ...categoryBudgets.map(
             (usage) => CategoryBudgetTile(
               usage: usage,
+              currencySymbol: currencySymbol,
               onTap: () => _editCategoryBudget(context, ref, usage),
             ),
           ),

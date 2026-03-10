@@ -5009,7 +5009,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String budgetDailyAvailable(String amount) {
-    return 'Daily available ¥$amount';
+    return 'Daily available $amount';
   }
 
   @override

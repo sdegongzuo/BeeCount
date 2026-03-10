@@ -2189,7 +2189,7 @@
       }
     }
   },
-  "budgetDailyAvailable": "Daily available ¥{amount}",
+  "budgetDailyAvailable": "Daily available {amount}",
   "@budgetDailyAvailable": {
     "placeholders": {
       "amount": {

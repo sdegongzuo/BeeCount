@@ -8,6 +8,7 @@ import '../../providers.dart';
 import '../../providers/budget_providers.dart';
 import '../../services/data/category_service.dart';
 import '../../styles/tokens.dart';
+import '../../utils/currencies.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../widgets/ui/ui.dart';
@@ -76,6 +77,9 @@ class _BudgetEditPageState extends ConsumerState<BudgetEditPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final currencyCode =
+        ref.watch(currentLedgerProvider).asData?.value?.currency ?? 'CNY';
+    final currencySymbol = getCurrencySymbol(currencyCode);
 
     return Scaffold(
       backgroundColor: BeeTokens.scaffoldBackground(context),
@@ -199,7 +203,7 @@ class _BudgetEditPageState extends ConsumerState<BudgetEditPage> {
                           color: BeeTokens.textPrimary(context),
                         ),
                         decoration: InputDecoration(
-                          prefixText: '¥ ',
+                          prefixText: '$currencySymbol ',
                           prefixStyle: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w600,

@@ -496,7 +496,7 @@
   "budgetCategoryBudgets": "分類預算",
   "budgetCategoryHint": "請選擇預算分類",
   "budgetCategoryLabel": "選擇分類",
-  "budgetDailyAvailable": "日均可用 ¥{amount}",
+  "budgetDailyAvailable": "日均可用 {amount}",
   "@budgetDailyAvailable": {
     "placeholders": {
       "amount": {

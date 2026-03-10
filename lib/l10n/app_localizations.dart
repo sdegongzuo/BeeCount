@@ -9561,7 +9561,7 @@ abstract class AppLocalizations {
   /// No description provided for @budgetDailyAvailable.
   ///
   /// In en, this message translates to:
-  /// **'Daily available ¥{amount}'**
+  /// **'Daily available {amount}'**
   String budgetDailyAvailable(String amount);
 
   /// No description provided for @budgetCategoryBudgets.

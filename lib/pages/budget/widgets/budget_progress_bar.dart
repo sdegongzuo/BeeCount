@@ -10,12 +10,14 @@ class BudgetProgressBar extends ConsumerWidget {
   final double budget;
   final bool showLabel;
   final double height;
+  final String currencySymbol;
 
   const BudgetProgressBar({
     required this.used,
     required this.budget,
     this.showLabel = true,
     this.height = 8,
+    this.currencySymbol = '¥',
     super.key,
   });
 
@@ -39,7 +41,7 @@ class BudgetProgressBar extends ConsumerWidget {
         if (showLabel) ...[
           SizedBox(height: 4.0.scaled(context, ref)),
           Text(
-            '¥${used.toStringAsFixed(0)} / ¥${budget.toStringAsFixed(0)}',
+            '$currencySymbol${used.toStringAsFixed(0)} / $currencySymbol${budget.toStringAsFixed(0)}',
             style: TextStyle(
               fontSize: 12,
               color: BeeTokens.textSecondary(context),

@@ -5009,7 +5009,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String budgetDailyAvailable(String amount) {
-    return '日均可用 ¥$amount';
+    return '日均可用 $amount';
   }
 
   @override
@@ -10528,7 +10528,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String budgetDailyAvailable(String amount) {
-    return '日均可用 ¥$amount';
+    return '日均可用 $amount';
   }
 
   @override

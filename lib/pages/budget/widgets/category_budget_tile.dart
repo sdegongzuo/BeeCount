@@ -10,10 +10,12 @@ import 'budget_progress_bar.dart';
 /// 分类预算条目组件
 class CategoryBudgetTile extends ConsumerWidget {
   final CategoryBudgetUsage usage;
+  final String currencySymbol;
   final VoidCallback? onTap;
 
   const CategoryBudgetTile({
     required this.usage,
+    this.currencySymbol = '¥',
     this.onTap,
     super.key,
   });
@@ -80,6 +82,7 @@ class CategoryBudgetTile extends ConsumerWidget {
                     budget: budget.budget,
                     showLabel: true,
                     height: 6,
+                    currencySymbol: currencySymbol,
                   ),
                 ],
               ),

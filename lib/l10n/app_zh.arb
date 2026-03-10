@@ -2149,7 +2149,7 @@
       }
     }
   },
-  "budgetDailyAvailable": "日均可用 ¥{amount}",
+  "budgetDailyAvailable": "日均可用 {amount}",
   "@budgetDailyAvailable": {
     "placeholders": {
       "amount": {
