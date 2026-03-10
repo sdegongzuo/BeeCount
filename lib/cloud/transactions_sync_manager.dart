@@ -359,6 +359,9 @@ class TransactionsSyncManager implements SyncService {
 
       _statusCache[ledgerId] = status;
       logger.info('CloudSync', '同步状态: $ledgerId -> ${status.diff}');
+      logger.debug('CloudSync', '本地指纹: ${status.localFingerprint}');
+      logger.debug('CloudSync', '云端指纹: ${status.cloudFingerprint ?? "无"}');
+      logger.debug('CloudSync', '本地数量: ${status.localCount}, 云端数量: ${status.cloudCount ?? "无"}');
 
       return status;
     } catch (e, stack) {
@@ -468,16 +471,33 @@ class TransactionsSyncManager implements SyncService {
   String _contentFingerprintFromMap(Map<String, dynamic> payload) {
     final items = (payload['items'] as List).cast<Map<String, dynamic>>();
     final canon = items
-        .map((it) => {
-              // 固定键顺序，填默认值，避免 null/缺键差异
-              'happenedAt': it['happenedAt'] as String? ?? '',
-              'type': it['type'] as String? ?? '',
-              // 统一用 toDouble().toString()，避免 int/double 差异（45 vs 45.0）
-              'amount': (it['amount'] as num?)?.toDouble().toString() ?? '0.0',
-              'categoryName': it['categoryName'] as String? ?? '',
-              'categoryKind': it['categoryKind'] as String? ?? '',
-              'note': it['note'] as String? ?? '',
-            })
+        .map((it) {
+          // 标签：排序后拼接，确保顺序一致
+          final tags = (it['tags'] as String?) ?? '';
+          final sortedTags = tags.isNotEmpty
+              ? (tags.split(',')..sort()).join(',')
+              : '';
+          // 账户：区分转账和普通交易
+          final accountName = it['accountName'] as String? ?? '';
+          final fromAccountName = it['fromAccountName'] as String? ?? '';
+          final toAccountName = it['toAccountName'] as String? ?? '';
+          // 转账交易不依赖分类，忽略 categoryName/categoryKind 避免跨设备分类缺失导致指纹不一致
+          final type = it['type'] as String? ?? '';
+          final isTransfer = type == 'transfer';
+
+          return {
+            'happenedAt': it['happenedAt'] as String? ?? '',
+            'type': type,
+            'amount': (it['amount'] as num?)?.toDouble().toString() ?? '0.0',
+            'categoryName': isTransfer ? '' : (it['categoryName'] as String? ?? ''),
+            'categoryKind': isTransfer ? '' : (it['categoryKind'] as String? ?? ''),
+            'note': it['note'] as String? ?? '',
+            'tags': sortedTags,
+            'accountName': accountName,
+            'fromAccountName': fromAccountName,
+            'toAccountName': toAccountName,
+          };
+        })
         .toList();
     canon.sort((a, b) {
       final c1 =
@@ -495,8 +515,17 @@ class TransactionsSyncManager implements SyncService {
       if (c5 != 0) return c5;
       return (a['note'] as String).compareTo(b['note'] as String);
     });
+    // 调试：打印每条交易的摘要和单条 hash，方便跨设备对比
+    logger.debug('Fingerprint', '参与计算的交易数: ${canon.length}');
+    for (var i = 0; i < canon.length; i++) {
+      final item = canon[i];
+      final itemHash = sha256.convert(utf8.encode(jsonEncode(item))).toString().substring(0, 8);
+      logger.debug('Fingerprint', '  [$i] $itemHash | ${item['happenedAt']} ${item['amount']} ${item['categoryName']} ${item['note']} tags=${item['tags']} acc=${item['accountName']}');
+    }
     final bytes = utf8.encode(jsonEncode(canon));
-    return sha256.convert(bytes).toString();
+    final fp = sha256.convert(bytes).toString();
+    logger.debug('Fingerprint', '指纹结果: ${fp.substring(0, 16)}...');
+    return fp;
   }
 
   @override
@@ -969,20 +998,37 @@ class _TransactionSerializer implements fcs.DataSerializer<int> {
     return _contentFingerprintFromMap(json);
   }
 
-  /// 从 payload 计算内容指纹
+  /// 从 payload 计算内容指纹（Serializer 版本）
   String _contentFingerprintFromMap(Map<String, dynamic> payload) {
     final items = (payload['items'] as List).cast<Map<String, dynamic>>();
     final canon = items
-        .map((it) => {
-              // 固定键顺序，填默认值，避免 null/缺键差异
-              'happenedAt': it['happenedAt'] as String? ?? '',
-              'type': it['type'] as String? ?? '',
-              // 统一用 toDouble().toString()，避免 int/double 差异（45 vs 45.0）
-              'amount': (it['amount'] as num?)?.toDouble().toString() ?? '0.0',
-              'categoryName': it['categoryName'] as String? ?? '',
-              'categoryKind': it['categoryKind'] as String? ?? '',
-              'note': it['note'] as String? ?? '',
-            })
+        .map((it) {
+          // 标签：排序后拼接，确保顺序一致
+          final tags = (it['tags'] as String?) ?? '';
+          final sortedTags = tags.isNotEmpty
+              ? (tags.split(',')..sort()).join(',')
+              : '';
+          // 账户：区分转账和普通交易
+          final accountName = it['accountName'] as String? ?? '';
+          final fromAccountName = it['fromAccountName'] as String? ?? '';
+          final toAccountName = it['toAccountName'] as String? ?? '';
+          // 转账交易不依赖分类，忽略 categoryName/categoryKind 避免跨设备分类缺失导致指纹不一致
+          final type = it['type'] as String? ?? '';
+          final isTransfer = type == 'transfer';
+
+          return {
+            'happenedAt': it['happenedAt'] as String? ?? '',
+            'type': type,
+            'amount': (it['amount'] as num?)?.toDouble().toString() ?? '0.0',
+            'categoryName': isTransfer ? '' : (it['categoryName'] as String? ?? ''),
+            'categoryKind': isTransfer ? '' : (it['categoryKind'] as String? ?? ''),
+            'note': it['note'] as String? ?? '',
+            'tags': sortedTags,
+            'accountName': accountName,
+            'fromAccountName': fromAccountName,
+            'toAccountName': toAccountName,
+          };
+        })
         .toList();
     canon.sort((a, b) {
       final c1 =
@@ -1000,8 +1046,18 @@ class _TransactionSerializer implements fcs.DataSerializer<int> {
       if (c5 != 0) return c5;
       return (a['note'] as String).compareTo(b['note'] as String);
     });
+    // 调试：打印参与指纹计算的前3条和最后1条，以及总数
+    // 调试：打印每条交易的摘要和单条 hash，方便跨设备对比
+    logger.debug('Fingerprint-Serializer', '参与计算的交易数: ${canon.length}');
+    for (var i = 0; i < canon.length; i++) {
+      final item = canon[i];
+      final itemHash = sha256.convert(utf8.encode(jsonEncode(item))).toString().substring(0, 8);
+      logger.debug('Fingerprint-Serializer', '  [$i] $itemHash | ${item['happenedAt']} ${item['amount']} ${item['categoryName']} ${item['note']} tags=${item['tags']} acc=${item['accountName']}');
+    }
     final bytes = utf8.encode(jsonEncode(canon));
-    return sha256.convert(bytes).toString();
+    final fp = sha256.convert(bytes).toString();
+    logger.debug('Fingerprint-Serializer', '指纹结果: ${fp.substring(0, 16)}...');
+    return fp;
   }
 }
 

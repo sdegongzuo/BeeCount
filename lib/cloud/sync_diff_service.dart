@@ -99,6 +99,20 @@ class SyncDiffService {
         ? await repo.getTagsForTransactions(localTxIds)
         : <int, List<Tag>>{};
 
+    // 批量获取本地交易涉及的账户名称
+    final accountIds = <int>{};
+    for (final tx in local) {
+      if (tx.accountId != null) accountIds.add(tx.accountId!);
+      if (tx.toAccountId != null) accountIds.add(tx.toAccountId!);
+    }
+    final accounts = accountIds.isNotEmpty
+        ? await repo.getAccountsByIds(accountIds.toList())
+        : <Account>[];
+    final accountIdToName = <int, String>{};
+    for (final acc in accounts) {
+      accountIdToName[acc.id] = acc.name;
+    }
+
     // 建立映射：syncId → 交易
     final localBySyncId = <String, Transaction>{};
     for (final tx in local) {
@@ -134,7 +148,19 @@ class SyncDiffService {
             .map((t) => t.name)
             .toList()
           ..sort();
-        final diffs = _compareTx(localTx, cloudTx, localTagNames: localTagNames);
+        final localAccountName = localTx.accountId != null
+            ? accountIdToName[localTx.accountId]
+            : null;
+        final localToAccountName = localTx.toAccountId != null
+            ? accountIdToName[localTx.toAccountId]
+            : null;
+        final diffs = _compareTx(
+          localTx,
+          cloudTx,
+          localTagNames: localTagNames,
+          localAccountName: localAccountName,
+          localToAccountName: localToAccountName,
+        );
         if (diffs.isNotEmpty) {
           changes.add(SyncChange(
             type: SyncChangeType.modified,
@@ -175,6 +201,8 @@ class SyncDiffService {
     Transaction local,
     ImportTransaction cloud, {
     List<String> localTagNames = const [],
+    String? localAccountName,
+    String? localToAccountName,
   }) {
     final diffs = <String>[];
 
@@ -206,6 +234,26 @@ class SyncDiffService {
     }
     if ((local.note ?? '') != (cloud.note ?? '')) {
       diffs.add('备注: "${local.note ?? ''}" → "${cloud.note ?? ''}"');
+    }
+
+    // 比较账户
+    if (cloud.type == 'transfer') {
+      if ((localAccountName ?? '') != (cloud.fromAccountName ?? '')) {
+        final from = localAccountName ?? '无';
+        final to = cloud.fromAccountName ?? '无';
+        diffs.add('转出账户: $from → $to');
+      }
+      if ((localToAccountName ?? '') != (cloud.toAccountName ?? '')) {
+        final from = localToAccountName ?? '无';
+        final to = cloud.toAccountName ?? '无';
+        diffs.add('转入账户: $from → $to');
+      }
+    } else {
+      if ((localAccountName ?? '') != (cloud.accountName ?? '')) {
+        final from = localAccountName ?? '无';
+        final to = cloud.accountName ?? '无';
+        diffs.add('账户: $from → $to');
+      }
     }
 
     // 比较标签
