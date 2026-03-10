@@ -515,16 +515,9 @@ class TransactionsSyncManager implements SyncService {
       if (c5 != 0) return c5;
       return (a['note'] as String).compareTo(b['note'] as String);
     });
-    // 调试：打印每条交易的摘要和单条 hash，方便跨设备对比
-    logger.debug('Fingerprint', '参与计算的交易数: ${canon.length}');
-    for (var i = 0; i < canon.length; i++) {
-      final item = canon[i];
-      final itemHash = sha256.convert(utf8.encode(jsonEncode(item))).toString().substring(0, 8);
-      logger.debug('Fingerprint', '  [$i] $itemHash | ${item['happenedAt']} ${item['amount']} ${item['categoryName']} ${item['note']} tags=${item['tags']} acc=${item['accountName']}');
-    }
     final bytes = utf8.encode(jsonEncode(canon));
     final fp = sha256.convert(bytes).toString();
-    logger.debug('Fingerprint', '指纹结果: ${fp.substring(0, 16)}...');
+    logger.debug('Fingerprint', '交易数: ${canon.length}, 指纹: ${fp.substring(0, 16)}...');
     return fp;
   }
 
@@ -1046,17 +1039,9 @@ class _TransactionSerializer implements fcs.DataSerializer<int> {
       if (c5 != 0) return c5;
       return (a['note'] as String).compareTo(b['note'] as String);
     });
-    // 调试：打印参与指纹计算的前3条和最后1条，以及总数
-    // 调试：打印每条交易的摘要和单条 hash，方便跨设备对比
-    logger.debug('Fingerprint-Serializer', '参与计算的交易数: ${canon.length}');
-    for (var i = 0; i < canon.length; i++) {
-      final item = canon[i];
-      final itemHash = sha256.convert(utf8.encode(jsonEncode(item))).toString().substring(0, 8);
-      logger.debug('Fingerprint-Serializer', '  [$i] $itemHash | ${item['happenedAt']} ${item['amount']} ${item['categoryName']} ${item['note']} tags=${item['tags']} acc=${item['accountName']}');
-    }
     final bytes = utf8.encode(jsonEncode(canon));
     final fp = sha256.convert(bytes).toString();
-    logger.debug('Fingerprint-Serializer', '指纹结果: ${fp.substring(0, 16)}...');
+    logger.debug('Fingerprint-Serializer', '交易数: ${canon.length}, 指纹: ${fp.substring(0, 16)}...');
     return fp;
   }
 }

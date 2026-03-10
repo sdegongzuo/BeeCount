@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -156,6 +157,8 @@ class LoggerService {
   final _listeners = <VoidCallback>[];
 
   bool _isLoaded = false;
+  Timer? _saveTimer;
+  bool _isSaving = false;
 
   /// 获取所有日志（自动加载持久化的日志）
   List<LogEntry> get logs {
@@ -243,10 +246,16 @@ class LoggerService {
     }
   }
 
-  /// 保存日志到持久化存储
+  /// 保存日志到持久化存储（节流：最多每 2 秒写一次）
   void _saveLogs() {
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(seconds: 2), _doSaveLogs);
+  }
+
+  Future<void> _doSaveLogs() async {
+    if (_isSaving) return;
+    _isSaving = true;
     try {
-      // 过滤掉超过48小时的日志
       final now = DateTime.now();
       final validLogs = _logs.where((log) {
         final age = now.difference(log.timestamp);
@@ -256,11 +265,12 @@ class LoggerService {
       final jsonList = validLogs.map((log) => log.toJson()).toList();
       final jsonStr = jsonEncode(jsonList);
 
-      SharedPreferences.getInstance().then((prefs) {
-        prefs.setString(_storageKey, jsonStr);
-      });
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_storageKey, jsonStr);
     } catch (e) {
       debugPrint('保存日志失败: $e');
+    } finally {
+      _isSaving = false;
     }
   }
 
