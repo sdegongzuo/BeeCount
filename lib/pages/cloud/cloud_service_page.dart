@@ -403,6 +403,8 @@ class _CloudServicePageState extends ConsumerState<CloudServicePage> {
 
   void _showMultiDeviceDetailDialog(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final primaryText = BeeTokens.textPrimary(context);
+    final secondaryText = BeeTokens.textSecondary(context);
 
     showDialog(
       context: context,
@@ -411,16 +413,16 @@ class _CloudServicePageState extends ConsumerState<CloudServicePage> {
         title: Row(
           children: [
             Icon(
-              Icons.warning_amber_rounded,
-              color: BeeTokens.warning(context),
+              Icons.info_outline,
+              color: Theme.of(context).colorScheme.primary,
               size: 24,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                l10n.cloudMultiDeviceWarningTitle,
+                l10n.cloudSyncGuideTitle,
                 style: TextStyle(
-                  color: BeeTokens.textPrimary(context),
+                  color: primaryText,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                 ),
@@ -428,13 +430,66 @@ class _CloudServicePageState extends ConsumerState<CloudServicePage> {
             ),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Text(
-            l10n.cloudMultiDeviceWarningDetail,
-            style: TextStyle(
-              color: BeeTokens.textPrimary(context),
-              fontSize: 14,
-              height: 1.5,
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 工作原理
+                _buildGuideSection(
+                  context,
+                  icon: Icons.sync,
+                  title: l10n.cloudSyncGuideHowItWorks,
+                  items: [
+                    l10n.cloudSyncGuideHowItem1,
+                    l10n.cloudSyncGuideHowItem2,
+                    l10n.cloudSyncGuideHowItem3,
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // 正确用法
+                _buildGuideSection(
+                  context,
+                  icon: Icons.check_circle_outline,
+                  iconColor: Colors.green,
+                  title: l10n.cloudSyncGuideCorrect,
+                  items: [
+                    l10n.cloudSyncGuideCorrectItem1,
+                    l10n.cloudSyncGuideCorrectItem2,
+                    l10n.cloudSyncGuideCorrectItem3,
+                    l10n.cloudSyncGuideCorrectItem4,
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // 错误用法
+                _buildGuideSection(
+                  context,
+                  icon: Icons.cancel_outlined,
+                  iconColor: Colors.red,
+                  title: l10n.cloudSyncGuideWrong,
+                  items: [
+                    l10n.cloudSyncGuideWrongItem1,
+                    l10n.cloudSyncGuideWrongItem2,
+                    l10n.cloudSyncGuideWrongItem3,
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // 已知限制
+                _buildGuideSection(
+                  context,
+                  icon: Icons.warning_amber_rounded,
+                  iconColor: BeeTokens.warning(context),
+                  title: l10n.cloudSyncGuideLimitations,
+                  items: [
+                    l10n.cloudSyncGuideLimitItem1,
+                    l10n.cloudSyncGuideLimitItem2,
+                    l10n.cloudSyncGuideLimitItem3,
+                    l10n.cloudSyncGuideLimitItem4,
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -442,7 +497,7 @@ class _CloudServicePageState extends ConsumerState<CloudServicePage> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              l10n.commonConfirm,
+              l10n.cloudSyncGuideGotIt,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -450,6 +505,54 @@ class _CloudServicePageState extends ConsumerState<CloudServicePage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildGuideSection(
+    BuildContext context, {
+    required IconData icon,
+    Color? iconColor,
+    required String title,
+    required List<String> items,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 18, color: iconColor ?? BeeTokens.textSecondary(context)),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: TextStyle(
+                color: BeeTokens.textPrimary(context),
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ...items.map((item) => Padding(
+              padding: const EdgeInsets.only(left: 24, bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('• ', style: TextStyle(color: BeeTokens.textSecondary(context), fontSize: 13)),
+                  Expanded(
+                    child: Text(
+                      item,
+                      style: TextStyle(
+                        color: BeeTokens.textSecondary(context),
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+      ],
     );
   }
 

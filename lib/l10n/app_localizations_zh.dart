@@ -1224,7 +1224,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mineSyncNotConfigured => '未配置云端';
 
   @override
-  String get mineSyncNoRemote => '云端暂无备份';
+  String get mineSyncNoRemote => '云端暂无数据';
 
   @override
   String mineSyncInSync(Object count) {
@@ -1236,20 +1236,20 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String mineSyncLocalNewer(Object count) {
-    return '本地较新 (本地$count条, 建议上传)';
+    return '本地有更新 (本地$count条, 建议上传)';
   }
 
   @override
-  String get mineSyncLocalNewerSimple => '本地较新';
+  String get mineSyncLocalNewerSimple => '本地有更新';
 
   @override
-  String get mineSyncCloudNewer => '云端较新 (建议下载并合并)';
+  String get mineSyncCloudNewer => '云端有更新 (建议下载同步)';
 
   @override
-  String get mineSyncCloudNewerSimple => '云端较新';
+  String get mineSyncCloudNewerSimple => '云端有更新';
 
   @override
-  String get mineSyncDifferent => '本地与云端不同步';
+  String get mineSyncDifferent => '本地与云端有差异，建议下载对比';
 
   @override
   String get mineSyncError => '状态获取失败';
@@ -1312,17 +1312,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mineUploadSuccessMessage => '当前账本已同步到云端';
 
   @override
-  String get mineDownloadTitle => '下载';
+  String get mineDownloadTitle => '下载同步';
 
   @override
   String get mineDownloadNeedCloudService => '仅限云服务模式可用';
 
   @override
-  String get mineDownloadComplete => '完成';
+  String get mineDownloadComplete => '同步完成';
 
   @override
   String mineDownloadResult(Object inserted) {
-    return '新增导入：$inserted 条';
+    return '导入：$inserted 条';
   }
 
   @override
@@ -2243,13 +2243,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSelectServiceType => '选择云服务类型';
 
   @override
-  String get cloudMultiDeviceWarningTitle => '多设备同步提示';
+  String get cloudMultiDeviceWarningTitle => '多设备使用提醒';
 
   @override
-  String get cloudMultiDeviceWarningMessage => '当前暂不支持多设备协同编辑。如需在新设备使用，请先清空新设备的本地数据，然后从云端下载账本。';
+  String get cloudMultiDeviceWarningMessage => '换设备前记得先上传，到新设备后先下载再记账。不要同时在两台设备上记同一个账本。点击查看详情 →';
 
   @override
-  String get cloudMultiDeviceWarningDetail => '多设备同步说明：\n\n1. 目前不支持多设备同时编辑同一账本\n2. 如果在设备A编辑后，切换到设备B使用：\n   • 需要在设备B上清空所有账本\n   • 然后从云端下载最新数据\n3. 未来版本将支持真正的多设备协同';
+  String get cloudMultiDeviceWarningDetail => '多设备同步说明：\n\n⚠️ 当前限制：\n• 非实时同步，需手动上传和下载\n• 不支持冲突处理：若两台设备同时修改，后上传的会覆盖先上传的\n• 同步状态存在延迟，进入同步页面时才会刷新\n\n✅ 推荐用法：\n1. 同一时间只在一台设备上编辑\n2. 编辑完成后及时上传\n3. 在另一台设备下载同步后再开始编辑\n4. 下载时可预览差异，逐条选择要同步的变更';
 
   @override
   String get cloudWebdavUrlLabel => 'WebDAV 服务器地址';
@@ -3800,13 +3800,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiTypeExpense => '支出';
 
   @override
-  String get cloudSyncPageTitle => '云同步与备份';
+  String get cloudSyncPageTitle => '云同步';
 
   @override
-  String get cloudSyncPageSubtitle => '管理云服务和数据同步';
+  String get cloudSyncPageSubtitle => '手动上传和下载账本数据';
 
   @override
-  String get cloudSyncHint => '云同步只会同步账本数据（包括交易记录关联的账户、分类、标签），不包括未关联的分类、标签、账户，也不包括附件。附件请通过数据管理单独导入导出。';
+  String get cloudSyncHint => '下载时可自动对比差异并逐条预览。非实时同步，请避免多设备同时编辑同一账本。同步范围为账本数据（含关联的账户、分类、标签），不含附件。';
 
   @override
   String get dataManagement => '数据管理';
@@ -5456,6 +5456,66 @@ class AppLocalizationsZh extends AppLocalizations {
   String syncPreviewApplied(int count) {
     return '已应用 $count 项变更';
   }
+
+  @override
+  String get cloudSyncGuideTitle => '云同步使用指南';
+
+  @override
+  String get cloudSyncGuideGotIt => '我知道了';
+
+  @override
+  String get cloudSyncGuideHowItWorks => '工作原理';
+
+  @override
+  String get cloudSyncGuideHowItem1 => '上传：将当前账本的全部数据打包上传到云端，覆盖云端旧数据';
+
+  @override
+  String get cloudSyncGuideHowItem2 => '下载：从云端拉取数据，与本地逐条对比差异，你可以选择要同步哪些变更';
+
+  @override
+  String get cloudSyncGuideHowItem3 => '云端始终只保存最后一次上传的完整快照，不保留历史版本';
+
+  @override
+  String get cloudSyncGuideCorrect => '正确的使用方式';
+
+  @override
+  String get cloudSyncGuideCorrectItem1 => '同一时间只在一台设备上记账，完成后上传';
+
+  @override
+  String get cloudSyncGuideCorrectItem2 => '切换设备前，先在新设备上下载同步';
+
+  @override
+  String get cloudSyncGuideCorrectItem3 => '下载时仔细查看预览，确认每条变更再应用';
+
+  @override
+  String get cloudSyncGuideCorrectItem4 => '养成「编辑→上传→切换设备→下载→编辑」的习惯';
+
+  @override
+  String get cloudSyncGuideWrong => '应避免的用法';
+
+  @override
+  String get cloudSyncGuideWrongItem1 => '两台设备同时编辑同一个账本，后上传的会覆盖先上传的改动';
+
+  @override
+  String get cloudSyncGuideWrongItem2 => '上传后立刻在另一台设备下载，文件服务可能有几秒到几分钟的同步延迟，等一会再试';
+
+  @override
+  String get cloudSyncGuideWrongItem3 => '长时间不同步后一次性下载大量变更，容易遗漏需要处理的差异';
+
+  @override
+  String get cloudSyncGuideLimitations => '已知限制';
+
+  @override
+  String get cloudSyncGuideLimitItem1 => '非实时同步：需要手动点击上传和下载';
+
+  @override
+  String get cloudSyncGuideLimitItem2 => '无冲突合并：不会自动合并两端的修改，以最后上传的为准';
+
+  @override
+  String get cloudSyncGuideLimitItem3 => '文件服务延迟：上传后云端文件可能需要几秒到几分钟才能被其他设备读取，取决于你使用的云服务';
+
+  @override
+  String get cloudSyncGuideLimitItem4 => '不含附件：交易的图片附件不参与同步，需通过数据管理单独导出';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -6680,7 +6740,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get mineSyncNotConfigured => '未設定雲端';
 
   @override
-  String get mineSyncNoRemote => '雲端暫無備份';
+  String get mineSyncNoRemote => '雲端暫無資料';
 
   @override
   String mineSyncInSync(Object count) {
@@ -6692,20 +6752,20 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String mineSyncLocalNewer(Object count) {
-    return '本地較新 (本地$count條, 建議上傳)';
+    return '本機有更新 (本機$count條, 建議上傳)';
   }
 
   @override
-  String get mineSyncLocalNewerSimple => '本機較新';
+  String get mineSyncLocalNewerSimple => '本機有更新';
 
   @override
-  String get mineSyncCloudNewer => '雲端較新 (建議下載並合併)';
+  String get mineSyncCloudNewer => '雲端有更新 (建議下載同步)';
 
   @override
-  String get mineSyncCloudNewerSimple => '雲端較新';
+  String get mineSyncCloudNewerSimple => '雲端有更新';
 
   @override
-  String get mineSyncDifferent => '本地與雲端不同步';
+  String get mineSyncDifferent => '本機與雲端有差異，建議下載對比';
 
   @override
   String get mineSyncError => '狀態取得失敗';
@@ -6768,17 +6828,17 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get mineUploadSuccessMessage => '當前帳本已同步到雲端';
 
   @override
-  String get mineDownloadTitle => '下載';
+  String get mineDownloadTitle => '下載同步';
 
   @override
   String get mineDownloadNeedCloudService => '僅限雲端服務模式可用';
 
   @override
-  String get mineDownloadComplete => '完成';
+  String get mineDownloadComplete => '同步完成';
 
   @override
   String mineDownloadResult(Object inserted) {
-    return '新增匯入：$inserted 條';
+    return '匯入：$inserted 條';
   }
 
   @override
@@ -7699,13 +7759,13 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get cloudSelectServiceType => '選擇雲端服務類型';
 
   @override
-  String get cloudMultiDeviceWarningTitle => '多設備同步提示';
+  String get cloudMultiDeviceWarningTitle => '多裝置使用提醒';
 
   @override
-  String get cloudMultiDeviceWarningMessage => '目前暫不支援多設備協同編輯。如需在新設備使用，請先清空新設備的本機資料，然後從雲端下載帳本。';
+  String get cloudMultiDeviceWarningMessage => '換裝置前記得先上傳，到新裝置後先下載再記帳。不要同時在兩台裝置上記同一個帳本。點擊查看詳情 →';
 
   @override
-  String get cloudMultiDeviceWarningDetail => '多設備同步說明：\n\n1. 目前不支援多設備同時編輯同一帳本\n2. 如果在設備A編輯後，切換到設備B使用：\n   • 需要在設備B上清空所有帳本\n   • 然後從雲端下載最新資料\n3. 未來版本將支援真正的多設備協同';
+  String get cloudMultiDeviceWarningDetail => '多裝置同步說明：\n\n⚠️ 當前限制：\n• 非即時同步，需手動上傳和下載\n• 不支援衝突處理：若兩台裝置同時修改，後上傳的會覆蓋先上傳的\n• 同步狀態存在延遲，進入同步頁面時才會重新整理\n\n✅ 建議用法：\n1. 同一時間只在一台裝置上編輯\n2. 編輯完成後及時上傳\n3. 在另一台裝置下載同步後再開始編輯\n4. 下載時可預覽差異，逐條選擇要同步的變更';
 
   @override
   String get cloudWebdavUrlLabel => 'WebDAV 伺服器地址';
@@ -9256,13 +9316,13 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get aiTypeExpense => '支出';
 
   @override
-  String get cloudSyncPageTitle => '雲同步與備份';
+  String get cloudSyncPageTitle => '雲同步';
 
   @override
-  String get cloudSyncPageSubtitle => '管理雲端服務和資料同步';
+  String get cloudSyncPageSubtitle => '手動上傳和下載帳本資料';
 
   @override
-  String get cloudSyncHint => '雲同步只會同步帳本資料（包括交易記錄關聯的帳戶、分類、標籤），不包括未關聯的分類、標籤、帳戶，也不包括附件。附件請通過資料管理單獨匯入匯出。';
+  String get cloudSyncHint => '下載時可自動對比差異並逐條預覽。非即時同步，請避免多裝置同時編輯同一帳本。同步範圍為帳本資料（含關聯的帳戶、分類、標籤），不含附件。';
 
   @override
   String get dataManagement => '資料管理';
@@ -10912,4 +10972,64 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String syncPreviewApplied(int count) {
     return '已套用 $count 項變更';
   }
+
+  @override
+  String get cloudSyncGuideTitle => '雲端同步使用指南';
+
+  @override
+  String get cloudSyncGuideGotIt => '我知道了';
+
+  @override
+  String get cloudSyncGuideHowItWorks => '運作原理';
+
+  @override
+  String get cloudSyncGuideHowItem1 => '上傳：將當前帳本的全部資料打包上傳至雲端，覆蓋雲端舊資料';
+
+  @override
+  String get cloudSyncGuideHowItem2 => '下載：從雲端拉取資料，與本機逐條比對差異，您可以選擇要同步哪些變更';
+
+  @override
+  String get cloudSyncGuideHowItem3 => '雲端始終只儲存最後一次上傳的完整快照，不保留歷史版本';
+
+  @override
+  String get cloudSyncGuideCorrect => '正確的使用方式';
+
+  @override
+  String get cloudSyncGuideCorrectItem1 => '同一時間只在一台裝置上記帳，完成後上傳';
+
+  @override
+  String get cloudSyncGuideCorrectItem2 => '切換裝置前，先在新裝置上下載同步';
+
+  @override
+  String get cloudSyncGuideCorrectItem3 => '下載時仔細查看預覽，確認每條變更再套用';
+
+  @override
+  String get cloudSyncGuideCorrectItem4 => '養成「編輯→上傳→切換裝置→下載→編輯」的習慣';
+
+  @override
+  String get cloudSyncGuideWrong => '應避免的用法';
+
+  @override
+  String get cloudSyncGuideWrongItem1 => '兩台裝置同時編輯同一帳本，後上傳的會覆蓋先上傳的改動';
+
+  @override
+  String get cloudSyncGuideWrongItem2 => '上傳後立刻在另一台裝置下載，檔案服務可能有數秒到數分鐘的同步延遲，請稍候再試';
+
+  @override
+  String get cloudSyncGuideWrongItem3 => '長時間不同步後一次性下載大量變更，容易遺漏需要處理的差異';
+
+  @override
+  String get cloudSyncGuideLimitations => '已知限制';
+
+  @override
+  String get cloudSyncGuideLimitItem1 => '非即時同步：需手動點擊上傳和下載';
+
+  @override
+  String get cloudSyncGuideLimitItem2 => '無衝突合併：不會自動合併兩端的修改，以最後上傳的為準';
+
+  @override
+  String get cloudSyncGuideLimitItem3 => '檔案服務延遲：上傳後雲端檔案可能需要數秒到數分鐘才能被其他裝置讀取，取決於您使用的雲端服務';
+
+  @override
+  String get cloudSyncGuideLimitItem4 => '不含附件：交易的圖片附件不參與同步，需透過資料管理單獨匯出';
 }

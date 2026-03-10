@@ -1224,7 +1224,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mineSyncNotConfigured => 'Cloud not configured';
 
   @override
-  String get mineSyncNoRemote => 'No cloud backup';
+  String get mineSyncNoRemote => 'No cloud data';
 
   @override
   String mineSyncInSync(Object count) {
@@ -1236,20 +1236,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String mineSyncLocalNewer(Object count) {
-    return 'Local newer (local $count records, upload recommended)';
+    return 'Local updated ($count records, upload recommended)';
   }
 
   @override
-  String get mineSyncLocalNewerSimple => 'Local newer';
+  String get mineSyncLocalNewerSimple => 'Local updated';
 
   @override
-  String get mineSyncCloudNewer => 'Cloud newer (download recommended)';
+  String get mineSyncCloudNewer => 'Cloud updated (download to sync)';
 
   @override
-  String get mineSyncCloudNewerSimple => 'Cloud newer';
+  String get mineSyncCloudNewerSimple => 'Cloud updated';
 
   @override
-  String get mineSyncDifferent => 'Local and cloud differ';
+  String get mineSyncDifferent => 'Local and cloud differ, download to compare';
 
   @override
   String get mineSyncError => 'Failed to get status';
@@ -1312,17 +1312,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mineUploadSuccessMessage => 'Current ledger synced to cloud';
 
   @override
-  String get mineDownloadTitle => 'Download';
+  String get mineDownloadTitle => 'Download & Sync';
 
   @override
   String get mineDownloadNeedCloudService => 'Available in cloud service mode only';
 
   @override
-  String get mineDownloadComplete => 'Complete';
+  String get mineDownloadComplete => 'Sync Complete';
 
   @override
   String mineDownloadResult(Object inserted) {
-    return 'New imports: $inserted';
+    return 'Imported: $inserted records';
   }
 
   @override
@@ -2243,13 +2243,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudSelectServiceType => 'Select Cloud Service Type';
 
   @override
-  String get cloudMultiDeviceWarningTitle => 'Multi-Device Sync Notice';
+  String get cloudMultiDeviceWarningTitle => 'Multi-Device Tips';
 
   @override
-  String get cloudMultiDeviceWarningMessage => 'Multi-device collaborative editing is not currently supported. To use on a new device, please clear local data first, then download ledgers from cloud.';
+  String get cloudMultiDeviceWarningMessage => 'Upload before switching devices, download on the new device before editing. Don\'t edit the same ledger on two devices at once. Tap for details →';
 
   @override
-  String get cloudMultiDeviceWarningDetail => 'Multi-Device Sync Instructions:\n\n1. Simultaneous editing on multiple devices is not supported\n2. To switch from Device A to Device B:\n   • Clear all ledgers on Device B\n   • Download latest data from cloud\n3. True multi-device collaboration will be supported in future versions';
+  String get cloudMultiDeviceWarningDetail => 'Multi-Device Sync:\n\n⚠️ Limitations:\n• Not real-time — requires manual upload and download\n• No conflict resolution — if two devices edit simultaneously, the later upload overwrites the earlier one\n• Sync status may be delayed, refreshes when entering the sync page\n\n✅ Recommended workflow:\n1. Edit on one device at a time\n2. Upload promptly after editing\n3. Download on the other device before editing\n4. When downloading, you can preview differences and selectively apply changes';
 
   @override
   String get cloudWebdavUrlLabel => 'WebDAV Server URL';
@@ -3800,13 +3800,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiTypeExpense => 'Expense';
 
   @override
-  String get cloudSyncPageTitle => 'Cloud Sync & Backup';
+  String get cloudSyncPageTitle => 'Cloud Sync';
 
   @override
-  String get cloudSyncPageSubtitle => 'Manage cloud services and data sync';
+  String get cloudSyncPageSubtitle => 'Manual upload and download ledger data';
 
   @override
-  String get cloudSyncHint => 'Cloud sync only syncs ledger data (including accounts, categories, and tags associated with transactions), not unassociated categories, tags, accounts, or attachments. Please import/export attachments separately via Data Management.';
+  String get cloudSyncHint => 'Downloads automatically compare differences for selective preview. Not real-time — avoid editing the same ledger on multiple devices simultaneously. Sync scope covers ledger data (including associated accounts, categories, and tags), excluding attachments.';
 
   @override
   String get dataManagement => 'Data Management';
@@ -5456,4 +5456,64 @@ class AppLocalizationsEn extends AppLocalizations {
   String syncPreviewApplied(int count) {
     return 'Applied $count changes';
   }
+
+  @override
+  String get cloudSyncGuideTitle => 'Cloud Sync Guide';
+
+  @override
+  String get cloudSyncGuideGotIt => 'Got it';
+
+  @override
+  String get cloudSyncGuideHowItWorks => 'How it works';
+
+  @override
+  String get cloudSyncGuideHowItem1 => 'Upload: packages all current ledger data and uploads to cloud, replacing old cloud data';
+
+  @override
+  String get cloudSyncGuideHowItem2 => 'Download: fetches cloud data and compares with local records one by one — you choose which changes to apply';
+
+  @override
+  String get cloudSyncGuideHowItem3 => 'The cloud always stores only the last uploaded snapshot, no version history';
+
+  @override
+  String get cloudSyncGuideCorrect => 'Correct usage';
+
+  @override
+  String get cloudSyncGuideCorrectItem1 => 'Edit on one device at a time, upload when done';
+
+  @override
+  String get cloudSyncGuideCorrectItem2 => 'Download on the new device before starting to edit';
+
+  @override
+  String get cloudSyncGuideCorrectItem3 => 'Review the preview carefully before applying changes';
+
+  @override
+  String get cloudSyncGuideCorrectItem4 => 'Follow the pattern: edit → upload → switch device → download → edit';
+
+  @override
+  String get cloudSyncGuideWrong => 'What to avoid';
+
+  @override
+  String get cloudSyncGuideWrongItem1 => 'Editing the same ledger on two devices simultaneously — the later upload overwrites the earlier one';
+
+  @override
+  String get cloudSyncGuideWrongItem2 => 'Downloading immediately after upload — cloud services may have seconds to minutes of sync delay, wait a moment';
+
+  @override
+  String get cloudSyncGuideWrongItem3 => 'Going long periods without syncing then downloading many changes at once — easy to miss important differences';
+
+  @override
+  String get cloudSyncGuideLimitations => 'Known limitations';
+
+  @override
+  String get cloudSyncGuideLimitItem1 => 'Not real-time: requires manually tapping upload and download';
+
+  @override
+  String get cloudSyncGuideLimitItem2 => 'No conflict merging: does not auto-merge edits from both sides — last upload wins';
+
+  @override
+  String get cloudSyncGuideLimitItem3 => 'Cloud service delay: uploaded files may take seconds to minutes before other devices can read them, depending on your cloud provider';
+
+  @override
+  String get cloudSyncGuideLimitItem4 => 'Excludes attachments: transaction image attachments are not synced — export separately via Data Management';
 }

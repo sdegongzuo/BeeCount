@@ -2349,7 +2349,7 @@ abstract class AppLocalizations {
   /// No description provided for @mineSyncNoRemote.
   ///
   /// In en, this message translates to:
-  /// **'No cloud backup'**
+  /// **'No cloud data'**
   String get mineSyncNoRemote;
 
   /// No description provided for @mineSyncInSync.
@@ -2367,31 +2367,31 @@ abstract class AppLocalizations {
   /// No description provided for @mineSyncLocalNewer.
   ///
   /// In en, this message translates to:
-  /// **'Local newer (local {count} records, upload recommended)'**
+  /// **'Local updated ({count} records, upload recommended)'**
   String mineSyncLocalNewer(Object count);
 
   /// No description provided for @mineSyncLocalNewerSimple.
   ///
   /// In en, this message translates to:
-  /// **'Local newer'**
+  /// **'Local updated'**
   String get mineSyncLocalNewerSimple;
 
   /// No description provided for @mineSyncCloudNewer.
   ///
   /// In en, this message translates to:
-  /// **'Cloud newer (download recommended)'**
+  /// **'Cloud updated (download to sync)'**
   String get mineSyncCloudNewer;
 
   /// No description provided for @mineSyncCloudNewerSimple.
   ///
   /// In en, this message translates to:
-  /// **'Cloud newer'**
+  /// **'Cloud updated'**
   String get mineSyncCloudNewerSimple;
 
   /// No description provided for @mineSyncDifferent.
   ///
   /// In en, this message translates to:
-  /// **'Local and cloud differ'**
+  /// **'Local and cloud differ, download to compare'**
   String get mineSyncDifferent;
 
   /// No description provided for @mineSyncError.
@@ -2493,7 +2493,7 @@ abstract class AppLocalizations {
   /// No description provided for @mineDownloadTitle.
   ///
   /// In en, this message translates to:
-  /// **'Download'**
+  /// **'Download & Sync'**
   String get mineDownloadTitle;
 
   /// No description provided for @mineDownloadNeedCloudService.
@@ -2505,13 +2505,13 @@ abstract class AppLocalizations {
   /// No description provided for @mineDownloadComplete.
   ///
   /// In en, this message translates to:
-  /// **'Complete'**
+  /// **'Sync Complete'**
   String get mineDownloadComplete;
 
   /// No description provided for @mineDownloadResult.
   ///
   /// In en, this message translates to:
-  /// **'New imports: {inserted}'**
+  /// **'Imported: {inserted} records'**
   String mineDownloadResult(Object inserted);
 
   /// No description provided for @mineLoginTitle.
@@ -4251,19 +4251,19 @@ abstract class AppLocalizations {
   /// No description provided for @cloudMultiDeviceWarningTitle.
   ///
   /// In en, this message translates to:
-  /// **'Multi-Device Sync Notice'**
+  /// **'Multi-Device Tips'**
   String get cloudMultiDeviceWarningTitle;
 
   /// No description provided for @cloudMultiDeviceWarningMessage.
   ///
   /// In en, this message translates to:
-  /// **'Multi-device collaborative editing is not currently supported. To use on a new device, please clear local data first, then download ledgers from cloud.'**
+  /// **'Upload before switching devices, download on the new device before editing. Don\'t edit the same ledger on two devices at once. Tap for details →'**
   String get cloudMultiDeviceWarningMessage;
 
   /// No description provided for @cloudMultiDeviceWarningDetail.
   ///
   /// In en, this message translates to:
-  /// **'Multi-Device Sync Instructions:\n\n1. Simultaneous editing on multiple devices is not supported\n2. To switch from Device A to Device B:\n   • Clear all ledgers on Device B\n   • Download latest data from cloud\n3. True multi-device collaboration will be supported in future versions'**
+  /// **'Multi-Device Sync:\n\n⚠️ Limitations:\n• Not real-time — requires manual upload and download\n• No conflict resolution — if two devices edit simultaneously, the later upload overwrites the earlier one\n• Sync status may be delayed, refreshes when entering the sync page\n\n✅ Recommended workflow:\n1. Edit on one device at a time\n2. Upload promptly after editing\n3. Download on the other device before editing\n4. When downloading, you can preview differences and selectively apply changes'**
   String get cloudMultiDeviceWarningDetail;
 
   /// No description provided for @cloudWebdavUrlLabel.
@@ -7233,19 +7233,19 @@ abstract class AppLocalizations {
   /// No description provided for @cloudSyncPageTitle.
   ///
   /// In en, this message translates to:
-  /// **'Cloud Sync & Backup'**
+  /// **'Cloud Sync'**
   String get cloudSyncPageTitle;
 
   /// No description provided for @cloudSyncPageSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Manage cloud services and data sync'**
+  /// **'Manual upload and download ledger data'**
   String get cloudSyncPageSubtitle;
 
   /// No description provided for @cloudSyncHint.
   ///
   /// In en, this message translates to:
-  /// **'Cloud sync only syncs ledger data (including accounts, categories, and tags associated with transactions), not unassociated categories, tags, accounts, or attachments. Please import/export attachments separately via Data Management.'**
+  /// **'Downloads automatically compare differences for selective preview. Not real-time — avoid editing the same ledger on multiple devices simultaneously. Sync scope covers ledger data (including associated accounts, categories, and tags), excluding attachments.'**
   String get cloudSyncHint;
 
   /// No description provided for @dataManagement.
@@ -10397,6 +10397,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Applied {count} changes'**
   String syncPreviewApplied(int count);
+
+  /// No description provided for @cloudSyncGuideTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud Sync Guide'**
+  String get cloudSyncGuideTitle;
+
+  /// No description provided for @cloudSyncGuideGotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get cloudSyncGuideGotIt;
+
+  /// No description provided for @cloudSyncGuideHowItWorks.
+  ///
+  /// In en, this message translates to:
+  /// **'How it works'**
+  String get cloudSyncGuideHowItWorks;
+
+  /// No description provided for @cloudSyncGuideHowItem1.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload: packages all current ledger data and uploads to cloud, replacing old cloud data'**
+  String get cloudSyncGuideHowItem1;
+
+  /// No description provided for @cloudSyncGuideHowItem2.
+  ///
+  /// In en, this message translates to:
+  /// **'Download: fetches cloud data and compares with local records one by one — you choose which changes to apply'**
+  String get cloudSyncGuideHowItem2;
+
+  /// No description provided for @cloudSyncGuideHowItem3.
+  ///
+  /// In en, this message translates to:
+  /// **'The cloud always stores only the last uploaded snapshot, no version history'**
+  String get cloudSyncGuideHowItem3;
+
+  /// No description provided for @cloudSyncGuideCorrect.
+  ///
+  /// In en, this message translates to:
+  /// **'Correct usage'**
+  String get cloudSyncGuideCorrect;
+
+  /// No description provided for @cloudSyncGuideCorrectItem1.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit on one device at a time, upload when done'**
+  String get cloudSyncGuideCorrectItem1;
+
+  /// No description provided for @cloudSyncGuideCorrectItem2.
+  ///
+  /// In en, this message translates to:
+  /// **'Download on the new device before starting to edit'**
+  String get cloudSyncGuideCorrectItem2;
+
+  /// No description provided for @cloudSyncGuideCorrectItem3.
+  ///
+  /// In en, this message translates to:
+  /// **'Review the preview carefully before applying changes'**
+  String get cloudSyncGuideCorrectItem3;
+
+  /// No description provided for @cloudSyncGuideCorrectItem4.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the pattern: edit → upload → switch device → download → edit'**
+  String get cloudSyncGuideCorrectItem4;
+
+  /// No description provided for @cloudSyncGuideWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'What to avoid'**
+  String get cloudSyncGuideWrong;
+
+  /// No description provided for @cloudSyncGuideWrongItem1.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing the same ledger on two devices simultaneously — the later upload overwrites the earlier one'**
+  String get cloudSyncGuideWrongItem1;
+
+  /// No description provided for @cloudSyncGuideWrongItem2.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading immediately after upload — cloud services may have seconds to minutes of sync delay, wait a moment'**
+  String get cloudSyncGuideWrongItem2;
+
+  /// No description provided for @cloudSyncGuideWrongItem3.
+  ///
+  /// In en, this message translates to:
+  /// **'Going long periods without syncing then downloading many changes at once — easy to miss important differences'**
+  String get cloudSyncGuideWrongItem3;
+
+  /// No description provided for @cloudSyncGuideLimitations.
+  ///
+  /// In en, this message translates to:
+  /// **'Known limitations'**
+  String get cloudSyncGuideLimitations;
+
+  /// No description provided for @cloudSyncGuideLimitItem1.
+  ///
+  /// In en, this message translates to:
+  /// **'Not real-time: requires manually tapping upload and download'**
+  String get cloudSyncGuideLimitItem1;
+
+  /// No description provided for @cloudSyncGuideLimitItem2.
+  ///
+  /// In en, this message translates to:
+  /// **'No conflict merging: does not auto-merge edits from both sides — last upload wins'**
+  String get cloudSyncGuideLimitItem2;
+
+  /// No description provided for @cloudSyncGuideLimitItem3.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud service delay: uploaded files may take seconds to minutes before other devices can read them, depending on your cloud provider'**
+  String get cloudSyncGuideLimitItem3;
+
+  /// No description provided for @cloudSyncGuideLimitItem4.
+  ///
+  /// In en, this message translates to:
+  /// **'Excludes attachments: transaction image attachments are not synced — export separately via Data Management'**
+  String get cloudSyncGuideLimitItem4;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
