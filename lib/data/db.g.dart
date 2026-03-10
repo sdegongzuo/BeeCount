@@ -355,6 +355,14 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
       'updated_at', aliasedName, true,
       type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -364,7 +372,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         currency,
         initialBalance,
         createdAt,
-        updatedAt
+        updatedAt,
+        sortOrder
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -413,6 +422,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
     }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
     return context;
   }
 
@@ -438,6 +451,8 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at']),
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']),
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
     );
   }
 
@@ -456,6 +471,7 @@ class Account extends DataClass implements Insertable<Account> {
   final double initialBalance;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final int sortOrder;
   const Account(
       {required this.id,
       required this.ledgerId,
@@ -464,7 +480,8 @@ class Account extends DataClass implements Insertable<Account> {
       required this.currency,
       required this.initialBalance,
       this.createdAt,
-      this.updatedAt});
+      this.updatedAt,
+      required this.sortOrder});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -480,6 +497,7 @@ class Account extends DataClass implements Insertable<Account> {
     if (!nullToAbsent || updatedAt != null) {
       map['updated_at'] = Variable<DateTime>(updatedAt);
     }
+    map['sort_order'] = Variable<int>(sortOrder);
     return map;
   }
 
@@ -497,6 +515,7 @@ class Account extends DataClass implements Insertable<Account> {
       updatedAt: updatedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(updatedAt),
+      sortOrder: Value(sortOrder),
     );
   }
 
@@ -512,6 +531,7 @@ class Account extends DataClass implements Insertable<Account> {
       initialBalance: serializer.fromJson<double>(json['initialBalance']),
       createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
   }
   @override
@@ -526,6 +546,7 @@ class Account extends DataClass implements Insertable<Account> {
       'initialBalance': serializer.toJson<double>(initialBalance),
       'createdAt': serializer.toJson<DateTime?>(createdAt),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'sortOrder': serializer.toJson<int>(sortOrder),
     };
   }
 
@@ -537,7 +558,8 @@ class Account extends DataClass implements Insertable<Account> {
           String? currency,
           double? initialBalance,
           Value<DateTime?> createdAt = const Value.absent(),
-          Value<DateTime?> updatedAt = const Value.absent()}) =>
+          Value<DateTime?> updatedAt = const Value.absent(),
+          int? sortOrder}) =>
       Account(
         id: id ?? this.id,
         ledgerId: ledgerId ?? this.ledgerId,
@@ -547,6 +569,7 @@ class Account extends DataClass implements Insertable<Account> {
         initialBalance: initialBalance ?? this.initialBalance,
         createdAt: createdAt.present ? createdAt.value : this.createdAt,
         updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+        sortOrder: sortOrder ?? this.sortOrder,
       );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -560,6 +583,7 @@ class Account extends DataClass implements Insertable<Account> {
           : this.initialBalance,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
   }
 
@@ -573,14 +597,15 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('currency: $currency, ')
           ..write('initialBalance: $initialBalance, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('sortOrder: $sortOrder')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, ledgerId, name, type, currency, initialBalance, createdAt, updatedAt);
+  int get hashCode => Object.hash(id, ledgerId, name, type, currency,
+      initialBalance, createdAt, updatedAt, sortOrder);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -592,7 +617,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.currency == this.currency &&
           other.initialBalance == this.initialBalance &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.sortOrder == this.sortOrder);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -604,6 +630,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<double> initialBalance;
   final Value<DateTime?> createdAt;
   final Value<DateTime?> updatedAt;
+  final Value<int> sortOrder;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.ledgerId = const Value.absent(),
@@ -613,6 +640,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.initialBalance = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.sortOrder = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -623,6 +651,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.initialBalance = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.sortOrder = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         name = Value(name);
   static Insertable<Account> custom({
@@ -634,6 +663,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<double>? initialBalance,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<int>? sortOrder,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -644,6 +674,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (initialBalance != null) 'initial_balance': initialBalance,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (sortOrder != null) 'sort_order': sortOrder,
     });
   }
 
@@ -655,7 +686,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       Value<String>? currency,
       Value<double>? initialBalance,
       Value<DateTime?>? createdAt,
-      Value<DateTime?>? updatedAt}) {
+      Value<DateTime?>? updatedAt,
+      Value<int>? sortOrder}) {
     return AccountsCompanion(
       id: id ?? this.id,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -665,6 +697,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       initialBalance: initialBalance ?? this.initialBalance,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 
@@ -695,6 +728,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
     return map;
   }
 
@@ -708,7 +744,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('currency: $currency, ')
           ..write('initialBalance: $initialBalance, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('sortOrder: $sortOrder')
           ..write(')'))
         .toString();
   }
@@ -5060,6 +5097,7 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<double> initialBalance,
   Value<DateTime?> createdAt,
   Value<DateTime?> updatedAt,
+  Value<int> sortOrder,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> id,
@@ -5070,6 +5108,7 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<double> initialBalance,
   Value<DateTime?> createdAt,
   Value<DateTime?> updatedAt,
+  Value<int> sortOrder,
 });
 
 class $$AccountsTableFilterComposer
@@ -5105,6 +5144,9 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
 }
 
 class $$AccountsTableOrderingComposer
@@ -5140,6 +5182,9 @@ class $$AccountsTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
 }
 
 class $$AccountsTableAnnotationComposer
@@ -5174,6 +5219,9 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 }
 
 class $$AccountsTableTableManager extends RootTableManager<
@@ -5207,6 +5255,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<double> initialBalance = const Value.absent(),
             Value<DateTime?> createdAt = const Value.absent(),
             Value<DateTime?> updatedAt = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
           }) =>
               AccountsCompanion(
             id: id,
@@ -5217,6 +5266,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             initialBalance: initialBalance,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            sortOrder: sortOrder,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -5227,6 +5277,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<double> initialBalance = const Value.absent(),
             Value<DateTime?> createdAt = const Value.absent(),
             Value<DateTime?> updatedAt = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
           }) =>
               AccountsCompanion.insert(
             id: id,
@@ -5237,6 +5288,7 @@ class $$AccountsTableTableManager extends RootTableManager<
             initialBalance: initialBalance,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            sortOrder: sortOrder,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

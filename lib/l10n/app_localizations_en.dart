@@ -5516,4 +5516,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSyncGuideLimitItem4 => 'Excludes attachments: transaction image attachments are not synced — export separately via Data Management';
+
+  @override
+  String get accountReorderTip => 'Long press and drag to reorder';
 }

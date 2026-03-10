@@ -556,6 +556,7 @@ class CloudAccountRepository implements AccountRepository {
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : null,
+      sortOrder: (json['sort_order'] as int?) ?? 0,
     );
   }
 
@@ -591,5 +592,11 @@ class CloudAccountRepository implements AccountRepository {
     );
 
     return results.map((row) => _accountFromJson(row)).toList();
+  }
+
+  @override
+  Future<void> updateAccountSortOrders(
+      List<({int id, int sortOrder})> updates) async {
+    logger.warning('CloudAccount', '云端模式暂不支持账户排序');
   }
 }

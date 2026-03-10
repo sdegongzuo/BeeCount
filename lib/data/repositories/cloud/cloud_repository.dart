@@ -905,6 +905,10 @@ class CloudRepository extends BaseRepository {
       _account.getAccountsByIds(accountIds);
 
   @override
+  Future<void> updateAccountSortOrders(List<({int id, int sortOrder})> updates) =>
+      _account.updateAccountSortOrders(updates);
+
+  @override
   Future<void> batchInsertCategories(List<CategoriesCompanion> categories) =>
       _category.batchInsertCategories(categories);
 

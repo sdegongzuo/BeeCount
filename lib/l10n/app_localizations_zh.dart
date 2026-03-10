@@ -5516,6 +5516,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cloudSyncGuideLimitItem4 => '不含附件：交易的图片附件不参与同步，需通过数据管理单独导出';
+
+  @override
+  String get accountReorderTip => '长按拖动可调整账户顺序';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -11032,4 +11035,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get cloudSyncGuideLimitItem4 => '不含附件：交易的圖片附件不參與同步，需透過資料管理單獨匯出';
+
+  @override
+  String get accountReorderTip => '長按拖動可調整帳戶順序';
 }

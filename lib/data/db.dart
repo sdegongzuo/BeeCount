@@ -32,6 +32,8 @@ class Accounts extends Table {
   DateTimeColumn get createdAt =>
       dateTime().nullable()(); // v1.15.0: 改为可空，避免迁移问题
   DateTimeColumn get updatedAt => dateTime().nullable()();
+  IntColumn get sortOrder =>
+      integer().withDefault(const Constant(0))(); // 排序顺序，数字越小越靠前
 }
 
 class Categories extends Table {
@@ -196,7 +198,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 15; // v15: 交易添加 syncId 用于云同步
+  int get schemaVersion => 16; // v16: 账户添加 sortOrder 排序字段
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -498,6 +500,30 @@ class BeeDatabase extends _$BeeDatabase {
             logger.info('DB', 'v15: syncId 索引已创建');
 
             print('[DB Migration] v15 迁移完成');
+          }
+          if (from < 16) {
+            // v16: 账户添加 sortOrder 排序字段
+            print('[DB Migration] 开始迁移到 v16: 账户排序');
+
+            await customStatement(
+                'ALTER TABLE accounts ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;');
+            logger.info('DB', 'v16: sort_order 字段已添加');
+
+            // 回填：按 type 分组，组内按 created_at 排序赋值 sortOrder
+            await customStatement('''
+              UPDATE accounts SET sort_order = (
+                SELECT COUNT(*)
+                FROM accounts AS a2
+                WHERE a2.type = accounts.type
+                  AND (a2.created_at < accounts.created_at
+                       OR (a2.created_at = accounts.created_at AND a2.id < accounts.id)
+                       OR (a2.created_at IS NULL AND accounts.created_at IS NOT NULL)
+                       OR (a2.created_at IS NULL AND accounts.created_at IS NULL AND a2.id < accounts.id))
+              );
+            ''');
+            logger.info('DB', 'v16: 已为现有账户回填 sortOrder');
+
+            print('[DB Migration] v16 迁移完成');
           }
         },
       );

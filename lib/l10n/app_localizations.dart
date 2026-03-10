@@ -10517,6 +10517,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Excludes attachments: transaction image attachments are not synced — export separately via Data Management'**
   String get cloudSyncGuideLimitItem4;
+
+  /// No description provided for @accountReorderTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Long press and drag to reorder'**
+  String get accountReorderTip;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

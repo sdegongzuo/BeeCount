@@ -20,12 +20,22 @@ class LocalAccountRepository implements AccountRepository {
 
   @override
   Stream<List<Account>> watchAllAccounts() {
-    return db.select(db.accounts).watch();
+    return (db.select(db.accounts)
+          ..orderBy([
+            (a) => d.OrderingTerm(expression: a.type),
+            (a) => d.OrderingTerm(expression: a.sortOrder),
+          ]))
+        .watch();
   }
 
   @override
   Future<List<Account>> getAllAccounts() async {
-    return await db.select(db.accounts).get();
+    return await (db.select(db.accounts)
+          ..orderBy([
+            (a) => d.OrderingTerm(expression: a.type),
+            (a) => d.OrderingTerm(expression: a.sortOrder),
+          ]))
+        .get();
   }
 
   @override
@@ -78,6 +88,14 @@ class LocalAccountRepository implements AccountRepository {
     logger.info('AccountCreate', '📝 开始创建账户: name=$name, ledgerId=$ledgerId, type=$type, currency=$currency, initialBalance=$initialBalance');
 
     try {
+      // 计算同类型最大 sortOrder + 1
+      final maxSortOrderResult = await db.customSelect(
+        'SELECT COALESCE(MAX(sort_order), -1) AS max_order FROM accounts WHERE type = ?1',
+        variables: [d.Variable.withString(type)],
+        readsFrom: {db.accounts},
+      ).getSingle();
+      final nextSortOrder = (maxSortOrderResult.data['max_order'] as int) + 1;
+
       final companion = AccountsCompanion.insert(
         ledgerId: ledgerId,
         name: name,
@@ -85,6 +103,7 @@ class LocalAccountRepository implements AccountRepository {
         currency: d.Value(currency),
         initialBalance: d.Value(initialBalance),
         createdAt: d.Value(DateTime.now()),
+        sortOrder: d.Value(nextSortOrder),
       );
 
       logger.info('AccountCreate', '📦 Companion 创建成功，准备插入数据库');
@@ -462,5 +481,16 @@ class LocalAccountRepository implements AccountRepository {
     return await (db.select(db.accounts)
           ..where((a) => a.id.isIn(accountIds)))
         .get();
+  }
+
+  @override
+  Future<void> updateAccountSortOrders(
+      List<({int id, int sortOrder})> updates) async {
+    await db.transaction(() async {
+      for (final update in updates) {
+        await (db.update(db.accounts)..where((a) => a.id.equals(update.id)))
+            .write(AccountsCompanion(sortOrder: d.Value(update.sortOrder)));
+      }
+    });
   }
 }

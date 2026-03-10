@@ -2178,5 +2178,6 @@
   "syncPreviewOldFormat": "雲端資料格式較舊，將執行全量替換",
   "syncPreviewOldFormatMessage": "雲端資料不包含同步標識，無法逐條對比。將清空當前帳本資料並從雲端重新匯入。",
   "syncPreviewApplied": "已套用 {count} 項變更",
-  "@syncPreviewApplied": {"placeholders": {"count": {"type": "int"}}}
+  "@syncPreviewApplied": {"placeholders": {"count": {"type": "int"}}},
+  "accountReorderTip": "長按拖動可調整帳戶順序"
 }

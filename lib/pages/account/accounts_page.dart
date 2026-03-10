@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:collection/collection.dart';
 
 import '../../providers.dart';
-import '../../providers/theme_providers.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/amount_text.dart';
 import '../../widgets/biz/section_card.dart';
@@ -15,74 +14,120 @@ import '../../utils/currencies.dart';
 import 'account_edit_page.dart';
 import 'account_detail_page.dart';
 
-class AccountsPage extends ConsumerWidget {
+/// 固定的账户类型顺序
+const _typeOrder = ['cash', 'bank_card', 'credit_card', 'alipay', 'wechat', 'other'];
+
+IconData _getIconForType(String type) {
+  switch (type) {
+    case 'cash':
+      return Icons.payments_outlined;
+    case 'bank_card':
+      return Icons.credit_card;
+    case 'credit_card':
+      return Icons.credit_score;
+    case 'alipay':
+      return Icons.currency_yuan;
+    case 'wechat':
+      return Icons.chat;
+    case 'other':
+      return Icons.account_balance_outlined;
+    default:
+      return Icons.account_balance_wallet_outlined;
+  }
+}
+
+String _getTypeLabel(BuildContext context, String type) {
+  final l10n = AppLocalizations.of(context);
+  switch (type) {
+    case 'cash':
+      return l10n.accountTypeCash;
+    case 'bank_card':
+      return l10n.accountTypeBankCard;
+    case 'credit_card':
+      return l10n.accountTypeCreditCard;
+    case 'alipay':
+      return l10n.accountTypeAlipay;
+    case 'wechat':
+      return l10n.accountTypeWechat;
+    case 'other':
+      return l10n.accountTypeOther;
+    default:
+      return type;
+  }
+}
+
+Color _getColorForType(String type, Color primaryColor) {
+  switch (type) {
+    case 'alipay':
+      return const Color(0xFF1677FF);
+    case 'wechat':
+      return const Color(0xFF07C160);
+    case 'cash':
+      return Colors.orange;
+    case 'bank_card':
+      return const Color(0xFF1890FF);
+    case 'credit_card':
+      return Colors.purple;
+    default:
+      return primaryColor;
+  }
+}
+
+class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({super.key});
 
-  IconData _getIconForType(String type) {
-    switch (type) {
-      case 'cash':
-        return Icons.payments_outlined;
-      case 'bank_card':
-        return Icons.credit_card;
-      case 'credit_card':
-        return Icons.credit_score;
-      case 'alipay':
-        return Icons.currency_yuan;
-      case 'wechat':
-        return Icons.chat;
-      case 'other':
-        return Icons.account_balance_outlined;
-      default:
-        return Icons.account_balance_wallet_outlined;
+  @override
+  ConsumerState<AccountsPage> createState() => _AccountsPageState();
+}
+
+class _AccountsPageState extends ConsumerState<AccountsPage> {
+  /// 拖拽后临时保持本地排序，防止 stream rebuild 闪烁
+  Map<String, List<db.Account>>? _reorderingGroups;
+
+  Map<String, List<db.Account>> _groupAccounts(List<db.Account> accounts) {
+    final Map<String, List<db.Account>> grouped = {};
+    for (final account in accounts) {
+      grouped.putIfAbsent(account.type, () => []).add(account);
     }
+    return grouped;
   }
 
-  String _getTypeLabel(BuildContext context, String type) {
-    final l10n = AppLocalizations.of(context);
-    switch (type) {
-      case 'cash':
-        return l10n.accountTypeCash;
-      case 'bank_card':
-        return l10n.accountTypeBankCard;
-      case 'credit_card':
-        return l10n.accountTypeCreditCard;
-      case 'alipay':
-        return l10n.accountTypeAlipay;
-      case 'wechat':
-        return l10n.accountTypeWechat;
-      case 'other':
-        return l10n.accountTypeOther;
-      default:
-        return type;
-    }
-  }
+  void _onReorder(String type, List<db.Account> groupAccounts, int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) newIndex -= 1;
+    if (oldIndex == newIndex) return;
 
-  Color _getColorForType(String type, Color primaryColor) {
-    switch (type) {
-      case 'alipay':
-        return const Color(0xFF1677FF); // 支付宝蓝
-      case 'wechat':
-        return const Color(0xFF07C160); // 微信绿
-      case 'cash':
-        return Colors.orange;
-      case 'bank_card':
-        return const Color(0xFF1890FF); // 银行卡蓝
-      case 'credit_card':
-        return Colors.purple;
-      default:
-        return primaryColor;
+    // 乐观更新：用本地状态锁住当前排序，防止 stream 刷新导致闪烁
+    setState(() {
+      _reorderingGroups ??= _groupAccounts(
+        ref.read(allAccountsStreamProvider).asData?.value ?? [],
+      );
+      final list = _reorderingGroups![type]!;
+      final item = list.removeAt(oldIndex);
+      list.insert(newIndex, item);
+    });
+
+    // 构建排序更新
+    final list = _reorderingGroups![type]!;
+    final updates = <({int id, int sortOrder})>[];
+    for (var i = 0; i < list.length; i++) {
+      updates.add((id: list[i].id, sortOrder: i));
     }
+
+    // 写入数据库，延迟清除本地状态让 stream 先到位
+    ref.read(repositoryProvider).updateAccountSortOrders(updates).then((_) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) setState(() => _reorderingGroups = null);
+      });
+    });
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final ledgerId = ref.watch(currentLedgerIdProvider);
-    // v1.15.0: 显示所有账户，不限账本
     final accountsAsync = ref.watch(allAccountsStreamProvider);
     final accountFeatureAsync = ref.watch(accountFeatureEnabledProvider);
     final primaryColor = ref.watch(primaryColorProvider);
-    // v1.15.0: 全局统计，不再限制账本
     final totalStatsAsync = ref.watch(allAccountsTotalStatsProvider);
     final allStatsAsync = ref.watch(allAccountStatsProvider);
 
@@ -104,70 +149,15 @@ class AccountsPage extends ConsumerWidget {
           Expanded(
             child: accountsAsync.when(
               data: (accounts) {
+                final groups = _reorderingGroups ?? _groupAccounts(accounts);
+
                 return ListView(
                   padding: EdgeInsets.symmetric(
                     horizontal: 12.0.scaled(context, ref),
                     vertical: 8.0.scaled(context, ref),
                   ),
                   children: [
-                    // 功能开关卡片
-                    accountFeatureAsync.when(
-                      data: (enabled) {
-                        return SectionCard(
-                          margin: EdgeInsets.zero,
-                          child: Column(
-                            children: [
-                              SwitchListTile(
-                                title: Text(
-                                  l10n.accountsEnableFeature,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                subtitle: Text(l10n.accountsFeatureDescription),
-                                value: enabled,
-                                activeColor: primaryColor,
-                                onChanged: (value) async {
-                                  await ref
-                                      .read(accountFeatureSetterProvider)
-                                      .setEnabled(value);
-                                  ref.invalidate(accountFeatureEnabledProvider);
-                                },
-                              ),
-                              // 默认账户设置（仅在启用账户功能时显示）
-                              if (enabled && accounts.isNotEmpty) ...[
-                                Divider(
-                                  height: 1,
-                                  color: BeeTokens.divider(context),
-                                ),
-                                _DefaultAccountSelector(
-                                  accounts: accounts,
-                                  primaryColor: primaryColor,
-                                  type: 'expense',
-                                ),
-                                Divider(
-                                  height: 1,
-                                  indent: 16,
-                                  endIndent: 16,
-                                  color: BeeTokens.divider(context),
-                                ),
-                                _DefaultAccountSelector(
-                                  accounts: accounts,
-                                  primaryColor: primaryColor,
-                                  type: 'income',
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      },
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, __) => const SizedBox.shrink(),
-                    ),
-
                     if (accounts.isEmpty)
-                      // 空状态
                       SizedBox(
                         height: MediaQuery.of(context).size.height * 0.5,
                         child: Center(
@@ -202,49 +192,77 @@ class AccountsPage extends ConsumerWidget {
                         ),
                       )
                     else ...[
-                      // 顶部汇总统计卡片
-                      SizedBox(height: 8.0.scaled(context, ref)),
+                      // 1. 汇总卡片
                       totalStatsAsync.when(
                         data: (stats) => SectionCard(
                           margin: EdgeInsets.zero,
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 16.0.scaled(context, ref),
-                              vertical: 12.0.scaled(context, ref),
-                            ),
-                            child: Row(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12.0.scaled(context, ref)),
+                            child: Stack(
                               children: [
-                                Expanded(
-                                  child: _StatCell(
-                                    label: l10n.accountTotalBalance,
-                                    value: stats.totalBalance,
-                                    color: stats.totalBalance >= 0
-                                        ? BeeTokens.textPrimary(context)
-                                        : Colors.red,
+                                // 右上角装饰：主题色半透明钱包图标
+                                Positioned(
+                                  right: -8,
+                                  top: -8,
+                                  child: Icon(
+                                    Icons.account_balance_wallet_rounded,
+                                    size: 72.0.scaled(context, ref),
+                                    color: primaryColor.withValues(alpha: 0.06),
                                   ),
                                 ),
-                                Container(
-                                  width: 1,
-                                  height: 40.0.scaled(context, ref),
-                                  color: BeeTokens.border(context),
-                                ),
-                                Expanded(
-                                  child: _StatCell(
-                                    label: l10n.accountTotalIncome,
-                                    value: stats.totalIncome,
-                                    color: BeeTokens.incomeColor(context, ref),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16.0.scaled(context, ref),
+                                    vertical: 20.0.scaled(context, ref),
                                   ),
-                                ),
-                                Container(
-                                  width: 1,
-                                  height: 40.0.scaled(context, ref),
-                                  color: BeeTokens.border(context),
-                                ),
-                                Expanded(
-                                  child: _StatCell(
-                                    label: l10n.accountTotalExpense,
-                                    value: stats.totalExpense,
-                                    color: BeeTokens.expenseColor(context, ref),
+                                  child: Column(
+                                    children: [
+                                      // 总余额
+                                      Text(
+                                        l10n.accountTotalBalance,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: BeeTokens.textTertiary(context),
+                                        ),
+                                      ),
+                                      SizedBox(height: 4.0.scaled(context, ref)),
+                                      AmountText(
+                                        value: stats.totalBalance,
+                                        signed: false,
+                                        showCurrency: false,
+                                        useCompactFormat: ref.watch(compactAmountProvider),
+                                        style: TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                          color: BeeTokens.textPrimary(context),
+                                        ),
+                                      ),
+                                      SizedBox(height: 16.0.scaled(context, ref)),
+                                      // 收入/支出
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: _SummaryStatItem(
+                                              label: l10n.accountTotalIncome,
+                                              value: stats.totalIncome,
+                                              color: BeeTokens.incomeColor(context, ref),
+                                            ),
+                                          ),
+                                          Container(
+                                            width: 1,
+                                            height: 28.0.scaled(context, ref),
+                                            color: BeeTokens.divider(context),
+                                          ),
+                                          Expanded(
+                                            child: _SummaryStatItem(
+                                              label: l10n.accountTotalExpense,
+                                              value: stats.totalExpense,
+                                              color: BeeTokens.expenseColor(context, ref),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -254,8 +272,7 @@ class AccountsPage extends ConsumerWidget {
                         loading: () => SectionCard(
                           child: Center(
                             child: Padding(
-                              padding:
-                                  EdgeInsets.all(16.0.scaled(context, ref)),
+                              padding: EdgeInsets.all(16.0.scaled(context, ref)),
                               child: const CircularProgressIndicator(),
                             ),
                           ),
@@ -263,20 +280,104 @@ class AccountsPage extends ConsumerWidget {
                         error: (err, stack) => const SizedBox.shrink(),
                       ),
 
-                      // 账户列表
+                      // 2. 设置项（紧凑）
                       SizedBox(height: 8.0.scaled(context, ref)),
-                      ...accounts.map((account) {
-                        return _AccountCard(
-                          account: account,
+                      accountFeatureAsync.when(
+                        data: (enabled) {
+                          return SectionCard(
+                            margin: EdgeInsets.zero,
+                            child: Column(
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 4.0.scaled(context, ref),
+                                  ),
+                                  child: SwitchListTile(
+                                    dense: true,
+                                    visualDensity: VisualDensity.compact,
+                                    title: Text(
+                                      l10n.accountsEnableFeature,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: BeeTokens.textSecondary(context),
+                                      ),
+                                    ),
+                                    value: enabled,
+                                    activeColor: primaryColor,
+                                    onChanged: (value) async {
+                                      await ref
+                                          .read(accountFeatureSetterProvider)
+                                          .setEnabled(value);
+                                      ref.invalidate(accountFeatureEnabledProvider);
+                                    },
+                                  ),
+                                ),
+                                if (enabled && accounts.isNotEmpty) ...[
+                                  Divider(
+                                    height: 1,
+                                    indent: 16,
+                                    endIndent: 16,
+                                    color: BeeTokens.divider(context),
+                                  ),
+                                  _CompactDefaultAccount(
+                                    accounts: accounts,
+                                    primaryColor: primaryColor,
+                                    type: 'expense',
+                                  ),
+                                  Divider(
+                                    height: 1,
+                                    indent: 16,
+                                    endIndent: 16,
+                                    color: BeeTokens.divider(context),
+                                  ),
+                                  _CompactDefaultAccount(
+                                    accounts: accounts,
+                                    primaryColor: primaryColor,
+                                    type: 'income',
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        },
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                      ),
+
+                      // 2. 按类型分组的账户列表
+                      ..._typeOrder
+                          .where((type) => groups.containsKey(type) && groups[type]!.isNotEmpty)
+                          .map((type) {
+                        final groupList = groups[type]!;
+                        return _AccountTypeGroup(
+                          type: type,
+                          accounts: groupList,
                           primaryColor: primaryColor,
-                          typeColor:
-                              _getColorForType(account.type, primaryColor),
-                          icon: _getIconForType(account.type),
-                          typeLabel: _getTypeLabel(context, account.type),
-                          stats: allStatsAsync.asData?.value[account.id],
-                          onTap: () =>
+                          allStats: allStatsAsync.asData?.value,
+                          onReorder: (oldIndex, newIndex) =>
+                              _onReorder(type, groupList, oldIndex, newIndex),
+                          onTap: (account) =>
                               _viewAccountDetail(context, ref, account),
-                          onEdit: () =>
+                          onEdit: (account) =>
+                              _editAccount(context, ref, account, ledgerId),
+                        );
+                      }),
+
+                      // 处理不在固定类型列表中的类型
+                      ...groups.keys
+                          .where((type) => !_typeOrder.contains(type) && groups[type]!.isNotEmpty)
+                          .map((type) {
+                        final groupList = groups[type]!;
+                        return _AccountTypeGroup(
+                          type: type,
+                          accounts: groupList,
+                          primaryColor: primaryColor,
+                          allStats: allStatsAsync.asData?.value,
+                          onReorder: (oldIndex, newIndex) =>
+                              _onReorder(type, groupList, oldIndex, newIndex),
+                          onTap: (account) =>
+                              _viewAccountDetail(context, ref, account),
+                          onEdit: (account) =>
                               _editAccount(context, ref, account, ledgerId),
                         );
                       }),
@@ -302,7 +403,6 @@ class AccountsPage extends ConsumerWidget {
       ),
     );
 
-    // v1.15.0: 刷新全局统计数据
     ref.invalidate(allAccountStatsProvider);
     ref.invalidate(allAccountsTotalStatsProvider);
     ref.invalidate(statsRefreshProvider);
@@ -319,7 +419,6 @@ class AccountsPage extends ConsumerWidget {
       ),
     );
 
-    // v1.15.0: 刷新全局统计数据
     ref.invalidate(allAccountStatsProvider);
     ref.invalidate(allAccountsTotalStatsProvider);
     ref.invalidate(statsRefreshProvider);
@@ -335,13 +434,168 @@ class AccountsPage extends ConsumerWidget {
   }
 }
 
-/// 统计单元格
-class _StatCell extends ConsumerWidget {
+/// 账户类型分组（可折叠，默认折叠）
+class _AccountTypeGroup extends ConsumerStatefulWidget {
+  final String type;
+  final List<db.Account> accounts;
+  final Color primaryColor;
+  final Map<int, ({double balance, double expense, double income})>? allStats;
+  final void Function(int oldIndex, int newIndex) onReorder;
+  final void Function(db.Account account) onTap;
+  final void Function(db.Account account) onEdit;
+
+  const _AccountTypeGroup({
+    required this.type,
+    required this.accounts,
+    required this.primaryColor,
+    this.allStats,
+    required this.onReorder,
+    required this.onTap,
+    required this.onEdit,
+  });
+
+  @override
+  ConsumerState<_AccountTypeGroup> createState() => _AccountTypeGroupState();
+}
+
+class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
+  bool _expanded = true;
+
+  @override
+  Widget build(BuildContext context) {
+    final typeColor = _getColorForType(widget.type, widget.primaryColor);
+    final canReorder = widget.accounts.length > 1;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 类型标题栏（点击展开/折叠）
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: 14.0.scaled(context, ref),
+              bottom: 8.0.scaled(context, ref),
+              left: 4.0.scaled(context, ref),
+              right: 4.0.scaled(context, ref),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 32.0.scaled(context, ref),
+                  height: 32.0.scaled(context, ref),
+                  decoration: BoxDecoration(
+                    color: typeColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8.0.scaled(context, ref)),
+                  ),
+                  child: Icon(
+                    _getIconForType(widget.type),
+                    size: 18.0.scaled(context, ref),
+                    color: typeColor,
+                  ),
+                ),
+                SizedBox(width: 10.0.scaled(context, ref)),
+                Text(
+                  _getTypeLabel(context, widget.type),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: BeeTokens.textPrimary(context),
+                  ),
+                ),
+                SizedBox(width: 6.0.scaled(context, ref)),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 6.0.scaled(context, ref),
+                    vertical: 1.0.scaled(context, ref),
+                  ),
+                  decoration: BoxDecoration(
+                    color: BeeTokens.textTertiary(context).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10.0.scaled(context, ref)),
+                  ),
+                  child: Text(
+                    '${widget.accounts.length}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: BeeTokens.textTertiary(context),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                AnimatedRotation(
+                  turns: _expanded ? 0.25 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    Icons.chevron_right,
+                    size: 20.0.scaled(context, ref),
+                    color: BeeTokens.iconTertiary(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // 可折叠的账户卡片列表
+        if (_expanded)
+          canReorder
+              ? ReorderableListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  buildDefaultDragHandles: false,
+                  itemCount: widget.accounts.length,
+                  proxyDecorator: (child, index, animation) {
+                    return Material(
+                      elevation: 4,
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(12.0),
+                      child: child,
+                    );
+                  },
+                  onReorder: widget.onReorder,
+                  itemBuilder: (context, index) {
+                    final account = widget.accounts[index];
+                    return ReorderableDelayedDragStartListener(
+                      key: ValueKey(account.id),
+                      index: index,
+                      child: _AccountCard(
+                        account: account,
+                        primaryColor: widget.primaryColor,
+                        typeColor: typeColor,
+                        icon: _getIconForType(account.type),
+
+                        stats: widget.allStats?[account.id],
+                        onTap: () => widget.onTap(account),
+                        onEdit: () => widget.onEdit(account),
+                      ),
+                    );
+                  },
+                )
+              : Column(
+                  children: widget.accounts.map((account) {
+                    return _AccountCard(
+                      account: account,
+                      primaryColor: widget.primaryColor,
+                      typeColor: typeColor,
+                      icon: _getIconForType(account.type),
+                      stats: widget.allStats?[account.id],
+                      onTap: () => widget.onTap(account),
+                      onEdit: () => widget.onEdit(account),
+                    );
+                  }).toList(),
+                ),
+      ],
+    );
+  }
+}
+
+/// 汇总卡片内收入/支出项
+class _SummaryStatItem extends ConsumerWidget {
   final String label;
   final double value;
   final Color color;
 
-  const _StatCell({
+  const _SummaryStatItem({
     required this.label,
     required this.value,
     required this.color,
@@ -351,28 +605,169 @@ class _StatCell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
-        // v1.15.0: 全局统计可能包含多币种，暂不显示币种符号
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: BeeTokens.textTertiary(context),
+          ),
+        ),
+        SizedBox(height: 2.0.scaled(context, ref)),
         AmountText(
           value: value,
           signed: false,
           showCurrency: false,
           useCompactFormat: ref.watch(compactAmountProvider),
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
             color: color,
           ),
         ),
-        SizedBox(height: 4.0.scaled(context, ref)),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: BeeTokens.textSecondary(context),
-          ),
-          textAlign: TextAlign.center,
-        ),
       ],
+    );
+  }
+}
+
+/// 紧凑默认账户选择行
+class _CompactDefaultAccount extends ConsumerWidget {
+  final List<db.Account> accounts;
+  final Color primaryColor;
+  final String type;
+
+  const _CompactDefaultAccount({
+    required this.accounts,
+    required this.primaryColor,
+    required this.type,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final isIncome = type == 'income';
+    final defaultAccountIdAsync = isIncome
+        ? ref.watch(defaultIncomeAccountIdProvider)
+        : ref.watch(defaultExpenseAccountIdProvider);
+
+    return defaultAccountIdAsync.when(
+      data: (defaultAccountId) {
+        db.Account? defaultAccount;
+        if (defaultAccountId != null) {
+          defaultAccount = accounts.where((a) => a.id == defaultAccountId).firstOrNull;
+        }
+
+        final title = isIncome
+            ? l10n.accountDefaultIncomeTitle
+            : l10n.accountDefaultExpenseTitle;
+
+        return InkWell(
+          onTap: () => _showPicker(context, ref, accounts, defaultAccountId),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 16.0.scaled(context, ref),
+              vertical: 10.0.scaled(context, ref),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: BeeTokens.textSecondary(context),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  defaultAccount?.name ?? l10n.accountDefaultNone,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: BeeTokens.textTertiary(context),
+                  ),
+                ),
+                SizedBox(width: 2.0.scaled(context, ref)),
+                Icon(
+                  Icons.chevron_right,
+                  size: 16.0.scaled(context, ref),
+                  color: BeeTokens.iconTertiary(context),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  void _showPicker(BuildContext context, WidgetRef ref, List<db.Account> accounts, int? currentDefaultId) {
+    final l10n = AppLocalizations.of(context);
+    final isIncome = type == 'income';
+    final title = isIncome ? l10n.accountDefaultIncomeTitle : l10n.accountDefaultExpenseTitle;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: BeeTokens.surfaceElevated(context),
+        title: Text(title, style: TextStyle(color: BeeTokens.textPrimary(context))),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                dense: true,
+                leading: Icon(Icons.block, color: BeeTokens.iconSecondary(context)),
+                title: Text(
+                  l10n.accountDefaultNone,
+                  style: TextStyle(
+                    color: currentDefaultId == null ? primaryColor : BeeTokens.textPrimary(context),
+                    fontWeight: currentDefaultId == null ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+                trailing: currentDefaultId == null ? Icon(Icons.check, color: primaryColor) : null,
+                onTap: () async {
+                  if (isIncome) {
+                    await ref.read(defaultAccountSetterProvider).setDefaultIncomeAccountId(null);
+                    ref.invalidate(defaultIncomeAccountIdProvider);
+                  } else {
+                    await ref.read(defaultAccountSetterProvider).setDefaultExpenseAccountId(null);
+                    ref.invalidate(defaultExpenseAccountIdProvider);
+                  }
+                  if (context.mounted) Navigator.pop(context);
+                },
+              ),
+              ...accounts.map((account) {
+                final isSelected = account.id == currentDefaultId;
+                return ListTile(
+                  dense: true,
+                  leading: Icon(
+                    _getIconForType(account.type),
+                    color: _getColorForType(account.type, primaryColor),
+                  ),
+                  title: Text(
+                    account.name,
+                    style: TextStyle(
+                      color: isSelected ? primaryColor : BeeTokens.textPrimary(context),
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                  trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
+                  onTap: () async {
+                    if (isIncome) {
+                      await ref.read(defaultAccountSetterProvider).setDefaultIncomeAccountId(account.id);
+                      ref.invalidate(defaultIncomeAccountIdProvider);
+                    } else {
+                      await ref.read(defaultAccountSetterProvider).setDefaultExpenseAccountId(account.id);
+                      ref.invalidate(defaultExpenseAccountIdProvider);
+                    }
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -383,7 +778,6 @@ class _AccountCard extends ConsumerWidget {
   final Color primaryColor;
   final Color typeColor;
   final IconData icon;
-  final String typeLabel;
   final ({double balance, double expense, double income})? stats;
   final VoidCallback onTap;
   final VoidCallback onEdit;
@@ -393,7 +787,6 @@ class _AccountCard extends ConsumerWidget {
     required this.primaryColor,
     required this.typeColor,
     required this.icon,
-    required this.typeLabel,
     this.stats,
     required this.onTap,
     required this.onEdit,
@@ -404,7 +797,7 @@ class _AccountCard extends ConsumerWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: EdgeInsets.only(bottom: 12.0.scaled(context, ref)),
+        margin: EdgeInsets.only(bottom: 8.0.scaled(context, ref)),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -414,17 +807,17 @@ class _AccountCard extends ConsumerWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(12.0.scaled(context, ref)),
+          borderRadius: BorderRadius.circular(10.0.scaled(context, ref)),
           boxShadow: [
             BoxShadow(
-              color: typeColor.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              color: typeColor.withValues(alpha: 0.2),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(12.0.scaled(context, ref)),
+          borderRadius: BorderRadius.circular(10.0.scaled(context, ref)),
           child: Stack(
             children: [
               // 背景装饰圆圈
@@ -432,115 +825,68 @@ class _AccountCard extends ConsumerWidget {
                 right: -20,
                 top: -20,
                 child: Container(
-                  width: 100.0.scaled(context, ref),
-                  height: 100.0.scaled(context, ref),
+                  width: 80.0.scaled(context, ref),
+                  height: 80.0.scaled(context, ref),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
               ),
-              Positioned(
-                right: 40,
-                bottom: -30,
-                child: Container(
-                  width: 120.0.scaled(context, ref),
-                  height: 120.0.scaled(context, ref),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.05),
-                  ),
-                ),
-              ),
               // 卡片内容
               Padding(
-                padding: EdgeInsets.all(16.0.scaled(context, ref)),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 14.0.scaled(context, ref),
+                  vertical: 12.0.scaled(context, ref),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 顶部：账户名称和图标
+                    // 顶部：账户名称 + 币种 + 编辑
                     Row(
                       children: [
-                        Container(
-                          width: 40.0.scaled(context, ref),
-                          height: 40.0.scaled(context, ref),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            icon,
-                            color: Colors.white,
-                            size: 20.0.scaled(context, ref),
-                          ),
-                        ),
-                        SizedBox(width: 12.0.scaled(context, ref)),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Row(
-                                children: [
-                                  Flexible(
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            account.name,
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        SizedBox(width: 8.0.scaled(context, ref)),
-                                        // v1.15.0: 显示币种名称（如：人民币、美元）
-                                        Container(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: 6.0.scaled(context, ref),
-                                            vertical: 2.0.scaled(context, ref),
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(alpha: 0.2),
-                                            borderRadius: BorderRadius.circular(4.0.scaled(context, ref)),
-                                          ),
-                                          child: Text(
-                                            getCurrencyName(account.currency, context),
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                              Flexible(
+                                child: Text(
+                                  account.name,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
                                   ),
-                                ],
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              SizedBox(height: 2.0.scaled(context, ref)),
-                              Text(
-                                typeLabel,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.white.withValues(alpha: 0.8),
+                              SizedBox(width: 8.0.scaled(context, ref)),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 5.0.scaled(context, ref),
+                                  vertical: 1.0.scaled(context, ref),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(4.0.scaled(context, ref)),
+                                ),
+                                child: Text(
+                                  getCurrencyName(account.currency, context),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        SizedBox(width: 12.0.scaled(context, ref)),
-                        // 编辑按钮
                         GestureDetector(
-                          onTap: () {
-                            onEdit();
-                          },
+                          onTap: () => onEdit(),
                           child: Container(
-                            padding: EdgeInsets.all(8.0.scaled(context, ref)),
+                            padding: EdgeInsets.all(6.0.scaled(context, ref)),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.2),
                               shape: BoxShape.circle,
@@ -548,13 +894,13 @@ class _AccountCard extends ConsumerWidget {
                             child: Icon(
                               Icons.edit,
                               color: Colors.white,
-                              size: 16.0.scaled(context, ref),
+                              size: 14.0.scaled(context, ref),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 16.0.scaled(context, ref)),
+                    SizedBox(height: 10.0.scaled(context, ref)),
                     // 统计数据
                     if (stats != null)
                       Row(
@@ -569,7 +915,7 @@ class _AccountCard extends ConsumerWidget {
                           ),
                           Container(
                             width: 1,
-                            height: 30.0.scaled(context, ref),
+                            height: 24.0.scaled(context, ref),
                             color: Colors.white.withValues(alpha: 0.2),
                           ),
                           Expanded(
@@ -581,7 +927,7 @@ class _AccountCard extends ConsumerWidget {
                           ),
                           Container(
                             width: 1,
-                            height: 30.0.scaled(context, ref),
+                            height: 24.0.scaled(context, ref),
                             color: Colors.white.withValues(alpha: 0.2),
                           ),
                           Expanded(
@@ -597,7 +943,7 @@ class _AccountCard extends ConsumerWidget {
                       Center(
                         child: Padding(
                           padding: EdgeInsets.symmetric(
-                              vertical: 8.0.scaled(context, ref)),
+                              vertical: 4.0.scaled(context, ref)),
                           child: const CircularProgressIndicator(
                             valueColor:
                                 AlwaysStoppedAnimation<Color>(Colors.white),
@@ -639,16 +985,16 @@ class _CardStatItem extends ConsumerWidget {
           useCompactFormat: ref.watch(compactAmountProvider),
           currencyCode: currencyCode,
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
-        SizedBox(height: 2.0.scaled(context, ref)),
+        SizedBox(height: 1.0.scaled(context, ref)),
         Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 10,
             color: Colors.white.withValues(alpha: 0.7),
           ),
           textAlign: TextAlign.center,
@@ -658,233 +1004,3 @@ class _CardStatItem extends ConsumerWidget {
   }
 }
 
-/// 默认账户选择器
-class _DefaultAccountSelector extends ConsumerWidget {
-  final List<db.Account> accounts;
-  final Color primaryColor;
-  final String type; // 'income' 或 'expense'
-
-  const _DefaultAccountSelector({
-    required this.accounts,
-    required this.primaryColor,
-    required this.type,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final isIncome = type == 'income';
-    final defaultAccountIdAsync = isIncome
-        ? ref.watch(defaultIncomeAccountIdProvider)
-        : ref.watch(defaultExpenseAccountIdProvider);
-
-    return defaultAccountIdAsync.when(
-      data: (defaultAccountId) {
-        // 查找默认账户
-        db.Account? defaultAccount;
-        if (defaultAccountId != null) {
-          defaultAccount = accounts
-              .where((a) => a.id == defaultAccountId)
-              .firstOrNull;
-        }
-
-        final title = isIncome
-            ? l10n.accountDefaultIncomeTitle
-            : l10n.accountDefaultExpenseTitle;
-        final description = isIncome
-            ? l10n.accountDefaultIncomeDescription
-            : l10n.accountDefaultExpenseDescription;
-
-        return ListTile(
-          title: Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          subtitle: Text(
-            defaultAccount != null
-                ? l10n.accountDefaultSet(defaultAccount.name)
-                : description,
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                defaultAccount?.name ?? l10n.accountDefaultNone,
-                style: TextStyle(
-                  color: BeeTokens.textSecondary(context),
-                  fontSize: 14,
-                ),
-              ),
-              SizedBox(width: 4.0.scaled(context, ref)),
-              Icon(
-                Icons.chevron_right,
-                color: BeeTokens.iconTertiary(context),
-              ),
-            ],
-          ),
-          onTap: () => _showAccountPicker(context, ref, accounts, defaultAccountId),
-        );
-      },
-      loading: () => ListTile(
-        title: Text(isIncome ? l10n.accountDefaultIncomeTitle : l10n.accountDefaultExpenseTitle),
-        trailing: const SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      ),
-      error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-
-  void _showAccountPicker(
-    BuildContext context,
-    WidgetRef ref,
-    List<db.Account> accounts,
-    int? currentDefaultId,
-  ) {
-    final l10n = AppLocalizations.of(context);
-    final isIncome = type == 'income';
-    final title = isIncome
-        ? l10n.accountDefaultIncomeTitle
-        : l10n.accountDefaultExpenseTitle;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: BeeTokens.surfaceElevated(context),
-        title: Text(
-          title,
-          style: TextStyle(color: BeeTokens.textPrimary(context)),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 不设置选项
-              _buildAccountOption(
-                context, ref,
-                title: l10n.accountDefaultNone,
-                icon: Icons.block,
-                iconColor: BeeTokens.iconSecondary(context),
-                isSelected: currentDefaultId == null,
-                onTap: () async {
-                  if (isIncome) {
-                    await ref
-                        .read(defaultAccountSetterProvider)
-                        .setDefaultIncomeAccountId(null);
-                    ref.invalidate(defaultIncomeAccountIdProvider);
-                  } else {
-                    await ref
-                        .read(defaultAccountSetterProvider)
-                        .setDefaultExpenseAccountId(null);
-                    ref.invalidate(defaultExpenseAccountIdProvider);
-                  }
-                  if (context.mounted) Navigator.pop(context);
-                },
-              ),
-              // 账户列表
-              ...accounts.map((account) {
-                final isSelected = account.id == currentDefaultId;
-                return _buildAccountOption(
-                  context, ref,
-                  title: account.name,
-                  subtitle: getCurrencyName(account.currency, context),
-                  icon: _getIconForType(account.type),
-                  iconColor: _getColorForType(account.type, primaryColor),
-                  isSelected: isSelected,
-                  onTap: () async {
-                    if (isIncome) {
-                      await ref
-                          .read(defaultAccountSetterProvider)
-                          .setDefaultIncomeAccountId(account.id);
-                      ref.invalidate(defaultIncomeAccountIdProvider);
-                    } else {
-                      await ref
-                          .read(defaultAccountSetterProvider)
-                          .setDefaultExpenseAccountId(account.id);
-                      ref.invalidate(defaultExpenseAccountIdProvider);
-                    }
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                );
-              }),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAccountOption(
-    BuildContext context,
-    WidgetRef ref, {
-    required String title,
-    String? subtitle,
-    required IconData icon,
-    required Color iconColor,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: iconColor),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isSelected ? primaryColor : BeeTokens.textPrimary(context),
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-        ),
-      ),
-      subtitle: subtitle != null
-          ? Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: BeeTokens.textTertiary(context),
-              ),
-            )
-          : null,
-      trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
-      onTap: onTap,
-    );
-  }
-
-  IconData _getIconForType(String type) {
-    switch (type) {
-      case 'cash':
-        return Icons.payments_outlined;
-      case 'bank_card':
-        return Icons.credit_card;
-      case 'credit_card':
-        return Icons.credit_score;
-      case 'alipay':
-        return Icons.currency_yuan;
-      case 'wechat':
-        return Icons.chat;
-      case 'other':
-        return Icons.account_balance_outlined;
-      default:
-        return Icons.account_balance_wallet_outlined;
-    }
-  }
-
-  Color _getColorForType(String type, Color primaryColor) {
-    switch (type) {
-      case 'alipay':
-        return const Color(0xFF1677FF);
-      case 'wechat':
-        return const Color(0xFF07C160);
-      case 'cash':
-        return Colors.orange;
-      case 'bank_card':
-        return const Color(0xFF1890FF);
-      case 'credit_card':
-        return Colors.purple;
-      default:
-        return primaryColor;
-    }
-  }
-}

@@ -98,4 +98,7 @@ abstract class AccountRepository {
 
   /// 批量获取账户信息（通过ID列表）
   Future<List<Account>> getAccountsByIds(List<int> accountIds);
+
+  /// 批量更新账户排序顺序
+  Future<void> updateAccountSortOrders(List<({int id, int sortOrder})> updates);
 }

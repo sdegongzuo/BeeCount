@@ -678,6 +678,10 @@ class LocalRepository extends BaseRepository {
   Future<List<Account>> getAccountsByIds(List<int> accountIds) =>
       _accountRepo.getAccountsByIds(accountIds);
 
+  @override
+  Future<void> updateAccountSortOrders(List<({int id, int sortOrder})> updates) =>
+      _accountRepo.updateAccountSortOrders(updates);
+
   // ============================================
   // StatisticsRepository 接口实现 - 委托给 LocalStatisticsRepository
   // ============================================
