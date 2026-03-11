@@ -17,9 +17,6 @@ import 'services/platform/screenshot_monitor_service.dart';
 import 'services/platform/image_share_handler_service.dart';
 import 'services/platform/app_link_service.dart';
 import 'services/system/logger_service.dart';
-import 'services/data/migration_service.dart';
-import 'services/data/seed_service.dart';
-import 'data/db.dart';
 import 'l10n/app_localizations.dart';
 import 'widget/widget_manager.dart';
 import 'package:home_widget/home_widget.dart';
@@ -79,11 +76,9 @@ Future<void> main() async {
   // 周期交易生成已移至 appSplashInitProvider 中（等待数据库完全初始化后执行）
   // await _generatePendingRecurringTransactions(container);
 
-  // v1.15.0: 自动执行账户独立迁移
-  await _autoMigrateToV2();
-
-  // v2.7.1: 自动迁移转账记录到虚拟转账分类
-  await _autoMigrateTransferTransactions();
+  // [已删除] v1.15.0 账户独立迁移 & v2.7.1 转账分类迁移
+  // 所有活跃用户已完成，Drift onUpgrade 已覆盖相关 schema 变更
+  // 硬编码 SQL 重建表会导致新增字段丢失（如 sort_order），故移除
 
   // 注册小组件交互回调
   try {
@@ -248,56 +243,6 @@ Future<void> _initializeAppMode(ProviderContainer container) async {
   }
 }
 
-/// v1.15.0: 自动执行账户独立迁移
-///
-/// 在应用启动时检测是否需要迁移，如果需要则自动执行
-Future<void> _autoMigrateToV2() async {
-  try {
-    logger.info('App', '🔍 [v1.15.0] 检查数据库迁移状态...');
-    final db = BeeDatabase();
-    final migrationService = AccountMigrationService(db);
-
-    final needsMigration = await migrationService.needsMigration();
-
-    if (needsMigration) {
-      logger.info('App', '🔄 [v1.15.0] 检测到需要迁移，开始执行账户独立改造...');
-      final result = await migrationService.migrateToV2();
-
-      if (result.success) {
-        logger.info('App', '✅ [v1.15.0] 迁移成功完成');
-      } else {
-        logger.error('App', '❌ [v1.15.0] 迁移失败: ${result.message}');
-      }
-    } else {
-      logger.info('App', '✅ [v1.15.0] 数据库已是最新版本，无需迁移');
-    }
-
-    await db.close();
-  } catch (e) {
-    logger.error('App', '❌ [v1.15.0] 迁移检测失败', e);
-    // 不抛出异常，避免影响应用启动
-  }
-}
-
-/// v2.7.1: 自动迁移转账记录到虚拟转账分类
-///
-/// 在应用启动时检查是否有未迁移的转账记录，如果有则自动执行迁移
-/// 这对云同步下载的旧数据特别重要
-Future<void> _autoMigrateTransferTransactions() async {
-  try {
-    logger.info('App', '🔍 [v2.7.1] 检查转账记录迁移状态...');
-    final db = BeeDatabase();
-
-    // 使用 SeedService 的幂等迁移方法
-    await SeedService.migrateTransferTransactions(db);
-
-    await db.close();
-    logger.info('App', '✅ [v2.7.1] 转账记录迁移检查完成');
-  } catch (e, stackTrace) {
-    logger.error('App', '❌ [v2.7.1] 转账记录迁移失败', e, stackTrace);
-    // 不抛出异常，避免影响应用启动
-  }
-}
 
 /// 设置图片分享处理（Android专属）
 ///
