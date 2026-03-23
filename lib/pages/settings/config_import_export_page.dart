@@ -598,11 +598,13 @@ class _ConfigImportExportPageState
           color: ref.watch(primaryColorProvider),
         ),
         SizedBox(width: 8.0.scaled(context, ref)),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 14.0.scaled(context, ref),
-            color: BeeTokens.textPrimary(context),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 14.0.scaled(context, ref),
+              color: BeeTokens.textPrimary(context),
+            ),
           ),
         ),
       ],
