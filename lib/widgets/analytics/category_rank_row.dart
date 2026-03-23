@@ -4,7 +4,6 @@ import '../../styles/tokens.dart';
 import '../../widgets/category_icon.dart';
 import '../biz/biz.dart';
 import '../../utils/category_utils.dart';
-import '../../providers.dart';
 import '../../pages/transaction/category_detail_page.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/db.dart' as db;
@@ -20,6 +19,7 @@ class CategoryRankRow extends ConsumerStatefulWidget {
   final DateTime end; // 统计结束时间
   final String scope; // 周期范围
   final DateTime selMonth; // 选中的月份
+  final List<({int id, db.Category category, String name, double total})>? subCategories; // 预计算的子分类明细
 
   const CategoryRankRow({
     super.key,
@@ -33,6 +33,7 @@ class CategoryRankRow extends ConsumerStatefulWidget {
     required this.end,
     required this.scope,
     required this.selMonth,
+    this.subCategories,
   });
 
   @override
@@ -62,61 +63,33 @@ class _CategoryRankRowState extends ConsumerState<CategoryRankRow> {
   Future<void> _loadSubCategories() async {
     if (widget.categoryId == null) return;
 
-    final repo = ref.read(repositoryProvider);
-    final ledger = await ref.read(currentLedgerProvider.future);
-    if (ledger == null) return;
-    final ledgerId = ledger.id;
+    // 优先使用预计算的子分类数据（已按时间范围正确聚合）
+    if (widget.subCategories != null && widget.subCategories!.isNotEmpty) {
+      final totalAmount = widget.value;
+      final subCatData = widget.subCategories!
+          .where((s) => s.total > 0)
+          .map((s) => (
+                id: s.id,
+                category: s.category,
+                name: s.name,
+                total: s.total,
+                percent: totalAmount > 0
+                    ? widget.percent * (s.total / totalAmount)
+                    : 0.0,
+              ))
+          .toList();
 
-    // 获取二级分类列表
-    final subCats = await repo.getSubCategories(widget.categoryId!);
-
-    if (subCats.isEmpty) {
       setState(() {
         _hasCheckedSubCategories = true;
-        _subCategories = [];
+        _subCategories = subCatData;
       });
       return;
     }
 
-    // 计算总金额（用于计算真实占比）
-    double totalAmount = widget.value; // 一级分类总金额作为基准
-
-    // 计算每个二级分类的统计数据
-    final subCatData = <({int id, db.Category category, String name, double total, double percent})>[];
-
-    for (final subCat in subCats) {
-      // 获取该二级分类在指定时间范围内的交易总额
-      final transactions = await repo.getTransactionsByCategory(subCat.id);
-
-      // 筛选时间范围并计算总额
-      double total = 0.0;
-      for (final tx in transactions) {
-        if (tx.happenedAt.isAfter(widget.start.subtract(const Duration(seconds: 1))) &&
-            tx.happenedAt.isBefore(widget.end.add(const Duration(days: 1))) &&
-            tx.ledgerId == ledgerId) {
-          total += tx.amount;
-        }
-      }
-
-      if (total > 0) {
-        // 计算真实占比（相对于整体总额，而非一级分类）
-        final percent = widget.percent * (total / totalAmount);
-        subCatData.add((
-          id: subCat.id,
-          category: subCat,
-          name: subCat.name,
-          total: total,
-          percent: percent,
-        ));
-      }
-    }
-
-    // 按金额降序排列
-    subCatData.sort((a, b) => b.total.compareTo(a.total));
-
+    // 无预计算数据时，标记为空列表
     setState(() {
       _hasCheckedSubCategories = true;
-      _subCategories = subCatData;
+      _subCategories = [];
     });
   }
 

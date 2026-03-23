@@ -21,7 +21,7 @@ class LocalStatisticsRepository implements StatisticsRepository {
           ..where((t) =>
               t.ledgerId.equals(ledgerId) &
               t.type.equals(type) &
-              t.happenedAt.isBetweenValues(start, end)))
+              t.happenedAt.isBiggerOrEqualValue(start) & t.happenedAt.isSmallerThanValue(end)))
         .join([
       d.leftOuterJoin(db.categories,
           db.categories.id.equalsExp(db.transactions.categoryId)),
@@ -59,7 +59,7 @@ class LocalStatisticsRepository implements StatisticsRepository {
           ..where((t) =>
               t.ledgerId.equals(ledgerId) &
               t.type.equals(type) &
-              t.happenedAt.isBetweenValues(start, end)))
+              t.happenedAt.isBiggerOrEqualValue(start) & t.happenedAt.isSmallerThanValue(end)))
         .join([
       d.leftOuterJoin(db.categories,
           db.categories.id.equalsExp(db.transactions.categoryId)),
@@ -120,7 +120,7 @@ class LocalStatisticsRepository implements StatisticsRepository {
           ..where((t) =>
               t.ledgerId.equals(ledgerId) &
               t.type.equals(type) &
-              t.happenedAt.isBetweenValues(start, end)))
+              t.happenedAt.isBiggerOrEqualValue(start) & t.happenedAt.isSmallerThanValue(end)))
         .get();
     final map = <DateTime, double>{};
     for (final t in rows) {
@@ -150,7 +150,7 @@ class LocalStatisticsRepository implements StatisticsRepository {
           ..where((t) =>
               t.ledgerId.equals(ledgerId) &
               t.type.equals(type) &
-              t.happenedAt.isBetweenValues(start, end)))
+              t.happenedAt.isBiggerOrEqualValue(start) & t.happenedAt.isSmallerThanValue(end)))
         .get();
     final map = <int, double>{};
     for (final t in rows) {

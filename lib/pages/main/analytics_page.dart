@@ -535,7 +535,7 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
 
                 // 在balance模式下，需要计算结余数据
                 dynamic seriesRaw;
-                List<({int? id, String name, db.Category? category, double total})>
+                List<({int? id, String name, db.Category? category, double total, List<({int id, db.Category category, String name, double total})> subCategories})>
                     catData;
                 int txCount;
                 double sum;
@@ -550,7 +550,7 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
 
                   // 分类数据显示支出分类（但结余模式下不显示排行榜）
                   catData = list[0] as List<
-                      ({int? id, String name, db.Category? category, double total})>;
+                      ({int? id, String name, db.Category? category, double total, List<({int id, db.Category category, String name, double total})> subCategories})>;
 
                   // 获取收入和支出的交易数量
                   final expenseCount = list[2] as int;
@@ -563,7 +563,7 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                   sum = incomeSum - expenseSum;
                 } else {
                   catData = list[0] as List<
-                      ({int? id, String name, db.Category? category, double total})>;
+                      ({int? id, String name, db.Category? category, double total, List<({int id, db.Category category, String name, double total})> subCategories})>;
                   seriesRaw = list[1];
                   txCount = list[2] as int;
                   sum = catData.fold<double>(0, (a, b) => a + b.total);
@@ -872,6 +872,7 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                             end: end,
                             scope: _scope,
                             selMonth: selMonth,
+                            subCategories: item.subCategories,
                           ),
                     ],
                   ),
@@ -1018,7 +1019,7 @@ Future<List<dynamic>> _loadBalanceData(
 }
 
 // 聚合一级分类数据（将二级分类金额聚合到一级分类）
-Future<List<({int? id, String name, db.Category? category, double total})>>
+Future<List<({int? id, String name, db.Category? category, double total, List<({int id, db.Category category, String name, double total})> subCategories})>>
     _aggregateTopLevelCategories(
         List<
                 ({
@@ -1061,8 +1062,9 @@ Future<List<({int? id, String name, db.Category? category, double total})>>
     }
   }
 
-  // 4. 聚合金额
+  // 4. 聚合金额，同时收集子分类明细
   final topLevelMap = <int?, double>{};
+  final subCategoriesMap = <int?, List<({int id, db.Category category, String name, double total})>>{};
 
   for (final item in hierarchyData) {
     if (item.level == 1) {
@@ -1073,13 +1075,32 @@ Future<List<({int? id, String name, db.Category? category, double total})>>
       // 二级分类：累加到父分类
       topLevelMap.update(item.parentId, (v) => v + item.total,
           ifAbsent: () => item.total);
+      // 收集子分类明细
+      if (item.id != null) {
+        final subCategory = await repo.getCategoryById(item.id!);
+        if (subCategory != null) {
+          subCategoriesMap.putIfAbsent(item.parentId, () => []);
+          subCategoriesMap[item.parentId]!.add((
+            id: item.id!,
+            category: subCategory,
+            name: item.name,
+            total: item.total,
+          ));
+        }
+      }
     }
   }
 
-  // 5. 转换为列表并排序
+  // 5. 对每个父分类的子分类按金额降序排列
+  for (final subs in subCategoriesMap.values) {
+    subs.sort((a, b) => b.total.compareTo(a.total));
+  }
+
+  // 6. 转换为列表并排序
   final result = topLevelMap.entries.map((e) {
     final id = e.key;
     final total = e.value;
+    final subs = subCategoriesMap[id] ?? <({int id, db.Category category, String name, double total})>[];
 
     // 获取一级分类信息
     if (id != null && topLevelInfo.containsKey(id)) {
@@ -1088,14 +1109,16 @@ Future<List<({int? id, String name, db.Category? category, double total})>>
         id: id,
         name: category.name,
         category: category,
-        total: total
+        total: total,
+        subCategories: subs,
       );
     } else {
       return (
         id: id,
         name: '未分类',
         category: null,
-        total: total
+        total: total,
+        subCategories: subs,
       );
     }
   }).toList()
