@@ -146,6 +146,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonClose => '关闭';
 
   @override
+  String get commonOther => '其他';
+
+  @override
   String get commonSearch => '搜索';
 
   @override
@@ -403,6 +406,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get analyticsCategoryRanking => '分类排行';
+
+  @override
+  String get analyticsTotalAmount => '总计';
 
   @override
   String get analyticsNoDataSubtext => '可左右滑动切换周期，或点击按钮切换收入/支出';
@@ -5671,6 +5677,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get commonClose => '關閉';
 
   @override
+  String get commonOther => '其他';
+
+  @override
   String get commonSearch => '搜尋';
 
   @override
@@ -5928,6 +5937,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get analyticsCategoryRanking => '分類排行';
+
+  @override
+  String get analyticsTotalAmount => '總計';
 
   @override
   String get analyticsNoDataSubtext => '可左右滑動切換週期，或點擊按鈕切換收入/支出';

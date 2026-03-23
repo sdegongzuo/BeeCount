@@ -146,6 +146,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonClose => 'Close';
 
   @override
+  String get commonOther => 'Other';
+
+  @override
   String get commonSearch => 'Search';
 
   @override
@@ -403,6 +406,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get analyticsCategoryRanking => 'Category Ranking';
+
+  @override
+  String get analyticsTotalAmount => 'Total';
 
   @override
   String get analyticsNoDataSubtext => 'Swipe left/right to switch periods, or tap button to toggle income/expense';

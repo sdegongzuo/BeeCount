@@ -354,6 +354,12 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get commonClose;
 
+  /// No description provided for @commonOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get commonOther;
+
   /// No description provided for @commonSearch.
   ///
   /// In en, this message translates to:
@@ -815,6 +821,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Category Ranking'**
   String get analyticsCategoryRanking;
+
+  /// No description provided for @analyticsTotalAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get analyticsTotalAmount;
 
   /// No description provided for @analyticsNoDataSubtext.
   ///
