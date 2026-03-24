@@ -24,6 +24,7 @@ import 'widget/widget_manager.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:app_links/app_links.dart';
 import 'dart:io';
+import 'dart:ui';
 
 
 Future<void> main() async {
@@ -445,6 +446,29 @@ class MainApp extends ConsumerWidget {
           Locale('zh', 'TW'),
         ],
         locale: selectedLanguage,
+        builder: (context, child) {
+          final showPrivacy = ref.watch(showPrivacyScreenProvider);
+          return Stack(
+            children: [
+              child ?? const SizedBox.shrink(),
+              if (showPrivacy)
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.lock_outline_rounded,
+                        size: 64,
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
         // 显式命名根路由，便于路由日志与 popUntil 精确识别
         home: _getHomePage(initState, ref),
         onGenerateRoute: (settings) {

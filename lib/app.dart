@@ -378,10 +378,17 @@ class _BeeAppState extends ConsumerState<BeeApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.paused) {
+    if (state == AppLifecycleState.inactive) {
+      // 多任务切换时显示隐私模糊屏（仅在应用锁启用时）
+      if (ref.read(appLockEnabledProvider)) {
+        ref.read(showPrivacyScreenProvider.notifier).state = true;
+      }
+    } else if (state == AppLifecycleState.paused) {
       // 记录进入后台时间
       AppLockService.recordBackgroundTime();
     } else if (state == AppLifecycleState.resumed) {
+      // 移除隐私模糊屏
+      ref.read(showPrivacyScreenProvider.notifier).state = false;
       // 检查是否需要锁定
       _checkAppLockOnResume();
       // 当app从后台恢复到前台时，更新小组件数据

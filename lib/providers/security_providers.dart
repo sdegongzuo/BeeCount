@@ -5,6 +5,9 @@ import '../services/security/app_lock_service.dart';
 // 应用是否处于锁定状态
 final isAppLockedProvider = StateProvider<bool>((ref) => false);
 
+// 隐私模糊屏是否显示（多任务切换时）
+final showPrivacyScreenProvider = StateProvider<bool>((ref) => false);
+
 // 应用锁是否启用
 final appLockEnabledProvider = StateProvider<bool>((ref) => false);
 
