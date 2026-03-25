@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/section_card.dart';
@@ -11,6 +12,7 @@ import '../../utils/currencies.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../utils/account_type_utils.dart';
+import '../../providers/credit_card_reminder_providers.dart';
 
 class AccountEditPage extends ConsumerStatefulWidget {
   final db.Account? account; // null表示新建
@@ -30,8 +32,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _initialBalanceController;
+  late final TextEditingController _creditLimitController;
   late String _selectedType;
   late String _selectedCurrency;
+  int? _billingDay;
+  int? _paymentDueDay;
+  bool _reminderEnabled = false;
+  int _reminderDaysBefore = 3;
   bool _saving = false;
   bool _isNameDuplicate = false;
   String? _nameErrorText;
@@ -56,14 +63,37 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           ? widget.account!.initialBalance.toStringAsFixed(2)
           : '',
     );
+    _creditLimitController = TextEditingController(
+      text: widget.account?.creditLimit != null
+          ? widget.account!.creditLimit!.toStringAsFixed(2)
+          : '',
+    );
     _selectedType = widget.account?.type ?? 'cash';
     _selectedCurrency = widget.account?.currency ?? 'CNY';
+    _billingDay = widget.account?.billingDay;
+    _paymentDueDay = widget.account?.paymentDueDay;
+    _loadReminderSettings();
+  }
+
+  Future<void> _loadReminderSettings() async {
+    if (widget.account != null) {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool('cc_reminder_enabled_${widget.account!.id}') ?? false;
+      final daysBefore = prefs.getInt('cc_reminder_days_${widget.account!.id}') ?? 3;
+      if (mounted) {
+        setState(() {
+          _reminderEnabled = enabled;
+          _reminderDaysBefore = daysBefore;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _initialBalanceController.dispose();
+    _creditLimitController.dispose();
     super.dispose();
   }
 
@@ -116,9 +146,11 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
             child: Form(
               key: _formKey,
               child: ListView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 12.0.scaled(context, ref),
-                  vertical: 8.0.scaled(context, ref),
+                padding: EdgeInsets.only(
+                  left: 12.0.scaled(context, ref),
+                  right: 12.0.scaled(context, ref),
+                  top: 8.0.scaled(context, ref),
+                  bottom: 8.0.scaled(context, ref) + MediaQuery.of(context).padding.bottom,
                 ),
                 children: [
                   // 账户名称
@@ -220,7 +252,15 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                                 primaryColor: primaryColor,
                                 onTap: () {
                                   setState(() {
+                                    final oldType = _selectedType;
                                     _selectedType = type;
+                                    // 离开信用卡类型时清空信用卡字段
+                                    if (oldType == 'credit_card' && type != 'credit_card') {
+                                      _creditLimitController.clear();
+                                      _billingDay = null;
+                                      _paymentDueDay = null;
+                                      _reminderEnabled = false;
+                                    }
                                   });
                                 },
                               );
@@ -288,7 +328,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                           TextFormField(
                             controller: _initialBalanceController,
                             decoration: InputDecoration(
-                              hintText: l10n.accountInitialBalanceHint,
+                              hintText: _selectedType == 'credit_card'
+                                  ? l10n.creditCardInitialBalanceHint
+                                  : l10n.accountInitialBalanceHint,
                               hintStyle: TextStyle(color: Colors.grey[400]),
                               prefixText: '${getCurrencySymbol(_selectedCurrency)} ',
                               prefixStyle: TextStyle(
@@ -313,7 +355,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                             ),
                             style: const TextStyle(fontSize: 16),
                             keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true),
+                                decimal: true, signed: true),
                             validator: (value) {
                               if (value != null && value.trim().isNotEmpty) {
                                 final parsed = double.tryParse(value.trim());
@@ -328,6 +370,128 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                       ),
                     ),
                   ),
+
+                  // 信用卡设置（仅信用卡类型显示）
+                  if (_selectedType == 'credit_card') ...[
+                    SizedBox(height: 8.0.scaled(context, ref)),
+                    SectionCard(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0.scaled(context, ref)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.creditCardSettings,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: BeeTokens.textPrimary(context),
+                              ),
+                            ),
+                            SizedBox(height: 12.0.scaled(context, ref)),
+                            // 信用额度
+                            TextFormField(
+                              controller: _creditLimitController,
+                              decoration: InputDecoration(
+                                labelText: l10n.creditLimit,
+                                hintText: l10n.creditLimitHint,
+                                hintStyle: TextStyle(color: Colors.grey[400]),
+                                prefixText: '${getCurrencySymbol(_selectedCurrency)} ',
+                                prefixStyle: TextStyle(
+                                  fontSize: 16,
+                                  color: BeeTokens.textPrimary(context),
+                                ),
+                                border: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: primaryColor, width: 2),
+                                ),
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 8.0.scaled(context, ref),
+                                ),
+                              ),
+                              style: const TextStyle(fontSize: 16),
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              validator: (value) {
+                                if (value != null && value.trim().isNotEmpty) {
+                                  final parsed = double.tryParse(value.trim());
+                                  if (parsed == null || parsed < 0) {
+                                    return '请输入有效的额度';
+                                  }
+                                }
+                                return null;
+                              },
+                            ),
+                            SizedBox(height: 16.0.scaled(context, ref)),
+                            // 账单日
+                            _DayPickerTile(
+                              label: l10n.billingDay,
+                              value: _billingDay,
+                              primaryColor: primaryColor,
+                              onChanged: (day) => setState(() => _billingDay = day),
+                            ),
+                            SizedBox(height: 8.0.scaled(context, ref)),
+                            // 还款日
+                            _DayPickerTile(
+                              label: l10n.paymentDueDay,
+                              value: _paymentDueDay,
+                              primaryColor: primaryColor,
+                              onChanged: (day) => setState(() => _paymentDueDay = day),
+                            ),
+                            SizedBox(height: 12.0.scaled(context, ref)),
+                            // 还款提醒
+                            Divider(color: BeeTokens.divider(context)),
+                            SwitchListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                l10n.creditCardReminderTitle,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: BeeTokens.textPrimary(context),
+                                ),
+                              ),
+                              subtitle: Text(
+                                l10n.creditCardReminderDesc,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: BeeTokens.textTertiary(context),
+                                ),
+                              ),
+                              value: _reminderEnabled,
+                              activeColor: primaryColor,
+                              onChanged: (value) => setState(() => _reminderEnabled = value),
+                            ),
+                            if (_reminderEnabled) ...[
+                              SizedBox(height: 4.0.scaled(context, ref)),
+                              Wrap(
+                                spacing: 8.0.scaled(context, ref),
+                                children: [1, 3, 5, 7].map((days) {
+                                  final isSelected = _reminderDaysBefore == days;
+                                  return ChoiceChip(
+                                    label: Text(l10n.creditCardReminderDaysBefore(days)),
+                                    selected: isSelected,
+                                    selectedColor: primaryColor.withValues(alpha: 0.15),
+                                    labelStyle: TextStyle(
+                                      fontSize: 12,
+                                      color: isSelected ? primaryColor : BeeTokens.textSecondary(context),
+                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                    ),
+                                    onSelected: (_) => setState(() => _reminderDaysBefore = days),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
 
                   SizedBox(height: 24.0.scaled(context, ref)),
 
@@ -411,6 +575,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       final initialBalance =
           initialBalanceText.isEmpty ? 0.0 : double.parse(initialBalanceText);
 
+      // 信用卡字段
+      final isCreditCard = _selectedType == 'credit_card';
+      final creditLimitText = _creditLimitController.text.trim();
+      final creditLimit = isCreditCard && creditLimitText.isNotEmpty
+          ? double.parse(creditLimitText)
+          : null;
+
       if (isEditing) {
         // 检查币种是否变化
         String? currencyToUpdate;
@@ -432,21 +603,42 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           currencyToUpdate = _selectedCurrency;
         }
 
+        // 如果从信用卡切换到其他类型，清空信用卡字段
+        final wasCreditCard = widget.account!.type == 'credit_card';
+        final clearCreditCardFields = wasCreditCard && !isCreditCard;
+
         await repo.updateAccount(
           widget.account!.id,
           name: name,
           type: _selectedType,
           currency: currencyToUpdate,
           initialBalance: initialBalance,
+          creditLimit: isCreditCard ? creditLimit : null,
+          billingDay: isCreditCard ? _billingDay : null,
+          paymentDueDay: isCreditCard ? _paymentDueDay : null,
+          clearCreditCardFields: clearCreditCardFields,
         );
+
+        // 保存还款提醒设置
+        if (isCreditCard) {
+          await _saveReminderSettings(widget.account!.id);
+        }
       } else {
-        await repo.createAccount(
+        final id = await repo.createAccount(
           ledgerId: widget.ledgerId,
           name: name,
           type: _selectedType,
           currency: _selectedCurrency,
           initialBalance: initialBalance,
+          creditLimit: creditLimit,
+          billingDay: isCreditCard ? _billingDay : null,
+          paymentDueDay: isCreditCard ? _paymentDueDay : null,
         );
+
+        // 保存还款提醒设置
+        if (isCreditCard) {
+          await _saveReminderSettings(id);
+        }
       }
 
       // 触发账本同步(后台异步,不阻塞页面关闭)
@@ -541,6 +733,24 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     }
   }
 
+  Future<void> _saveReminderSettings(int accountId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('cc_reminder_enabled_$accountId', _reminderEnabled);
+    await prefs.setInt('cc_reminder_days_$accountId', _reminderDaysBefore);
+
+    // 调度或取消提醒
+    if (_reminderEnabled && _paymentDueDay != null) {
+      await CreditCardReminderService.scheduleReminder(
+        accountId: accountId,
+        accountName: _nameController.text.trim(),
+        paymentDueDay: _paymentDueDay!,
+        daysBefore: _reminderDaysBefore,
+      );
+    } else {
+      await CreditCardReminderService.cancelReminder(accountId);
+    }
+  }
+
   /// 显示币种选择器（复用账本页面的实现）
   Future<String?> _showCurrencyPicker(BuildContext context, {String? initial}) async {
     return showModalBottomSheet<String>(
@@ -615,6 +825,130 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
             ),
           );
         });
+      },
+    );
+  }
+}
+
+/// 日期选择行（1-28）
+class _DayPickerTile extends ConsumerWidget {
+  final String label;
+  final int? value;
+  final Color primaryColor;
+  final ValueChanged<int?> onChanged;
+
+  const _DayPickerTile({
+    required this.label,
+    required this.value,
+    required this.primaryColor,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    return InkWell(
+      onTap: () => _showDayPicker(context, l10n),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.0.scaled(context, ref)),
+        child: Row(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                color: BeeTokens.textPrimary(context),
+              ),
+            ),
+            const Spacer(),
+            Text(
+              value != null ? l10n.dayOfMonth(value!) : l10n.selectDay,
+              style: TextStyle(
+                fontSize: 14,
+                color: value != null
+                    ? BeeTokens.textPrimary(context)
+                    : BeeTokens.textTertiary(context),
+              ),
+            ),
+            SizedBox(width: 4.0.scaled(context, ref)),
+            Icon(
+              Icons.chevron_right,
+              size: 18.0.scaled(context, ref),
+              color: BeeTokens.iconTertiary(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDayPicker(BuildContext context, AppLocalizations l10n) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: BeeTokens.surfaceElevated(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SizedBox(
+          height: 320,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  label,
+                  style: Theme.of(ctx).textTheme.titleMedium,
+                ),
+              ),
+              Expanded(
+                child: GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                  ),
+                  itemCount: 28,
+                  itemBuilder: (_, index) {
+                    final day = index + 1;
+                    final isSelected = day == value;
+                    return GestureDetector(
+                      onTap: () {
+                        onChanged(day);
+                        Navigator.pop(ctx);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? primaryColor
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isSelected
+                                ? primaryColor
+                                : BeeTokens.border(ctx),
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '$day',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected
+                                ? Colors.white
+                                : BeeTokens.textPrimary(ctx),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
       },
     );
   }

@@ -13,6 +13,7 @@ import '../../utils/transaction_edit_utils.dart';
 import '../../services/data/category_service.dart';
 import '../../widgets/category_icon.dart';
 import '../../utils/account_type_utils.dart';
+import '../../providers/credit_card_providers.dart';
 
 /// 账户详情页面
 /// 显示账户的统计信息和相关交易
@@ -52,6 +53,15 @@ class AccountDetailPage extends ConsumerWidget {
                 vertical: 16.0.scaled(context, ref),
               ),
               children: [
+                // 信用卡额度信息（仅信用卡显示）
+                if (account.type == 'credit_card' && account.creditLimit != null) ...[
+                  _CreditCardInfoCard(
+                    account: account,
+                    currencyCode: currencyCode,
+                    primaryColor: primaryColor,
+                  ),
+                  SizedBox(height: 8.0.scaled(context, ref)),
+                ],
                 // 统计卡片
                 SectionCard(
                   child: statsAsync.when(
@@ -61,7 +71,9 @@ class AccountDetailPage extends ConsumerWidget {
                         children: [
                           Expanded(
                             child: _StatCell(
-                              label: l10n.accountBalance,
+                              label: account.type == 'credit_card'
+                                  ? l10n.creditCardOwed
+                                  : l10n.accountBalance,
                               value: stats.balance,
                               currencyCode: currencyCode,
                               color: stats.balance >= 0
@@ -222,6 +234,138 @@ class AccountDetailPage extends ConsumerWidget {
     // 刷新统计数据
     ref.invalidate(accountStatsProvider(account.id));
     ref.invalidate(accountTransactionsProvider(account.id));
+  }
+}
+
+/// 信用卡额度信息卡片
+class _CreditCardInfoCard extends ConsumerWidget {
+  final db.Account account;
+  final String currencyCode;
+  final Color primaryColor;
+
+  const _CreditCardInfoCard({
+    required this.account,
+    required this.currencyCode,
+    required this.primaryColor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final usedAsync = ref.watch(creditCardUsedAmountProvider(account.id));
+    final creditLimit = account.creditLimit ?? 0.0;
+
+    return SectionCard(
+      child: usedAsync.when(
+        data: (usedAmount) {
+          final available = creditLimit - usedAmount;
+          final usageRate = creditLimit > 0 ? (usedAmount / creditLimit).clamp(0.0, 1.0) : 0.0;
+
+          // 进度条颜色：绿 → 黄 → 红
+          Color progressColor;
+          if (usageRate < 0.5) {
+            progressColor = Colors.green;
+          } else if (usageRate < 0.8) {
+            progressColor = Colors.orange;
+          } else {
+            progressColor = Colors.red;
+          }
+
+          return Padding(
+            padding: EdgeInsets.all(12.0.scaled(context, ref)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 额度使用进度条
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4.0.scaled(context, ref)),
+                  child: LinearProgressIndicator(
+                    value: usageRate,
+                    backgroundColor: BeeTokens.border(context),
+                    valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                    minHeight: 6.0.scaled(context, ref),
+                  ),
+                ),
+                SizedBox(height: 12.0.scaled(context, ref)),
+                // 三列：信用额度 / 已用额度 / 可用额度
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCell(
+                        label: l10n.creditLimit,
+                        value: creditLimit,
+                        currencyCode: currencyCode,
+                        color: BeeTokens.textPrimary(context),
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40.0.scaled(context, ref),
+                      color: BeeTokens.border(context),
+                    ),
+                    Expanded(
+                      child: _StatCell(
+                        label: l10n.creditUsed,
+                        value: usedAmount,
+                        currencyCode: currencyCode,
+                        color: progressColor,
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40.0.scaled(context, ref),
+                      color: BeeTokens.border(context),
+                    ),
+                    Expanded(
+                      child: _StatCell(
+                        label: l10n.creditAvailable,
+                        value: available,
+                        currencyCode: currencyCode,
+                        color: available >= 0
+                            ? BeeTokens.incomeColor(context, ref)
+                            : BeeTokens.error(context),
+                      ),
+                    ),
+                  ],
+                ),
+                // 账单日、还款日标签
+                if (account.billingDay != null || account.paymentDueDay != null) ...[
+                  SizedBox(height: 8.0.scaled(context, ref)),
+                  Divider(color: BeeTokens.divider(context)),
+                  SizedBox(height: 4.0.scaled(context, ref)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      if (account.billingDay != null)
+                        Text(
+                          '${l10n.billingDay}: ${l10n.dayOfMonth(account.billingDay!)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: BeeTokens.textSecondary(context),
+                          ),
+                        ),
+                      if (account.paymentDueDay != null)
+                        Text(
+                          '${l10n.paymentDueDay}: ${l10n.dayOfMonth(account.paymentDueDay!)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: BeeTokens.textSecondary(context),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
+        loading: () => Padding(
+          padding: EdgeInsets.all(16.0.scaled(context, ref)),
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+        error: (_, __) => const SizedBox.shrink(),
+      ),
+    );
   }
 }
 

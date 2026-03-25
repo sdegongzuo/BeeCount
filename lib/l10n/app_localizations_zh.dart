@@ -5594,6 +5594,65 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get appLockTimeout15Min => '15分钟后';
+
+  @override
+  String get creditCardSettings => '信用卡设置';
+
+  @override
+  String get creditLimit => '信用额度';
+
+  @override
+  String get creditLimitHint => '请输入信用额度';
+
+  @override
+  String get billingDay => '账单日';
+
+  @override
+  String get paymentDueDay => '还款日';
+
+  @override
+  String get creditUsed => '已用额度';
+
+  @override
+  String get creditAvailable => '可用额度';
+
+  @override
+  String get creditCardOwed => '待还款';
+
+  @override
+  String dayOfMonth(int day) {
+    return '每月$day日';
+  }
+
+  @override
+  String get creditCardReminderTitle => '还款提醒';
+
+  @override
+  String get creditCardReminderDesc => '在还款日前提醒还款';
+
+  @override
+  String creditCardReminderDaysBefore(int days) {
+    return '提前$days天提醒';
+  }
+
+  @override
+  String creditCardReminderNotification(String accountName) {
+    return '$accountName还款日即将到来';
+  }
+
+  @override
+  String creditCardReminderNotificationBody(int day) {
+    return '还款日为每月$day日，请及时还款';
+  }
+
+  @override
+  String get creditCardInitialBalanceHint => '当前欠款（填负数）';
+
+  @override
+  String get creditUsageRate => '额度使用率';
+
+  @override
+  String get selectDay => '选择日期';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -11182,4 +11241,63 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get appLockTimeout15Min => '15分鐘後';
+
+  @override
+  String get creditCardSettings => '信用卡設定';
+
+  @override
+  String get creditLimit => '信用額度';
+
+  @override
+  String get creditLimitHint => '請輸入信用額度';
+
+  @override
+  String get billingDay => '帳單日';
+
+  @override
+  String get paymentDueDay => '還款日';
+
+  @override
+  String get creditUsed => '已用額度';
+
+  @override
+  String get creditAvailable => '可用額度';
+
+  @override
+  String get creditCardOwed => '待還款';
+
+  @override
+  String dayOfMonth(int day) {
+    return '每月$day日';
+  }
+
+  @override
+  String get creditCardReminderTitle => '還款提醒';
+
+  @override
+  String get creditCardReminderDesc => '在還款日前提醒還款';
+
+  @override
+  String creditCardReminderDaysBefore(int days) {
+    return '提前$days天提醒';
+  }
+
+  @override
+  String creditCardReminderNotification(String accountName) {
+    return '$accountName還款日即將到來';
+  }
+
+  @override
+  String creditCardReminderNotificationBody(int day) {
+    return '還款日為每月$day日，請及時還款';
+  }
+
+  @override
+  String get creditCardInitialBalanceHint => '目前欠款（填負數）';
+
+  @override
+  String get creditUsageRate => '額度使用率';
+
+  @override
+  String get selectDay => '選擇日期';
 }

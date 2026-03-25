@@ -34,6 +34,9 @@ class Accounts extends Table {
   DateTimeColumn get updatedAt => dateTime().nullable()();
   IntColumn get sortOrder =>
       integer().withDefault(const Constant(0))(); // 排序顺序，数字越小越靠前
+  RealColumn get creditLimit => real().nullable()(); // 信用额度
+  IntColumn get billingDay => integer().nullable()(); // 账单日 (1-28)
+  IntColumn get paymentDueDay => integer().nullable()(); // 还款日 (1-28)
 }
 
 class Categories extends Table {
@@ -198,7 +201,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 16; // v16: 账户添加 sortOrder 排序字段
+  int get schemaVersion => 17; // v17: 账户添加信用卡字段
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -524,6 +527,39 @@ class BeeDatabase extends _$BeeDatabase {
             logger.info('DB', 'v16: 已为现有账户回填 sortOrder');
 
             print('[DB Migration] v16 迁移完成');
+          }
+          if (from < 17) {
+            // v17: 账户添加信用卡字段
+            print('[DB Migration] 开始迁移到 v17: 信用卡字段');
+
+            final tableInfo =
+                await customSelect('PRAGMA table_info(accounts)').get();
+            final hasCreditLimit =
+                tableInfo.any((row) => row.data['name'] == 'credit_limit');
+            final hasBillingDay =
+                tableInfo.any((row) => row.data['name'] == 'billing_day');
+            final hasPaymentDueDay =
+                tableInfo.any((row) => row.data['name'] == 'payment_due_day');
+
+            if (!hasCreditLimit) {
+              await customStatement(
+                  'ALTER TABLE accounts ADD COLUMN credit_limit REAL;');
+              logger.info('DB', 'v17: credit_limit 字段已添加');
+            }
+
+            if (!hasBillingDay) {
+              await customStatement(
+                  'ALTER TABLE accounts ADD COLUMN billing_day INTEGER;');
+              logger.info('DB', 'v17: billing_day 字段已添加');
+            }
+
+            if (!hasPaymentDueDay) {
+              await customStatement(
+                  'ALTER TABLE accounts ADD COLUMN payment_due_day INTEGER;');
+              logger.info('DB', 'v17: payment_due_day 字段已添加');
+            }
+
+            print('[DB Migration] v17 迁移完成');
           }
         },
       );

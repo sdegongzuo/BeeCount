@@ -2202,5 +2202,43 @@
   "appLockTimeoutImmediate": "立即",
   "appLockTimeout1Min": "1分鐘後",
   "appLockTimeout5Min": "5分鐘後",
-  "appLockTimeout15Min": "15分鐘後"
+  "appLockTimeout15Min": "15分鐘後",
+
+  "creditCardSettings": "信用卡設定",
+  "creditLimit": "信用額度",
+  "creditLimitHint": "請輸入信用額度",
+  "billingDay": "帳單日",
+  "paymentDueDay": "還款日",
+  "creditUsed": "已用額度",
+  "creditAvailable": "可用額度",
+  "creditCardOwed": "待還款",
+  "dayOfMonth": "每月{day}日",
+  "@dayOfMonth": {
+    "placeholders": {
+      "day": { "type": "int" }
+    }
+  },
+  "creditCardReminderTitle": "還款提醒",
+  "creditCardReminderDesc": "在還款日前提醒還款",
+  "creditCardReminderDaysBefore": "提前{days}天提醒",
+  "@creditCardReminderDaysBefore": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "creditCardReminderNotification": "{accountName}還款日即將到來",
+  "@creditCardReminderNotification": {
+    "placeholders": {
+      "accountName": { "type": "String" }
+    }
+  },
+  "creditCardReminderNotificationBody": "還款日為每月{day}日，請及時還款",
+  "@creditCardReminderNotificationBody": {
+    "placeholders": {
+      "day": { "type": "int" }
+    }
+  },
+  "creditCardInitialBalanceHint": "目前欠款（填負數）",
+  "creditUsageRate": "額度使用率",
+  "selectDay": "選擇日期"
 }

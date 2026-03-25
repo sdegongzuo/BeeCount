@@ -15,6 +15,7 @@ import 'pages/auth/welcome_page.dart';
 import 'pages/auth/app_lock_screen.dart';
 import 'providers/security_providers.dart';
 import 'services/system/reminder_monitor_service.dart';
+import 'providers/credit_card_reminder_providers.dart';
 import 'services/platform/screenshot_monitor_service.dart';
 import 'services/platform/image_share_handler_service.dart';
 import 'services/platform/app_link_service.dart';
@@ -78,6 +79,16 @@ Future<void> main() async {
   // 注意：不再在启动时生成重复交易
   // 周期交易生成已移至 appSplashInitProvider 中（等待数据库完全初始化后执行）
   // await _generatePendingRecurringTransactions(container);
+
+  // 恢复信用卡还款提醒
+  try {
+    final repo = container.read(repositoryProvider);
+    await CreditCardReminderService.restoreAllReminders(
+      getCreditCardAccounts: () => repo.getCreditCardAccounts(),
+    );
+  } catch (e) {
+    // 静默失败，不影响启动
+  }
 
   // [已删除] v1.15.0 账户独立迁移 & v2.7.1 转账分类迁移
   // 所有活跃用户已完成，Drift onUpgrade 已覆盖相关 schema 变更

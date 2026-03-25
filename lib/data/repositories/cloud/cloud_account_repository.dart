@@ -173,20 +173,27 @@ class CloudAccountRepository implements AccountRepository {
     String type = 'cash',
     String currency = 'CNY',
     double initialBalance = 0.0,
+    double? creditLimit,
+    int? billingDay,
+    int? paymentDueDay,
   }) async {
     logger.info('CloudAccountRepository', '📝 创建账户: name=$name, type=$type, currency=$currency, initialBalance=$initialBalance (ledgerId=$ledgerId 已忽略)');
 
     try {
+      final data = <String, dynamic>{
+        'name': name,
+        'type': type,
+        'currency': currency,
+        'initial_balance': initialBalance,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+      if (creditLimit != null) data['credit_limit'] = creditLimit;
+      if (billingDay != null) data['billing_day'] = billingDay;
+      if (paymentDueDay != null) data['payment_due_day'] = paymentDueDay;
+
       final result = await supabase.databaseService!.insert(
         table: 'accounts',
-        data: {
-          // 不传递 ledger_id，账户不绑定账本
-          'name': name,
-          'type': type,
-          'currency': currency,
-          'initial_balance': initialBalance,
-          'created_at': DateTime.now().toIso8601String(),
-        },
+        data: data,
       );
 
       final accountId = result['id'] as int;
@@ -205,12 +212,26 @@ class CloudAccountRepository implements AccountRepository {
     String? type,
     String? currency,
     double? initialBalance,
+    double? creditLimit,
+    int? billingDay,
+    int? paymentDueDay,
+    bool clearCreditCardFields = false,
   }) async {
     final data = <String, dynamic>{};
     if (name != null) data['name'] = name;
     if (type != null) data['type'] = type;
     if (currency != null) data['currency'] = currency;
     if (initialBalance != null) data['initial_balance'] = initialBalance;
+
+    if (clearCreditCardFields) {
+      data['credit_limit'] = null;
+      data['billing_day'] = null;
+      data['payment_due_day'] = null;
+    } else {
+      if (creditLimit != null) data['credit_limit'] = creditLimit;
+      if (billingDay != null) data['billing_day'] = billingDay;
+      if (paymentDueDay != null) data['payment_due_day'] = paymentDueDay;
+    }
 
     if (data.isNotEmpty) {
       data['updated_at'] = DateTime.now().toIso8601String();
@@ -220,6 +241,24 @@ class CloudAccountRepository implements AccountRepository {
         data: data,
       );
     }
+  }
+
+  @override
+  Future<List<Account>> getCreditCardAccounts() async {
+    // Cloud implementation - query accounts with type = credit_card
+    final results = await supabase.databaseService!.query(
+      table: 'accounts',
+      filters: [
+        QueryFilter(column: 'type', operator: 'eq', value: 'credit_card'),
+      ],
+    );
+    return results.map((row) => _accountFromJson(row)).toList();
+  }
+
+  @override
+  Future<double> getCreditCardUsedAmount(int accountId) async {
+    final balance = await getAccountBalance(accountId);
+    return balance < 0 ? -balance : 0.0;
   }
 
   @override
@@ -557,6 +596,9 @@ class CloudAccountRepository implements AccountRepository {
           ? DateTime.parse(json['updated_at'] as String)
           : null,
       sortOrder: (json['sort_order'] as int?) ?? 0,
+      creditLimit: (json['credit_limit'] as num?)?.toDouble(),
+      billingDay: json['billing_day'] as int?,
+      paymentDueDay: json['payment_due_day'] as int?,
     );
   }
 

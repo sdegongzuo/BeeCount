@@ -579,6 +579,9 @@ class LocalRepository extends BaseRepository {
     String type = 'cash',
     String currency = 'CNY',
     double initialBalance = 0.0,
+    double? creditLimit,
+    int? billingDay,
+    int? paymentDueDay,
   }) =>
       _accountRepo.createAccount(
         ledgerId: ledgerId,
@@ -586,6 +589,9 @@ class LocalRepository extends BaseRepository {
         type: type,
         currency: currency,
         initialBalance: initialBalance,
+        creditLimit: creditLimit,
+        billingDay: billingDay,
+        paymentDueDay: paymentDueDay,
       );
 
   @override
@@ -595,6 +601,10 @@ class LocalRepository extends BaseRepository {
     String? type,
     String? currency,
     double? initialBalance,
+    double? creditLimit,
+    int? billingDay,
+    int? paymentDueDay,
+    bool clearCreditCardFields = false,
   }) =>
       _accountRepo.updateAccount(
         id,
@@ -602,7 +612,19 @@ class LocalRepository extends BaseRepository {
         type: type,
         currency: currency,
         initialBalance: initialBalance,
+        creditLimit: creditLimit,
+        billingDay: billingDay,
+        paymentDueDay: paymentDueDay,
+        clearCreditCardFields: clearCreditCardFields,
       );
+
+  @override
+  Future<List<Account>> getCreditCardAccounts() =>
+      _accountRepo.getCreditCardAccounts();
+
+  @override
+  Future<double> getCreditCardUsedAmount(int accountId) =>
+      _accountRepo.getCreditCardUsedAmount(accountId);
 
   @override
   Future<void> deleteAccount(int id) => _accountRepo.deleteAccount(id);

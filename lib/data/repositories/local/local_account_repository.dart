@@ -84,6 +84,9 @@ class LocalAccountRepository implements AccountRepository {
     String type = 'cash',
     String currency = 'CNY',
     double initialBalance = 0.0,
+    double? creditLimit,
+    int? billingDay,
+    int? paymentDueDay,
   }) async {
     logger.info('AccountCreate', '📝 开始创建账户: name=$name, ledgerId=$ledgerId, type=$type, currency=$currency, initialBalance=$initialBalance');
 
@@ -104,6 +107,9 @@ class LocalAccountRepository implements AccountRepository {
         initialBalance: d.Value(initialBalance),
         createdAt: d.Value(DateTime.now()),
         sortOrder: d.Value(nextSortOrder),
+        creditLimit: d.Value(creditLimit),
+        billingDay: d.Value(billingDay),
+        paymentDueDay: d.Value(paymentDueDay),
       );
 
       logger.info('AccountCreate', '📦 Companion 创建成功，准备插入数据库');
@@ -125,6 +131,10 @@ class LocalAccountRepository implements AccountRepository {
     String? type,
     String? currency,
     double? initialBalance,
+    double? creditLimit,
+    int? billingDay,
+    int? paymentDueDay,
+    bool clearCreditCardFields = false,
   }) async {
     await (db.update(db.accounts)..where((a) => a.id.equals(id))).write(
       AccountsCompanion(
@@ -132,8 +142,26 @@ class LocalAccountRepository implements AccountRepository {
         type: type != null ? d.Value(type) : const d.Value.absent(),
         currency: currency != null ? d.Value(currency) : const d.Value.absent(),
         initialBalance: initialBalance != null ? d.Value(initialBalance) : const d.Value.absent(),
+        creditLimit: clearCreditCardFields ? const d.Value(null) : (creditLimit != null ? d.Value(creditLimit) : const d.Value.absent()),
+        billingDay: clearCreditCardFields ? const d.Value(null) : (billingDay != null ? d.Value(billingDay) : const d.Value.absent()),
+        paymentDueDay: clearCreditCardFields ? const d.Value(null) : (paymentDueDay != null ? d.Value(paymentDueDay) : const d.Value.absent()),
       ),
     );
+  }
+
+  @override
+  Future<List<Account>> getCreditCardAccounts() async {
+    return await (db.select(db.accounts)
+          ..where((a) => a.type.equals('credit_card'))
+          ..orderBy([(a) => d.OrderingTerm(expression: a.sortOrder)]))
+        .get();
+  }
+
+  @override
+  Future<double> getCreditCardUsedAmount(int accountId) async {
+    // 已用额度 = -balance（余额为负表示欠款）
+    final balance = await getAccountBalance(accountId);
+    return balance < 0 ? -balance : 0.0;
   }
 
   @override

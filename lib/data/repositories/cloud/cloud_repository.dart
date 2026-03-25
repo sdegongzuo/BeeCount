@@ -510,6 +510,9 @@ class CloudRepository extends BaseRepository {
     String type = 'cash',
     String currency = 'CNY',
     double initialBalance = 0.0,
+    double? creditLimit,
+    int? billingDay,
+    int? paymentDueDay,
   }) =>
       _account.createAccount(
         ledgerId: ledgerId,
@@ -517,6 +520,9 @@ class CloudRepository extends BaseRepository {
         type: type,
         currency: currency,
         initialBalance: initialBalance,
+        creditLimit: creditLimit,
+        billingDay: billingDay,
+        paymentDueDay: paymentDueDay,
       );
 
   @override
@@ -526,6 +532,10 @@ class CloudRepository extends BaseRepository {
     String? type,
     String? currency,
     double? initialBalance,
+    double? creditLimit,
+    int? billingDay,
+    int? paymentDueDay,
+    bool clearCreditCardFields = false,
   }) =>
       _account.updateAccount(
         id,
@@ -533,7 +543,19 @@ class CloudRepository extends BaseRepository {
         type: type,
         currency: currency,
         initialBalance: initialBalance,
+        creditLimit: creditLimit,
+        billingDay: billingDay,
+        paymentDueDay: paymentDueDay,
+        clearCreditCardFields: clearCreditCardFields,
       );
+
+  @override
+  Future<List<Account>> getCreditCardAccounts() =>
+      _account.getCreditCardAccounts();
+
+  @override
+  Future<double> getCreditCardUsedAmount(int accountId) =>
+      _account.getCreditCardUsedAmount(accountId);
 
   @override
   Future<void> deleteAccount(int id) =>

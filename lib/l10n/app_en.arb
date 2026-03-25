@@ -2478,5 +2478,43 @@
   "appLockTimeoutImmediate": "Immediately",
   "appLockTimeout1Min": "After 1 minute",
   "appLockTimeout5Min": "After 5 minutes",
-  "appLockTimeout15Min": "After 15 minutes"
+  "appLockTimeout15Min": "After 15 minutes",
+
+  "creditCardSettings": "Credit Card Settings",
+  "creditLimit": "Credit Limit",
+  "creditLimitHint": "Enter credit limit",
+  "billingDay": "Billing Day",
+  "paymentDueDay": "Payment Due Day",
+  "creditUsed": "Used",
+  "creditAvailable": "Available",
+  "creditCardOwed": "Owed",
+  "dayOfMonth": "{day}th of each month",
+  "@dayOfMonth": {
+    "placeholders": {
+      "day": { "type": "int" }
+    }
+  },
+  "creditCardReminderTitle": "Payment Reminder",
+  "creditCardReminderDesc": "Remind before payment due date",
+  "creditCardReminderDaysBefore": "{days} days before",
+  "@creditCardReminderDaysBefore": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "creditCardReminderNotification": "{accountName} payment due soon",
+  "@creditCardReminderNotification": {
+    "placeholders": {
+      "accountName": { "type": "String" }
+    }
+  },
+  "creditCardReminderNotificationBody": "Payment due on the {day}th, please pay on time",
+  "@creditCardReminderNotificationBody": {
+    "placeholders": {
+      "day": { "type": "int" }
+    }
+  },
+  "creditCardInitialBalanceHint": "Current debt (negative number)",
+  "creditUsageRate": "Usage Rate",
+  "selectDay": "Select Day"
 }

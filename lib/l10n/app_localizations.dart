@@ -10673,6 +10673,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'After 15 minutes'**
   String get appLockTimeout15Min;
+
+  /// No description provided for @creditCardSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit Card Settings'**
+  String get creditCardSettings;
+
+  /// No description provided for @creditLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit Limit'**
+  String get creditLimit;
+
+  /// No description provided for @creditLimitHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter credit limit'**
+  String get creditLimitHint;
+
+  /// No description provided for @billingDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Billing Day'**
+  String get billingDay;
+
+  /// No description provided for @paymentDueDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Due Day'**
+  String get paymentDueDay;
+
+  /// No description provided for @creditUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Used'**
+  String get creditUsed;
+
+  /// No description provided for @creditAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get creditAvailable;
+
+  /// No description provided for @creditCardOwed.
+  ///
+  /// In en, this message translates to:
+  /// **'Owed'**
+  String get creditCardOwed;
+
+  /// No description provided for @dayOfMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'{day}th of each month'**
+  String dayOfMonth(int day);
+
+  /// No description provided for @creditCardReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Reminder'**
+  String get creditCardReminderTitle;
+
+  /// No description provided for @creditCardReminderDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind before payment due date'**
+  String get creditCardReminderDesc;
+
+  /// No description provided for @creditCardReminderDaysBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days before'**
+  String creditCardReminderDaysBefore(int days);
+
+  /// No description provided for @creditCardReminderNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'{accountName} payment due soon'**
+  String creditCardReminderNotification(String accountName);
+
+  /// No description provided for @creditCardReminderNotificationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment due on the {day}th, please pay on time'**
+  String creditCardReminderNotificationBody(int day);
+
+  /// No description provided for @creditCardInitialBalanceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Current debt (negative number)'**
+  String get creditCardInitialBalanceHint;
+
+  /// No description provided for @creditUsageRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage Rate'**
+  String get creditUsageRate;
+
+  /// No description provided for @selectDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Day'**
+  String get selectDay;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

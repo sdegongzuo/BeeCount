@@ -363,6 +363,24 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       type: DriftSqlType.int,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _creditLimitMeta =
+      const VerificationMeta('creditLimit');
+  @override
+  late final GeneratedColumn<double> creditLimit = GeneratedColumn<double>(
+      'credit_limit', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _billingDayMeta =
+      const VerificationMeta('billingDay');
+  @override
+  late final GeneratedColumn<int> billingDay = GeneratedColumn<int>(
+      'billing_day', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _paymentDueDayMeta =
+      const VerificationMeta('paymentDueDay');
+  @override
+  late final GeneratedColumn<int> paymentDueDay = GeneratedColumn<int>(
+      'payment_due_day', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -373,7 +391,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         initialBalance,
         createdAt,
         updatedAt,
-        sortOrder
+        sortOrder,
+        creditLimit,
+        billingDay,
+        paymentDueDay
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -426,6 +447,24 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
       context.handle(_sortOrderMeta,
           sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
     }
+    if (data.containsKey('credit_limit')) {
+      context.handle(
+          _creditLimitMeta,
+          creditLimit.isAcceptableOrUnknown(
+              data['credit_limit']!, _creditLimitMeta));
+    }
+    if (data.containsKey('billing_day')) {
+      context.handle(
+          _billingDayMeta,
+          billingDay.isAcceptableOrUnknown(
+              data['billing_day']!, _billingDayMeta));
+    }
+    if (data.containsKey('payment_due_day')) {
+      context.handle(
+          _paymentDueDayMeta,
+          paymentDueDay.isAcceptableOrUnknown(
+              data['payment_due_day']!, _paymentDueDayMeta));
+    }
     return context;
   }
 
@@ -453,6 +492,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']),
       sortOrder: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      creditLimit: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}credit_limit']),
+      billingDay: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}billing_day']),
+      paymentDueDay: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}payment_due_day']),
     );
   }
 
@@ -472,6 +517,9 @@ class Account extends DataClass implements Insertable<Account> {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final int sortOrder;
+  final double? creditLimit;
+  final int? billingDay;
+  final int? paymentDueDay;
   const Account(
       {required this.id,
       required this.ledgerId,
@@ -481,7 +529,10 @@ class Account extends DataClass implements Insertable<Account> {
       required this.initialBalance,
       this.createdAt,
       this.updatedAt,
-      required this.sortOrder});
+      required this.sortOrder,
+      this.creditLimit,
+      this.billingDay,
+      this.paymentDueDay});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -498,6 +549,15 @@ class Account extends DataClass implements Insertable<Account> {
       map['updated_at'] = Variable<DateTime>(updatedAt);
     }
     map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || creditLimit != null) {
+      map['credit_limit'] = Variable<double>(creditLimit);
+    }
+    if (!nullToAbsent || billingDay != null) {
+      map['billing_day'] = Variable<int>(billingDay);
+    }
+    if (!nullToAbsent || paymentDueDay != null) {
+      map['payment_due_day'] = Variable<int>(paymentDueDay);
+    }
     return map;
   }
 
@@ -516,6 +576,15 @@ class Account extends DataClass implements Insertable<Account> {
           ? const Value.absent()
           : Value(updatedAt),
       sortOrder: Value(sortOrder),
+      creditLimit: creditLimit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(creditLimit),
+      billingDay: billingDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(billingDay),
+      paymentDueDay: paymentDueDay == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentDueDay),
     );
   }
 
@@ -532,6 +601,9 @@ class Account extends DataClass implements Insertable<Account> {
       createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      creditLimit: serializer.fromJson<double?>(json['creditLimit']),
+      billingDay: serializer.fromJson<int?>(json['billingDay']),
+      paymentDueDay: serializer.fromJson<int?>(json['paymentDueDay']),
     );
   }
   @override
@@ -547,6 +619,9 @@ class Account extends DataClass implements Insertable<Account> {
       'createdAt': serializer.toJson<DateTime?>(createdAt),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'creditLimit': serializer.toJson<double?>(creditLimit),
+      'billingDay': serializer.toJson<int?>(billingDay),
+      'paymentDueDay': serializer.toJson<int?>(paymentDueDay),
     };
   }
 
@@ -559,7 +634,10 @@ class Account extends DataClass implements Insertable<Account> {
           double? initialBalance,
           Value<DateTime?> createdAt = const Value.absent(),
           Value<DateTime?> updatedAt = const Value.absent(),
-          int? sortOrder}) =>
+          int? sortOrder,
+          Value<double?> creditLimit = const Value.absent(),
+          Value<int?> billingDay = const Value.absent(),
+          Value<int?> paymentDueDay = const Value.absent()}) =>
       Account(
         id: id ?? this.id,
         ledgerId: ledgerId ?? this.ledgerId,
@@ -570,6 +648,10 @@ class Account extends DataClass implements Insertable<Account> {
         createdAt: createdAt.present ? createdAt.value : this.createdAt,
         updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
         sortOrder: sortOrder ?? this.sortOrder,
+        creditLimit: creditLimit.present ? creditLimit.value : this.creditLimit,
+        billingDay: billingDay.present ? billingDay.value : this.billingDay,
+        paymentDueDay:
+            paymentDueDay.present ? paymentDueDay.value : this.paymentDueDay,
       );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -584,6 +666,13 @@ class Account extends DataClass implements Insertable<Account> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      creditLimit:
+          data.creditLimit.present ? data.creditLimit.value : this.creditLimit,
+      billingDay:
+          data.billingDay.present ? data.billingDay.value : this.billingDay,
+      paymentDueDay: data.paymentDueDay.present
+          ? data.paymentDueDay.value
+          : this.paymentDueDay,
     );
   }
 
@@ -598,14 +687,28 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('initialBalance: $initialBalance, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('creditLimit: $creditLimit, ')
+          ..write('billingDay: $billingDay, ')
+          ..write('paymentDueDay: $paymentDueDay')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, ledgerId, name, type, currency,
-      initialBalance, createdAt, updatedAt, sortOrder);
+  int get hashCode => Object.hash(
+      id,
+      ledgerId,
+      name,
+      type,
+      currency,
+      initialBalance,
+      createdAt,
+      updatedAt,
+      sortOrder,
+      creditLimit,
+      billingDay,
+      paymentDueDay);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -618,7 +721,10 @@ class Account extends DataClass implements Insertable<Account> {
           other.initialBalance == this.initialBalance &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
-          other.sortOrder == this.sortOrder);
+          other.sortOrder == this.sortOrder &&
+          other.creditLimit == this.creditLimit &&
+          other.billingDay == this.billingDay &&
+          other.paymentDueDay == this.paymentDueDay);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -631,6 +737,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<DateTime?> createdAt;
   final Value<DateTime?> updatedAt;
   final Value<int> sortOrder;
+  final Value<double?> creditLimit;
+  final Value<int?> billingDay;
+  final Value<int?> paymentDueDay;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.ledgerId = const Value.absent(),
@@ -641,6 +750,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.creditLimit = const Value.absent(),
+    this.billingDay = const Value.absent(),
+    this.paymentDueDay = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -652,6 +764,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.creditLimit = const Value.absent(),
+    this.billingDay = const Value.absent(),
+    this.paymentDueDay = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
         name = Value(name);
   static Insertable<Account> custom({
@@ -664,6 +779,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? sortOrder,
+    Expression<double>? creditLimit,
+    Expression<int>? billingDay,
+    Expression<int>? paymentDueDay,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -675,6 +793,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (creditLimit != null) 'credit_limit': creditLimit,
+      if (billingDay != null) 'billing_day': billingDay,
+      if (paymentDueDay != null) 'payment_due_day': paymentDueDay,
     });
   }
 
@@ -687,7 +808,10 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       Value<double>? initialBalance,
       Value<DateTime?>? createdAt,
       Value<DateTime?>? updatedAt,
-      Value<int>? sortOrder}) {
+      Value<int>? sortOrder,
+      Value<double?>? creditLimit,
+      Value<int?>? billingDay,
+      Value<int?>? paymentDueDay}) {
     return AccountsCompanion(
       id: id ?? this.id,
       ledgerId: ledgerId ?? this.ledgerId,
@@ -698,6 +822,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       sortOrder: sortOrder ?? this.sortOrder,
+      creditLimit: creditLimit ?? this.creditLimit,
+      billingDay: billingDay ?? this.billingDay,
+      paymentDueDay: paymentDueDay ?? this.paymentDueDay,
     );
   }
 
@@ -731,6 +858,15 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (creditLimit.present) {
+      map['credit_limit'] = Variable<double>(creditLimit.value);
+    }
+    if (billingDay.present) {
+      map['billing_day'] = Variable<int>(billingDay.value);
+    }
+    if (paymentDueDay.present) {
+      map['payment_due_day'] = Variable<int>(paymentDueDay.value);
+    }
     return map;
   }
 
@@ -745,7 +881,10 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('initialBalance: $initialBalance, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('creditLimit: $creditLimit, ')
+          ..write('billingDay: $billingDay, ')
+          ..write('paymentDueDay: $paymentDueDay')
           ..write(')'))
         .toString();
   }
@@ -5098,6 +5237,9 @@ typedef $$AccountsTableCreateCompanionBuilder = AccountsCompanion Function({
   Value<DateTime?> createdAt,
   Value<DateTime?> updatedAt,
   Value<int> sortOrder,
+  Value<double?> creditLimit,
+  Value<int?> billingDay,
+  Value<int?> paymentDueDay,
 });
 typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<int> id,
@@ -5109,6 +5251,9 @@ typedef $$AccountsTableUpdateCompanionBuilder = AccountsCompanion Function({
   Value<DateTime?> createdAt,
   Value<DateTime?> updatedAt,
   Value<int> sortOrder,
+  Value<double?> creditLimit,
+  Value<int?> billingDay,
+  Value<int?> paymentDueDay,
 });
 
 class $$AccountsTableFilterComposer
@@ -5147,6 +5292,15 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get creditLimit => $composableBuilder(
+      column: $table.creditLimit, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get billingDay => $composableBuilder(
+      column: $table.billingDay, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get paymentDueDay => $composableBuilder(
+      column: $table.paymentDueDay, builder: (column) => ColumnFilters(column));
 }
 
 class $$AccountsTableOrderingComposer
@@ -5185,6 +5339,16 @@ class $$AccountsTableOrderingComposer
 
   ColumnOrderings<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get creditLimit => $composableBuilder(
+      column: $table.creditLimit, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get billingDay => $composableBuilder(
+      column: $table.billingDay, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get paymentDueDay => $composableBuilder(
+      column: $table.paymentDueDay,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$AccountsTableAnnotationComposer
@@ -5222,6 +5386,15 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<double> get creditLimit => $composableBuilder(
+      column: $table.creditLimit, builder: (column) => column);
+
+  GeneratedColumn<int> get billingDay => $composableBuilder(
+      column: $table.billingDay, builder: (column) => column);
+
+  GeneratedColumn<int> get paymentDueDay => $composableBuilder(
+      column: $table.paymentDueDay, builder: (column) => column);
 }
 
 class $$AccountsTableTableManager extends RootTableManager<
@@ -5256,6 +5429,9 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<DateTime?> createdAt = const Value.absent(),
             Value<DateTime?> updatedAt = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<double?> creditLimit = const Value.absent(),
+            Value<int?> billingDay = const Value.absent(),
+            Value<int?> paymentDueDay = const Value.absent(),
           }) =>
               AccountsCompanion(
             id: id,
@@ -5267,6 +5443,9 @@ class $$AccountsTableTableManager extends RootTableManager<
             createdAt: createdAt,
             updatedAt: updatedAt,
             sortOrder: sortOrder,
+            creditLimit: creditLimit,
+            billingDay: billingDay,
+            paymentDueDay: paymentDueDay,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -5278,6 +5457,9 @@ class $$AccountsTableTableManager extends RootTableManager<
             Value<DateTime?> createdAt = const Value.absent(),
             Value<DateTime?> updatedAt = const Value.absent(),
             Value<int> sortOrder = const Value.absent(),
+            Value<double?> creditLimit = const Value.absent(),
+            Value<int?> billingDay = const Value.absent(),
+            Value<int?> paymentDueDay = const Value.absent(),
           }) =>
               AccountsCompanion.insert(
             id: id,
@@ -5289,6 +5471,9 @@ class $$AccountsTableTableManager extends RootTableManager<
             createdAt: createdAt,
             updatedAt: updatedAt,
             sortOrder: sortOrder,
+            creditLimit: creditLimit,
+            billingDay: billingDay,
+            paymentDueDay: paymentDueDay,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

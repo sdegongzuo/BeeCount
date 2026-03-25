@@ -798,6 +798,9 @@ class AccountItem {
   final String currency;
   final double initialBalance;
   final String? createdAt; // ISO 8601 format
+  final double? creditLimit; // 信用额度
+  final int? billingDay; // 账单日 (1-28)
+  final int? paymentDueDay; // 还款日 (1-28)
 
   const AccountItem({
     required this.name,
@@ -805,6 +808,9 @@ class AccountItem {
     required this.currency,
     required this.initialBalance,
     this.createdAt,
+    this.creditLimit,
+    this.billingDay,
+    this.paymentDueDay,
   });
 
   Map<String, dynamic> toMap() {
@@ -815,6 +821,9 @@ class AccountItem {
       'initial_balance': initialBalance,
     };
     if (createdAt != null) map['created_at'] = createdAt;
+    if (creditLimit != null) map['credit_limit'] = creditLimit;
+    if (billingDay != null) map['billing_day'] = billingDay;
+    if (paymentDueDay != null) map['payment_due_day'] = paymentDueDay;
     return map;
   }
 
@@ -825,6 +834,9 @@ class AccountItem {
       currency: map['currency'] as String? ?? 'CNY',
       initialBalance: (map['initial_balance'] as num?)?.toDouble() ?? 0.0,
       createdAt: map['created_at'] as String?,
+      creditLimit: (map['credit_limit'] as num?)?.toDouble(),
+      billingDay: map['billing_day'] as int?,
+      paymentDueDay: map['payment_due_day'] as int?,
     );
   }
 
@@ -835,6 +847,9 @@ class AccountItem {
       currency: account.currency,
       initialBalance: account.initialBalance,
       createdAt: account.createdAt?.toIso8601String(),
+      creditLimit: account.creditLimit,
+      billingDay: account.billingDay,
+      paymentDueDay: account.paymentDueDay,
     );
   }
 }
@@ -1875,6 +1890,15 @@ class ConfigExportService {
           if (itemMap.containsKey('created_at') && itemMap['created_at'] != null) {
             buffer.writeln('      created_at: "${itemMap['created_at']}"');
           }
+          if (itemMap.containsKey('credit_limit') && itemMap['credit_limit'] != null) {
+            buffer.writeln('      credit_limit: ${itemMap['credit_limit']}');
+          }
+          if (itemMap.containsKey('billing_day') && itemMap['billing_day'] != null) {
+            buffer.writeln('      billing_day: ${itemMap['billing_day']}');
+          }
+          if (itemMap.containsKey('payment_due_day') && itemMap['payment_due_day'] != null) {
+            buffer.writeln('      payment_due_day: ${itemMap['payment_due_day']}');
+          }
         }
       }
       buffer.writeln();
@@ -2344,6 +2368,9 @@ class ConfigExportService {
             createdAt: d.Value(
                 item.createdAt != null ? DateTime.parse(item.createdAt!) : null),
             updatedAt: d.Value(DateTime.now()),
+            creditLimit: d.Value(item.creditLimit),
+            billingDay: d.Value(item.billingDay),
+            paymentDueDay: d.Value(item.paymentDueDay),
           )).toList();
 
           // 使用 repository 方法进行批量插入

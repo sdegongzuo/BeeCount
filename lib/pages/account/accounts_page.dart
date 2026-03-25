@@ -855,8 +855,14 @@ class _AccountCard extends ConsumerWidget {
                       ],
                     ),
                     SizedBox(height: 10.0.scaled(context, ref)),
-                    // 统计数据
-                    if (stats != null)
+                    // 信用卡：显示额度信息 + 薄进度条
+                    if (account.type == 'credit_card' && account.creditLimit != null && stats != null)
+                      _CreditCardStats(
+                        account: account,
+                        stats: stats!,
+                      )
+                    // 普通账户：余额/收入/支出
+                    else if (stats != null)
                       Row(
                         children: [
                           Expanded(
@@ -912,6 +918,80 @@ class _AccountCard extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 信用卡统计数据（额度/已用/可用 + 进度条）
+class _CreditCardStats extends ConsumerWidget {
+  final db.Account account;
+  final ({double balance, double expense, double income}) stats;
+
+  const _CreditCardStats({
+    required this.account,
+    required this.stats,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final creditLimit = account.creditLimit!;
+    // 已用额度 = -余额（余额为负表示欠款）
+    final usedAmount = stats.balance < 0 ? -stats.balance : 0.0;
+    final available = creditLimit - usedAmount;
+    final usageRate = creditLimit > 0 ? (usedAmount / creditLimit).clamp(0.0, 1.0) : 0.0;
+
+    return Column(
+      children: [
+        // 薄进度条
+        ClipRRect(
+          borderRadius: BorderRadius.circular(2.0.scaled(context, ref)),
+          child: LinearProgressIndicator(
+            value: usageRate,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              usageRate < 0.8 ? Colors.white : Colors.yellow,
+            ),
+            minHeight: 3.0.scaled(context, ref),
+          ),
+        ),
+        SizedBox(height: 8.0.scaled(context, ref)),
+        Row(
+          children: [
+            Expanded(
+              child: _CardStatItem(
+                label: l10n.creditLimit,
+                value: creditLimit,
+                currencyCode: account.currency,
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 24.0.scaled(context, ref),
+              color: Colors.white.withValues(alpha: 0.2),
+            ),
+            Expanded(
+              child: _CardStatItem(
+                label: l10n.creditUsed,
+                value: usedAmount,
+                currencyCode: account.currency,
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 24.0.scaled(context, ref),
+              color: Colors.white.withValues(alpha: 0.2),
+            ),
+            Expanded(
+              child: _CardStatItem(
+                label: l10n.creditAvailable,
+                value: available,
+                currencyCode: account.currency,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

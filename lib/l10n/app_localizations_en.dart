@@ -5594,4 +5594,63 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appLockTimeout15Min => 'After 15 minutes';
+
+  @override
+  String get creditCardSettings => 'Credit Card Settings';
+
+  @override
+  String get creditLimit => 'Credit Limit';
+
+  @override
+  String get creditLimitHint => 'Enter credit limit';
+
+  @override
+  String get billingDay => 'Billing Day';
+
+  @override
+  String get paymentDueDay => 'Payment Due Day';
+
+  @override
+  String get creditUsed => 'Used';
+
+  @override
+  String get creditAvailable => 'Available';
+
+  @override
+  String get creditCardOwed => 'Owed';
+
+  @override
+  String dayOfMonth(int day) {
+    return '${day}th of each month';
+  }
+
+  @override
+  String get creditCardReminderTitle => 'Payment Reminder';
+
+  @override
+  String get creditCardReminderDesc => 'Remind before payment due date';
+
+  @override
+  String creditCardReminderDaysBefore(int days) {
+    return '$days days before';
+  }
+
+  @override
+  String creditCardReminderNotification(String accountName) {
+    return '$accountName payment due soon';
+  }
+
+  @override
+  String creditCardReminderNotificationBody(int day) {
+    return 'Payment due on the ${day}th, please pay on time';
+  }
+
+  @override
+  String get creditCardInitialBalanceHint => 'Current debt (negative number)';
+
+  @override
+  String get creditUsageRate => 'Usage Rate';
+
+  @override
+  String get selectDay => 'Select Day';
 }

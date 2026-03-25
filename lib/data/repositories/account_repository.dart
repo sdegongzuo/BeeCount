@@ -31,6 +31,9 @@ abstract class AccountRepository {
     String type = 'cash',
     String currency = 'CNY',
     double initialBalance = 0.0,
+    double? creditLimit,
+    int? billingDay,
+    int? paymentDueDay,
   });
 
   /// 更新账户
@@ -40,7 +43,17 @@ abstract class AccountRepository {
     String? type,
     String? currency,
     double? initialBalance,
+    double? creditLimit,
+    int? billingDay,
+    int? paymentDueDay,
+    bool clearCreditCardFields = false,
   });
+
+  /// 获取所有信用卡账户
+  Future<List<Account>> getCreditCardAccounts();
+
+  /// 获取信用卡已用额度（负余额 = 欠款额度）
+  Future<double> getCreditCardUsedAmount(int accountId);
 
   /// 删除账户
   Future<void> deleteAccount(int id);
