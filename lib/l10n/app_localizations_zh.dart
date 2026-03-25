@@ -5653,6 +5653,57 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get selectDay => '选择日期';
+
+  @override
+  String get accountBankName => '开户行';
+
+  @override
+  String get accountBankNameHint => '例如：工商银行';
+
+  @override
+  String get accountCardLastFour => '卡号后四位';
+
+  @override
+  String get accountCardLastFourHint => '例如：1234';
+
+  @override
+  String get accountNote => '备注';
+
+  @override
+  String get accountNoteHint => '添加备注信息';
+
+  @override
+  String get accountMetaInfo => '账户信息';
+
+  @override
+  String get accountBalanceTrend => '余额趋势';
+
+  @override
+  String get periodDays7 => '近7天';
+
+  @override
+  String get periodDays30 => '近30天';
+
+  @override
+  String get periodDays90 => '近90天';
+
+  @override
+  String get accountCategoryBreakdown => '分类统计';
+
+  @override
+  String get accountCategoryExpense => '支出';
+
+  @override
+  String get accountCategoryIncome => '收入';
+
+  @override
+  String get accountLoadMore => '加载更多';
+
+  @override
+  String get accountNoMoreData => '没有更多数据了';
+
+  @override
+  String get accountUncategorized => '未分类';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -11300,4 +11351,55 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get selectDay => '選擇日期';
+
+  @override
+  String get accountBankName => '開戶行';
+
+  @override
+  String get accountBankNameHint => '例如：工商銀行';
+
+  @override
+  String get accountCardLastFour => '卡號後四位';
+
+  @override
+  String get accountCardLastFourHint => '例如：1234';
+
+  @override
+  String get accountNote => '備註';
+
+  @override
+  String get accountNoteHint => '新增備註資訊';
+
+  @override
+  String get accountMetaInfo => '帳戶資訊';
+
+  @override
+  String get accountBalanceTrend => '餘額趨勢';
+
+  @override
+  String get periodDays7 => '近7天';
+
+  @override
+  String get periodDays30 => '近30天';
+
+  @override
+  String get periodDays90 => '近90天';
+
+  @override
+  String get accountCategoryBreakdown => '分類統計';
+
+  @override
+  String get accountCategoryExpense => '支出';
+
+  @override
+  String get accountCategoryIncome => '收入';
+
+  @override
+  String get accountLoadMore => '載入更多';
+
+  @override
+  String get accountNoMoreData => '沒有更多資料了';
+
+  @override
+  String get accountUncategorized => '未分類';
 }

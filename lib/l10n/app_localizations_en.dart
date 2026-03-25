@@ -5653,4 +5653,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get selectDay => 'Select Day';
+
+  @override
+  String get accountBankName => 'Bank';
+
+  @override
+  String get accountBankNameHint => 'e.g. ICBC';
+
+  @override
+  String get accountCardLastFour => 'Last 4 Digits';
+
+  @override
+  String get accountCardLastFourHint => 'e.g. 1234';
+
+  @override
+  String get accountNote => 'Note';
+
+  @override
+  String get accountNoteHint => 'Add a note';
+
+  @override
+  String get accountMetaInfo => 'Account Info';
+
+  @override
+  String get accountBalanceTrend => 'Balance Trend';
+
+  @override
+  String get periodDays7 => '7 Days';
+
+  @override
+  String get periodDays30 => '30 Days';
+
+  @override
+  String get periodDays90 => '90 Days';
+
+  @override
+  String get accountCategoryBreakdown => 'Category Breakdown';
+
+  @override
+  String get accountCategoryExpense => 'Expense';
+
+  @override
+  String get accountCategoryIncome => 'Income';
+
+  @override
+  String get accountLoadMore => 'Load More';
+
+  @override
+  String get accountNoMoreData => 'No more data';
+
+  @override
+  String get accountUncategorized => 'Uncategorized';
 }

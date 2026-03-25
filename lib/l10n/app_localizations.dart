@@ -10775,6 +10775,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select Day'**
   String get selectDay;
+
+  /// No description provided for @accountBankName.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank'**
+  String get accountBankName;
+
+  /// No description provided for @accountBankNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. ICBC'**
+  String get accountBankNameHint;
+
+  /// No description provided for @accountCardLastFour.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 4 Digits'**
+  String get accountCardLastFour;
+
+  /// No description provided for @accountCardLastFourHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 1234'**
+  String get accountCardLastFourHint;
+
+  /// No description provided for @accountNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get accountNote;
+
+  /// No description provided for @accountNoteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a note'**
+  String get accountNoteHint;
+
+  /// No description provided for @accountMetaInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Account Info'**
+  String get accountMetaInfo;
+
+  /// No description provided for @accountBalanceTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance Trend'**
+  String get accountBalanceTrend;
+
+  /// No description provided for @periodDays7.
+  ///
+  /// In en, this message translates to:
+  /// **'7 Days'**
+  String get periodDays7;
+
+  /// No description provided for @periodDays30.
+  ///
+  /// In en, this message translates to:
+  /// **'30 Days'**
+  String get periodDays30;
+
+  /// No description provided for @periodDays90.
+  ///
+  /// In en, this message translates to:
+  /// **'90 Days'**
+  String get periodDays90;
+
+  /// No description provided for @accountCategoryBreakdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Category Breakdown'**
+  String get accountCategoryBreakdown;
+
+  /// No description provided for @accountCategoryExpense.
+  ///
+  /// In en, this message translates to:
+  /// **'Expense'**
+  String get accountCategoryExpense;
+
+  /// No description provided for @accountCategoryIncome.
+  ///
+  /// In en, this message translates to:
+  /// **'Income'**
+  String get accountCategoryIncome;
+
+  /// No description provided for @accountLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load More'**
+  String get accountLoadMore;
+
+  /// No description provided for @accountNoMoreData.
+  ///
+  /// In en, this message translates to:
+  /// **'No more data'**
+  String get accountNoMoreData;
+
+  /// No description provided for @accountUncategorized.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncategorized'**
+  String get accountUncategorized;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

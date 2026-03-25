@@ -2476,5 +2476,22 @@
   },
   "creditCardInitialBalanceHint": "当前欠款（填负数）",
   "creditUsageRate": "额度使用率",
-  "selectDay": "选择日期"
+  "selectDay": "选择日期",
+  "accountBankName": "开户行",
+  "accountBankNameHint": "例如：工商银行",
+  "accountCardLastFour": "卡号后四位",
+  "accountCardLastFourHint": "例如：1234",
+  "accountNote": "备注",
+  "accountNoteHint": "添加备注信息",
+  "accountMetaInfo": "账户信息",
+  "accountBalanceTrend": "余额趋势",
+  "periodDays7": "近7天",
+  "periodDays30": "近30天",
+  "periodDays90": "近90天",
+  "accountCategoryBreakdown": "分类统计",
+  "accountCategoryExpense": "支出",
+  "accountCategoryIncome": "收入",
+  "accountLoadMore": "加载更多",
+  "accountNoMoreData": "没有更多数据了",
+  "accountUncategorized": "未分类"
 }

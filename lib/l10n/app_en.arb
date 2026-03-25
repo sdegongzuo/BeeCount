@@ -2516,5 +2516,22 @@
   },
   "creditCardInitialBalanceHint": "Current debt (negative number)",
   "creditUsageRate": "Usage Rate",
-  "selectDay": "Select Day"
+  "selectDay": "Select Day",
+  "accountBankName": "Bank",
+  "accountBankNameHint": "e.g. ICBC",
+  "accountCardLastFour": "Last 4 Digits",
+  "accountCardLastFourHint": "e.g. 1234",
+  "accountNote": "Note",
+  "accountNoteHint": "Add a note",
+  "accountMetaInfo": "Account Info",
+  "accountBalanceTrend": "Balance Trend",
+  "periodDays7": "7 Days",
+  "periodDays30": "30 Days",
+  "periodDays90": "90 Days",
+  "accountCategoryBreakdown": "Category Breakdown",
+  "accountCategoryExpense": "Expense",
+  "accountCategoryIncome": "Income",
+  "accountLoadMore": "Load More",
+  "accountNoMoreData": "No more data",
+  "accountUncategorized": "Uncategorized"
 }

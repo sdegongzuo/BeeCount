@@ -513,6 +513,9 @@ class CloudRepository extends BaseRepository {
     double? creditLimit,
     int? billingDay,
     int? paymentDueDay,
+    String? bankName,
+    String? cardLastFour,
+    String? note,
   }) =>
       _account.createAccount(
         ledgerId: ledgerId,
@@ -523,6 +526,9 @@ class CloudRepository extends BaseRepository {
         creditLimit: creditLimit,
         billingDay: billingDay,
         paymentDueDay: paymentDueDay,
+        bankName: bankName,
+        cardLastFour: cardLastFour,
+        note: note,
       );
 
   @override
@@ -536,6 +542,10 @@ class CloudRepository extends BaseRepository {
     int? billingDay,
     int? paymentDueDay,
     bool clearCreditCardFields = false,
+    String? bankName,
+    String? cardLastFour,
+    String? note,
+    bool clearMetadataFields = false,
   }) =>
       _account.updateAccount(
         id,
@@ -547,6 +557,10 @@ class CloudRepository extends BaseRepository {
         billingDay: billingDay,
         paymentDueDay: paymentDueDay,
         clearCreditCardFields: clearCreditCardFields,
+        bankName: bankName,
+        cardLastFour: cardLastFour,
+        note: note,
+        clearMetadataFields: clearMetadataFields,
       );
 
   @override
@@ -929,6 +943,21 @@ class CloudRepository extends BaseRepository {
   @override
   Future<void> updateAccountSortOrders(List<({int id, int sortOrder})> updates) =>
       _account.updateAccountSortOrders(updates);
+
+  @override
+  Future<List<Transaction>> getAccountTransactions(
+    int accountId, {int limit = 50, int offset = 0}) =>
+      _account.getAccountTransactions(accountId, limit: limit, offset: offset);
+
+  @override
+  Future<List<({DateTime date, double balance})>> getAccountDailyBalances(
+    int accountId, {required DateTime startDate, required DateTime endDate}) =>
+      _account.getAccountDailyBalances(accountId, startDate: startDate, endDate: endDate);
+
+  @override
+  Future<List<({int? id, String name, String? icon, double total})>>
+      getAccountCategoryStats(int accountId, {required String type}) =>
+      _account.getAccountCategoryStats(accountId, type: type);
 
   @override
   Future<void> batchInsertCategories(List<CategoriesCompanion> categories) =>

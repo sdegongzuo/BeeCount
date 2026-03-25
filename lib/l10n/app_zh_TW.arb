@@ -2240,5 +2240,22 @@
   },
   "creditCardInitialBalanceHint": "目前欠款（填負數）",
   "creditUsageRate": "額度使用率",
-  "selectDay": "選擇日期"
+  "selectDay": "選擇日期",
+  "accountBankName": "開戶行",
+  "accountBankNameHint": "例如：工商銀行",
+  "accountCardLastFour": "卡號後四位",
+  "accountCardLastFourHint": "例如：1234",
+  "accountNote": "備註",
+  "accountNoteHint": "新增備註資訊",
+  "accountMetaInfo": "帳戶資訊",
+  "accountBalanceTrend": "餘額趨勢",
+  "periodDays7": "近7天",
+  "periodDays30": "近30天",
+  "periodDays90": "近90天",
+  "accountCategoryBreakdown": "分類統計",
+  "accountCategoryExpense": "支出",
+  "accountCategoryIncome": "收入",
+  "accountLoadMore": "載入更多",
+  "accountNoMoreData": "沒有更多資料了",
+  "accountUncategorized": "未分類"
 }

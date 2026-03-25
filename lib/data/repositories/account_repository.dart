@@ -34,6 +34,9 @@ abstract class AccountRepository {
     double? creditLimit,
     int? billingDay,
     int? paymentDueDay,
+    String? bankName,
+    String? cardLastFour,
+    String? note,
   });
 
   /// 更新账户
@@ -47,6 +50,10 @@ abstract class AccountRepository {
     int? billingDay,
     int? paymentDueDay,
     bool clearCreditCardFields = false,
+    String? bankName,
+    String? cardLastFour,
+    String? note,
+    bool clearMetadataFields = false,
   });
 
   /// 获取所有信用卡账户
@@ -114,4 +121,16 @@ abstract class AccountRepository {
 
   /// 批量更新账户排序顺序
   Future<void> updateAccountSortOrders(List<({int id, int sortOrder})> updates);
+
+  /// 分页获取账户交易
+  Future<List<Transaction>> getAccountTransactions(
+    int accountId, {int limit = 50, int offset = 0});
+
+  /// 获取账户每日余额快照（用于余额趋势图）
+  Future<List<({DateTime date, double balance})>> getAccountDailyBalances(
+    int accountId, {required DateTime startDate, required DateTime endDate});
+
+  /// 获取账户级分类统计（用于分类饼图）
+  Future<List<({int? id, String name, String? icon, double total})>>
+      getAccountCategoryStats(int accountId, {required String type});
 }

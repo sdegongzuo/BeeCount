@@ -801,6 +801,9 @@ class AccountItem {
   final double? creditLimit; // 信用额度
   final int? billingDay; // 账单日 (1-28)
   final int? paymentDueDay; // 还款日 (1-28)
+  final String? bankName; // 开户行
+  final String? cardLastFour; // 卡号后四位
+  final String? note; // 备注
 
   const AccountItem({
     required this.name,
@@ -811,6 +814,9 @@ class AccountItem {
     this.creditLimit,
     this.billingDay,
     this.paymentDueDay,
+    this.bankName,
+    this.cardLastFour,
+    this.note,
   });
 
   Map<String, dynamic> toMap() {
@@ -824,6 +830,9 @@ class AccountItem {
     if (creditLimit != null) map['credit_limit'] = creditLimit;
     if (billingDay != null) map['billing_day'] = billingDay;
     if (paymentDueDay != null) map['payment_due_day'] = paymentDueDay;
+    if (bankName != null) map['bank_name'] = bankName;
+    if (cardLastFour != null) map['card_last_four'] = cardLastFour;
+    if (note != null) map['note'] = note;
     return map;
   }
 
@@ -837,6 +846,9 @@ class AccountItem {
       creditLimit: (map['credit_limit'] as num?)?.toDouble(),
       billingDay: map['billing_day'] as int?,
       paymentDueDay: map['payment_due_day'] as int?,
+      bankName: map['bank_name'] as String?,
+      cardLastFour: map['card_last_four'] as String?,
+      note: map['note'] as String?,
     );
   }
 
@@ -850,6 +862,9 @@ class AccountItem {
       creditLimit: account.creditLimit,
       billingDay: account.billingDay,
       paymentDueDay: account.paymentDueDay,
+      bankName: account.bankName,
+      cardLastFour: account.cardLastFour,
+      note: account.note,
     );
   }
 }
@@ -1899,6 +1914,15 @@ class ConfigExportService {
           if (itemMap.containsKey('payment_due_day') && itemMap['payment_due_day'] != null) {
             buffer.writeln('      payment_due_day: ${itemMap['payment_due_day']}');
           }
+          if (itemMap.containsKey('bank_name') && itemMap['bank_name'] != null) {
+            buffer.writeln('      bank_name: "${itemMap['bank_name']}"');
+          }
+          if (itemMap.containsKey('card_last_four') && itemMap['card_last_four'] != null) {
+            buffer.writeln('      card_last_four: "${itemMap['card_last_four']}"');
+          }
+          if (itemMap.containsKey('note') && itemMap['note'] != null) {
+            buffer.writeln('      note: "${itemMap['note']}"');
+          }
         }
       }
       buffer.writeln();
@@ -2371,6 +2395,9 @@ class ConfigExportService {
             creditLimit: d.Value(item.creditLimit),
             billingDay: d.Value(item.billingDay),
             paymentDueDay: d.Value(item.paymentDueDay),
+            bankName: d.Value(item.bankName),
+            cardLastFour: d.Value(item.cardLastFour),
+            note: d.Value(item.note),
           )).toList();
 
           // 使用 repository 方法进行批量插入

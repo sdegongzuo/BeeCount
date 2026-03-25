@@ -37,6 +37,9 @@ class Accounts extends Table {
   RealColumn get creditLimit => real().nullable()(); // 信用额度
   IntColumn get billingDay => integer().nullable()(); // 账单日 (1-28)
   IntColumn get paymentDueDay => integer().nullable()(); // 还款日 (1-28)
+  TextColumn get bankName => text().nullable()(); // 开户行
+  TextColumn get cardLastFour => text().nullable()(); // 卡号后四位
+  TextColumn get note => text().nullable()(); // 备注
 }
 
 class Categories extends Table {
@@ -201,7 +204,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 17; // v17: 账户添加信用卡字段
+  int get schemaVersion => 18; // v18: 账户添加元信息字段
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -560,6 +563,39 @@ class BeeDatabase extends _$BeeDatabase {
             }
 
             print('[DB Migration] v17 迁移完成');
+          }
+          if (from < 18) {
+            // v18: 账户添加元信息字段
+            print('[DB Migration] 开始迁移到 v18: 账户元信息');
+
+            final tableInfo =
+                await customSelect('PRAGMA table_info(accounts)').get();
+            final hasBankName =
+                tableInfo.any((row) => row.data['name'] == 'bank_name');
+            final hasCardLastFour =
+                tableInfo.any((row) => row.data['name'] == 'card_last_four');
+            final hasNote =
+                tableInfo.any((row) => row.data['name'] == 'note');
+
+            if (!hasBankName) {
+              await customStatement(
+                  'ALTER TABLE accounts ADD COLUMN bank_name TEXT;');
+              logger.info('DB', 'v18: bank_name 字段已添加');
+            }
+
+            if (!hasCardLastFour) {
+              await customStatement(
+                  'ALTER TABLE accounts ADD COLUMN card_last_four TEXT;');
+              logger.info('DB', 'v18: card_last_four 字段已添加');
+            }
+
+            if (!hasNote) {
+              await customStatement(
+                  'ALTER TABLE accounts ADD COLUMN note TEXT;');
+              logger.info('DB', 'v18: note 字段已添加');
+            }
+
+            print('[DB Migration] v18 迁移完成');
           }
         },
       );

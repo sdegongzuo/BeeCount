@@ -176,6 +176,9 @@ class CloudAccountRepository implements AccountRepository {
     double? creditLimit,
     int? billingDay,
     int? paymentDueDay,
+    String? bankName,
+    String? cardLastFour,
+    String? note,
   }) async {
     logger.info('CloudAccountRepository', '📝 创建账户: name=$name, type=$type, currency=$currency, initialBalance=$initialBalance (ledgerId=$ledgerId 已忽略)');
 
@@ -190,6 +193,9 @@ class CloudAccountRepository implements AccountRepository {
       if (creditLimit != null) data['credit_limit'] = creditLimit;
       if (billingDay != null) data['billing_day'] = billingDay;
       if (paymentDueDay != null) data['payment_due_day'] = paymentDueDay;
+      if (bankName != null) data['bank_name'] = bankName;
+      if (cardLastFour != null) data['card_last_four'] = cardLastFour;
+      if (note != null) data['note'] = note;
 
       final result = await supabase.databaseService!.insert(
         table: 'accounts',
@@ -216,6 +222,10 @@ class CloudAccountRepository implements AccountRepository {
     int? billingDay,
     int? paymentDueDay,
     bool clearCreditCardFields = false,
+    String? bankName,
+    String? cardLastFour,
+    String? note,
+    bool clearMetadataFields = false,
   }) async {
     final data = <String, dynamic>{};
     if (name != null) data['name'] = name;
@@ -231,6 +241,16 @@ class CloudAccountRepository implements AccountRepository {
       if (creditLimit != null) data['credit_limit'] = creditLimit;
       if (billingDay != null) data['billing_day'] = billingDay;
       if (paymentDueDay != null) data['payment_due_day'] = paymentDueDay;
+    }
+
+    if (clearMetadataFields) {
+      data['bank_name'] = null;
+      data['card_last_four'] = null;
+      data['note'] = null;
+    } else {
+      if (bankName != null) data['bank_name'] = bankName;
+      if (cardLastFour != null) data['card_last_four'] = cardLastFour;
+      if (note != null) data['note'] = note;
     }
 
     if (data.isNotEmpty) {
@@ -599,6 +619,9 @@ class CloudAccountRepository implements AccountRepository {
       creditLimit: (json['credit_limit'] as num?)?.toDouble(),
       billingDay: json['billing_day'] as int?,
       paymentDueDay: json['payment_due_day'] as int?,
+      bankName: json['bank_name'] as String?,
+      cardLastFour: json['card_last_four'] as String?,
+      note: json['note'] as String?,
     );
   }
 
@@ -640,5 +663,75 @@ class CloudAccountRepository implements AccountRepository {
   Future<void> updateAccountSortOrders(
       List<({int id, int sortOrder})> updates) async {
     logger.warning('CloudAccount', '云端模式暂不支持账户排序');
+  }
+
+  @override
+  Future<List<Transaction>> getAccountTransactions(
+    int accountId, {int limit = 50, int offset = 0}) async {
+    final results = await supabase.databaseService!.query(
+      table: 'transactions',
+      filters: [
+        QueryFilter(column: 'account_id', operator: 'eq', value: accountId),
+      ],
+      orderBy: 'happened_at',
+      descending: true,
+      limit: limit,
+    );
+    return results.map((data) => _transactionFromJson(data)).toList();
+  }
+
+  @override
+  Future<List<({DateTime date, double balance})>> getAccountDailyBalances(
+    int accountId, {required DateTime startDate, required DateTime endDate}) async {
+    // 简化实现：获取所有交易计算余额
+    final account = await getAccount(accountId);
+    if (account == null) return [];
+
+    final transactions = await supabase.databaseService!.query(
+      table: 'transactions',
+      filters: [
+        QueryFilter(column: 'account_id', operator: 'eq', value: accountId),
+      ],
+      orderBy: 'happened_at',
+    );
+
+    double runningBalance = account.initialBalance;
+    final txList = transactions.map((data) => _transactionFromJson(data)).toList()
+      ..sort((a, b) => a.happenedAt.compareTo(b.happenedAt));
+
+    int txIndex = 0;
+    while (txIndex < txList.length && txList[txIndex].happenedAt.isBefore(startDate)) {
+      final tx = txList[txIndex];
+      if (tx.type == 'income') runningBalance += tx.amount;
+      else if (tx.type == 'expense') runningBalance -= tx.amount;
+      else if (tx.type == 'transfer') runningBalance -= tx.amount;
+      txIndex++;
+    }
+
+    final result = <({DateTime date, double balance})>[];
+    var currentDate = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day);
+
+    while (!currentDate.isAfter(end)) {
+      final nextDate = currentDate.add(const Duration(days: 1));
+      while (txIndex < txList.length && txList[txIndex].happenedAt.isBefore(nextDate)) {
+        final tx = txList[txIndex];
+        if (tx.type == 'income') runningBalance += tx.amount;
+        else if (tx.type == 'expense') runningBalance -= tx.amount;
+        else if (tx.type == 'transfer') runningBalance -= tx.amount;
+        txIndex++;
+      }
+      result.add((date: currentDate, balance: runningBalance));
+      currentDate = nextDate;
+    }
+
+    return result;
+  }
+
+  @override
+  Future<List<({int? id, String name, String? icon, double total})>>
+      getAccountCategoryStats(int accountId, {required String type}) async {
+    logger.warning('CloudAccount', '云端模式暂不支持账户分类统计');
+    return [];
   }
 }

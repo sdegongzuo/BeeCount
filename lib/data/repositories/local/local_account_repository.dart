@@ -87,6 +87,9 @@ class LocalAccountRepository implements AccountRepository {
     double? creditLimit,
     int? billingDay,
     int? paymentDueDay,
+    String? bankName,
+    String? cardLastFour,
+    String? note,
   }) async {
     logger.info('AccountCreate', '📝 开始创建账户: name=$name, ledgerId=$ledgerId, type=$type, currency=$currency, initialBalance=$initialBalance');
 
@@ -110,6 +113,9 @@ class LocalAccountRepository implements AccountRepository {
         creditLimit: d.Value(creditLimit),
         billingDay: d.Value(billingDay),
         paymentDueDay: d.Value(paymentDueDay),
+        bankName: d.Value(bankName),
+        cardLastFour: d.Value(cardLastFour),
+        note: d.Value(note),
       );
 
       logger.info('AccountCreate', '📦 Companion 创建成功，准备插入数据库');
@@ -135,6 +141,10 @@ class LocalAccountRepository implements AccountRepository {
     int? billingDay,
     int? paymentDueDay,
     bool clearCreditCardFields = false,
+    String? bankName,
+    String? cardLastFour,
+    String? note,
+    bool clearMetadataFields = false,
   }) async {
     await (db.update(db.accounts)..where((a) => a.id.equals(id))).write(
       AccountsCompanion(
@@ -145,6 +155,9 @@ class LocalAccountRepository implements AccountRepository {
         creditLimit: clearCreditCardFields ? const d.Value(null) : (creditLimit != null ? d.Value(creditLimit) : const d.Value.absent()),
         billingDay: clearCreditCardFields ? const d.Value(null) : (billingDay != null ? d.Value(billingDay) : const d.Value.absent()),
         paymentDueDay: clearCreditCardFields ? const d.Value(null) : (paymentDueDay != null ? d.Value(paymentDueDay) : const d.Value.absent()),
+        bankName: clearMetadataFields ? const d.Value(null) : (bankName != null ? d.Value(bankName) : const d.Value.absent()),
+        cardLastFour: clearMetadataFields ? const d.Value(null) : (cardLastFour != null ? d.Value(cardLastFour) : const d.Value.absent()),
+        note: clearMetadataFields ? const d.Value(null) : (note != null ? d.Value(note) : const d.Value.absent()),
       ),
     );
   }
@@ -520,5 +533,130 @@ class LocalAccountRepository implements AccountRepository {
             .write(AccountsCompanion(sortOrder: d.Value(update.sortOrder)));
       }
     });
+  }
+
+  @override
+  Future<List<Transaction>> getAccountTransactions(
+    int accountId, {int limit = 50, int offset = 0}) async {
+    final results = await db.customSelect(
+      '''
+      SELECT * FROM transactions
+      WHERE account_id = ?1 OR to_account_id = ?1
+      ORDER BY happened_at DESC
+      LIMIT ?2 OFFSET ?3
+      ''',
+      variables: [
+        d.Variable.withInt(accountId),
+        d.Variable.withInt(limit),
+        d.Variable.withInt(offset),
+      ],
+      readsFrom: {db.transactions},
+    ).get();
+
+    return results.map((row) {
+      return Transaction(
+        id: row.data['id'] as int,
+        ledgerId: row.data['ledger_id'] as int,
+        type: row.data['type'] as String,
+        amount: (row.data['amount'] as num).toDouble(),
+        categoryId: row.data['category_id'] as int?,
+        accountId: row.data['account_id'] as int?,
+        toAccountId: row.data['to_account_id'] as int?,
+        happenedAt: DateTime.fromMillisecondsSinceEpoch(
+            (row.data['happened_at'] as int) * 1000),
+        note: row.data['note'] as String?,
+        recurringId: row.data['recurring_id'] as int?,
+        syncId: row.data['sync_id'] as String?,
+      );
+    }).toList();
+  }
+
+  @override
+  Future<List<({DateTime date, double balance})>> getAccountDailyBalances(
+    int accountId, {required DateTime startDate, required DateTime endDate}) async {
+    final account = await getAccount(accountId);
+    if (account == null) return [];
+
+    // 获取 endDate 之前的所有交易（按日期升序）
+    final allTxs = await (db.select(db.transactions)
+          ..where((t) => t.accountId.equals(accountId) | t.toAccountId.equals(accountId))
+          ..where((t) => t.happenedAt.isSmallerOrEqualValue(endDate))
+          ..orderBy([(t) => d.OrderingTerm(expression: t.happenedAt)]))
+        .get();
+
+    // 计算 startDate 之前的余额
+    double runningBalance = account.initialBalance;
+    int txIndex = 0;
+
+    // 先累加 startDate 之前的交易
+    while (txIndex < allTxs.length && allTxs[txIndex].happenedAt.isBefore(startDate)) {
+      final tx = allTxs[txIndex];
+      if (tx.accountId == accountId) {
+        if (tx.type == 'income') runningBalance += tx.amount;
+        else if (tx.type == 'expense') runningBalance -= tx.amount;
+        else if (tx.type == 'transfer') runningBalance -= tx.amount;
+      }
+      if (tx.toAccountId == accountId && tx.type == 'transfer') {
+        runningBalance += tx.amount;
+      }
+      txIndex++;
+    }
+
+    // 按天填充
+    final result = <({DateTime date, double balance})>[];
+    var currentDate = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day);
+
+    while (!currentDate.isAfter(end)) {
+      final nextDate = currentDate.add(const Duration(days: 1));
+
+      // 累加当天的交易
+      while (txIndex < allTxs.length && allTxs[txIndex].happenedAt.isBefore(nextDate)) {
+        final tx = allTxs[txIndex];
+        if (tx.accountId == accountId) {
+          if (tx.type == 'income') runningBalance += tx.amount;
+          else if (tx.type == 'expense') runningBalance -= tx.amount;
+          else if (tx.type == 'transfer') runningBalance -= tx.amount;
+        }
+        if (tx.toAccountId == accountId && tx.type == 'transfer') {
+          runningBalance += tx.amount;
+        }
+        txIndex++;
+      }
+
+      result.add((date: currentDate, balance: runningBalance));
+      currentDate = nextDate;
+    }
+
+    return result;
+  }
+
+  @override
+  Future<List<({int? id, String name, String? icon, double total})>>
+      getAccountCategoryStats(int accountId, {required String type}) async {
+    final results = await db.customSelect(
+      '''
+      SELECT c.id, c.name, c.icon, SUM(t.amount) as total
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.account_id = ?1 AND t.type = ?2
+      GROUP BY c.id
+      ORDER BY total DESC
+      ''',
+      variables: [
+        d.Variable.withInt(accountId),
+        d.Variable.withString(type),
+      ],
+      readsFrom: {db.transactions, db.categories},
+    ).get();
+
+    return results.map((row) {
+      return (
+        id: row.data['id'] as int?,
+        name: (row.data['name'] as String?) ?? '未分类',
+        icon: row.data['icon'] as String?,
+        total: (row.data['total'] as num).toDouble(),
+      );
+    }).toList();
   }
 }

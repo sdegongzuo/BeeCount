@@ -33,6 +33,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
   late final TextEditingController _nameController;
   late final TextEditingController _initialBalanceController;
   late final TextEditingController _creditLimitController;
+  late final TextEditingController _bankNameController;
+  late final TextEditingController _cardLastFourController;
+  late final TextEditingController _noteController;
   late String _selectedType;
   late String _selectedCurrency;
   int? _billingDay;
@@ -68,6 +71,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           ? widget.account!.creditLimit!.toStringAsFixed(2)
           : '',
     );
+    _bankNameController = TextEditingController(text: widget.account?.bankName ?? '');
+    _cardLastFourController = TextEditingController(text: widget.account?.cardLastFour ?? '');
+    _noteController = TextEditingController(text: widget.account?.note ?? '');
     _selectedType = widget.account?.type ?? 'cash';
     _selectedCurrency = widget.account?.currency ?? 'CNY';
     _billingDay = widget.account?.billingDay;
@@ -94,6 +100,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     _nameController.dispose();
     _initialBalanceController.dispose();
     _creditLimitController.dispose();
+    _bankNameController.dispose();
+    _cardLastFourController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -260,6 +269,13 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                                       _billingDay = null;
                                       _paymentDueDay = null;
                                       _reminderEnabled = false;
+                                    }
+                                    // 离开银行卡/信用卡类型时清空元信息字段
+                                    final wasBankOrCredit = oldType == 'bank_card' || oldType == 'credit_card';
+                                    final isBankOrCredit = type == 'bank_card' || type == 'credit_card';
+                                    if (wasBankOrCredit && !isBankOrCredit) {
+                                      _bankNameController.clear();
+                                      _cardLastFourController.clear();
                                     }
                                   });
                                 },
@@ -493,6 +509,132 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                     ),
                   ],
 
+                  // 元信息（银行卡/信用卡：开户行+卡号后四位；所有类型：备注）
+                  if (_selectedType == 'bank_card' || _selectedType == 'credit_card') ...[
+                    SizedBox(height: 8.0.scaled(context, ref)),
+                    SectionCard(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0.scaled(context, ref)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.accountMetaInfo,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: BeeTokens.textPrimary(context),
+                              ),
+                            ),
+                            SizedBox(height: 12.0.scaled(context, ref)),
+                            TextFormField(
+                              controller: _bankNameController,
+                              decoration: InputDecoration(
+                                labelText: l10n.accountBankName,
+                                hintText: l10n.accountBankNameHint,
+                                hintStyle: TextStyle(color: Colors.grey[400]),
+                                border: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: primaryColor, width: 2),
+                                ),
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 8.0.scaled(context, ref),
+                                ),
+                              ),
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            SizedBox(height: 12.0.scaled(context, ref)),
+                            TextFormField(
+                              controller: _cardLastFourController,
+                              decoration: InputDecoration(
+                                labelText: l10n.accountCardLastFour,
+                                hintText: l10n.accountCardLastFourHint,
+                                hintStyle: TextStyle(color: Colors.grey[400]),
+                                border: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: primaryColor, width: 2),
+                                ),
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 8.0.scaled(context, ref),
+                                ),
+                              ),
+                              style: const TextStyle(fontSize: 16),
+                              maxLength: 4,
+                              keyboardType: TextInputType.number,
+                            ),
+                            SizedBox(height: 8.0.scaled(context, ref)),
+                            TextFormField(
+                              controller: _noteController,
+                              decoration: InputDecoration(
+                                labelText: l10n.accountNote,
+                                hintText: l10n.accountNoteHint,
+                                hintStyle: TextStyle(color: Colors.grey[400]),
+                                border: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: primaryColor, width: 2),
+                                ),
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 8.0.scaled(context, ref),
+                                ),
+                              ),
+                              style: const TextStyle(fontSize: 16),
+                              maxLines: 3,
+                              minLines: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    // 非银行卡/信用卡类型：仅备注
+                    SizedBox(height: 8.0.scaled(context, ref)),
+                    SectionCard(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0.scaled(context, ref)),
+                        child: TextFormField(
+                          controller: _noteController,
+                          decoration: InputDecoration(
+                            labelText: l10n.accountNote,
+                            hintText: l10n.accountNoteHint,
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            border: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: primaryColor, width: 2),
+                            ),
+                            contentPadding: EdgeInsets.symmetric(
+                              vertical: 8.0.scaled(context, ref),
+                            ),
+                          ),
+                          style: const TextStyle(fontSize: 16),
+                          maxLines: 3,
+                          minLines: 1,
+                        ),
+                      ),
+                    ),
+                  ],
+
                   SizedBox(height: 24.0.scaled(context, ref)),
 
                   // 保存按钮
@@ -607,6 +749,14 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
         final wasCreditCard = widget.account!.type == 'credit_card';
         final clearCreditCardFields = wasCreditCard && !isCreditCard;
 
+        // 元信息字段
+        final isBankOrCredit = _selectedType == 'bank_card' || _selectedType == 'credit_card';
+        final wasBankOrCredit = widget.account!.type == 'bank_card' || widget.account!.type == 'credit_card';
+        final clearMetadataFields = wasBankOrCredit && !isBankOrCredit;
+        final bankName = isBankOrCredit ? _bankNameController.text.trim() : null;
+        final cardLastFour = isBankOrCredit ? _cardLastFourController.text.trim() : null;
+        final noteText = _noteController.text.trim();
+
         await repo.updateAccount(
           widget.account!.id,
           name: name,
@@ -617,6 +767,10 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           billingDay: isCreditCard ? _billingDay : null,
           paymentDueDay: isCreditCard ? _paymentDueDay : null,
           clearCreditCardFields: clearCreditCardFields,
+          bankName: bankName != null && bankName.isNotEmpty ? bankName : null,
+          cardLastFour: cardLastFour != null && cardLastFour.isNotEmpty ? cardLastFour : null,
+          note: noteText.isNotEmpty ? noteText : null,
+          clearMetadataFields: clearMetadataFields,
         );
 
         // 保存还款提醒设置
@@ -624,6 +778,11 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           await _saveReminderSettings(widget.account!.id);
         }
       } else {
+        final isBankOrCredit = _selectedType == 'bank_card' || _selectedType == 'credit_card';
+        final bankNameText = isBankOrCredit ? _bankNameController.text.trim() : null;
+        final cardLastFourText = isBankOrCredit ? _cardLastFourController.text.trim() : null;
+        final noteText = _noteController.text.trim();
+
         final id = await repo.createAccount(
           ledgerId: widget.ledgerId,
           name: name,
@@ -633,6 +792,9 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           creditLimit: creditLimit,
           billingDay: isCreditCard ? _billingDay : null,
           paymentDueDay: isCreditCard ? _paymentDueDay : null,
+          bankName: bankNameText != null && bankNameText.isNotEmpty ? bankNameText : null,
+          cardLastFour: cardLastFourText != null && cardLastFourText.isNotEmpty ? cardLastFourText : null,
+          note: noteText.isNotEmpty ? noteText : null,
         );
 
         // 保存还款提醒设置
