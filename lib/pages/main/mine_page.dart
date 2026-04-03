@@ -17,6 +17,7 @@ import '../../cloud/sync_service.dart';
 import '../cloud/cloud_service_page.dart';
 import '../../services/system/logger_service.dart';
 import '../../services/ui/avatar_service.dart';
+import '../../providers/avatar_providers.dart';
 import '../../services/export/share_poster_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../category/category_manage_page.dart';
@@ -785,16 +786,19 @@ class _MinePageHeaderState extends ConsumerState<_MinePageHeader> {
         final path = await AvatarService.pickAndSaveAvatar();
         if (mounted && path != null) {
           setState(() => _avatarPath = path);
+          ref.invalidate(avatarPathProvider);
         }
       } else if (result == 'camera') {
         final path = await AvatarService.takePhotoAndSaveAvatar();
         if (mounted && path != null) {
           setState(() => _avatarPath = path);
+          ref.invalidate(avatarPathProvider);
         }
       } else if (result == 'delete') {
         await AvatarService.deleteAvatar();
         if (mounted) {
           setState(() => _avatarPath = null);
+          ref.invalidate(avatarPathProvider);
         }
       }
     } catch (e) {

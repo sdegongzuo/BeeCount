@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'pages/main/home_page.dart';
 import 'pages/main/analytics_page.dart';
-import 'pages/main/discover_page.dart';
+import 'pages/account/accounts_page.dart';
 import 'pages/main/mine_page.dart';
 import 'pages/transaction/transaction_editor_page.dart';
 import 'providers.dart';
@@ -26,6 +27,7 @@ import 'services/system/logger_service.dart';
 import 'services/security/app_lock_service.dart';
 import 'providers/security_providers.dart';
 import 'styles/tokens.dart';
+import 'providers/avatar_providers.dart';
 
 class BeeApp extends ConsumerStatefulWidget {
   const BeeApp({super.key});
@@ -39,7 +41,7 @@ class _BeeAppState extends ConsumerState<BeeApp>
   final _pages = const [
     HomePage(),
     AnalyticsPage(),
-    DiscoverPage(),
+    AccountsPage(asTab: true),
     MinePage(),
   ];
 
@@ -498,6 +500,7 @@ class _BeeAppState extends ConsumerState<BeeApp>
     final primaryColor = ref.watch(primaryColorProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final avatarPath = ref.watch(avatarPathProvider).asData?.value;
 
     return PopScope(
       canPop: false,
@@ -528,6 +531,7 @@ class _BeeAppState extends ConsumerState<BeeApp>
               isDark: isDark,
               bottomPadding: bottomPadding,
               l10n: l10n,
+              avatarPath: avatarPath,
               onTabTap: (index) {
                 final now = DateTime.now();
                 if (_lastTappedIndex == index &&
@@ -730,6 +734,7 @@ class _BeeBottomBar extends StatelessWidget {
   final bool isDark;
   final double bottomPadding;
   final AppLocalizations l10n;
+  final String? avatarPath;
   final ValueChanged<int> onTabTap;
 
   const _BeeBottomBar({
@@ -738,6 +743,7 @@ class _BeeBottomBar extends StatelessWidget {
     required this.isDark,
     required this.bottomPadding,
     required this.l10n,
+    this.avatarPath,
     required this.onTabTap,
   });
 
@@ -769,13 +775,12 @@ class _BeeBottomBar extends StatelessWidget {
                 _buildTabItem(
                     0, Icons.list_alt_outlined, l10n.tabHome, inactiveColor),
                 _buildTabItem(1, Icons.pie_chart_outline_rounded,
-                    l10n.tabAnalytics, inactiveColor),
+                    l10n.tabInsights, inactiveColor),
                 // 中间占位（记账按钮已独立到外层 Stack）
                 const Expanded(child: SizedBox()),
-                _buildTabItem(
-                    2, Icons.explore_outlined, l10n.tabDiscover, inactiveColor),
-                _buildTabItem(3, Icons.person_outline_rounded, l10n.tabMine,
-                    inactiveColor),
+                _buildTabItem(2, Icons.account_balance_wallet_outlined,
+                    l10n.tabAssets, inactiveColor),
+                _buildAvatarTabItem(3, l10n.tabMine, inactiveColor),
               ],
             ),
           ),
@@ -793,21 +798,92 @@ class _BeeBottomBar extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => onTabTap(index),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: iconColor, size: 24),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: inactiveColor,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              ),
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? primaryColor.withValues(alpha: 0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(22),
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: iconColor, size: 22),
+                const SizedBox(height: 1),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isActive ? primaryColor : inactiveColor,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarTabItem(int index, String label, Color inactiveColor) {
+    final isActive = index == currentIndex;
+    final hasAvatar = avatarPath != null;
+
+    Widget iconWidget;
+    if (hasAvatar) {
+      iconWidget = Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: isActive ? Border.all(color: primaryColor, width: 1.5) : null,
+          image: DecorationImage(
+            image: FileImage(File(avatarPath!)),
+            fit: BoxFit.cover,
+          ),
+        ),
+      );
+    } else {
+      iconWidget = Icon(Icons.person_outline_rounded,
+          color: isActive ? primaryColor : inactiveColor, size: 24);
+    }
+
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => onTabTap(index),
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? primaryColor.withValues(alpha: 0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                iconWidget,
+                const SizedBox(height: 1),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isActive ? primaryColor : inactiveColor,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

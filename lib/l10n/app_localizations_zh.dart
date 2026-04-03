@@ -16,6 +16,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tabAnalytics => '图表';
 
   @override
+  String get tabInsights => '洞察';
+
+  @override
+  String get tabAssets => '资产';
+
+  @override
+  String get homeBudgetMonthly => '本月预算';
+
+  @override
+  String get homeBudgetSetup => '设置预算，掌控开支';
+
+  @override
   String get tabMine => '我的';
 
   @override
@@ -4994,6 +5006,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get budgetTitle => '预算管理';
 
   @override
+  String get budgetShowOnHome => '在首页显示预算';
+
+  @override
   String get budgetEmptyHint => '还没有设置预算';
 
   @override
@@ -5843,6 +5858,18 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get tabAnalytics => '圖表';
+
+  @override
+  String get tabInsights => '洞察';
+
+  @override
+  String get tabAssets => '資產';
+
+  @override
+  String get homeBudgetMonthly => '本月預算';
+
+  @override
+  String get homeBudgetSetup => '設定預算，掌控開支';
 
   @override
   String get tabMine => '我的';
@@ -10821,6 +10848,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get budgetTitle => '預算管理';
+
+  @override
+  String get budgetShowOnHome => '在首頁顯示預算';
 
   @override
   String get budgetEmptyHint => '還沒有設定預算';

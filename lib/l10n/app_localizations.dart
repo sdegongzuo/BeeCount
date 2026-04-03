@@ -114,6 +114,30 @@ abstract class AppLocalizations {
   /// **'Charts'**
   String get tabAnalytics;
 
+  /// No description provided for @tabInsights.
+  ///
+  /// In en, this message translates to:
+  /// **'Insights'**
+  String get tabInsights;
+
+  /// No description provided for @tabAssets.
+  ///
+  /// In en, this message translates to:
+  /// **'Assets'**
+  String get tabAssets;
+
+  /// No description provided for @homeBudgetMonthly.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly Budget'**
+  String get homeBudgetMonthly;
+
+  /// No description provided for @homeBudgetSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a budget to track spending'**
+  String get homeBudgetSetup;
+
   /// No description provided for @tabMine.
   ///
   /// In en, this message translates to:
@@ -9533,6 +9557,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Budget'**
   String get budgetTitle;
+
+  /// No description provided for @budgetShowOnHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Show budget on home'**
+  String get budgetShowOnHome;
 
   /// No description provided for @budgetEmptyHint.
   ///

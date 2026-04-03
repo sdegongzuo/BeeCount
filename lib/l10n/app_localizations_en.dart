@@ -16,6 +16,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabAnalytics => 'Charts';
 
   @override
+  String get tabInsights => 'Insights';
+
+  @override
+  String get tabAssets => 'Assets';
+
+  @override
+  String get homeBudgetMonthly => 'Monthly Budget';
+
+  @override
+  String get homeBudgetSetup => 'Set a budget to track spending';
+
+  @override
   String get tabMine => 'Mine';
 
   @override
@@ -4992,6 +5004,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get budgetTitle => 'Budget';
+
+  @override
+  String get budgetShowOnHome => 'Show budget on home';
 
   @override
   String get budgetEmptyHint => 'No budget set yet';
