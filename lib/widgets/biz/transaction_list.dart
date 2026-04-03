@@ -398,9 +398,12 @@ class TransactionListState extends ConsumerState<TransactionList> {
             final allItemsInDay = item.$3 as List<({Transaction t, Category? category})>;
             final isTransfer = it.t.type == 'transfer';
             final isExpense = it.t.type == 'expense';
+            final isAdjustment = it.t.type == 'adjustment';
 
             // 获取分类显示名称
-            final categoryName = CategoryUtils.getDisplayName(it.category?.name, context);
+            final categoryName = isAdjustment
+                ? AppLocalizations.of(context).adjustmentTransaction
+                : CategoryUtils.getDisplayName(it.category?.name, context);
 
             final subtitle = it.t.note ?? '';
 
@@ -480,17 +483,22 @@ class TransactionListState extends ConsumerState<TransactionList> {
                       final attachmentCount = _getAttachmentCountForTransaction(it.t.id);
 
                       return TransactionListItem(
-                        icon: getCategoryIconData(category: it.category, categoryName: categoryName),
-                        category: it.category,
+                        icon: isAdjustment
+                          ? Icons.tune
+                          : getCategoryIconData(category: it.category, categoryName: categoryName),
+                        category: isAdjustment ? null : it.category,
                         title: isTransfer
                           ? (subtitle.isNotEmpty ? subtitle : AppLocalizations.of(context).transferTitle)
-                          : (subtitle.isNotEmpty ? subtitle : categoryName),
-                        categoryName: isTransfer
-                          ? null  // 转账不显示第二行，保持布局一致
+                          : isAdjustment
+                            ? categoryName
+                            : (subtitle.isNotEmpty ? subtitle : categoryName),
+                        categoryName: (isTransfer || isAdjustment)
+                          ? null
                           : (subtitle.isNotEmpty ? null : categoryName),
                         amount: it.t.amount,
                         isExpense: isExpense,
                         isTransfer: isTransfer,
+                        isAdjustment: isAdjustment,
                         hide: widget.hideAmounts,
                         happenedAt: it.t.happenedAt,
                         accountName: isTransfer

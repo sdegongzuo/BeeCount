@@ -360,6 +360,22 @@ class LocalRepository extends BaseRepository {
   Future<void> deleteTransactionBySyncId(String syncId) =>
       _transactionRepo.deleteTransactionBySyncId(syncId);
 
+  @override
+  Future<int> createAdjustmentTransaction({
+    required int ledgerId,
+    required int accountId,
+    required double amount,
+    required DateTime happenedAt,
+    String? note,
+  }) =>
+      _transactionRepo.createAdjustmentTransaction(
+        ledgerId: ledgerId,
+        accountId: accountId,
+        amount: amount,
+        happenedAt: happenedAt,
+        note: note,
+      );
+
   // ============================================
   // CategoryRepository 接口实现 - 委托给 LocalCategoryRepository
   // ============================================
@@ -732,6 +748,25 @@ class LocalRepository extends BaseRepository {
   Future<List<({int? id, String name, String? icon, double total})>>
       getAccountCategoryStats(int accountId, {required String type}) =>
       _accountRepo.getAccountCategoryStats(accountId, type: type);
+
+  @override
+  Future<({double totalAssets, double totalLiabilities, double netWorth})> getNetWorthBreakdown() =>
+      _accountRepo.getNetWorthBreakdown();
+
+  @override
+  Future<Map<String, ({double totalAssets, double totalLiabilities, double netWorth})>> getNetWorthBreakdownByCurrency() =>
+      _accountRepo.getNetWorthBreakdownByCurrency();
+
+  @override
+  Future<List<({DateTime date, double balance})>> getNetWorthDailyBalances({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) =>
+      _accountRepo.getNetWorthDailyBalances(startDate: startDate, endDate: endDate);
+
+  @override
+  Future<List<({String type, double totalBalance})>> getAssetCompositionByType() =>
+      _accountRepo.getAssetCompositionByType();
 
   // ============================================
   // StatisticsRepository 接口实现 - 委托给 LocalStatisticsRepository

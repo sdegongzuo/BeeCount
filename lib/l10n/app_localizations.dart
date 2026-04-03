@@ -6465,13 +6465,13 @@ abstract class AppLocalizations {
   /// No description provided for @accountsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Account Management'**
+  /// **'Asset Management'**
   String get accountsTitle;
 
   /// No description provided for @accountsManageDesc.
   ///
   /// In en, this message translates to:
-  /// **'Manage payment accounts and balances'**
+  /// **'Net worth, asset composition & account management'**
   String get accountsManageDesc;
 
   /// No description provided for @accountsEmptyMessage.
@@ -9441,7 +9441,7 @@ abstract class AppLocalizations {
   /// No description provided for @discoverAccounts.
   ///
   /// In en, this message translates to:
-  /// **'Accounts'**
+  /// **'Asset Overview'**
   String get discoverAccounts;
 
   /// No description provided for @discoverAccountsEmpty.
@@ -9453,7 +9453,7 @@ abstract class AppLocalizations {
   /// No description provided for @discoverAccountsTotal.
   ///
   /// In en, this message translates to:
-  /// **'Total Balance'**
+  /// **'Net Worth'**
   String get discoverAccountsTotal;
 
   /// No description provided for @discoverAccountsCount.
@@ -10877,6 +10877,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Uncategorized'**
   String get accountUncategorized;
+
+  /// No description provided for @totalAssets.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Assets'**
+  String get totalAssets;
+
+  /// No description provided for @totalLiabilities.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Liabilities'**
+  String get totalLiabilities;
+
+  /// No description provided for @assetAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Asset Accounts'**
+  String get assetAccounts;
+
+  /// No description provided for @liabilityAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Liability Accounts'**
+  String get liabilityAccounts;
+
+  /// No description provided for @netWorthTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Net Worth Trend'**
+  String get netWorthTrend;
+
+  /// No description provided for @assetComposition.
+  ///
+  /// In en, this message translates to:
+  /// **'Asset Composition'**
+  String get assetComposition;
+
+  /// No description provided for @accountTypeInvestment.
+  ///
+  /// In en, this message translates to:
+  /// **'Investment'**
+  String get accountTypeInvestment;
+
+  /// No description provided for @accountTypeLoan.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan'**
+  String get accountTypeLoan;
+
+  /// No description provided for @accountTypeReceivable.
+  ///
+  /// In en, this message translates to:
+  /// **'Receivable'**
+  String get accountTypeReceivable;
+
+  /// No description provided for @investmentCurrentValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Market Value'**
+  String get investmentCurrentValue;
+
+  /// No description provided for @investmentAdjustment.
+  ///
+  /// In en, this message translates to:
+  /// **'Valuation Adjustment'**
+  String get investmentAdjustment;
+
+  /// No description provided for @investmentTotalInvested.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Invested'**
+  String get investmentTotalInvested;
+
+  /// No description provided for @investmentProfitLoss.
+  ///
+  /// In en, this message translates to:
+  /// **'Profit/Loss'**
+  String get investmentProfitLoss;
+
+  /// No description provided for @investmentReturnRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Return Rate'**
+  String get investmentReturnRate;
+
+  /// No description provided for @investmentInputNewValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter new value'**
+  String get investmentInputNewValue;
+
+  /// No description provided for @investmentInputDelta.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter change amount'**
+  String get investmentInputDelta;
+
+  /// No description provided for @investmentNewValueHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter new market value'**
+  String get investmentNewValueHint;
+
+  /// No description provided for @investmentDeltaHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Positive for gain, negative for loss'**
+  String get investmentDeltaHint;
+
+  /// No description provided for @loanOriginalAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan Amount'**
+  String get loanOriginalAmount;
+
+  /// No description provided for @loanRepaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Repaid'**
+  String get loanRepaid;
+
+  /// No description provided for @loanRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Remaining'**
+  String get loanRemaining;
+
+  /// No description provided for @loanProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Repayment Progress'**
+  String get loanProgress;
+
+  /// No description provided for @loanRepaidPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% Repaid'**
+  String loanRepaidPercent(String percent);
+
+  /// No description provided for @loanInitialBalanceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan Amount'**
+  String get loanInitialBalanceLabel;
+
+  /// No description provided for @loanInitialBalanceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter total loan amount'**
+  String get loanInitialBalanceHint;
+
+  /// No description provided for @loanNegativeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Loan amount will be recorded as negative balance'**
+  String get loanNegativeNote;
+
+  /// No description provided for @receivableAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Receivable Amount'**
+  String get receivableAmount;
+
+  /// No description provided for @receivableCollected.
+  ///
+  /// In en, this message translates to:
+  /// **'Collected'**
+  String get receivableCollected;
+
+  /// No description provided for @receivableRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get receivableRemaining;
+
+  /// No description provided for @receivableInitialBalanceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Receivable Amount'**
+  String get receivableInitialBalanceLabel;
+
+  /// No description provided for @investmentInitialBalanceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Initial Investment'**
+  String get investmentInitialBalanceLabel;
+
+  /// No description provided for @adjustmentTransaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Valuation Adjustment'**
+  String get adjustmentTransaction;
+
+  /// No description provided for @creditCardBillingInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Bills on {billingDay}th · Due on {paymentDueDay}th'**
+  String creditCardBillingInfo(int billingDay, int paymentDueDay);
+
+  /// No description provided for @creditCardDaysUntilPayment.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days until payment due'**
+  String creditCardDaysUntilPayment(int days);
+
+  /// No description provided for @creditCardPaymentDueToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment due today'**
+  String get creditCardPaymentDueToday;
+
+  /// No description provided for @creditCardPaymentOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days past due'**
+  String creditCardPaymentOverdue(int days);
+
+  /// No description provided for @creditCardQuickRepay.
+  ///
+  /// In en, this message translates to:
+  /// **'Record Repayment'**
+  String get creditCardQuickRepay;
+
+  /// No description provided for @loanQuickRepay.
+  ///
+  /// In en, this message translates to:
+  /// **'Record Repayment'**
+  String get loanQuickRepay;
+
+  /// No description provided for @receivableQuickCollect.
+  ///
+  /// In en, this message translates to:
+  /// **'Record Collection'**
+  String get receivableQuickCollect;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

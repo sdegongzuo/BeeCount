@@ -1384,8 +1384,8 @@
   "cloudSupabaseAnonKeyHintLong": "粘贴完整的 anon key",
   "cloudWebdavRemotePathLabel": "远程路径",
   "cloudWebdavRemotePathHelperText": "数据存储的远程目录路径",
-  "accountsTitle": "账户管理",
-  "accountsManageDesc": "管理支付账户与余额",
+  "accountsTitle": "资产管理",
+  "accountsManageDesc": "净资产、资产构成与账户管理",
   "accountsEmptyMessage": "还没有账户，点击右上角添加",
   "accountAddTooltip": "添加账户",
   "accountAddButton": "添加账户",
@@ -2115,9 +2115,9 @@
   "discoverBudget": "预算管理",
   "discoverBudgetSubtitle": "设置和追踪支出预算",
   "discoverBudgetEmpty": "设置预算，控制支出",
-  "discoverAccounts": "账户总览",
+  "discoverAccounts": "资产总览",
   "discoverAccountsEmpty": "添加账户，追踪资金流向",
-  "discoverAccountsTotal": "总余额",
+  "discoverAccountsTotal": "净资产",
   "discoverAccountsCount": "{count} 个账户",
   "@discoverAccountsCount": {
     "placeholders": {
@@ -2493,5 +2493,68 @@
   "accountCategoryIncome": "收入",
   "accountLoadMore": "加载更多",
   "accountNoMoreData": "没有更多数据了",
-  "accountUncategorized": "未分类"
+  "accountUncategorized": "未分类",
+
+  "totalAssets": "总资产",
+  "totalLiabilities": "总负债",
+  "assetAccounts": "资产账户",
+  "liabilityAccounts": "负债账户",
+  "netWorthTrend": "净资产趋势",
+  "assetComposition": "资产构成",
+  "accountTypeInvestment": "投资理财",
+  "accountTypeLoan": "贷款",
+  "accountTypeReceivable": "应收款",
+  "investmentCurrentValue": "当前市值",
+  "investmentAdjustment": "估值调整",
+  "investmentTotalInvested": "累计投入",
+  "investmentProfitLoss": "浮动盈亏",
+  "investmentReturnRate": "收益率",
+  "investmentInputNewValue": "输入新市值",
+  "investmentInputDelta": "输入涨跌金额",
+  "investmentNewValueHint": "请输入新的市值",
+  "investmentDeltaHint": "正数为增值，负数为贬值",
+  "loanOriginalAmount": "贷款总额",
+  "loanRepaid": "已还金额",
+  "loanRemaining": "剩余本金",
+  "loanProgress": "还款进度",
+  "loanRepaidPercent": "已还 {percent}%",
+  "@loanRepaidPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "loanInitialBalanceLabel": "贷款总额",
+  "loanInitialBalanceHint": "请输入贷款总金额",
+  "loanNegativeNote": "贷款金额将以负数余额形式记录",
+  "receivableAmount": "应收金额",
+  "receivableCollected": "已收回",
+  "receivableRemaining": "待收回",
+  "receivableInitialBalanceLabel": "应收金额",
+  "investmentInitialBalanceLabel": "初始投资金额",
+  "adjustmentTransaction": "估值调整",
+  "creditCardBillingInfo": "每月{billingDay}日出账 · {paymentDueDay}日还款",
+  "@creditCardBillingInfo": {
+    "placeholders": {
+      "billingDay": { "type": "int" },
+      "paymentDueDay": { "type": "int" }
+    }
+  },
+  "creditCardDaysUntilPayment": "距还款日还有{days}天",
+  "@creditCardDaysUntilPayment": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "creditCardPaymentDueToday": "今天是还款日",
+  "creditCardPaymentOverdue": "已过还款日{days}天",
+  "@creditCardPaymentOverdue": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "creditCardQuickRepay": "记一笔还款",
+  "loanQuickRepay": "记一笔还款",
+  "receivableQuickCollect": "记一笔收款"
 }

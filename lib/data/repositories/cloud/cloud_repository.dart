@@ -960,6 +960,25 @@ class CloudRepository extends BaseRepository {
       _account.getAccountCategoryStats(accountId, type: type);
 
   @override
+  Future<({double totalAssets, double totalLiabilities, double netWorth})> getNetWorthBreakdown() =>
+      _account.getNetWorthBreakdown();
+
+  @override
+  Future<Map<String, ({double totalAssets, double totalLiabilities, double netWorth})>> getNetWorthBreakdownByCurrency() =>
+      _account.getNetWorthBreakdownByCurrency();
+
+  @override
+  Future<List<({DateTime date, double balance})>> getNetWorthDailyBalances({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) =>
+      _account.getNetWorthDailyBalances(startDate: startDate, endDate: endDate);
+
+  @override
+  Future<List<({String type, double totalBalance})>> getAssetCompositionByType() =>
+      _account.getAssetCompositionByType();
+
+  @override
   Future<void> batchInsertCategories(List<CategoriesCompanion> categories) =>
       _category.batchInsertCategories(categories);
 
@@ -1114,6 +1133,22 @@ class CloudRepository extends BaseRepository {
   @override
   Future<void> deleteTransactionBySyncId(String syncId) =>
       _transaction.deleteTransactionBySyncId(syncId);
+
+  @override
+  Future<int> createAdjustmentTransaction({
+    required int ledgerId,
+    required int accountId,
+    required double amount,
+    required DateTime happenedAt,
+    String? note,
+  }) =>
+      _transaction.createAdjustmentTransaction(
+        ledgerId: ledgerId,
+        accountId: accountId,
+        amount: amount,
+        happenedAt: happenedAt,
+        note: note,
+      );
 
   // ============================================
   // TagRepository 接口实现（云端模式暂不支持标签功能）

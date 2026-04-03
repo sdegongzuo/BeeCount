@@ -11,10 +11,13 @@ import 'line_chart.dart';
 /// 余额趋势图（账户详情页用）
 class BalanceTrendChart extends ConsumerStatefulWidget {
   final List<({DateTime date, double balance})> data;
+  /// embedded 模式下不渲染外层 SectionCard 和标题
+  final bool showCard;
 
   const BalanceTrendChart({
     super.key,
     required this.data,
+    this.showCard = true,
   });
 
   @override
@@ -46,6 +49,26 @@ class _BalanceTrendChartState extends ConsumerState<BalanceTrendChart> {
       }
     }
 
+    final chartWidget = SizedBox(
+      height: 180.0.scaled(context, ref),
+      child: LineChart(
+        values: values,
+        xLabels: displayLabels,
+        highlightIndex: null,
+        onSwipeLeft: () {},
+        onSwipeRight: () {},
+        showHint: false,
+        whiteBg: !BeeTokens.isDark(context),
+        showGrid: true,
+        showDots: widget.data.length <= 30,
+        annotate: false,
+        themeColor: primaryColor,
+        isDark: BeeTokens.isDark(context),
+      ),
+    );
+
+    if (!widget.showCard) return chartWidget;
+
     return SectionCard(
       child: Padding(
         padding: EdgeInsets.all(12.0.scaled(context, ref)),
@@ -61,23 +84,7 @@ class _BalanceTrendChartState extends ConsumerState<BalanceTrendChart> {
               ),
             ),
             SizedBox(height: 12.0.scaled(context, ref)),
-            SizedBox(
-              height: 180.0.scaled(context, ref),
-              child: LineChart(
-                values: values,
-                xLabels: displayLabels,
-                highlightIndex: null,
-                onSwipeLeft: () {},
-                onSwipeRight: () {},
-                showHint: false,
-                whiteBg: !BeeTokens.isDark(context),
-                showGrid: true,
-                showDots: widget.data.length <= 30,
-                annotate: false,
-                themeColor: primaryColor,
-                isDark: BeeTokens.isDark(context),
-              ),
-            ),
+            chartWidget,
           ],
         ),
       ),

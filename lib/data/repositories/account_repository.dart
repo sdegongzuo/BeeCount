@@ -133,4 +133,19 @@ abstract class AccountRepository {
   /// 获取账户级分类统计（用于分类饼图）
   Future<List<({int? id, String name, String? icon, double total})>>
       getAccountCategoryStats(int accountId, {required String type});
+
+  /// 获取净资产分解（总资产、总负债、净资产）
+  Future<({double totalAssets, double totalLiabilities, double netWorth})> getNetWorthBreakdown();
+
+  /// 按币种分组的净资产分解
+  Future<Map<String, ({double totalAssets, double totalLiabilities, double netWorth})>> getNetWorthBreakdownByCurrency();
+
+  /// 获取净资产每日余额快照（用于净资产趋势图）
+  Future<List<({DateTime date, double balance})>> getNetWorthDailyBalances({
+    required DateTime startDate,
+    required DateTime endDate,
+  });
+
+  /// 获取资产构成（按账户类型分组的余额汇总）
+  Future<List<({String type, double totalBalance})>> getAssetCompositionByType();
 }

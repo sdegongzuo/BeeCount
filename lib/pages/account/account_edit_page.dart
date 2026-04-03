@@ -108,6 +108,19 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
 
   bool get isEditing => widget.account != null;
 
+  String _getInitialBalanceLabel(AppLocalizations l10n) {
+    return l10n.accountInitialBalance;
+  }
+
+  String _getInitialBalanceHint(AppLocalizations l10n) {
+    switch (_selectedType) {
+      case 'credit_card':
+        return l10n.creditCardInitialBalanceHint;
+      default:
+        return l10n.accountInitialBalanceHint;
+    }
+  }
+
   /// v1.15.0: 检查账户名称是否重复
   Future<void> _checkNameDuplicate(String name) async {
     if (name.trim().isEmpty) {
@@ -333,7 +346,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            l10n.accountInitialBalance,
+                            _getInitialBalanceLabel(l10n),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -344,9 +357,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
                           TextFormField(
                             controller: _initialBalanceController,
                             decoration: InputDecoration(
-                              hintText: _selectedType == 'credit_card'
-                                  ? l10n.creditCardInitialBalanceHint
-                                  : l10n.accountInitialBalanceHint,
+                              hintText: _getInitialBalanceHint(l10n),
                               hintStyle: TextStyle(color: Colors.grey[400]),
                               prefixText: '${getCurrencySymbol(_selectedCurrency)} ',
                               prefixStyle: TextStyle(
@@ -714,7 +725,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
       final repo = ref.read(repositoryProvider);
       final name = _nameController.text.trim();
       final initialBalanceText = _initialBalanceController.text.trim();
-      final initialBalance =
+      var initialBalance =
           initialBalanceText.isEmpty ? 0.0 : double.parse(initialBalanceText);
 
       // 信用卡字段

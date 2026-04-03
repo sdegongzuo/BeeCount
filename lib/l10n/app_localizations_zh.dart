@@ -3408,10 +3408,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudWebdavRemotePathHelperText => '数据存储的远程目录路径';
 
   @override
-  String get accountsTitle => '账户管理';
+  String get accountsTitle => '资产管理';
 
   @override
-  String get accountsManageDesc => '管理支付账户与余额';
+  String get accountsManageDesc => '净资产、资产构成与账户管理';
 
   @override
   String get accountsEmptyMessage => '还没有账户，点击右上角添加';
@@ -4944,13 +4944,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get discoverBudgetEmpty => '设置预算，控制支出';
 
   @override
-  String get discoverAccounts => '账户总览';
+  String get discoverAccounts => '资产总览';
 
   @override
   String get discoverAccountsEmpty => '添加账户，追踪资金流向';
 
   @override
-  String get discoverAccountsTotal => '总余额';
+  String get discoverAccountsTotal => '净资产';
 
   @override
   String discoverAccountsCount(int count) {
@@ -5704,6 +5704,131 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get accountUncategorized => '未分类';
+
+  @override
+  String get totalAssets => '总资产';
+
+  @override
+  String get totalLiabilities => '总负债';
+
+  @override
+  String get assetAccounts => '资产账户';
+
+  @override
+  String get liabilityAccounts => '负债账户';
+
+  @override
+  String get netWorthTrend => '净资产趋势';
+
+  @override
+  String get assetComposition => '资产构成';
+
+  @override
+  String get accountTypeInvestment => '投资理财';
+
+  @override
+  String get accountTypeLoan => '贷款';
+
+  @override
+  String get accountTypeReceivable => '应收款';
+
+  @override
+  String get investmentCurrentValue => '当前市值';
+
+  @override
+  String get investmentAdjustment => '估值调整';
+
+  @override
+  String get investmentTotalInvested => '累计投入';
+
+  @override
+  String get investmentProfitLoss => '浮动盈亏';
+
+  @override
+  String get investmentReturnRate => '收益率';
+
+  @override
+  String get investmentInputNewValue => '输入新市值';
+
+  @override
+  String get investmentInputDelta => '输入涨跌金额';
+
+  @override
+  String get investmentNewValueHint => '请输入新的市值';
+
+  @override
+  String get investmentDeltaHint => '正数为增值，负数为贬值';
+
+  @override
+  String get loanOriginalAmount => '贷款总额';
+
+  @override
+  String get loanRepaid => '已还金额';
+
+  @override
+  String get loanRemaining => '剩余本金';
+
+  @override
+  String get loanProgress => '还款进度';
+
+  @override
+  String loanRepaidPercent(String percent) {
+    return '已还 $percent%';
+  }
+
+  @override
+  String get loanInitialBalanceLabel => '贷款总额';
+
+  @override
+  String get loanInitialBalanceHint => '请输入贷款总金额';
+
+  @override
+  String get loanNegativeNote => '贷款金额将以负数余额形式记录';
+
+  @override
+  String get receivableAmount => '应收金额';
+
+  @override
+  String get receivableCollected => '已收回';
+
+  @override
+  String get receivableRemaining => '待收回';
+
+  @override
+  String get receivableInitialBalanceLabel => '应收金额';
+
+  @override
+  String get investmentInitialBalanceLabel => '初始投资金额';
+
+  @override
+  String get adjustmentTransaction => '估值调整';
+
+  @override
+  String creditCardBillingInfo(int billingDay, int paymentDueDay) {
+    return '每月$billingDay日出账 · $paymentDueDay日还款';
+  }
+
+  @override
+  String creditCardDaysUntilPayment(int days) {
+    return '距还款日还有$days天';
+  }
+
+  @override
+  String get creditCardPaymentDueToday => '今天是还款日';
+
+  @override
+  String creditCardPaymentOverdue(int days) {
+    return '已过还款日$days天';
+  }
+
+  @override
+  String get creditCardQuickRepay => '记一笔还款';
+
+  @override
+  String get loanQuickRepay => '记一笔还款';
+
+  @override
+  String get receivableQuickCollect => '记一笔收款';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -9112,10 +9237,10 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get cloudWebdavRemotePathHelperText => '資料儲存的遠端目錄路徑';
 
   @override
-  String get accountsTitle => '帳戶管理';
+  String get accountsTitle => '資產管理';
 
   @override
-  String get accountsManageDesc => '管理支付帳戶與餘額';
+  String get accountsManageDesc => '淨資產、資產構成與帳戶管理';
 
   @override
   String get accountsEmptyMessage => '還没有帳戶，点击右上角添加';
@@ -10648,7 +10773,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get discoverBudgetEmpty => '設定預算，控制支出';
 
   @override
-  String get discoverAccounts => '帳戶總覽';
+  String get discoverAccounts => '資產總覽';
 
   @override
   String get discoverAccountsEmpty => '新增帳戶，追蹤資金流向';
@@ -11402,4 +11527,31 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get accountUncategorized => '未分類';
+
+  @override
+  String creditCardBillingInfo(int billingDay, int paymentDueDay) {
+    return '每月$billingDay日出帳 · $paymentDueDay日還款';
+  }
+
+  @override
+  String creditCardDaysUntilPayment(int days) {
+    return '距還款日還有$days天';
+  }
+
+  @override
+  String get creditCardPaymentDueToday => '今天是還款日';
+
+  @override
+  String creditCardPaymentOverdue(int days) {
+    return '已過還款日$days天';
+  }
+
+  @override
+  String get creditCardQuickRepay => '記一筆還款';
+
+  @override
+  String get loanQuickRepay => '記一筆還款';
+
+  @override
+  String get receivableQuickCollect => '記一筆收款';
 }

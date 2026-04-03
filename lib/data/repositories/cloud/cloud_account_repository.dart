@@ -734,4 +734,31 @@ class CloudAccountRepository implements AccountRepository {
     logger.warning('CloudAccount', '云端模式暂不支持账户分类统计');
     return [];
   }
+
+  @override
+  Future<({double totalAssets, double totalLiabilities, double netWorth})> getNetWorthBreakdown() async {
+    logger.warning('CloudAccount', '云端模式暂不支持净资产分解');
+    return (totalAssets: 0.0, totalLiabilities: 0.0, netWorth: 0.0);
+  }
+
+  @override
+  Future<Map<String, ({double totalAssets, double totalLiabilities, double netWorth})>> getNetWorthBreakdownByCurrency() async {
+    logger.warning('CloudAccount', '云端模式暂不支持按币种净资产分解');
+    return {};
+  }
+
+  @override
+  Future<List<({DateTime date, double balance})>> getNetWorthDailyBalances({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    logger.warning('CloudAccount', '云端模式暂不支持净资产趋势');
+    return [];
+  }
+
+  @override
+  Future<List<({String type, double totalBalance})>> getAssetCompositionByType() async {
+    logger.warning('CloudAccount', '云端模式暂不支持资产构成');
+    return [];
+  }
 }

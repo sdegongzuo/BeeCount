@@ -14,12 +14,15 @@ class AccountCategoryPieChart extends ConsumerStatefulWidget {
   final List<({int? id, String name, String? icon, double total})> expenseData;
   final List<({int? id, String name, String? icon, double total})> incomeData;
   final Color? accentColor;
+  /// embedded 模式下不渲染外层 SectionCard、标题和类型切换
+  final bool embedded;
 
   const AccountCategoryPieChart({
     super.key,
     required this.expenseData,
     required this.incomeData,
     this.accentColor,
+    this.embedded = false,
   });
 
   @override
@@ -55,6 +58,25 @@ class _AccountCategoryPieChartState
     }).toList();
 
     final sum = data.fold<double>(0.0, (s, item) => s + item.total);
+
+    // embedded 模式：只输出饼图内容
+    if (widget.embedded) {
+      if (data.isEmpty) {
+        return Padding(
+          padding: EdgeInsets.all(24.0.scaled(context, ref)),
+          child: Center(
+            child: Text(
+              l10n.commonEmpty,
+              style: TextStyle(
+                fontSize: 14,
+                color: BeeTokens.textTertiary(context),
+              ),
+            ),
+          ),
+        );
+      }
+      return CategoryPieChart(data: pieItems, sum: sum);
+    }
 
     return SectionCard(
       child: Padding(

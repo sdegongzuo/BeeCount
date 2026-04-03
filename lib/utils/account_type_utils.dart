@@ -3,8 +3,33 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../l10n/app_localizations.dart';
 
-/// 账户类型常量
-const accountTypeOrder = ['cash', 'bank_card', 'credit_card', 'alipay', 'wechat', 'other'];
+/// 账户分类：资产 vs 负债
+enum AccountClassification { asset, liability }
+
+/// 获取账户的资产/负债分类
+AccountClassification getAccountClassification(String type) {
+  if (isLiabilityType(type)) return AccountClassification.liability;
+  return AccountClassification.asset;
+}
+
+/// 是否为资产类型
+bool isAssetType(String type) => !isLiabilityType(type);
+
+/// 是否为负债类型
+bool isLiabilityType(String type) {
+  return type == 'credit_card';
+}
+
+/// 账户类型常量（完整排序）
+const accountTypeOrder = [
+  'cash', 'bank_card', 'credit_card', 'alipay', 'wechat', 'other',
+];
+
+/// 资产类型排序
+const assetTypeOrder = ['cash', 'bank_card', 'alipay', 'wechat', 'other'];
+
+/// 负债类型排序
+const liabilityTypeOrder = ['credit_card'];
 
 /// 获取账户类型的 Material 图标（备用，用于无 SVG 的场景）
 IconData getIconForAccountType(String type) {
@@ -19,6 +44,12 @@ IconData getIconForAccountType(String type) {
       return Icons.currency_yuan;
     case 'wechat':
       return Icons.chat;
+    case 'investment':
+      return Icons.trending_up;
+    case 'loan':
+      return Icons.house_outlined;
+    case 'receivable':
+      return Icons.call_received;
     case 'other':
       return Icons.account_balance_outlined;
     default:
@@ -40,6 +71,12 @@ String getAccountTypeLabel(BuildContext context, String type) {
       return l10n.accountTypeAlipay;
     case 'wechat':
       return l10n.accountTypeWechat;
+    case 'investment':
+      return l10n.accountTypeInvestment;
+    case 'loan':
+      return l10n.accountTypeLoan;
+    case 'receivable':
+      return l10n.accountTypeReceivable;
     case 'other':
       return l10n.accountTypeOther;
     default:
@@ -60,6 +97,12 @@ Color getColorForAccountType(String type, Color primaryColor) {
       return const Color(0xFF1890FF);
     case 'credit_card':
       return Colors.purple;
+    case 'investment':
+      return const Color(0xFFFF9800);
+    case 'loan':
+      return const Color(0xFFE91E63);
+    case 'receivable':
+      return const Color(0xFF009688);
     default:
       return primaryColor;
   }
@@ -78,6 +121,12 @@ String _getSvgPath(String type) {
       return 'assets/icons/alipay.svg';
     case 'wechat':
       return 'assets/icons/wechat.svg';
+    case 'investment':
+      return 'assets/icons/investment.svg';
+    case 'loan':
+      return 'assets/icons/loan.svg';
+    case 'receivable':
+      return 'assets/icons/receivable.svg';
     case 'other':
       return 'assets/icons/other_account.svg';
     default:

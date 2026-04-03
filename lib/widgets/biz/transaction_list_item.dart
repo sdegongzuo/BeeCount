@@ -15,6 +15,7 @@ class TransactionListItem extends ConsumerWidget {
   final double amount;
   final bool isExpense; // 决定正负号
   final bool isTransfer; // 是否为转账（转账不显示正负号）
+  final bool isAdjustment; // 是否为估值调整
   final bool? hide; // 改为可选,null时使用全局状态
   final VoidCallback? onTap;
   final VoidCallback? onCategoryTap; // 点击分类图标/名称的回调
@@ -45,6 +46,7 @@ class TransactionListItem extends ConsumerWidget {
       required this.amount,
       required this.isExpense,
       this.isTransfer = false,
+      this.isAdjustment = false,
       this.hide,
       this.onTap,
       this.onCategoryTap,
@@ -236,16 +238,22 @@ class TransactionListItem extends ConsumerWidget {
               children: [
                 // 金额（转账不显示正负号）
                 AmountText(
-                    value: isExpense ? -amount : amount,
+                    value: isAdjustment
+                        ? amount // adjustment 直接显示原始值（含正负）
+                        : isExpense ? -amount : amount,
                     hide: hide,
                     signed: !isTransfer, // 转账不显示正负号
                     decimals: 2,
                     style: BeeTextTokens.title(context).copyWith(
-                      color: isTransfer
-                          ? BeeTokens.textPrimary(context)
-                          : isExpense
-                              ? BeeTokens.expenseColor(context, ref)
-                              : BeeTokens.incomeColor(context, ref),
+                      color: isAdjustment
+                          ? (amount >= 0
+                              ? BeeTokens.incomeColor(context, ref)
+                              : BeeTokens.expenseColor(context, ref))
+                          : isTransfer
+                              ? BeeTokens.textPrimary(context)
+                              : isExpense
+                                  ? BeeTokens.expenseColor(context, ref)
+                                  : BeeTokens.incomeColor(context, ref),
                     )),
                 // 标签（显示在金额下方）
                 if (tags != null && tags!.isNotEmpty)

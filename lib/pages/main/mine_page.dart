@@ -304,9 +304,9 @@ class MinePage extends ConsumerWidget {
                         },
                       ),
                       BeeTokens.cardDivider(context),
-                      // 账户管理
+                      // 资产管理
                       AppListTile(
-                        leading: Icons.account_balance_wallet_outlined,
+                        leading: Icons.analytics_outlined,
                         title: AppLocalizations.of(context).accountsTitle,
                         subtitle:
                             AppLocalizations.of(context).accountsManageDesc,

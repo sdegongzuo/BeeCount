@@ -3408,10 +3408,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudWebdavRemotePathHelperText => 'Remote directory path for data storage';
 
   @override
-  String get accountsTitle => 'Account Management';
+  String get accountsTitle => 'Asset Management';
 
   @override
-  String get accountsManageDesc => 'Manage payment accounts and balances';
+  String get accountsManageDesc => 'Net worth, asset composition & account management';
 
   @override
   String get accountsEmptyMessage => 'No accounts yet, tap the top right to add';
@@ -4944,13 +4944,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discoverBudgetEmpty => 'Set budget to control spending';
 
   @override
-  String get discoverAccounts => 'Accounts';
+  String get discoverAccounts => 'Asset Overview';
 
   @override
   String get discoverAccountsEmpty => 'Add accounts to track cash flow';
 
   @override
-  String get discoverAccountsTotal => 'Total Balance';
+  String get discoverAccountsTotal => 'Net Worth';
 
   @override
   String discoverAccountsCount(int count) {
@@ -5704,4 +5704,129 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountUncategorized => 'Uncategorized';
+
+  @override
+  String get totalAssets => 'Total Assets';
+
+  @override
+  String get totalLiabilities => 'Total Liabilities';
+
+  @override
+  String get assetAccounts => 'Asset Accounts';
+
+  @override
+  String get liabilityAccounts => 'Liability Accounts';
+
+  @override
+  String get netWorthTrend => 'Net Worth Trend';
+
+  @override
+  String get assetComposition => 'Asset Composition';
+
+  @override
+  String get accountTypeInvestment => 'Investment';
+
+  @override
+  String get accountTypeLoan => 'Loan';
+
+  @override
+  String get accountTypeReceivable => 'Receivable';
+
+  @override
+  String get investmentCurrentValue => 'Market Value';
+
+  @override
+  String get investmentAdjustment => 'Valuation Adjustment';
+
+  @override
+  String get investmentTotalInvested => 'Total Invested';
+
+  @override
+  String get investmentProfitLoss => 'Profit/Loss';
+
+  @override
+  String get investmentReturnRate => 'Return Rate';
+
+  @override
+  String get investmentInputNewValue => 'Enter new value';
+
+  @override
+  String get investmentInputDelta => 'Enter change amount';
+
+  @override
+  String get investmentNewValueHint => 'Enter new market value';
+
+  @override
+  String get investmentDeltaHint => 'Positive for gain, negative for loss';
+
+  @override
+  String get loanOriginalAmount => 'Loan Amount';
+
+  @override
+  String get loanRepaid => 'Repaid';
+
+  @override
+  String get loanRemaining => 'Remaining';
+
+  @override
+  String get loanProgress => 'Repayment Progress';
+
+  @override
+  String loanRepaidPercent(String percent) {
+    return '$percent% Repaid';
+  }
+
+  @override
+  String get loanInitialBalanceLabel => 'Loan Amount';
+
+  @override
+  String get loanInitialBalanceHint => 'Enter total loan amount';
+
+  @override
+  String get loanNegativeNote => 'Loan amount will be recorded as negative balance';
+
+  @override
+  String get receivableAmount => 'Receivable Amount';
+
+  @override
+  String get receivableCollected => 'Collected';
+
+  @override
+  String get receivableRemaining => 'Pending';
+
+  @override
+  String get receivableInitialBalanceLabel => 'Receivable Amount';
+
+  @override
+  String get investmentInitialBalanceLabel => 'Initial Investment';
+
+  @override
+  String get adjustmentTransaction => 'Valuation Adjustment';
+
+  @override
+  String creditCardBillingInfo(int billingDay, int paymentDueDay) {
+    return 'Bills on ${billingDay}th · Due on ${paymentDueDay}th';
+  }
+
+  @override
+  String creditCardDaysUntilPayment(int days) {
+    return '$days days until payment due';
+  }
+
+  @override
+  String get creditCardPaymentDueToday => 'Payment due today';
+
+  @override
+  String creditCardPaymentOverdue(int days) {
+    return '$days days past due';
+  }
+
+  @override
+  String get creditCardQuickRepay => 'Record Repayment';
+
+  @override
+  String get loanQuickRepay => 'Record Repayment';
+
+  @override
+  String get receivableQuickCollect => 'Record Collection';
 }

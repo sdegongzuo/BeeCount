@@ -10,8 +10,9 @@ import '../../data/db.dart' as db;
 import '../../l10n/app_localizations.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
-import '../../utils/currencies.dart';
 import '../../utils/account_type_utils.dart';
+import '../../utils/currencies.dart';
+import '../../widgets/charts/asset_composition_chart.dart';
 import 'account_edit_page.dart';
 import 'account_detail_page.dart';
 
@@ -48,10 +49,10 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       list.insert(newIndex, item);
     });
 
-    // 构建排序更新
+    // 构建批量更新
     final list = _reorderingGroups![type]!;
     final updates = <({int id, int sortOrder})>[];
-    for (var i = 0; i < list.length; i++) {
+    for (int i = 0; i < list.length; i++) {
       updates.add((id: list[i].id, sortOrder: i));
     }
 
@@ -70,24 +71,62 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     final accountsAsync = ref.watch(allAccountsStreamProvider);
     final accountFeatureAsync = ref.watch(accountFeatureEnabledProvider);
     final primaryColor = ref.watch(primaryColorProvider);
-    final totalStatsAsync = ref.watch(allAccountsTotalStatsProvider);
     final allStatsAsync = ref.watch(allAccountStatsProvider);
+    final netWorthByCurrencyAsync = ref.watch(netWorthBreakdownByCurrencyProvider);
+    final isDark = BeeTokens.isDark(context);
+
+    // 资产构成数据
+    final compositionAsync = ref.watch(assetCompositionProvider);
 
     return Scaffold(
       backgroundColor: BeeTokens.scaffoldBackground(context),
       body: Column(
         children: [
+          // ======== 渐变 Header + 净资产 ========
           PrimaryHeader(
             title: l10n.accountsTitle,
             showBack: true,
+            statusBarIconBrightness: Brightness.light,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [
+                        primaryColor.withValues(alpha: 0.25),
+                        primaryColor.withValues(alpha: 0.1),
+                      ]
+                    : [primaryColor, primaryColor.withValues(alpha: 0.8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
             actions: [
+              IconButton(
+                onPressed: () => _showSettingsSheet(context, ref, accountFeatureAsync, accountsAsync),
+                icon: const Icon(Icons.settings_outlined),
+                tooltip: l10n.commonSettings,
+              ),
               IconButton(
                 onPressed: () => _addAccount(context, ref, ledgerId),
                 icon: const Icon(Icons.add),
                 tooltip: l10n.accountAddTooltip,
               ),
             ],
+            content: netWorthByCurrencyAsync.when(
+              data: (nwByCurrency) => _buildHeaderContent(context, ref, nwByCurrency, isDark, primaryColor),
+              loading: () => SizedBox(
+                height: 80.0.scaled(context, ref),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    strokeWidth: 2,
+                  ),
+                ),
+              ),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
           ),
+
+          // ======== 主内容 ========
           Expanded(
             child: accountsAsync.when(
               data: (accounts) {
@@ -101,7 +140,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                   children: [
                     if (accounts.isEmpty)
                       SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.5,
+                        height: MediaQuery.of(context).size.height * 0.4,
                         child: Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -109,7 +148,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                               Icon(
                                 Icons.account_balance_wallet_outlined,
                                 size: 64.0.scaled(context, ref),
-                                color: BeeTokens.textTertiary(context),
+                                color: primaryColor.withValues(alpha: 0.4),
                               ),
                               SizedBox(height: 16.0.scaled(context, ref)),
                               Text(
@@ -134,178 +173,54 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                         ),
                       )
                     else ...[
-                      // 1. 汇总卡片
-                      totalStatsAsync.when(
-                        data: (stats) => SectionCard(
+                      // 1. 资产构成图
+                      compositionAsync.when(
+                        data: (data) => SectionCard(
                           margin: EdgeInsets.zero,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12.0.scaled(context, ref)),
-                            child: Stack(
-                              children: [
-                                // 右上角装饰：主题色半透明钱包图标
-                                Positioned(
-                                  right: -8,
-                                  top: -8,
-                                  child: Icon(
-                                    Icons.account_balance_wallet_rounded,
-                                    size: 72.0.scaled(context, ref),
-                                    color: primaryColor.withValues(alpha: 0.06),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 16.0.scaled(context, ref),
-                                    vertical: 20.0.scaled(context, ref),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      // 总余额
-                                      Text(
-                                        l10n.accountTotalBalance,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: BeeTokens.textTertiary(context),
-                                        ),
-                                      ),
-                                      SizedBox(height: 4.0.scaled(context, ref)),
-                                      AmountText(
-                                        value: stats.totalBalance,
-                                        signed: false,
-                                        showCurrency: false,
-                                        useCompactFormat: ref.watch(compactAmountProvider),
-                                        style: TextStyle(
-                                          fontSize: 28,
-                                          fontWeight: FontWeight.bold,
-                                          color: BeeTokens.textPrimary(context),
-                                        ),
-                                      ),
-                                      SizedBox(height: 16.0.scaled(context, ref)),
-                                      // 收入/支出
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: _SummaryStatItem(
-                                              label: l10n.accountTotalIncome,
-                                              value: stats.totalIncome,
-                                              color: BeeTokens.incomeColor(context, ref),
-                                            ),
-                                          ),
-                                          Container(
-                                            width: 1,
-                                            height: 28.0.scaled(context, ref),
-                                            color: BeeTokens.divider(context),
-                                          ),
-                                          Expanded(
-                                            child: _SummaryStatItem(
-                                              label: l10n.accountTotalExpense,
-                                              value: stats.totalExpense,
-                                              color: BeeTokens.expenseColor(context, ref),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                          child: Padding(
+                            padding: EdgeInsets.all(12.0.scaled(context, ref)),
+                            child: AssetCompositionChart(data: data, embedded: true),
                           ),
                         ),
                         loading: () => SectionCard(
-                          child: Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0.scaled(context, ref)),
-                              child: const CircularProgressIndicator(),
-                            ),
+                          margin: EdgeInsets.zero,
+                          child: SizedBox(
+                            height: 180.0.scaled(context, ref),
+                            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                           ),
                         ),
-                        error: (err, stack) => const SizedBox.shrink(),
-                      ),
-
-                      // 2. 设置项（紧凑）
-                      SizedBox(height: 8.0.scaled(context, ref)),
-                      accountFeatureAsync.when(
-                        data: (enabled) {
-                          return SectionCard(
-                            margin: EdgeInsets.zero,
-                            child: Column(
-                              children: [
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 4.0.scaled(context, ref),
-                                  ),
-                                  child: SwitchListTile(
-                                    dense: true,
-                                    visualDensity: VisualDensity.compact,
-                                    title: Text(
-                                      l10n.accountsEnableFeature,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: BeeTokens.textSecondary(context),
-                                      ),
-                                    ),
-                                    value: enabled,
-                                    activeColor: primaryColor,
-                                    onChanged: (value) async {
-                                      await ref
-                                          .read(accountFeatureSetterProvider)
-                                          .setEnabled(value);
-                                      ref.invalidate(accountFeatureEnabledProvider);
-                                    },
-                                  ),
-                                ),
-                                if (enabled && accounts.isNotEmpty) ...[
-                                  Divider(
-                                    height: 1,
-                                    indent: 16,
-                                    endIndent: 16,
-                                    color: BeeTokens.divider(context),
-                                  ),
-                                  _CompactDefaultAccount(
-                                    accounts: accounts,
-                                    primaryColor: primaryColor,
-                                    type: 'expense',
-                                  ),
-                                  Divider(
-                                    height: 1,
-                                    indent: 16,
-                                    endIndent: 16,
-                                    color: BeeTokens.divider(context),
-                                  ),
-                                  _CompactDefaultAccount(
-                                    accounts: accounts,
-                                    primaryColor: primaryColor,
-                                    type: 'income',
-                                  ),
-                                ],
-                              ],
-                            ),
-                          );
-                        },
-                        loading: () => const SizedBox.shrink(),
                         error: (_, __) => const SizedBox.shrink(),
                       ),
 
-                      // 2. 按类型分组的账户列表
-                      ...accountTypeOrder
-                          .where((type) => groups.containsKey(type) && groups[type]!.isNotEmpty)
-                          .map((type) {
-                        final groupList = groups[type]!;
-                        return _AccountTypeGroup(
-                          type: type,
-                          accounts: groupList,
-                          primaryColor: primaryColor,
-                          allStats: allStatsAsync.asData?.value,
-                          onReorder: (oldIndex, newIndex) =>
-                              _onReorder(type, groupList, oldIndex, newIndex),
-                          onTap: (account) =>
-                              _viewAccountDetail(context, ref, account),
-                          onEdit: (account) =>
-                              _editAccount(context, ref, account, ledgerId),
-                        );
-                      }),
+                      // 2. 资产账户分组
+                      ..._buildClassificationSection(
+                        context: context,
+                        l10n: l10n,
+                        title: l10n.assetAccounts,
+                        icon: Icons.trending_up,
+                        iconColor: BeeTokens.incomeColor(context, ref),
+                        typeOrder: assetTypeOrder,
+                        groups: groups,
+                        allStats: allStatsAsync.asData?.value,
+                        primaryColor: primaryColor,
+                        ledgerId: ledgerId,
+                      ),
 
-                      // 处理不在固定类型列表中的类型
+                      // 3. 负债账户分组
+                      ..._buildClassificationSection(
+                        context: context,
+                        l10n: l10n,
+                        title: l10n.liabilityAccounts,
+                        icon: Icons.trending_down,
+                        iconColor: BeeTokens.expenseColor(context, ref),
+                        typeOrder: liabilityTypeOrder,
+                        groups: groups,
+                        allStats: allStatsAsync.asData?.value,
+                        primaryColor: primaryColor,
+                        ledgerId: ledgerId,
+                      ),
+
+                      // 4. 其他未知类型
                       ...groups.keys
                           .where((type) => !accountTypeOrder.contains(type) && groups[type]!.isNotEmpty)
                           .map((type) {
@@ -338,6 +253,356 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
     );
   }
 
+  /// Header 内的净资产展示
+  Widget _buildHeaderContent(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, ({double totalAssets, double totalLiabilities, double netWorth})> nwByCurrency,
+    bool isDark,
+    Color primaryColor,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final useCompact = ref.watch(compactAmountProvider);
+
+    // 单币种时保持原有布局
+    final isSingleCurrency = nwByCurrency.length <= 1;
+
+    // 单币种时取唯一数据（空map给默认值）
+    final singleNw = nwByCurrency.isEmpty
+        ? (totalAssets: 0.0, totalLiabilities: 0.0, netWorth: 0.0)
+        : nwByCurrency.values.first;
+
+    // 汇总全部币种的资产/负债（用于多币种底部展示）
+    double allAssets = 0, allLiabilities = 0;
+    for (final v in nwByCurrency.values) {
+      allAssets += v.totalAssets;
+      allLiabilities += v.totalLiabilities;
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: ClipRect(
+        child: Stack(
+          children: [
+            // 装饰圆圈
+            Positioned(
+              right: -20,
+              top: -30,
+              child: Container(
+                width: 80.0.scaled(context, ref),
+                height: 80.0.scaled(context, ref),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isDark
+                      ? primaryColor.withValues(alpha: 0.08)
+                      : Colors.white.withValues(alpha: 0.1),
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(
+                top: 4.0.scaled(context, ref),
+                bottom: 8.0.scaled(context, ref),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // 净资产标签
+                  Text(
+                    l10n.accountTotalBalance,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  SizedBox(height: 2.0.scaled(context, ref)),
+                  if (isSingleCurrency) ...[
+                    // 单币种：大号净资产金额
+                    AmountText(
+                      value: singleNw.netWorth,
+                      signed: false,
+                      showCurrency: false,
+                      useCompactFormat: useCompact,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: singleNw.netWorth >= 0
+                            ? const Color(0xFF81C784)
+                            : const Color(0xFFE57373),
+                      ),
+                    ),
+                    SizedBox(height: 12.0.scaled(context, ref)),
+                    // 总资产 | 总负债
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _HeaderStatCell(
+                            label: l10n.totalAssets,
+                            value: singleNw.totalAssets,
+                            valueColor: const Color(0xFF81C784),
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 32.0.scaled(context, ref),
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                        Expanded(
+                          child: _HeaderStatCell(
+                            label: l10n.totalLiabilities,
+                            value: singleNw.totalLiabilities.abs(),
+                            valueColor: const Color(0xFFE57373),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    // 多币种：逐行显示每个币种的净资产
+                    ...nwByCurrency.entries.map((entry) {
+                      final currency = entry.key;
+                      final nw = entry.value;
+                      return AmountText(
+                        value: nw.netWorth,
+                        signed: false,
+                        showCurrency: true,
+                        currencyCode: currency,
+                        useCompactFormat: useCompact,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: nw.netWorth >= 0
+                              ? const Color(0xFF81C784)
+                              : const Color(0xFFE57373),
+                        ),
+                      );
+                    }),
+                    SizedBox(height: 12.0.scaled(context, ref)),
+                    // 总资产 | 总负债（混合汇总）
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _HeaderStatCell(
+                            label: l10n.totalAssets,
+                            value: allAssets,
+                            valueColor: const Color(0xFF81C784),
+                          ),
+                        ),
+                        Container(
+                          width: 1,
+                          height: 32.0.scaled(context, ref),
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                        Expanded(
+                          child: _HeaderStatCell(
+                            label: l10n.totalLiabilities,
+                            value: allLiabilities.abs(),
+                            valueColor: const Color(0xFFE57373),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建资产/负债分类区域
+  List<Widget> _buildClassificationSection({
+    required BuildContext context,
+    required AppLocalizations l10n,
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    required List<String> typeOrder,
+    required Map<String, List<db.Account>> groups,
+    required Map<int, ({double balance, double expense, double income})>? allStats,
+    required Color primaryColor,
+    required int ledgerId,
+  }) {
+    // 检查此分类下是否有账户
+    final hasAccounts = typeOrder.any((type) =>
+        groups.containsKey(type) && groups[type]!.isNotEmpty);
+    if (!hasAccounts) return [];
+
+    // 计算小计
+    double subtotal = 0;
+    for (final type in typeOrder) {
+      if (groups.containsKey(type)) {
+        for (final account in groups[type]!) {
+          subtotal += allStats?[account.id]?.balance ?? 0;
+        }
+      }
+    }
+
+    return [
+      // 分类标题
+      Padding(
+        padding: EdgeInsets.only(
+          top: 16.0.scaled(context, ref),
+          bottom: 4.0.scaled(context, ref),
+          left: 4.0.scaled(context, ref),
+          right: 4.0.scaled(context, ref),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 18.0.scaled(context, ref), color: iconColor),
+            SizedBox(width: 6.0.scaled(context, ref)),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: BeeTokens.textPrimary(context),
+              ),
+            ),
+            const Spacer(),
+            AmountText(
+              value: subtotal,
+              signed: false,
+              showCurrency: false,
+              useCompactFormat: ref.watch(compactAmountProvider),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: iconColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+      // 类型分组
+      ...typeOrder
+          .where((type) => groups.containsKey(type) && groups[type]!.isNotEmpty)
+          .map((type) {
+        final groupList = groups[type]!;
+        return _AccountTypeGroup(
+          type: type,
+          accounts: groupList,
+          primaryColor: primaryColor,
+          allStats: allStats,
+          onReorder: (oldIndex, newIndex) =>
+              _onReorder(type, groupList, oldIndex, newIndex),
+          onTap: (account) =>
+              _viewAccountDetail(context, ref, account),
+          onEdit: (account) =>
+              _editAccount(context, ref, account, ledgerId),
+        );
+      }),
+    ];
+  }
+
+  /// 设置底部弹窗
+  void _showSettingsSheet(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<bool> accountFeatureAsync,
+    AsyncValue<List<db.Account>> accountsAsync,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final primaryColor = ref.read(primaryColorProvider);
+    final accounts = accountsAsync.asData?.value ?? [];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: BeeTokens.surfaceSheet(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final featureAsync = ref.watch(accountFeatureEnabledProvider);
+            final enabled = featureAsync.asData?.value ?? false;
+
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 拖拽条
+                  Container(
+                    margin: const EdgeInsets.only(top: 8, bottom: 4),
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: BeeTokens.textTertiary(context).withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // 标题
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text(
+                      l10n.commonSettings,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: BeeTokens.textPrimary(context),
+                      ),
+                    ),
+                  ),
+                  // 功能开关
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: SwitchListTile(
+                      dense: true,
+                      visualDensity: VisualDensity.compact,
+                      title: Text(
+                        l10n.accountsEnableFeature,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: BeeTokens.textPrimary(context),
+                        ),
+                      ),
+                      value: enabled,
+                      activeColor: primaryColor,
+                      onChanged: (value) async {
+                        await ref
+                            .read(accountFeatureSetterProvider)
+                            .setEnabled(value);
+                        ref.invalidate(accountFeatureEnabledProvider);
+                      },
+                    ),
+                  ),
+                  if (enabled && accounts.isNotEmpty) ...[
+                    Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: BeeTokens.divider(context),
+                    ),
+                    _CompactDefaultAccount(
+                      accounts: accounts,
+                      primaryColor: primaryColor,
+                      type: 'expense',
+                    ),
+                    Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: BeeTokens.divider(context),
+                    ),
+                    _CompactDefaultAccount(
+                      accounts: accounts,
+                      primaryColor: primaryColor,
+                      type: 'income',
+                    ),
+                  ],
+                  SizedBox(height: 16.0.scaled(context, ref)),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _addAccount(BuildContext context, WidgetRef ref, int ledgerId) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -347,7 +612,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
 
     ref.invalidate(allAccountStatsProvider);
     ref.invalidate(allAccountsTotalStatsProvider);
-    ref.invalidate(statsRefreshProvider);
+    ref.invalidate(netWorthBreakdownByCurrencyProvider);
+    ref.invalidate(assetCompositionProvider);
+    ref.read(statsRefreshProvider.notifier).state++;
   }
 
   Future<void> _editAccount(BuildContext context, WidgetRef ref,
@@ -363,7 +630,9 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
 
     ref.invalidate(allAccountStatsProvider);
     ref.invalidate(allAccountsTotalStatsProvider);
-    ref.invalidate(statsRefreshProvider);
+    ref.invalidate(netWorthBreakdownByCurrencyProvider);
+    ref.invalidate(assetCompositionProvider);
+    ref.read(statsRefreshProvider.notifier).state++;
   }
 
   void _viewAccountDetail(
@@ -376,7 +645,47 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   }
 }
 
-/// 账户类型分组（可折叠，默认折叠）
+/// Header 内统计项（白色文字）
+class _HeaderStatCell extends ConsumerWidget {
+  final String label;
+  final double value;
+  final Color? valueColor;
+
+  const _HeaderStatCell({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        AmountText(
+          value: value,
+          signed: false,
+          showCurrency: false,
+          useCompactFormat: ref.watch(compactAmountProvider),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: valueColor ?? Colors.white,
+          ),
+        ),
+        SizedBox(height: 2.0.scaled(context, ref)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.white.withValues(alpha: 0.7),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 账户类型分组（可折叠，默认展开）
 class _AccountTypeGroup extends ConsumerStatefulWidget {
   final String type;
   final List<db.Account> accounts;
@@ -406,7 +715,6 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
   @override
   Widget build(BuildContext context) {
     final typeColor = getColorForAccountType(widget.type, widget.primaryColor);
-    final canReorder = widget.accounts.length > 1;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,33 +725,33 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
           behavior: HitTestBehavior.opaque,
           child: Padding(
             padding: EdgeInsets.only(
-              top: 14.0.scaled(context, ref),
-              bottom: 8.0.scaled(context, ref),
+              top: 12.0.scaled(context, ref),
+              bottom: 6.0.scaled(context, ref),
               left: 4.0.scaled(context, ref),
               right: 4.0.scaled(context, ref),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 32.0.scaled(context, ref),
-                  height: 32.0.scaled(context, ref),
+                  width: 28.0.scaled(context, ref),
+                  height: 28.0.scaled(context, ref),
                   decoration: BoxDecoration(
                     color: typeColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8.0.scaled(context, ref)),
+                    borderRadius: BorderRadius.circular(7.0.scaled(context, ref)),
                   ),
                   child: Center(
                     child: AccountTypeIcon(
                       type: widget.type,
-                      size: 18.0.scaled(context, ref),
+                      size: 16.0.scaled(context, ref),
                       color: typeColor,
                     ),
                   ),
                 ),
-                SizedBox(width: 10.0.scaled(context, ref)),
+                SizedBox(width: 8.0.scaled(context, ref)),
                 Text(
                   getAccountTypeLabel(context, widget.type),
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: BeeTokens.textPrimary(context),
                   ),
@@ -451,17 +759,17 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
                 SizedBox(width: 6.0.scaled(context, ref)),
                 Container(
                   padding: EdgeInsets.symmetric(
-                    horizontal: 6.0.scaled(context, ref),
+                    horizontal: 5.0.scaled(context, ref),
                     vertical: 1.0.scaled(context, ref),
                   ),
                   decoration: BoxDecoration(
                     color: BeeTokens.textTertiary(context).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10.0.scaled(context, ref)),
+                    borderRadius: BorderRadius.circular(8.0.scaled(context, ref)),
                   ),
                   child: Text(
                     '${widget.accounts.length}',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       color: BeeTokens.textTertiary(context),
                     ),
                   ),
@@ -472,7 +780,7 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
                   duration: const Duration(milliseconds: 200),
                   child: Icon(
                     Icons.chevron_right,
-                    size: 20.0.scaled(context, ref),
+                    size: 18.0.scaled(context, ref),
                     color: BeeTokens.iconTertiary(context),
                   ),
                 ),
@@ -480,89 +788,356 @@ class _AccountTypeGroupState extends ConsumerState<_AccountTypeGroup> {
             ),
           ),
         ),
-        // 可折叠的账户卡片列表
+        // 账户卡片列表
         if (_expanded)
-          canReorder
-              ? ReorderableListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  buildDefaultDragHandles: false,
-                  itemCount: widget.accounts.length,
-                  proxyDecorator: (child, index, animation) {
-                    return Material(
-                      elevation: 4,
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(12.0),
-                      child: child,
-                    );
-                  },
-                  onReorder: widget.onReorder,
-                  itemBuilder: (context, index) {
-                    final account = widget.accounts[index];
-                    return ReorderableDelayedDragStartListener(
-                      key: ValueKey(account.id),
-                      index: index,
-                      child: _AccountCard(
-                        account: account,
-                        primaryColor: widget.primaryColor,
-                        typeColor: typeColor,
-                        stats: widget.allStats?[account.id],
-                        onTap: () => widget.onTap(account),
-                        onEdit: () => widget.onEdit(account),
-                      ),
-                    );
-                  },
-                )
-              : Column(
-                  children: widget.accounts.map((account) {
-                    return _AccountCard(
-                      account: account,
-                      primaryColor: widget.primaryColor,
-                      typeColor: typeColor,
-                      stats: widget.allStats?[account.id],
-                      onTap: () => widget.onTap(account),
-                      onEdit: () => widget.onEdit(account),
-                    );
-                  }).toList(),
-                ),
+          ...widget.accounts.map((account) {
+            return _AccountCard(
+              key: ValueKey(account.id),
+              account: account,
+              primaryColor: widget.primaryColor,
+              typeColor: typeColor,
+              stats: widget.allStats?[account.id],
+              onTap: () => widget.onTap(account),
+              onEdit: () => widget.onEdit(account),
+            );
+          }),
       ],
     );
   }
 }
 
-/// 汇总卡片内收入/支出项
-class _SummaryStatItem extends ConsumerWidget {
-  final String label;
-  final double value;
-  final Color color;
+/// 账户卡片
+class _AccountCard extends ConsumerWidget {
+  final db.Account account;
+  final Color primaryColor;
+  final Color typeColor;
+  final ({double balance, double expense, double income})? stats;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
 
-  const _SummaryStatItem({
-    required this.label,
-    required this.value,
-    required this.color,
+  const _AccountCard({
+    super.key,
+    required this.account,
+    required this.primaryColor,
+    required this.typeColor,
+    this.stats,
+    required this.onTap,
+    required this.onEdit,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: BeeTokens.textTertiary(context),
+    final l10n = AppLocalizations.of(context);
+    final isDark = BeeTokens.isDark(context);
+
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onEdit,
+      child: Container(
+        margin: EdgeInsets.only(bottom: 8.0.scaled(context, ref)),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isDark
+                ? [
+                    typeColor.withValues(alpha: 0.25),
+                    typeColor.withValues(alpha: 0.12),
+                  ]
+                : [typeColor, typeColor.withValues(alpha: 0.8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12.0.scaled(context, ref)),
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: typeColor.withValues(alpha: 0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12.0.scaled(context, ref)),
+          child: Stack(
+            children: [
+              // 装饰圆圈
+              Positioned(
+                right: -20,
+                top: -20,
+                child: Container(
+                  width: 80.0.scaled(context, ref),
+                  height: 80.0.scaled(context, ref),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: isDark ? 0.05 : 0.1),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: 14.0.scaled(context, ref),
+                  vertical: 12.0.scaled(context, ref),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 顶部行：图标 + 名称 + 编辑
+                    Row(
+                      children: [
+                        Container(
+                          width: 32.0.scaled(context, ref),
+                          height: 32.0.scaled(context, ref),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: AccountTypeIcon(
+                              type: account.type,
+                              size: 18.0.scaled(context, ref),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 10.0.scaled(context, ref)),
+                        Expanded(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  account.name,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white.withValues(alpha: 0.9) : Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              SizedBox(width: 8.0.scaled(context, ref)),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 5.0.scaled(context, ref),
+                                  vertical: 1.0.scaled(context, ref),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(4.0.scaled(context, ref)),
+                                ),
+                                child: Text(
+                                  getCurrencyName(account.currency, context),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: onEdit,
+                          child: Container(
+                            padding: EdgeInsets.all(6.0.scaled(context, ref)),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.edit,
+                              color: isDark ? Colors.white.withValues(alpha: 0.8) : Colors.white,
+                              size: 14.0.scaled(context, ref),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 10.0.scaled(context, ref)),
+                    // 信用卡：进度条 + 额度信息
+                    if (account.type == 'credit_card' && account.creditLimit != null && stats != null)
+                      _buildCreditCardStats(context, ref, l10n, isDark)
+                    // 普通账户：余额/收入/支出
+                    else if (stats != null)
+                      _buildNormalStats(context, ref, l10n, isDark)
+                    else
+                      Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4.0.scaled(context, ref)),
+                          child: const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        SizedBox(height: 2.0.scaled(context, ref)),
+      ),
+    );
+  }
+
+  Widget _buildNormalStats(BuildContext context, WidgetRef ref, AppLocalizations l10n, bool isDark) {
+    final textColor = isDark ? Colors.white.withValues(alpha: 0.9) : Colors.white;
+    final labelColor = isDark ? Colors.white.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.8);
+
+    return Row(
+      children: [
+        Expanded(
+          child: _CardStat(
+            label: l10n.accountBalance,
+            value: stats!.balance,
+            textColor: textColor,
+            labelColor: labelColor,
+            ref: ref,
+          ),
+        ),
+        Container(
+          width: 1,
+          height: 24.0.scaled(context, ref),
+          color: Colors.white.withValues(alpha: 0.2),
+        ),
+        Expanded(
+          child: _CardStat(
+            label: l10n.homeIncome,
+            value: stats!.income,
+            textColor: textColor,
+            labelColor: labelColor,
+            ref: ref,
+          ),
+        ),
+        Container(
+          width: 1,
+          height: 24.0.scaled(context, ref),
+          color: Colors.white.withValues(alpha: 0.2),
+        ),
+        Expanded(
+          child: _CardStat(
+            label: l10n.homeExpense,
+            value: stats!.expense,
+            textColor: textColor,
+            labelColor: labelColor,
+            ref: ref,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCreditCardStats(BuildContext context, WidgetRef ref, AppLocalizations l10n, bool isDark) {
+    final creditLimit = account.creditLimit!;
+    final used = stats!.balance < 0 ? -stats!.balance : 0.0;
+    final usageRate = creditLimit > 0 ? (used / creditLimit).clamp(0.0, 1.0) : 0.0;
+    final textColor = isDark ? Colors.white.withValues(alpha: 0.9) : Colors.white;
+    final labelColor = isDark ? Colors.white.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.8);
+
+    return Column(
+      children: [
+        // 进度条
+        ClipRRect(
+          borderRadius: BorderRadius.circular(3.0.scaled(context, ref)),
+          child: LinearProgressIndicator(
+            value: usageRate,
+            backgroundColor: Colors.white.withValues(alpha: 0.2),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Colors.white.withValues(alpha: 0.8),
+            ),
+            minHeight: 4.0.scaled(context, ref),
+          ),
+        ),
+        SizedBox(height: 8.0.scaled(context, ref)),
+        Row(
+          children: [
+            Expanded(
+              child: _CardStat(
+                label: l10n.creditLimit,
+                value: creditLimit,
+                textColor: textColor,
+                labelColor: labelColor,
+                ref: ref,
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 24.0.scaled(context, ref),
+              color: Colors.white.withValues(alpha: 0.2),
+            ),
+            Expanded(
+              child: _CardStat(
+                label: l10n.creditUsed,
+                value: used,
+                textColor: textColor,
+                labelColor: labelColor,
+                ref: ref,
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 24.0.scaled(context, ref),
+              color: Colors.white.withValues(alpha: 0.2),
+            ),
+            Expanded(
+              child: _CardStat(
+                label: l10n.creditAvailable,
+                value: creditLimit - used,
+                textColor: textColor,
+                labelColor: labelColor,
+                ref: ref,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// 卡片内统计项
+class _CardStat extends StatelessWidget {
+  final String label;
+  final double value;
+  final Color textColor;
+  final Color labelColor;
+  final WidgetRef ref;
+
+  const _CardStat({
+    required this.label,
+    required this.value,
+    required this.textColor,
+    required this.labelColor,
+    required this.ref,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
         AmountText(
           value: value,
           signed: false,
           showCurrency: false,
           useCompactFormat: ref.watch(compactAmountProvider),
           style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: color,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: textColor,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: labelColor,
           ),
         ),
       ],
@@ -613,8 +1188,8 @@ class _CompactDefaultAccount extends ConsumerWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 13,
-                    color: BeeTokens.textSecondary(context),
+                    fontSize: 14,
+                    color: BeeTokens.textPrimary(context),
                   ),
                 ),
                 const Spacer(),
@@ -712,329 +1287,3 @@ class _CompactDefaultAccount extends ConsumerWidget {
     );
   }
 }
-
-/// 账户卡片 - 类似银行卡样式
-class _AccountCard extends ConsumerWidget {
-  final db.Account account;
-  final Color primaryColor;
-  final Color typeColor;
-  final ({double balance, double expense, double income})? stats;
-  final VoidCallback onTap;
-  final VoidCallback onEdit;
-
-  const _AccountCard({
-    required this.account,
-    required this.primaryColor,
-    required this.typeColor,
-    this.stats,
-    required this.onTap,
-    required this.onEdit,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: EdgeInsets.only(bottom: 8.0.scaled(context, ref)),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              typeColor,
-              typeColor.withValues(alpha: 0.8),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(10.0.scaled(context, ref)),
-          boxShadow: [
-            BoxShadow(
-              color: typeColor.withValues(alpha: 0.2),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(10.0.scaled(context, ref)),
-          child: Stack(
-            children: [
-              // 背景装饰圆圈
-              Positioned(
-                right: -20,
-                top: -20,
-                child: Container(
-                  width: 80.0.scaled(context, ref),
-                  height: 80.0.scaled(context, ref),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.1),
-                  ),
-                ),
-              ),
-              // 卡片内容
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 14.0.scaled(context, ref),
-                  vertical: 12.0.scaled(context, ref),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 顶部：图标 + 账户名称 + 币种 + 编辑
-                    Row(
-                      children: [
-                        Container(
-                          width: 32.0.scaled(context, ref),
-                          height: 32.0.scaled(context, ref),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: AccountTypeIcon(
-                              type: account.type,
-                              size: 18.0.scaled(context, ref),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 10.0.scaled(context, ref)),
-                        Expanded(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  account.name,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              SizedBox(width: 8.0.scaled(context, ref)),
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 5.0.scaled(context, ref),
-                                  vertical: 1.0.scaled(context, ref),
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(4.0.scaled(context, ref)),
-                                ),
-                                child: Text(
-                                  getCurrencyName(account.currency, context),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => onEdit(),
-                          child: Container(
-                            padding: EdgeInsets.all(6.0.scaled(context, ref)),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.edit,
-                              color: Colors.white,
-                              size: 14.0.scaled(context, ref),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 10.0.scaled(context, ref)),
-                    // 信用卡：显示额度信息 + 薄进度条
-                    if (account.type == 'credit_card' && account.creditLimit != null && stats != null)
-                      _CreditCardStats(
-                        account: account,
-                        stats: stats!,
-                      )
-                    // 普通账户：余额/收入/支出
-                    else if (stats != null)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _CardStatItem(
-                              label:
-                                  AppLocalizations.of(context).accountBalance,
-                              value: stats!.balance,
-                              currencyCode: account.currency,
-                            ),
-                          ),
-                          Container(
-                            width: 1,
-                            height: 24.0.scaled(context, ref),
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                          Expanded(
-                            child: _CardStatItem(
-                              label: AppLocalizations.of(context).homeIncome,
-                              value: stats!.income,
-                              currencyCode: account.currency,
-                            ),
-                          ),
-                          Container(
-                            width: 1,
-                            height: 24.0.scaled(context, ref),
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                          Expanded(
-                            child: _CardStatItem(
-                              label: AppLocalizations.of(context).homeExpense,
-                              value: stats!.expense,
-                              currencyCode: account.currency,
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                              vertical: 4.0.scaled(context, ref)),
-                          child: const CircularProgressIndicator(
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                            strokeWidth: 2,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 信用卡统计数据（额度/已用/可用 + 进度条）
-class _CreditCardStats extends ConsumerWidget {
-  final db.Account account;
-  final ({double balance, double expense, double income}) stats;
-
-  const _CreditCardStats({
-    required this.account,
-    required this.stats,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-    final creditLimit = account.creditLimit!;
-    // 已用额度 = -余额（余额为负表示欠款）
-    final usedAmount = stats.balance < 0 ? -stats.balance : 0.0;
-    final available = creditLimit - usedAmount;
-    final usageRate = creditLimit > 0 ? (usedAmount / creditLimit).clamp(0.0, 1.0) : 0.0;
-
-    return Column(
-      children: [
-        // 薄进度条
-        ClipRRect(
-          borderRadius: BorderRadius.circular(2.0.scaled(context, ref)),
-          child: LinearProgressIndicator(
-            value: usageRate,
-            backgroundColor: Colors.white.withValues(alpha: 0.2),
-            valueColor: AlwaysStoppedAnimation<Color>(
-              usageRate < 0.8 ? Colors.white : Colors.yellow,
-            ),
-            minHeight: 3.0.scaled(context, ref),
-          ),
-        ),
-        SizedBox(height: 8.0.scaled(context, ref)),
-        Row(
-          children: [
-            Expanded(
-              child: _CardStatItem(
-                label: l10n.creditLimit,
-                value: creditLimit,
-                currencyCode: account.currency,
-              ),
-            ),
-            Container(
-              width: 1,
-              height: 24.0.scaled(context, ref),
-              color: Colors.white.withValues(alpha: 0.2),
-            ),
-            Expanded(
-              child: _CardStatItem(
-                label: l10n.creditUsed,
-                value: usedAmount,
-                currencyCode: account.currency,
-              ),
-            ),
-            Container(
-              width: 1,
-              height: 24.0.scaled(context, ref),
-              color: Colors.white.withValues(alpha: 0.2),
-            ),
-            Expanded(
-              child: _CardStatItem(
-                label: l10n.creditAvailable,
-                value: available,
-                currencyCode: account.currency,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// 卡片内统计项
-class _CardStatItem extends ConsumerWidget {
-  final String label;
-  final double value;
-  final String currencyCode;
-
-  const _CardStatItem({
-    required this.label,
-    required this.value,
-    required this.currencyCode,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        AmountText(
-          value: value,
-          signed: false,
-          showCurrency: false,
-          useCompactFormat: ref.watch(compactAmountProvider),
-          currencyCode: currencyCode,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        SizedBox(height: 1.0.scaled(context, ref)),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.white.withValues(alpha: 0.7),
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-}
-

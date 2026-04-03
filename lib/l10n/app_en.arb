@@ -1488,8 +1488,8 @@
   "cloudWebdavRemotePathHelp": "Remote directory path for data storage",
   "cloudWebdavRemotePathLabel": "Remote Path",
   "cloudWebdavRemotePathHelperText": "Remote directory path for data storage",
-  "accountsTitle": "Account Management",
-  "accountsManageDesc": "Manage payment accounts and balances",
+  "accountsTitle": "Asset Management",
+  "accountsManageDesc": "Net worth, asset composition & account management",
   "accountsEmptyMessage": "No accounts yet, tap the top right to add",
   "accountAddTooltip": "Add Account",
   "accountAddButton": "Add Account",
@@ -2155,9 +2155,9 @@
   "discoverBudget": "Budget",
   "discoverBudgetSubtitle": "Set and track spending budgets",
   "discoverBudgetEmpty": "Set budget to control spending",
-  "discoverAccounts": "Accounts",
+  "discoverAccounts": "Asset Overview",
   "discoverAccountsEmpty": "Add accounts to track cash flow",
-  "discoverAccountsTotal": "Total Balance",
+  "discoverAccountsTotal": "Net Worth",
   "discoverAccountsCount": "{count} accounts",
   "@discoverAccountsCount": {
     "placeholders": {
@@ -2533,5 +2533,68 @@
   "accountCategoryIncome": "Income",
   "accountLoadMore": "Load More",
   "accountNoMoreData": "No more data",
-  "accountUncategorized": "Uncategorized"
+  "accountUncategorized": "Uncategorized",
+
+  "totalAssets": "Total Assets",
+  "totalLiabilities": "Total Liabilities",
+  "assetAccounts": "Asset Accounts",
+  "liabilityAccounts": "Liability Accounts",
+  "netWorthTrend": "Net Worth Trend",
+  "assetComposition": "Asset Composition",
+  "accountTypeInvestment": "Investment",
+  "accountTypeLoan": "Loan",
+  "accountTypeReceivable": "Receivable",
+  "investmentCurrentValue": "Market Value",
+  "investmentAdjustment": "Valuation Adjustment",
+  "investmentTotalInvested": "Total Invested",
+  "investmentProfitLoss": "Profit/Loss",
+  "investmentReturnRate": "Return Rate",
+  "investmentInputNewValue": "Enter new value",
+  "investmentInputDelta": "Enter change amount",
+  "investmentNewValueHint": "Enter new market value",
+  "investmentDeltaHint": "Positive for gain, negative for loss",
+  "loanOriginalAmount": "Loan Amount",
+  "loanRepaid": "Repaid",
+  "loanRemaining": "Remaining",
+  "loanProgress": "Repayment Progress",
+  "loanRepaidPercent": "{percent}% Repaid",
+  "@loanRepaidPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "loanInitialBalanceLabel": "Loan Amount",
+  "loanInitialBalanceHint": "Enter total loan amount",
+  "loanNegativeNote": "Loan amount will be recorded as negative balance",
+  "receivableAmount": "Receivable Amount",
+  "receivableCollected": "Collected",
+  "receivableRemaining": "Pending",
+  "receivableInitialBalanceLabel": "Receivable Amount",
+  "investmentInitialBalanceLabel": "Initial Investment",
+  "adjustmentTransaction": "Valuation Adjustment",
+  "creditCardBillingInfo": "Bills on {billingDay}th · Due on {paymentDueDay}th",
+  "@creditCardBillingInfo": {
+    "placeholders": {
+      "billingDay": { "type": "int" },
+      "paymentDueDay": { "type": "int" }
+    }
+  },
+  "creditCardDaysUntilPayment": "{days} days until payment due",
+  "@creditCardDaysUntilPayment": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "creditCardPaymentDueToday": "Payment due today",
+  "creditCardPaymentOverdue": "{days} days past due",
+  "@creditCardPaymentOverdue": {
+    "placeholders": {
+      "days": { "type": "int" }
+    }
+  },
+  "creditCardQuickRepay": "Record Repayment",
+  "loanQuickRepay": "Record Repayment",
+  "receivableQuickCollect": "Record Collection"
 }

@@ -186,4 +186,13 @@ abstract class TransactionRepository {
 
   /// 根据 syncId 删除交易
   Future<void> deleteTransactionBySyncId(String syncId);
+
+  /// 创建估值调整交易
+  Future<int> createAdjustmentTransaction({
+    required int ledgerId,
+    required int accountId,
+    required double amount,
+    required DateTime happenedAt,
+    String? note,
+  });
 }

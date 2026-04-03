@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 
 import '../../db.dart';
 import '../../../services/system/logger_service.dart';
+import '../../../utils/account_type_utils.dart';
 import '../account_repository.dart';
 
 /// 本地账户Repository实现
@@ -204,6 +205,8 @@ class LocalAccountRepository implements AccountRepository {
       } else if (t.type == 'transfer') {
         // 作为转出账户
         balance -= t.amount;
+      } else if (t.type == 'adjustment') {
+        balance += t.amount;
       }
     }
 
@@ -241,6 +244,8 @@ class LocalAccountRepository implements AccountRepository {
           balance -= tx.amount;
         } else if (tx.type == 'transfer') {
           balance -= tx.amount;
+        } else if (tx.type == 'adjustment') {
+          balance += tx.amount;
         }
       } else if (tx.toAccountId == accountId) {
         // 作为转入账户（转账）
@@ -270,6 +275,8 @@ class LocalAccountRepository implements AccountRepository {
           balance -= tx.amount;
         } else if (tx.type == 'transfer') {
           balance -= tx.amount;
+        } else if (tx.type == 'adjustment') {
+          balance += tx.amount;
         }
       } else if (tx.toAccountId == accountId) {
         // 作为转入账户（转账）
@@ -592,9 +599,15 @@ class LocalAccountRepository implements AccountRepository {
     while (txIndex < allTxs.length && allTxs[txIndex].happenedAt.isBefore(startDate)) {
       final tx = allTxs[txIndex];
       if (tx.accountId == accountId) {
-        if (tx.type == 'income') runningBalance += tx.amount;
-        else if (tx.type == 'expense') runningBalance -= tx.amount;
-        else if (tx.type == 'transfer') runningBalance -= tx.amount;
+        if (tx.type == 'income') {
+          runningBalance += tx.amount;
+        } else if (tx.type == 'expense') {
+          runningBalance -= tx.amount;
+        } else if (tx.type == 'transfer') {
+          runningBalance -= tx.amount;
+        } else if (tx.type == 'adjustment') {
+          runningBalance += tx.amount;
+        }
       }
       if (tx.toAccountId == accountId && tx.type == 'transfer') {
         runningBalance += tx.amount;
@@ -614,9 +627,15 @@ class LocalAccountRepository implements AccountRepository {
       while (txIndex < allTxs.length && allTxs[txIndex].happenedAt.isBefore(nextDate)) {
         final tx = allTxs[txIndex];
         if (tx.accountId == accountId) {
-          if (tx.type == 'income') runningBalance += tx.amount;
-          else if (tx.type == 'expense') runningBalance -= tx.amount;
-          else if (tx.type == 'transfer') runningBalance -= tx.amount;
+          if (tx.type == 'income') {
+            runningBalance += tx.amount;
+          } else if (tx.type == 'expense') {
+            runningBalance -= tx.amount;
+          } else if (tx.type == 'transfer') {
+            runningBalance -= tx.amount;
+          } else if (tx.type == 'adjustment') {
+            runningBalance += tx.amount;
+          }
         }
         if (tx.toAccountId == accountId && tx.type == 'transfer') {
           runningBalance += tx.amount;
@@ -658,5 +677,110 @@ class LocalAccountRepository implements AccountRepository {
         total: (row.data['total'] as num).toDouble(),
       );
     }).toList();
+  }
+
+  @override
+  Future<({double totalAssets, double totalLiabilities, double netWorth})> getNetWorthBreakdown() async {
+    final accounts = await getAllAccounts();
+    double totalAssets = 0.0;
+    double totalLiabilities = 0.0;
+
+    for (final account in accounts) {
+      final balance = await getAccountBalance(account.id);
+      if (isAssetType(account.type)) {
+        totalAssets += balance;
+      } else {
+        totalLiabilities += balance;
+      }
+    }
+
+    return (
+      totalAssets: totalAssets,
+      totalLiabilities: totalLiabilities,
+      netWorth: totalAssets + totalLiabilities,
+    );
+  }
+
+  @override
+  Future<Map<String, ({double totalAssets, double totalLiabilities, double netWorth})>> getNetWorthBreakdownByCurrency() async {
+    final accounts = await getAllAccounts();
+    final Map<String, ({double totalAssets, double totalLiabilities, double netWorth})> result = {};
+
+    for (final account in accounts) {
+      final balance = await getAccountBalance(account.id);
+      final currency = account.currency;
+      final prev = result[currency] ?? (totalAssets: 0.0, totalLiabilities: 0.0, netWorth: 0.0);
+
+      if (isAssetType(account.type)) {
+        result[currency] = (
+          totalAssets: prev.totalAssets + balance,
+          totalLiabilities: prev.totalLiabilities,
+          netWorth: prev.netWorth + balance,
+        );
+      } else {
+        result[currency] = (
+          totalAssets: prev.totalAssets,
+          totalLiabilities: prev.totalLiabilities + balance,
+          netWorth: prev.netWorth + balance,
+        );
+      }
+    }
+
+    return result;
+  }
+
+  @override
+  Future<List<({DateTime date, double balance})>> getNetWorthDailyBalances({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final accounts = await getAllAccounts();
+    if (accounts.isEmpty) return [];
+
+    // 获取每个账户的每日余额
+    final allBalances = <int, List<({DateTime date, double balance})>>{};
+    for (final account in accounts) {
+      allBalances[account.id] = await getAccountDailyBalances(
+        account.id,
+        startDate: startDate,
+        endDate: endDate,
+      );
+    }
+
+    // 按日聚合
+    final result = <({DateTime date, double balance})>[];
+    var currentDate = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day);
+    int dayIndex = 0;
+
+    while (!currentDate.isAfter(end)) {
+      double dayTotal = 0.0;
+      for (final account in accounts) {
+        final balances = allBalances[account.id]!;
+        if (dayIndex < balances.length) {
+          dayTotal += balances[dayIndex].balance;
+        }
+      }
+      result.add((date: currentDate, balance: dayTotal));
+      currentDate = currentDate.add(const Duration(days: 1));
+      dayIndex++;
+    }
+
+    return result;
+  }
+
+  @override
+  Future<List<({String type, double totalBalance})>> getAssetCompositionByType() async {
+    final accounts = await getAllAccounts();
+    final Map<String, double> typeBalances = {};
+
+    for (final account in accounts) {
+      final balance = await getAccountBalance(account.id);
+      typeBalances.update(account.type, (v) => v + balance, ifAbsent: () => balance);
+    }
+
+    return typeBalances.entries
+        .map((e) => (type: e.key, totalBalance: e.value))
+        .toList();
   }
 }

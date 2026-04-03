@@ -503,7 +503,7 @@ class _AccountsCard extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    Icons.account_balance_wallet_rounded,
+                    Icons.analytics_rounded,
                     color: primaryColor,
                     size: 20,
                   ),

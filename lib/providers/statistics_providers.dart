@@ -122,3 +122,46 @@ final allAccountsTotalStatsProvider = FutureProvider.autoDispose<({double totalB
   logger.info('AllAccountsTotalStats', '总余额: ${stats.totalBalance}, 总支出: ${stats.totalExpense}, 总收入: ${stats.totalIncome}');
   return stats;
 });
+
+// 统计：净资产分解（总资产、总负债、净资产）
+final netWorthBreakdownProvider = FutureProvider.autoDispose<({double totalAssets, double totalLiabilities, double netWorth})>(
+        (ref) async {
+  final repo = ref.watch(repositoryProvider);
+  ref.watch(statsRefreshProvider);
+  final link = ref.keepAlive();
+  ref.onDispose(() => link.close());
+  return repo.getNetWorthBreakdown();
+});
+
+// 统计：按币种分组的净资产分解
+final netWorthBreakdownByCurrencyProvider = FutureProvider.autoDispose<
+    Map<String, ({double totalAssets, double totalLiabilities, double netWorth})>>(
+  (ref) async {
+    final repo = ref.watch(repositoryProvider);
+    ref.watch(statsRefreshProvider);
+    final link = ref.keepAlive();
+    ref.onDispose(() => link.close());
+    return repo.getNetWorthBreakdownByCurrency();
+  },
+);
+
+// 统计：净资产每日趋势
+final netWorthTrendProvider = FutureProvider.family
+    .autoDispose<List<({DateTime date, double balance})>, ({DateTime startDate, DateTime endDate})>(
+        (ref, params) async {
+  final repo = ref.watch(repositoryProvider);
+  ref.watch(statsRefreshProvider);
+  final link = ref.keepAlive();
+  ref.onDispose(() => link.close());
+  return repo.getNetWorthDailyBalances(startDate: params.startDate, endDate: params.endDate);
+});
+
+// 统计：资产构成（按账户类型分组）
+final assetCompositionProvider = FutureProvider.autoDispose<List<({String type, double totalBalance})>>(
+        (ref) async {
+  final repo = ref.watch(repositoryProvider);
+  ref.watch(statsRefreshProvider);
+  final link = ref.keepAlive();
+  ref.onDispose(() => link.close());
+  return repo.getAssetCompositionByType();
+});
