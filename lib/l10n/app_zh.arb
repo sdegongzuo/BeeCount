@@ -2480,6 +2480,26 @@
   "accountTypeInvestment": "投资理财",
   "accountTypeLoan": "贷款",
   "accountTypeReceivable": "应收款",
+  "accountTypeRealEstate": "不动产",
+  "accountTypeVehicle": "车辆",
+  "accountTypeInsurance": "保险",
+  "accountTypeSocialFund": "公积金/社保",
+  "valuationCurrentValue": "当前估值",
+  "valuationCurrentDebt": "当前欠款",
+  "valuationUpdateValue": "更新估值",
+  "valuationUpdateDebt": "更新欠款",
+  "valuationLastUpdated": "上次更新: {date}",
+  "@valuationLastUpdated": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "valuationAccountHint": "请输入当前估值",
+  "valuationDebtHint": "请输入当前欠款金额",
+  "accountGroupTradable": "日常账户",
+  "accountGroupValuation": "资产/负债",
   "adjustmentTransaction": "估值调整",
   "creditCardBillingInfo": "每月{billingDay}日出账 · {paymentDueDay}日还款",
   "@creditCardBillingInfo": {

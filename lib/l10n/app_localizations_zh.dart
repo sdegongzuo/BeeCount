@@ -5617,6 +5617,47 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accountTypeReceivable => '应收款';
 
   @override
+  String get accountTypeRealEstate => '不动产';
+
+  @override
+  String get accountTypeVehicle => '车辆';
+
+  @override
+  String get accountTypeInsurance => '保险';
+
+  @override
+  String get accountTypeSocialFund => '公积金/社保';
+
+  @override
+  String get valuationCurrentValue => '当前估值';
+
+  @override
+  String get valuationCurrentDebt => '当前欠款';
+
+  @override
+  String get valuationUpdateValue => '更新估值';
+
+  @override
+  String get valuationUpdateDebt => '更新欠款';
+
+  @override
+  String valuationLastUpdated(String date) {
+    return '上次更新: $date';
+  }
+
+  @override
+  String get valuationAccountHint => '请输入当前估值';
+
+  @override
+  String get valuationDebtHint => '请输入当前欠款金额';
+
+  @override
+  String get accountGroupTradable => '日常账户';
+
+  @override
+  String get accountGroupValuation => '资产/负债';
+
+  @override
   String get adjustmentTransaction => '估值调整';
 
   @override
@@ -11228,6 +11269,56 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get accountNoMoreData => '沒有更多資料了';
+
+  @override
+  String get accountTypeInvestment => '投資理財';
+
+  @override
+  String get accountTypeLoan => '貸款';
+
+  @override
+  String get accountTypeReceivable => '應收款';
+
+  @override
+  String get accountTypeRealEstate => '不動產';
+
+  @override
+  String get accountTypeVehicle => '車輛';
+
+  @override
+  String get accountTypeInsurance => '保險';
+
+  @override
+  String get accountTypeSocialFund => '公積金/社保';
+
+  @override
+  String get valuationCurrentValue => '當前估值';
+
+  @override
+  String get valuationCurrentDebt => '當前欠款';
+
+  @override
+  String get valuationUpdateValue => '更新估值';
+
+  @override
+  String get valuationUpdateDebt => '更新欠款';
+
+  @override
+  String valuationLastUpdated(String date) {
+    return '上次更新: $date';
+  }
+
+  @override
+  String get valuationAccountHint => '請輸入當前估值';
+
+  @override
+  String get valuationDebtHint => '請輸入當前欠款金額';
+
+  @override
+  String get accountGroupTradable => '日常帳戶';
+
+  @override
+  String get accountGroupValuation => '資產/負債';
 
   @override
   String creditCardBillingInfo(int billingDay, int paymentDueDay) {

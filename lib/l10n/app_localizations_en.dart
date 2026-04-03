@@ -5617,6 +5617,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountTypeReceivable => 'Receivable';
 
   @override
+  String get accountTypeRealEstate => 'Real Estate';
+
+  @override
+  String get accountTypeVehicle => 'Vehicle';
+
+  @override
+  String get accountTypeInsurance => 'Insurance';
+
+  @override
+  String get accountTypeSocialFund => 'Social Fund';
+
+  @override
+  String get valuationCurrentValue => 'Current Valuation';
+
+  @override
+  String get valuationCurrentDebt => 'Current Debt';
+
+  @override
+  String get valuationUpdateValue => 'Update Valuation';
+
+  @override
+  String get valuationUpdateDebt => 'Update Debt';
+
+  @override
+  String valuationLastUpdated(String date) {
+    return 'Last updated: $date';
+  }
+
+  @override
+  String get valuationAccountHint => 'Enter current valuation';
+
+  @override
+  String get valuationDebtHint => 'Enter current debt amount';
+
+  @override
+  String get accountGroupTradable => 'Daily Accounts';
+
+  @override
+  String get accountGroupValuation => 'Assets/Liabilities';
+
+  @override
   String get adjustmentTransaction => 'Valuation Adjustment';
 
   @override

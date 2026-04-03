@@ -2520,6 +2520,26 @@
   "accountTypeInvestment": "Investment",
   "accountTypeLoan": "Loan",
   "accountTypeReceivable": "Receivable",
+  "accountTypeRealEstate": "Real Estate",
+  "accountTypeVehicle": "Vehicle",
+  "accountTypeInsurance": "Insurance",
+  "accountTypeSocialFund": "Social Fund",
+  "valuationCurrentValue": "Current Valuation",
+  "valuationCurrentDebt": "Current Debt",
+  "valuationUpdateValue": "Update Valuation",
+  "valuationUpdateDebt": "Update Debt",
+  "valuationLastUpdated": "Last updated: {date}",
+  "@valuationLastUpdated": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "valuationAccountHint": "Enter current valuation",
+  "valuationDebtHint": "Enter current debt amount",
+  "accountGroupTradable": "Daily Accounts",
+  "accountGroupValuation": "Assets/Liabilities",
   "adjustmentTransaction": "Valuation Adjustment",
   "creditCardBillingInfo": "Bills on {billingDay}th · Due on {paymentDueDay}th",
   "@creditCardBillingInfo": {
