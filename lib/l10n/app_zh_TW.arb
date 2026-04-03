@@ -2285,5 +2285,9 @@
   },
   "creditCardQuickRepay": "記一筆還款",
   "loanQuickRepay": "記一筆還款",
-  "receivableQuickCollect": "記一筆收款"
+  "receivableQuickCollect": "記一筆收款",
+  "budgetManagement": "預算管理",
+  "budgetManagementDesc": "設置月度預算，控制支出",
+  "budgetSetupHint": "設置預算，輕鬆掌控每月開支",
+  "budgetSetupAction": "去設置"
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers.dart';
-import '../../providers/budget_providers.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
 import '../../styles/tokens.dart';
@@ -140,23 +139,6 @@ class AppearanceSettingsPage extends ConsumerWidget {
                             ? l10n.appearanceColorSchemeOn
                             : l10n.appearanceColorSchemeOff,
                         onTap: () => _showColorSchemeDialog(context, ref, l10n),
-                      ),
-                      BeeTokens.cardDivider(context),
-                      // 首页预算显示
-                      AppListTile(
-                        leading: Icons.pie_chart_outline_rounded,
-                        title: l10n.budgetShowOnHome,
-                        trailing: Switch.adaptive(
-                          value: ref.watch(homeBudgetCardEnabledProvider),
-                          onChanged: (value) {
-                            ref.read(homeBudgetCardEnabledProvider.notifier).toggle(value);
-                          },
-                          activeColor: ref.watch(primaryColorProvider),
-                        ),
-                        onTap: () {
-                          final current = ref.read(homeBudgetCardEnabledProvider);
-                          ref.read(homeBudgetCardEnabledProvider.notifier).toggle(!current);
-                        },
                       ),
                     ],
                   ),

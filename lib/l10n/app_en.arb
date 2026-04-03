@@ -2601,5 +2601,9 @@
   },
   "creditCardQuickRepay": "Record Repayment",
   "loanQuickRepay": "Record Repayment",
-  "receivableQuickCollect": "Record Collection"
+  "receivableQuickCollect": "Record Collection",
+  "budgetManagement": "Budget",
+  "budgetManagementDesc": "Set monthly budget and control spending",
+  "budgetSetupHint": "Set a budget to control monthly spending",
+  "budgetSetupAction": "Set up"
 }

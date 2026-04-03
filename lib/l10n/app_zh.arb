@@ -2561,5 +2561,9 @@
   },
   "creditCardQuickRepay": "记一笔还款",
   "loanQuickRepay": "记一笔还款",
-  "receivableQuickCollect": "记一笔收款"
+  "receivableQuickCollect": "记一笔收款",
+  "budgetManagement": "预算管理",
+  "budgetManagementDesc": "设置月度预算，控制支出",
+  "budgetSetupHint": "设置预算，轻松掌控每月开支",
+  "budgetSetupAction": "去设置"
 }

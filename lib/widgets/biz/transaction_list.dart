@@ -5,6 +5,7 @@ import 'package:flutter_list_view/flutter_list_view.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../data/db.dart';
 import '../../providers.dart';
+import '../../providers/budget_providers.dart';
 import '../../services/system/logger_service.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
@@ -469,6 +470,7 @@ class TransactionListState extends ConsumerState<TransactionList> {
                 final curLedger = ref.read(currentLedgerIdProvider);
                 ref.invalidate(countsForLedgerProvider(curLedger));
                 ref.read(statsRefreshProvider.notifier).state++;
+                ref.read(budgetRefreshProvider.notifier).state++;
                 PostProcessor.sync(ref, ledgerId: curLedger);
 
                 if (context.mounted) {

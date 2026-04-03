@@ -5844,6 +5844,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get receivableQuickCollect => '记一笔收款';
+
+  @override
+  String get budgetManagement => '预算管理';
+
+  @override
+  String get budgetManagementDesc => '设置月度预算，控制支出';
+
+  @override
+  String get budgetSetupHint => '设置预算，轻松掌控每月开支';
+
+  @override
+  String get budgetSetupAction => '去设置';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -11584,4 +11596,16 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get receivableQuickCollect => '記一筆收款';
+
+  @override
+  String get budgetManagement => '預算管理';
+
+  @override
+  String get budgetManagementDesc => '設置月度預算，控制支出';
+
+  @override
+  String get budgetSetupHint => '設置預算，輕鬆掌控每月開支';
+
+  @override
+  String get budgetSetupAction => '去設置';
 }

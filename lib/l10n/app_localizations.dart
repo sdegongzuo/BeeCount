@@ -11141,6 +11141,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Record Collection'**
   String get receivableQuickCollect;
+
+  /// No description provided for @budgetManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Budget'**
+  String get budgetManagement;
+
+  /// No description provided for @budgetManagementDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Set monthly budget and control spending'**
+  String get budgetManagementDesc;
+
+  /// No description provided for @budgetSetupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a budget to control monthly spending'**
+  String get budgetSetupHint;
+
+  /// No description provided for @budgetSetupAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up'**
+  String get budgetSetupAction;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

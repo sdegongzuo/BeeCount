@@ -5844,4 +5844,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get receivableQuickCollect => 'Record Collection';
+
+  @override
+  String get budgetManagement => 'Budget';
+
+  @override
+  String get budgetManagementDesc => 'Set monthly budget and control spending';
+
+  @override
+  String get budgetSetupHint => 'Set a budget to control monthly spending';
+
+  @override
+  String get budgetSetupAction => 'Set up';
 }

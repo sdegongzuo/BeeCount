@@ -4,6 +4,8 @@ import 'package:flutter_list_view/flutter_list_view.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import '../../providers/budget_providers.dart';
+import '../budget/budget_page.dart';
 import '../../providers.dart';
 import '../settings/personalize_page.dart' show headerStyleProvider;
 import '../../data/db.dart';
@@ -52,12 +54,18 @@ class _HomePageState extends ConsumerState<HomePage> {
   static const String _annualReportDismissedKey =
       'annual_report_reminder_dismissed';
 
+  // 预算设置引导卡片状态
+  bool _showBudgetSetupHint = false;
+  static const String _budgetSetupHintDismissedKey =
+      'budget_setup_hint_dismissed';
+
   @override
   void initState() {
     super.initState();
     _listController = FlutterListViewController();
     _checkLastMonthReminder();
     _checkAnnualReportReminder();
+    _checkBudgetSetupHint();
   }
 
   // 检查是否应该显示上月报告提醒
@@ -129,6 +137,31 @@ class _HomePageState extends ConsumerState<HomePage> {
     if (mounted) {
       setState(() {
         _showAnnualReportReminder = false;
+      });
+    }
+  }
+
+  // 检查是否应该显示预算设置引导卡片
+  Future<void> _checkBudgetSetupHint() async {
+    final prefs = await SharedPreferences.getInstance();
+    final dismissed = prefs.getBool(_budgetSetupHintDismissedKey) ?? false;
+    if (dismissed) return;
+
+    if (mounted) {
+      setState(() {
+        _showBudgetSetupHint = true;
+      });
+    }
+  }
+
+  // 关闭预算设置引导卡片（永不再显示）
+  Future<void> _dismissBudgetSetupHint() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_budgetSetupHintDismissedKey, true);
+
+    if (mounted) {
+      setState(() {
+        _showBudgetSetupHint = false;
       });
     }
   }
@@ -460,6 +493,107 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
+  // 预算设置引导卡片（无预算时显示，样式与月初提醒一致）
+  Widget _buildBudgetSetupHintCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final primaryColor = ref.watch(primaryColorProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          children: [
+            // 左侧装饰条
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 4,
+                color: primaryColor,
+              ),
+            ),
+            // 主体内容
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+              child: Row(
+                children: [
+                  // 图标 + 文案
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.pie_chart_outline_rounded,
+                          color: primaryColor,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            l10n.budgetSetupHint,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? Colors.white70 : Colors.black54,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // 去设置按钮
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const BudgetPage()),
+                      );
+                    },
+                    child: Text(
+                      l10n.budgetSetupAction,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: primaryColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // 关闭按钮
+                  GestureDetector(
+                    onTap: _dismissBudgetSetupHint,
+                    behavior: HitTestBehavior.opaque,
+                    child: Icon(
+                      Icons.close,
+                      size: 18,
+                      color: isDark ? Colors.white38 : Colors.black26,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final repo = ref.watch(repositoryProvider);
@@ -728,7 +862,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                 ],
               ),
-              bottom: null,
+              bottom: const HomeBudgetSummary(),
             );
           }),
           const SizedBox(height: 0),
@@ -737,8 +871,20 @@ class _HomePageState extends ConsumerState<HomePage> {
           // 年度账单提醒卡片（12月15日 - 次年1月31日）
           if (_showAnnualReportReminder)
             _buildAnnualReportReminderCard(context),
-          // 预算进度摘要
-          const HomeBudgetSummary(),
+          // 预算设置引导卡片（无预算 + 未关闭过）
+          Consumer(builder: (context, ref, _) {
+            final overviewAsync = ref.watch(budgetOverviewProvider);
+            final hasBudget = overviewAsync.when(
+              data: (overview) =>
+                  overview != null && overview.totalBudget != null,
+              loading: () => true, // loading 时不显示引导
+              error: (_, __) => true, // 出错时不显示引导
+            );
+            if (!hasBudget && _showBudgetSetupHint) {
+              return _buildBudgetSetupHintCard(context);
+            }
+            return const SizedBox.shrink();
+          }),
           Expanded(
             child: StreamBuilder<List<({Transaction t, Category? category})>>(
               key: ValueKey('transactions_$_streamBuilderKey'), // 使用递增key强制重建
