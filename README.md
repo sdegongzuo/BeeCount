@@ -682,6 +682,21 @@ A:
 
 ---
 
+<details>
+<summary><b>⭐ Star History</b></summary>
+
+<a href="https://www.star-history.com/?repos=tnt-likely%2Fbeecount&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=tnt-likely/beecount&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=tnt-likely/beecount&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=tnt-likely/beecount&type=date&legend=top-left" />
+ </picture>
+</a>
+
+</details>
+
+---
+
 ## 🙏 致谢
 
 感谢 [果核剥壳 - 互联网的净土](https://www.ghxi.com/)、[星之墨辰](https://mp.weixin.qq.com/s/HieVbKzpdUvnoaCa_9xjkA) 对本项目的宣传
