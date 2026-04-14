@@ -77,11 +77,6 @@ class TransactionListState extends ConsumerState<TransactionList> {
   // 标记是否应使用预加载数据（当 Stream 数据与预加载数据不同时切换）
   bool _usePreloadedData = true;
 
-  /// 是否使用完整预加载数据模式
-  /// 条件：1) 有预加载数据 2) 还没切换到 Stream 模式
-  bool get _hasFullDetails =>
-      widget.transactionsWithDetails != null && _usePreloadedData;
-
   /// 获取统一格式的交易列表（用于内部处理）
   /// 始终使用 transactions 作为列表数据源，预加载数据只用于详情（标签、附件、账户）
   List<({Transaction t, Category? category})> get _transactionsList {
@@ -434,12 +429,12 @@ class TransactionListState extends ConsumerState<TransactionList> {
                 toAccountName = _getToAccountNameForTransaction(it.t.id);
               }
 
-              // 非预加载模式下通过 Provider 获取
-              if (accountName == null && !_hasFullDetails) {
+              // 预加载数据中找不到时，通过 Provider 获取（新记录的交易不在预加载缓存中）
+              if (accountName == null) {
                 final accountAsync = ref.watch(accountByIdProvider(it.t.accountId!));
                 accountName = accountAsync.valueOrNull?.name;
               }
-              if (isTransfer && toAccountName == null && !_hasFullDetails && it.t.toAccountId != null) {
+              if (isTransfer && toAccountName == null && it.t.toAccountId != null) {
                 final toAccountAsync = ref.watch(accountByIdProvider(it.t.toAccountId!));
                 toAccountName = toAccountAsync.valueOrNull?.name;
               }
