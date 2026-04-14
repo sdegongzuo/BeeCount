@@ -7275,7 +7275,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiChatConfigWarning.
   ///
   /// In en, this message translates to:
-  /// **'Zhipu API Key is not configured or invalid, AI features are unavailable'**
+  /// **'AI provider not configured. Please add and bind one in Settings'**
   String get aiChatConfigWarning;
 
   /// No description provided for @aiChatGoToSettings.

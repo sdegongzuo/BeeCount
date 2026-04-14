@@ -88,28 +88,17 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
     }
   }
 
-  /// 验证 API 配置（完全异步，不阻塞 UI）
+  /// 验证 API 配置（仅检查本地配置，不发网络请求）
   Future<void> _validateApiConfig() async {
     try {
-      // 添加 3 秒超时保护，避免网络卡顿
-      final result = await AIChatService.validateApiKey().timeout(
-        const Duration(seconds: 3),
-        onTimeout: () {
-          logger.warning('AIChat', 'API 验证超时（3秒），跳过验证');
-          return AIConfigValidationResult.invalid('验证超时');
-        },
-      );
-
-      // 安全地更新状态
+      final result = await AIChatService.validateApiKey();
       if (!mounted) return;
       setState(() => _apiValidation = result);
     } catch (e, st) {
-      logger.error('AIChat', 'API 验证失败', e, st);
-
-      // 即使失败也要设置状态，避免 UI 一直等待
+      logger.error('AIChat', 'API 配置检查失败', e, st);
       if (!mounted) return;
       setState(() {
-        _apiValidation = AIConfigValidationResult.invalid('验证失败');
+        _apiValidation = AIConfigValidationResult.invalid('配置检查失败');
       });
     }
   }

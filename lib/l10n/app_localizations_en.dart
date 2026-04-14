@@ -3817,7 +3817,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiCloudApiTestKey => 'Test Connection';
 
   @override
-  String get aiChatConfigWarning => 'Zhipu API Key is not configured or invalid, AI features are unavailable';
+  String get aiChatConfigWarning => 'AI provider not configured. Please add and bind one in Settings';
 
   @override
   String get aiChatGoToSettings => 'Go to Settings';

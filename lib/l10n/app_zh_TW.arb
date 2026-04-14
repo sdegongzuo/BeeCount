@@ -68,7 +68,7 @@
   "aiChatClearHistory": "清除對話歷史",
   "aiChatClearHistoryDialogContent": "確定要清除所有對話記錄嗎？此操作不可恢復。",
   "aiChatClearHistoryDialogTitle": "清除對話歷史",
-  "aiChatConfigWarning": "未設定或設定錯誤智譜 API Key，AI 功能不可用",
+  "aiChatConfigWarning": "未設定 AI 服務商，請先在設定中新增並綁定",
   "aiChatCopied": "已複製到剪貼簿",
   "aiChatCopy": "複製",
   "aiChatDeleteMessageConfirm": "確定要刪除這條訊息嗎？",

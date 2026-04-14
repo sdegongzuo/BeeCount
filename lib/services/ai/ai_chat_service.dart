@@ -1,7 +1,9 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'ai_bill_service.dart';
+import 'ai_provider_config.dart';
 import 'ai_provider_factory.dart';
+import 'ai_provider_manager.dart';
 import '../billing/bill_creation_service.dart';
 import '../billing/ocr_service.dart';
 import '../data/tag_seed_service.dart';
@@ -40,18 +42,26 @@ class AIChatService {
 
   AIChatService({required BaseRepository repo}) : _repo = repo;
 
-  /// 验证 API Key 是否有效（静态方法）
-  /// 使用 AIProviderFactory 统一验证
+  /// 验证 AI 配置是否存在（静态方法）
+  /// 仅检查本地配置（API Key + 模型），不发网络请求，避免超时误报
   static Future<AIConfigValidationResult> validateApiKey() async {
-    final (success, error) = await AIProviderFactory.validateConfig(
-      logTag: 'AIChat',
+    final config = await AIProviderManager.getProviderForCapability(
+      AICapabilityType.text,
     );
 
-    if (success) {
-      return AIConfigValidationResult.valid();
-    } else {
-      return AIConfigValidationResult.invalid(error ?? '验证失败');
+    if (config == null) {
+      return AIConfigValidationResult.invalid('未配置文本对话服务商');
     }
+
+    if (!config.isValid) {
+      return AIConfigValidationResult.invalid('未配置 API Key');
+    }
+
+    if (!config.supportsText) {
+      return AIConfigValidationResult.invalid('未配置文本模型');
+    }
+
+    return AIConfigValidationResult.valid();
   }
 
   /// 处理用户消息

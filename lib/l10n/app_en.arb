@@ -1643,7 +1643,7 @@
   "aiCloudApiGetKey": "Get API Key",
   "aiCloudApiTutorial": "Tutorial",
   "aiCloudApiTestKey": "Test Connection",
-  "aiChatConfigWarning": "Zhipu API Key is not configured or invalid, AI features are unavailable",
+  "aiChatConfigWarning": "AI provider not configured. Please add and bind one in Settings",
   "aiChatGoToSettings": "Go to Settings",
   "aiLocalModelTitle": "Local Model",
   "aiLocalModelTraining": "Training",

@@ -3817,7 +3817,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiCloudApiTestKey => '测试连接';
 
   @override
-  String get aiChatConfigWarning => '未配置或配置错误智谱 API Key，AI 功能不可用';
+  String get aiChatConfigWarning => '未配置 AI 服务商，请先在设置中添加并绑定';
 
   @override
   String get aiChatGoToSettings => '去设置';
@@ -9567,7 +9567,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get aiCloudApiTestKey => '測試連線';
 
   @override
-  String get aiChatConfigWarning => '未設定或設定錯誤智譜 API Key，AI 功能不可用';
+  String get aiChatConfigWarning => '未設定 AI 服務商，請先在設定中新增並綁定';
 
   @override
   String get aiChatGoToSettings => '前往設定';
