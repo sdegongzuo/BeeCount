@@ -182,6 +182,16 @@ class _BeeAppState extends ConsumerState<BeeApp>
           MaterialPageRoute(builder: (_) => const AIChatPage()),
         );
         break;
+      case AppLinkAction.newTransaction:
+        // 打开手动记账页面（从小组件快捷入口）
+        final type = ref.read(pendingNewTransactionTypeProvider) ?? 'expense';
+        ref.read(pendingNewTransactionTypeProvider.notifier).state = null;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TransactionEditorPage(initialKind: type),
+          ),
+        );
+        break;
       default:
         // 其他动作在 AppLinkService 中已处理
         break;

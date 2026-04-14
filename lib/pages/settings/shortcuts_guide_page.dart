@@ -130,6 +130,27 @@ class ShortcutsGuidePage extends ConsumerWidget {
         url: AppLinkBuilder.camera(),
         color: Colors.blue,
       ),
+      _ShortcutItem(
+        icon: Icons.remove_circle_outline,
+        title: l10n.shortcutNewExpense,
+        description: l10n.shortcutNewExpenseDesc,
+        url: AppLinkBuilder.newExpense(),
+        color: Colors.red,
+      ),
+      _ShortcutItem(
+        icon: Icons.add_circle_outline,
+        title: l10n.shortcutNewIncome,
+        description: l10n.shortcutNewIncomeDesc,
+        url: AppLinkBuilder.newIncome(),
+        color: Colors.green,
+      ),
+      _ShortcutItem(
+        icon: Icons.swap_horiz,
+        title: l10n.shortcutNewTransfer,
+        description: l10n.shortcutNewTransferDesc,
+        url: AppLinkBuilder.newTransfer(),
+        color: Colors.purple,
+      ),
     ];
 
     return SectionCard(

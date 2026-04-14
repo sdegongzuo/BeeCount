@@ -23,6 +23,9 @@ final bottomTabIndexProvider = StateProvider<int>((ref) => 0);
 // AppLink 待处理动作（用于通知 UI 层执行导航）
 final pendingAppLinkActionProvider = StateProvider<AppLinkAction?>((ref) => null);
 
+// 手动记账待处理类型（expense/income，配合 newTransaction action 使用）
+final pendingNewTransactionTypeProvider = StateProvider<String?>((ref) => null);
+
 // 首页滚动到顶部触发器（每次改变值时触发滚动）
 final homeScrollToTopProvider = StateProvider<int>((ref) => 0);
 

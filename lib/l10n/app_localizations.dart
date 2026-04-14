@@ -6924,6 +6924,18 @@ abstract class AppLocalizations {
   /// **'Widget automatically syncs to display today\'s and this month\'s income and expense data, refreshing every 30 minutes. Data updates immediately when app is opened.'**
   String get widgetDescription;
 
+  /// No description provided for @widgetQuickEntryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Entry'**
+  String get widgetQuickEntryTitle;
+
+  /// No description provided for @widgetQuickEntryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the left side of the widget to quickly add an expense, or tap the right side to add an income. You can also use beecount://new?type=transfer via Shortcuts to quickly start a transfer.'**
+  String get widgetQuickEntryDesc;
+
   /// No description provided for @appName.
   ///
   /// In en, this message translates to:
@@ -9875,6 +9887,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Take photos to recognize bills'**
   String get shortcutCameraDesc;
+
+  /// No description provided for @shortcutNewExpense.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Expense'**
+  String get shortcutNewExpense;
+
+  /// No description provided for @shortcutNewExpenseDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Open expense entry page directly'**
+  String get shortcutNewExpenseDesc;
+
+  /// No description provided for @shortcutNewIncome.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Income'**
+  String get shortcutNewIncome;
+
+  /// No description provided for @shortcutNewIncomeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Open income entry page directly'**
+  String get shortcutNewIncomeDesc;
+
+  /// No description provided for @shortcutNewTransfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Transfer'**
+  String get shortcutNewTransfer;
+
+  /// No description provided for @shortcutNewTransferDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Open transfer entry page directly'**
+  String get shortcutNewTransferDesc;
 
   /// No description provided for @shortcutUrlCopied.
   ///

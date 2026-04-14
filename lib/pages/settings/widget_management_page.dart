@@ -38,6 +38,10 @@ class WidgetManagementPage extends ConsumerWidget {
                 _buildAddGuideSection(context, l10n, theme),
                 const SizedBox(height: 24),
 
+                // 快捷记账说明
+                _buildQuickEntrySection(context, l10n, theme),
+                const SizedBox(height: 24),
+
                 // 说明文字
                 _buildDescriptionSection(context, l10n, theme),
               ],
@@ -284,6 +288,47 @@ class WidgetManagementPage extends ConsumerWidget {
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildQuickEntrySection(
+    BuildContext context,
+    AppLocalizations l10n,
+    ThemeData theme,
+  ) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.touch_app_outlined,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.widgetQuickEntryTitle,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.widgetQuickEntryDesc,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -297,6 +297,9 @@ void _setupUrlListener(ProviderContainer container) {
     // 设置导航回调
     appLinkService.onNavigate = (action, {params}) {
       logger.info('AppLink', '触发导航: $action');
+      if (action == AppLinkAction.newTransaction && params != null) {
+        container.read(pendingNewTransactionTypeProvider.notifier).state = params.type;
+      }
       container.read(pendingAppLinkActionProvider.notifier).state = action;
     };
 

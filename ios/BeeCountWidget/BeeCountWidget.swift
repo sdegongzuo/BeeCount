@@ -44,17 +44,38 @@ struct BeeCountWidgetEntryView : View {
     var entry: BeeCountProvider.Entry
     @Environment(\.widgetFamily) var widgetFamily
 
+    private let expenseURL = URL(string: "beecount://new?type=expense")!
+    private let incomeURL = URL(string: "beecount://new?type=income")!
+
     var body: some View {
         if let uiImage = UIImage(contentsOfFile: entry.widgetImagePath) {
-            print("📱 iOS Widget - Image size: \(uiImage.size.width)x\(uiImage.size.height), Scale: \(uiImage.scale)")
             return AnyView(
                 GeometryReader { geometry in
-                    let _ = print("📱 iOS Widget - Container size: \(geometry.size.width)x\(geometry.size.height)")
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .clipped()
+                    ZStack {
+                        // 底层：渲染的小组件图片
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
+
+                        // 上层：透明点击区域（左侧支出，右侧收入）
+                        VStack(spacing: 0) {
+                            // 跳过 header 区域（约占总高度 30%）
+                            Color.clear
+                                .frame(height: geometry.size.height * 0.28)
+
+                            // 数据区域分为左右两栏
+                            HStack(spacing: 0) {
+                                Link(destination: expenseURL) {
+                                    Color.clear
+                                }
+                                Link(destination: incomeURL) {
+                                    Color.clear
+                                }
+                            }
+                        }
+                    }
                 }
             )
         } else {
@@ -71,6 +92,7 @@ struct BeeCountWidgetEntryView : View {
                             .foregroundColor(.white)
                     }
                 }
+                .widgetURL(expenseURL)
             )
         }
     }

@@ -231,16 +231,28 @@ class HomeWidgetView extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isToday ? 16 : 15,
-              fontWeight: FontWeight.bold,
-              color: color,
-              height: 1.0,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: isToday ? 16 : 15,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                    height: 1.0,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(
+                Icons.add_circle_outline,
+                size: 12,
+                color: Colors.grey[400],
+              ),
+            ],
           ),
         ],
       ),

@@ -153,21 +153,6 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         leading: Icons.widgets_outlined,
                         title: l10n.widgetManagement,
                         subtitle: l10n.widgetManagementDesc,
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'NEW',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
                         onTap: () async {
                           await Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const WidgetManagementPage()),

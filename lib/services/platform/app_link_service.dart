@@ -33,6 +33,9 @@ enum AppLinkAction {
   /// 快速记账（从相册）
   quickBilling,
 
+  /// 手动记账（从小组件快捷入口）
+  newTransaction,
+
   /// 未知
   unknown,
 }
@@ -128,6 +131,7 @@ class AppLinkResult {
 /// - beecount://image - 图片记账（从相册）
 /// - beecount://camera - 拍照记账
 /// - beecount://ai-chat - AI 小助手
+/// - beecount://new?type=expense - 手动记账（支出/收入）
 /// - beecount://add?amount=100&type=expense&category=餐饮 - 自动记账
 /// - beecount://auto-billing?text=... - 文本自动记账（兼容旧版）
 /// - beecount://quick-billing - 快速记账（兼容旧版）
@@ -230,6 +234,8 @@ class AppLinkService {
         return AppLinkAction.aiChat;
       case 'add':
         return AppLinkAction.add;
+      case 'new':
+        return AppLinkAction.newTransaction;
       case 'auto-billing':
         return AppLinkAction.autoBilling;
       case 'quick-billing':
@@ -270,6 +276,12 @@ class AppLinkService {
       case AppLinkAction.add:
         logger.info('AppLink', '自动记账: $queryParams');
         return await _handleAddTransaction(queryParams);
+
+      case AppLinkAction.newTransaction:
+        final type = queryParams['type'] ?? 'expense';
+        logger.info('AppLink', '打开手动记账: type=$type');
+        onNavigate?.call(AppLinkAction.newTransaction, params: AddTransactionParams(amount: 0, type: type));
+        return AppLinkResult.success(message: '打开手动记账');
 
       case AppLinkAction.autoBilling:
         // 兼容旧版
@@ -465,6 +477,15 @@ class AppLinkBuilder {
 
   /// AI 小助手链接
   static String aiChat() => '$scheme://ai-chat';
+
+  /// 新建支出记账链接
+  static String newExpense() => '$scheme://new?type=expense';
+
+  /// 新建收入记账链接
+  static String newIncome() => '$scheme://new?type=income';
+
+  /// 新建转账记账链接
+  static String newTransfer() => '$scheme://new?type=transfer';
 
   /// 自动记账链接
   static String add({

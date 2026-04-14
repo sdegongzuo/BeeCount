@@ -3641,6 +3641,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get widgetDescription => '小组件会自动同步显示今日和本月的收支数据，每30分钟自动刷新一次。打开应用后会立即更新数据。';
 
   @override
+  String get widgetQuickEntryTitle => '快捷记账';
+
+  @override
+  String get widgetQuickEntryDesc => '点击小组件左侧区域可快速新建支出，点击右侧区域可快速新建收入。也可通过快捷指令使用 beecount://new?type=transfer 快速发起转账。';
+
+  @override
   String get appName => '蜜蜂记账';
 
   @override
@@ -5179,6 +5185,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get shortcutCameraDesc => '拍照识别账单';
+
+  @override
+  String get shortcutNewExpense => '快捷记支出';
+
+  @override
+  String get shortcutNewExpenseDesc => '直接打开支出记账页面';
+
+  @override
+  String get shortcutNewIncome => '快捷记收入';
+
+  @override
+  String get shortcutNewIncomeDesc => '直接打开收入记账页面';
+
+  @override
+  String get shortcutNewTransfer => '快捷记转账';
+
+  @override
+  String get shortcutNewTransferDesc => '直接打开转账记账页面';
 
   @override
   String get shortcutUrlCopied => '链接已复制到剪贴板';
@@ -9391,6 +9415,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get widgetDescription => '小組件会自動同步顯示今日和本月的收支數據，每30分钟自動刷新一次。打開應用后会立即更新數據。';
 
   @override
+  String get widgetQuickEntryTitle => '快捷記帳';
+
+  @override
+  String get widgetQuickEntryDesc => '點擊小組件左側區域可快速新建支出，點擊右側區域可快速新建收入。也可透過捷徑使用 beecount://new?type=transfer 快速發起轉帳。';
+
+  @override
   String get appName => '蜜蜂记帳';
 
   @override
@@ -10929,6 +10959,24 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get shortcutCameraDesc => '拍照識別帳單';
+
+  @override
+  String get shortcutNewExpense => '快捷記支出';
+
+  @override
+  String get shortcutNewExpenseDesc => '直接打開支出記帳頁面';
+
+  @override
+  String get shortcutNewIncome => '快捷記收入';
+
+  @override
+  String get shortcutNewIncomeDesc => '直接打開收入記帳頁面';
+
+  @override
+  String get shortcutNewTransfer => '快捷記轉帳';
+
+  @override
+  String get shortcutNewTransferDesc => '直接打開轉帳記帳頁面';
 
   @override
   String get shortcutUrlCopied => '連結已複製到剪貼簿';

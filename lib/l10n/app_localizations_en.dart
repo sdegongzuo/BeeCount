@@ -3641,6 +3641,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get widgetDescription => 'Widget automatically syncs to display today\'s and this month\'s income and expense data, refreshing every 30 minutes. Data updates immediately when app is opened.';
 
   @override
+  String get widgetQuickEntryTitle => 'Quick Entry';
+
+  @override
+  String get widgetQuickEntryDesc => 'Tap the left side of the widget to quickly add an expense, or tap the right side to add an income. You can also use beecount://new?type=transfer via Shortcuts to quickly start a transfer.';
+
+  @override
   String get appName => 'BeeCount';
 
   @override
@@ -5179,6 +5185,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shortcutCameraDesc => 'Take photos to recognize bills';
+
+  @override
+  String get shortcutNewExpense => 'Quick Expense';
+
+  @override
+  String get shortcutNewExpenseDesc => 'Open expense entry page directly';
+
+  @override
+  String get shortcutNewIncome => 'Quick Income';
+
+  @override
+  String get shortcutNewIncomeDesc => 'Open income entry page directly';
+
+  @override
+  String get shortcutNewTransfer => 'Quick Transfer';
+
+  @override
+  String get shortcutNewTransferDesc => 'Open transfer entry page directly';
 
   @override
   String get shortcutUrlCopied => 'URL copied to clipboard';
