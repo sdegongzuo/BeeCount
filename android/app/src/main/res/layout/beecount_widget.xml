@@ -8,7 +8,7 @@
         android:id="@+id/widget_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="fitXY"
+        android:scaleType="centerCrop"
         android:contentDescription="Widget content" />
 
     <!-- 透明点击层：左右各半，左侧支出，右侧收入 -->
