@@ -12,6 +12,7 @@ import '../../providers/cloud_mode_providers.dart';
 import '../../models/ledger_display_item.dart';
 import '../../cloud/transactions_sync_manager.dart';
 import '../../cloud/sync_service.dart';
+import '../../cloud/sync/sync_engine.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
 import '../../utils/currencies.dart';
@@ -313,15 +314,27 @@ class _LedgersPageNewState extends ConsumerState<LedgersPageNew> {
       showToast(context, AppLocalizations.of(context).ledgersDownloading);
 
       final syncService = ref.read(syncServiceProvider);
-      if (syncService is! TransactionsSyncManager) {
+      if (syncService is SyncEngine) {
+        // BeeCount Cloud 路径（sync_changes 增量日志模型）：
+        // 1) syncLedgersFromServer 把账本行插到本地 Drift
+        // 2) replayAllChanges 从 cursor=0 重拉整段 sync_changes 并幂等应用，
+        //    把历史 tx/account/category/tag 挂到刚刚插好的新账本上
+        //
+        // 不走 `_fullPull`（整包 JSON 下载）—— 那是 S3/WebDAV 的玩法，BeeCount
+        // Cloud 的模型就是 sync_changes，所有恢复都应该走这条日志。apply 是
+        // 按 entity_sync_id upsert 幂等的，重放不会产生副本。
+        await syncService.syncLedgersFromServer();
+        await syncService.replayAllChanges();
+      } else if (syncService is TransactionsSyncManager) {
+        // 老的 Supabase 路径
+        await syncService.downloadRemoteLedger(
+          name: ledger.name,
+          currency: ledger.currency,
+          remotePath: 'ledger_${ledger.id}.json',
+        );
+      } else {
         throw Exception('Cloud sync not available');
       }
-
-      await syncService.downloadRemoteLedger(
-        name: ledger.name,
-        currency: ledger.currency,
-        remotePath: 'ledger_${ledger.id}.json',
-      );
 
       if (!mounted) return;
 
@@ -479,6 +492,11 @@ class _LedgersPageNewState extends ConsumerState<LedgersPageNew> {
     await PostProcessor.sync(ref, ledgerId: ledger.id);
 
     ref.read(ledgerListRefreshProvider.notifier).state++;
+    // 同时 invalidate currentLedgerProvider —— 它是 FutureProvider,只看
+    // currentLedgerIdProvider 变不变,名字改了但 id 没变 → 不会自动重跑,
+    // home 页 header 会继续显示旧名字。手动 invalidate 让 FutureProvider
+    // 下次读取时重取 Ledger row。
+    ref.invalidate(currentLedgerProvider);
   }
 
   /// 清空账本（删除所有账单，保留账本）
@@ -685,11 +703,29 @@ class _LedgersPageNewState extends ConsumerState<LedgersPageNew> {
       showToast(context, AppLocalizations.of(context).ledgersRestoring);
 
       final syncService = ref.read(syncServiceProvider);
-      if (syncService is! TransactionsSyncManager) {
+      int success = 0;
+      int failed = 0;
+      if (syncService is SyncEngine) {
+        // BeeCount Cloud 批量（sync_changes 日志模型）：
+        // 1) syncLedgersFromServer 把所有 remote-only ledger 插到本地
+        // 2) replayAllChanges 一次性从 cursor=0 重拉历史 sync_changes，apply
+        //    按 entity_sync_id 幂等 upsert，把所有账本的历史统一刷回来
+        // 不走 `_fullPull` 的 JSON snapshot 下载 —— 那是 S3/WebDAV 的模型。
+        await syncService.syncLedgersFromServer();
+        try {
+          await syncService.replayAllChanges();
+          success = remoteLedgers.length;
+        } catch (e, st) {
+          logger.warning('LedgersPage', '批量恢复远程账本失败: $e', st);
+          failed = remoteLedgers.length;
+        }
+      } else if (syncService is TransactionsSyncManager) {
+        final result = await syncService.restoreAllRemoteLedgers();
+        success = result.success;
+        failed = result.failed;
+      } else {
         throw Exception('Cloud sync not available');
       }
-
-      final result = await syncService.restoreAllRemoteLedgers();
 
       if (!mounted) return;
 
@@ -705,8 +741,8 @@ class _LedgersPageNewState extends ConsumerState<LedgersPageNew> {
         context,
         title: AppLocalizations.of(context).ledgersRestoreComplete,
         message: AppLocalizations.of(context).ledgersRestoreResult(
-          result.success,
-          result.failed,
+          success,
+          failed,
         ),
       );
     } catch (e) {

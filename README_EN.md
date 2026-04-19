@@ -4,13 +4,13 @@
 
 ![GitHub stars](https://img.shields.io/github/stars/TNT-Likely/BeeCount?style=social)
 ![License](https://img.shields.io/badge/license-Business%20Source%20License-orange.svg)
-![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-lightgrey.svg)
+![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-lightgrey.svg)
 ![Flutter](https://img.shields.io/badge/Flutter-3.27%2B-02569B?logo=flutter)
 ![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
 
 **Your Data, Your Control - Open Source Accounting App**
 
-**Core Advantage: iCloud/Supabase/WebDAV/S3 protocol servers - Your data, Your control**
+**Core Advantage: BeeCount Cloud self-hosted (real-time multi-device + Web) / iCloud / Supabase / WebDAV / S3 — Your data, Your control**
 
 <br/>
 
@@ -143,10 +143,11 @@ A lightweight, open-source, privacy-focused **personal finance management** and 
 
 | Solution | Best For | Features |
 |----------|----------|----------|
-| **iCloud** | iOS Users | 🆕 Zero config, native integration, seamless Apple ecosystem sync |
+| **BeeCount Cloud** | Users wanting real-time multi-device collaboration | 🆕 One-command Docker self-host + real-time sync across devices + built-in Web UI + multi-user |
+| **iCloud** | iOS Users | Zero config, native integration, seamless Apple ecosystem sync |
 | **Supabase** | Users without NAS | Free tier sufficient, easy setup, cloud-hosted |
 | **WebDAV** | Users with NAS | Fully localized data, supports Synology/UGREEN/Nextcloud |
-| **S3 Protocol** | Flexibility seekers | 🆕 Supports Cloudflare R2/AWS S3/MinIO, generous free tier |
+| **S3 Protocol** | Flexibility seekers | Supports Cloudflare R2/AWS S3/MinIO, generous free tier |
 
 **Why Self-Hosted?**
 
@@ -235,6 +236,115 @@ A lightweight, open-source, privacy-focused **personal finance management** and 
 - **Cost Control**: Most solutions offer free tiers or one-time purchase options
 - **Stable & Reliable**: No dependency on third-party hosting services, full control
 - **Flexible Choice**: Choose the most suitable solution based on your needs
+
+---
+
+### 🆕 BeeCount Cloud (Self-hosted sync + Web)
+
+**Use case**: Multi-device real-time collaboration (phone A + phone B + Web), ledger management in browser,
+users with NAS / VPS / Docker environment.
+
+**Key features**:
+
+- 📱 **Real-time multi-device sync**: phone A edits → phone B & Web see it within seconds (WebSocket push)
+- 🌐 **Built-in Web UI**: one Docker image = server + web, browser ready at server URL
+- 👥 **Multi-user isolation**: one server hosts multiple registered accounts with full data separation
+- 🔜 **Planned**: shared ledgers (invite family / team to a common ledger)
+- 🐳 **One-command deploy**: `docker-compose.yml` below is all you need
+- 🔒 **Fully open source**: server code at [BeeCount-Cloud](https://github.com/TNT-Likely/BeeCount-Cloud)
+
+**Deploy**:
+
+Save the following as `docker-compose.yml`:
+
+```yaml
+services:
+  beecount-cloud:
+    image: sunxiao0721/beecount-cloud:latest
+    restart: unless-stopped
+    ports:
+      - "8869:8080"
+    volumes:
+      - ./data:/data
+```
+
+Then:
+
+```bash
+docker compose up -d
+# View the first-boot admin credentials:
+docker compose logs beecount-cloud | grep -A 10 "admin"
+```
+
+You'll see something like:
+
+```
+ BeeCount Cloud — First boot. Admin account auto-created:
+
+   email:    owner@example.com
+   password: FIDodUnwprkw1zUi
+```
+
+With that account:
+
+- Browser → `http://<server-ip>:8869` for the **Web UI**
+- In the app, pick "BeeCount Cloud", fill in server URL + account, sign in
+
+**Add family / teammates**: Web admin → Users → Add User → tell them to sign in.
+Each user's data is isolated by default (shared ledgers coming in a future release).
+
+**Advanced config**:
+
+```yaml
+services:
+  beecount-cloud:
+    image: sunxiao0721/beecount-cloud:latest
+    restart: unless-stopped
+    ports:
+      - "8869:8080"
+    environment:
+      # Override the auto-generated admin:
+      BOOTSTRAP_ADMIN_EMAIL: me@example.com
+      BOOTSTRAP_ADMIN_PASSWORD: <your strong password>
+      # Override the auto-generated JWT secret at /data/.jwt_secret:
+      # JWT_SECRET: <32+ byte random string>
+    volumes:
+      - ./data:/data
+```
+
+> 💡 **Data location**: everything (SQLite DB + attachments + JWT secret) lives under `./data/`. Move / back up the dir to migrate.
+
+> 💡 **Public hosting**: put nginx / caddy in front for HTTPS + domain. The app and Web both accept `https://` URLs.
+
+**Web UI preview**:
+
+<div align="center">
+  <img src="demo/preview/web/en-01-home.png" alt="Web home" width="600" />
+  <br/>
+  <sub>💰 Home: income, expense, asset composition, category heatmap, trends — all on one page (dark mode)</sub>
+</div>
+
+<br/>
+
+<div align="center">
+  <img src="demo/preview/web/en-02-transactions.png" alt="Web transactions" width="600" />
+  <br/>
+  <sub>📒 Transaction list with keyword / category / account / date / tag filters</sub>
+</div>
+
+<br/>
+
+<div align="center">
+  <img src="demo/preview/web/en-03-devices.png" alt="Web devices" width="600" />
+  <br/>
+  <sub>📱 Devices page: admin sees all logged-in devices with last-active time + IP</sub>
+</div>
+
+> 💡 **PWA (Progressive Web App) support**: the Web UI is a PWA. Click the "Install" icon in the browser address bar
+> to pin the Web as a standalone app to your desktop / Dock / Start menu. It opens without the browser chrome and
+> feels close to native. Reads cached data while offline and resyncs when the network is back.
+
+[📖 Full details + code audit → BeeCount-Cloud repo](https://github.com/TNT-Likely/BeeCount-Cloud)
 
 ---
 
@@ -690,6 +800,7 @@ See [LICENSE](LICENSE) for details.
 
 | Repository | Description |
 |------------|-------------|
+| [BeeCount-Cloud](https://github.com/TNT-Likely/BeeCount-Cloud) | 🆕 Self-hosted sync server + Web UI (FastAPI + React) |
 | [BeeCount-Website](https://github.com/TNT-Likely/BeeCount-Website) | Website & Documentation |
 | [beecount-openharmony](https://github.com/TNT-Likely/beecount-openharmony) | HarmonyOS Version (Discontinued) |
 | [BeeShot](https://github.com/TNT-Likely/BeeShot) | App Store Screenshot Generator |

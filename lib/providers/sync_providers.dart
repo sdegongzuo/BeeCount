@@ -1,28 +1,39 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:ui' show Color;
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_cloud_sync/flutter_cloud_sync.dart' hide SyncStatus;
 import '../cloud/sync_service.dart';
+import '../cloud/sync/sync_engine.dart';
+import '../cloud/sync/sync_providers.dart' as sync_p;
 import '../cloud/transactions_sync_manager.dart';
 import '../models/ledger_display_item.dart';
-import '../data/repositories/base_repository.dart';
+import '../services/ai/ai_provider_manager.dart';
+import 'ai_config_providers.dart';
+import '../services/attachment_service.dart' show attachmentListRefreshProvider;
 import '../services/system/logger_service.dart';
+import '../services/ui/avatar_service.dart';
+import 'theme_providers.dart';
+import 'budget_providers.dart';
+import 'calendar_providers.dart';
 import 'database_providers.dart';
+import 'avatar_providers.dart';
+import 'tag_providers.dart';
 import 'ui_state_providers.dart';
 import 'statistics_providers.dart';
-import 'cloud_mode_providers.dart';
 
 // 同步状态（根据 ledgerId 与刷新 tick 缓存），避免因 UI 重建重复拉取
 final syncStatusProvider =
     FutureProvider.family<SyncStatus, int>((ref, ledgerId) async {
   final sync = ref.watch(syncServiceProvider);
   // 依赖 tick，使得手动刷新时重新获取；否则保持缓存
-  final refreshTick = ref.watch(syncStatusRefreshProvider);
-  print('🟢 [syncStatusProvider] 开始获取状态: ledgerId=$ledgerId, tick=$refreshTick');
+  ref.watch(syncStatusRefreshProvider);
+  ref.watch(syncStatusRefreshByLedgerProvider(ledgerId));
 
-  // 直接获取状态，不再清理缓存
-  // 缓存的清理由 markLocalChanged() 统一管理
   final status = await sync.getStatus(ledgerId: ledgerId);
-  print('🟢 [syncStatusProvider] 状态已获取: ledgerId=$ledgerId, diff=${status.diff}');
 
   // 写入最近一次成功值，供 UI 在刷新期间显示旧值，避免闪烁
   ref.read(lastSyncStatusProvider(ledgerId).notifier).state = status;
@@ -32,6 +43,19 @@ final syncStatusProvider =
 // 最近一次同步状态缓存（按 ledgerId）
 final lastSyncStatusProvider =
     StateProvider.family<SyncStatus?, int>((ref, ledgerId) => null);
+
+/// 同步代数计数器：每次 pull 把远端变更写入本地 Drift 之后 +1。
+/// 派生 Provider（首页交易列表/统计/账户等）watch 这个值，即可在增量同步
+/// 完成后重新运行，UI 不再读到旧缓存。
+///
+/// 为什么不直接 `ref.invalidate(watchTransactionsProvider)`：Supabase Realtime
+/// 通道绑在同一个 stream provider 上，invalidate 会把通道拆掉再建，反而更慢；
+/// 用一个独立 bump 计数器是最便宜的信号。
+final syncGenerationProvider = StateProvider<int>((ref) => 0);
+
+/// 最近一次同步错误信息（供 UI 状态栏展示）。
+/// PostProcessor / SyncEngine 的 catch 分支把错误写到这里，避免 silent swallow。
+final lastSyncErrorProvider = StateProvider<String?>((ref) => null);
 
 // 自动同步开关：值与设置
 final autoSyncValueProvider = FutureProvider.autoDispose<bool>((ref) async {
@@ -56,28 +80,6 @@ final autoSyncSetterProvider = Provider<AutoSyncSetter>((ref) {
   return AutoSyncSetter(ref);
 });
 
-// 多设备同步开关（默认关闭）
-final multiDeviceSyncProvider = FutureProvider.autoDispose<bool>((ref) async {
-  final prefs = await SharedPreferences.getInstance();
-  final link = ref.keepAlive();
-  ref.onDispose(() => link.close());
-  return prefs.getBool('multi_device_sync') ?? false;
-});
-
-class MultiDeviceSyncSetter {
-  MultiDeviceSyncSetter(this._ref);
-  final Ref _ref;
-  Future<void> set(bool v) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('multi_device_sync', v);
-    _ref.invalidate(multiDeviceSyncProvider);
-  }
-}
-
-final multiDeviceSyncSetterProvider = Provider<MultiDeviceSyncSetter>((ref) {
-  return MultiDeviceSyncSetter(ref);
-});
-
 // ====== 云服务配置 ======
 
 final cloudServiceStoreProvider =
@@ -94,6 +96,13 @@ final activeCloudConfigProvider =
 final supabaseConfigProvider = FutureProvider<CloudServiceConfig?>((ref) async {
   final store = ref.watch(cloudServiceStoreProvider);
   return store.loadSupabase();
+});
+
+// BeeCount Cloud 配置(不管是否激活)
+final beecountCloudConfigProvider =
+    FutureProvider<CloudServiceConfig?>((ref) async {
+  final store = ref.watch(cloudServiceStoreProvider);
+  return store.loadBeeCountCloud();
 });
 
 // WebDAV配置(不管是否激活)
@@ -131,50 +140,533 @@ final authServiceProvider = FutureProvider<CloudAuthService>((ref) async {
   return NoopAuthService();
 });
 
+// 防重入锁：避免 Provider 重建导致多个自动同步并发执行
+bool _autoSyncInProgress = false;
+
 final syncServiceProvider = Provider<SyncService>((ref) {
   final activeAsync = ref.watch(activeCloudConfigProvider);
   if (!activeAsync.hasValue) return LocalOnlySyncService();
 
   final config = activeAsync.value!;
-  if (!config.valid) return LocalOnlySyncService();
-
-  // 检查是否为云端模式
-  final mode = ref.watch(appModeProvider);
-  if (mode == AppMode.cloud) {
-    // 云端模式下，不使用云同步服务（数据直接存储在 Supabase）
-    logger.info('SyncServiceProvider', '云端模式：返回 LocalOnlySyncService（云端模式不需要同步）');
+  if (!config.valid || config.type == CloudBackendType.local) {
     return LocalOnlySyncService();
   }
 
+  // BeeCount Cloud → SyncEngine（增量同步）
+  if (config.type == CloudBackendType.beecountCloud) {
+    final providerAsync = ref.watch(beecountCloudProviderInstance);
+    if (!providerAsync.hasValue || providerAsync.value == null) {
+      // Provider 尚未初始化，返回 LocalOnly 等待
+      return LocalOnlySyncService();
+    }
+    final cloudProvider = providerAsync.value!;
+    final db = ref.watch(databaseProvider);
+    final tracker = ref.watch(sync_p.changeTrackerProvider);
+    final repo = ref.watch(repositoryProvider);
+    final engine = SyncEngine(
+      db: db,
+      provider: cloudProvider,
+      changeTracker: tracker,
+      repo: repo,
+    );
+
+    // 开始监听 WebSocket 实时事件，自动触发 pull
+    engine.onAutoPullCompleted = (ledgerId) {
+      // pull 完成把远端变更落到 Drift 之后，把所有"UI 刷新 tick" 全部 +1，
+      // 这样各领域既有的 refresh 机制就能自然触发下游 FutureProvider 重算；
+      // syncGenerationProvider 作为总 bump，覆盖后续新增但没有单独 tick 的。
+      ref.read(syncStatusRefreshProvider.notifier).state++;
+      ref.read(ledgerListRefreshProvider.notifier).state++;
+      ref.read(syncGenerationProvider.notifier).state++;
+      ref.read(statsRefreshProvider.notifier).state++;
+      ref.read(budgetRefreshProvider.notifier).state++;
+      ref.read(tagListRefreshProvider.notifier).state++;
+      ref.read(calendarRefreshProvider.notifier).state++;
+      // 附件计数 / 列表的 tick：TransactionList 用它重新 _loadAttachmentCounts，
+      // 另一端删除 / 新增的附件就能在对端实时反映，不需要重启 app。
+      ref.read(attachmentListRefreshProvider.notifier).state++;
+      // 关键：把首页的"预加载交易详情"模式切掉。否则 Drift 里 tx 的 accountId
+      // 已经更新，但 TransactionList 还在用 Splash 阶段 cache 住的 accountName
+      // —— UI 看起来就是"pull 到了但没刷新"。
+      ref.read(homeSwitchToStreamProvider.notifier).state++;
+      ref.read(cachedTransactionsProvider.notifier).state = null;
+      // SyncEngine.sync 结束时会顺带拉一次头像；这里 bump 让 Mine 页面的
+      // avatarPathProvider 重新读取本地路径，新下来的头像立刻显示。
+      ref.read(avatarRefreshProvider.notifier).state++;
+    };
+    // 让 SyncEngine 在 WS 重连 / 网络恢复触发 auto sync 时能拿到当前 ledgerId
+    engine.ledgerIdResolver = () {
+      final id = ref.read(currentLedgerIdProvider);
+      return id > 0 ? id.toString() : '';
+    };
+
+    // 外观 / 主题色 / 收支配色从 server 拉下来后落到 Riverpod state +
+    // SharedPreferences。值跟当前相同就不设,避免循环触发 ref.listen push。
+    engine.onThemeColorApplied = (hex) {
+      _applyThemeColorFromServer(ref, hex);
+    };
+    engine.onIncomeColorApplied = (incomeIsRed) {
+      _applyIncomeColorFromServer(ref, incomeIsRed);
+    };
+    engine.onAppearanceApplied = (appearance) {
+      _applyAppearanceFromServer(ref, appearance);
+    };
+    engine.onAiConfigApplied = (aiConfig) {
+      unawaited(() async {
+        // 先把 server 下来的配置落到 SharedPreferences。
+        await AIProviderManager.applyFromServer(aiConfig);
+        // 然后把 UI 层的 Provider 全部 bump/invalidate 一遍,让 AI 设置
+        // 页、能力绑定卡片、服务商列表都能从新 prefs 读最新值重新渲染。
+        // 不手动 bump 的话,Riverpod 不知道 prefs 写进来了,UI 停在旧状态
+        // 直到用户手动重启 / 切页面才重读。
+        try {
+          ref.read(aiCapabilityBindingRefreshProvider.notifier).state++;
+          ref.read(aiProviderListForCapabilityRefreshProvider.notifier).state++;
+          // aiConfigProvider 是 StateNotifierProvider,notifier 里的 state
+          // 在构造时从 prefs 读一次后就不再管。invalidate 让 notifier 重建,
+          // 触发 _loadFromPrefs 重新拉新值。
+          ref.invalidate(aiConfigProvider);
+        } catch (e, st) {
+          logger.warning('CloudSync', 'AI 配置 apply 后 UI bump 失败: $e', st);
+        }
+      }());
+    };
+
+    // AI 配置变更时推到 server。包含 providers / binding / custom_prompt /
+    // strategy 等;调用在 AIProviderManager 的 save 点。
+    AIProviderManager.onConfigChanged = () {
+      unawaited(() async {
+        try {
+          final cloud = await ref.read(beecountCloudProviderInstance.future);
+          if (cloud == null) return;
+          final snapshot = await AIProviderManager.snapshotForSync();
+          await cloud.updateMyProfileAiConfig(aiConfig: snapshot);
+          logger.info('CloudSync', 'AI 配置已推送到 server');
+        } catch (e, st) {
+          logger.warning(
+              'CloudSync', 'AI 配置推送失败 (non-blocking): $e', st);
+        }
+      }());
+    };
+
+    engine.startListeningRealtime();
+
+    // 监听网络连接状态：从"无网"恢复时触发一次 sync 把离线累积的
+    // local_changes 推出去。SyncEngine 内部有 2 秒防抖，WS 重连和 connectivity
+    // 恢复几乎同时命中时最终只会触发 1 次 sync。
+    Timer? connectivityDebounce;
+    final connectivitySubscription =
+        Connectivity().onConnectivityChanged.listen((results) {
+      final online = results.any((r) => r != ConnectivityResult.none);
+      if (!online) {
+        logger.info('SyncProvider', 'connectivity 变为离线, 不触发 sync');
+        return;
+      }
+      // 这里也加一层防抖：WiFi ↔ 移动网络快速切换时 OS 会连打多条事件。
+      connectivityDebounce?.cancel();
+      connectivityDebounce = Timer(const Duration(milliseconds: 500), () {
+        logger.info('SyncProvider', 'connectivity 恢复, 触发 auto sync');
+        engine.triggerAutoSync(reason: 'connectivity_restored');
+      });
+    });
+
+    // 当 Provider 被销毁时停止监听
+    ref.onDispose(() {
+      connectivityDebounce?.cancel();
+      connectivitySubscription.cancel();
+      engine.dispose();
+    });
+
+    // Profile（含头像）同步和 ledger 同步解耦：新设备首次登录时，用户可能还
+    // 没有任何 ledger，`engine.sync(ledgerId)` 因此会被短路，之前的头像同步
+    // 代码夹在 sync() 内部永远跑不到。这里直接 fire-and-forget 拉一次 profile。
+    // pull 完成后调一次 reconcileProfileToServer,把"server 上缺而本地有"的
+    // 字段补推上去(theme / income / appearance / ai_config) —— 用户之前
+    // 一直用 A,升级到带同步的版本时本地早就有配置,server 却是空的。
+    Future(() async {
+      final changed = await engine.syncMyProfile();
+      if (changed) {
+        ref.read(avatarRefreshProvider.notifier).state++;
+      }
+      await reconcileProfileToServer(
+        cloudProviderFuture: ref.read(beecountCloudProviderInstance.future),
+        currentThemeColor: ref.read(primaryColorProvider),
+        currentIncomeIsRed: ref.read(incomeExpenseColorSchemeProvider),
+        currentHeaderStyle: ref.read(headerDecorationStyleProvider),
+        currentCompactAmount: ref.read(compactAmountProvider),
+        currentShowTransactionTime: ref.read(showTransactionTimeProvider),
+      );
+    });
+
+    // Bootstrap 串行：必须等 `syncLedgersFromServer` 完成（把 A 的账本 2/3/…
+    // 插入到 B 本地 ledgers 表）之后，再触发 `engine.sync()` 的 pull。否则
+    // pull 到的 tx change 里的 ledger_id 在 B 本地还找不到对应的 ledger 行，
+    // 就会被 fallback 成错位的 int id，导致"A 的账本 2 历史交易拉到 B 后
+    // 挂到错位或不存在的账本"。
+    final currentLedgerId = ref.read(currentLedgerIdProvider);
+    logger.info('SyncProvider', 'SyncEngine 就绪, ledgerId=$currentLedgerId');
+    if (currentLedgerId > 0 && !_autoSyncInProgress) {
+      _autoSyncInProgress = true;
+      Future(() async {
+        try {
+          // Step 1: 先拉账本列表，保证所有 A 的账本已经在 B 本地落库
+          int newLedgerCount = 0;
+          try {
+            newLedgerCount = await engine.syncLedgersFromServer();
+            if (newLedgerCount > 0) {
+              ref.read(ledgerListRefreshProvider.notifier).state++;
+              logger.info(
+                  'SyncProvider', '从 server 拉回 $newLedgerCount 个新账本');
+            }
+          } catch (e, st) {
+            logger.warning(
+                'SyncProvider', 'syncLedgersFromServer 失败: $e', st);
+          }
+
+          // Step 1.5: 如果有新账本插进来，要从 cursor=0 把 sync_changes 重放
+          // 一遍。否则 B 设备的全局 cursor 可能已经被早期 pull 推到顶，增量
+          // `_pull` 再也拿不回这些账本的历史 tx/category/account。
+          // BeeCount Cloud 的 apply 是按 entity_sync_id upsert 幂等的，重放
+          // 安全。
+          if (newLedgerCount > 0) {
+            try {
+              final replayed = await engine.replayAllChanges();
+              logger.info(
+                  'SyncProvider', '重放 sync_changes 应用 $replayed 条历史变更');
+            } catch (e, st) {
+              logger.warning(
+                  'SyncProvider', 'replayAllChanges 失败: $e', st);
+            }
+          }
+
+          // Step 2: 账本就绪后再跑全量同步。sync() 的 pull 里每条 tx change
+          // 都能按 ledger_sync_id / 本地 id fallback 正确映射。
+          logger.info('SyncProvider', '开始自动同步 ledger=$currentLedgerId');
+          final result = await engine.sync(ledgerId: currentLedgerId.toString());
+          if (result.hasError) {
+            logger.error('SyncProvider', '自动同步返回错误: ${result.error}');
+          } else {
+            logger.info('SyncProvider', '自动同步成功: pushed=${result.pushed}, pulled=${result.pulled}');
+          }
+          ref.read(syncStatusRefreshProvider.notifier).state++;
+          ref.read(ledgerListRefreshProvider.notifier).state++;
+          ref.read(syncGenerationProvider.notifier).state++;
+          ref.read(statsRefreshProvider.notifier).state++;
+          ref.read(budgetRefreshProvider.notifier).state++;
+          ref.read(tagListRefreshProvider.notifier).state++;
+          ref.read(calendarRefreshProvider.notifier).state++;
+          ref.read(homeSwitchToStreamProvider.notifier).state++;
+          ref.read(cachedTransactionsProvider.notifier).state = null;
+          ref.read(avatarRefreshProvider.notifier).state++;
+          ref.read(lastSyncErrorProvider.notifier).state = null;
+        } catch (e, st) {
+          logger.error('SyncProvider', '自动同步异常', e, st);
+          ref.read(lastSyncErrorProvider.notifier).state = e.toString();
+        } finally {
+          _autoSyncInProgress = false;
+        }
+      });
+    } else if (currentLedgerId > 0 && _autoSyncInProgress) {
+      logger.info('SyncProvider', '自动同步已在执行中，跳过重复触发');
+    } else {
+      // 没有 current ledger（一般不会发生）。单独拉一次账本列表兜底。
+      Future(() async {
+        try {
+          final inserted = await engine.syncLedgersFromServer();
+          if (inserted > 0) {
+            ref.read(ledgerListRefreshProvider.notifier).state++;
+            logger.info('SyncProvider', '从 server 拉回 $inserted 个新账本');
+          }
+        } catch (e, st) {
+          logger.warning(
+              'SyncProvider', 'syncLedgersFromServer 失败: $e', st);
+        }
+      });
+    }
+
+    return engine;
+  }
+
+  // 其他 provider → TransactionsSyncManager（快照同步）
   final db = ref.watch(databaseProvider);
   final repo = ref.watch(repositoryProvider);
+  return TransactionsSyncManager(config: config, db: db, repo: repo);
+});
 
-  // 确保 repo 是 BaseRepository 类型
-  if (repo is! BaseRepository) {
-    logger.warning('SyncServiceProvider', 'repo 不是 BaseRepository 类型，返回 LocalOnlySyncService');
-    return LocalOnlySyncService();
+/// 已初始化的 BeeCountCloudProvider 实例
+/// 用于 SyncEngine 和其他需要直接访问 BeeCount Cloud API 的场景
+final beecountCloudProviderInstance =
+    FutureProvider<BeeCountCloudProvider?>((ref) async {
+  final configAsync = ref.watch(activeCloudConfigProvider);
+  if (!configAsync.hasValue) return null;
+
+  final config = configAsync.value!;
+  if (!config.valid || config.type != CloudBackendType.beecountCloud) {
+    return null;
   }
 
-  switch (config.type) {
-    case CloudBackendType.local:
-      return LocalOnlySyncService();
+  try {
+    final services = await createCloudServices(config);
+    if (services.provider is! BeeCountCloudProvider) return null;
+    final provider = services.provider as BeeCountCloudProvider;
 
-    case CloudBackendType.supabase:
-    case CloudBackendType.webdav:
-    case CloudBackendType.icloud:
-    case CloudBackendType.s3:
-      // 使用新的 TransactionsSyncManager (基于 flutter_cloud_sync 包)
-      // 采用延迟初始化，首次使用时自动初始化
-      return TransactionsSyncManager(
-        config: config,
-        db: db,
-        repo: repo,
+    final email = config.beecountCloudEmail;
+    final password = config.beecountCloudPassword;
+
+    // 把邮密交给 auth service,让它在任何时刻发现 session 失效都能自动重登。
+    // 这是解决"token 过期后必须到配置页点一下才能恢复"的关键:auth service
+    // 内部会在 currentUser / requireAccessToken 触发时尝试恢复,不再等 Provider
+    // 重建。
+    if (services.auth is BeeCountCloudAuthService) {
+      (services.auth as BeeCountCloudAuthService).setRecoveryCredentials(
+        email: email,
+        password: password,
       );
+    }
+
+    // 双重保险:构造之后也触发一次 currentUser,让 initialize() 没恢复出
+    // session 的场景立刻走一次恢复登录(email+password 有时),减少用户第一次
+    // 操作时的卡顿感。currentUser 内部已经自带 _tryRecoveryLogin。
+    if (services.auth != null) {
+      try {
+        final user = await services.auth!.currentUser;
+        if (user != null) {
+          logger.info('CloudSync', 'BeeCount Cloud session ready: ${user.email}');
+        } else if (email != null && email.isNotEmpty) {
+          logger.info('CloudSync', 'BeeCount Cloud 未登录,等首次 API 触发恢复');
+        }
+      } catch (e, st) {
+        logger.warning('CloudSync', 'BeeCount Cloud 初始 currentUser 失败: $e', st);
+      }
+    }
+    return provider;
+  } catch (e, st) {
+    logger.error('CloudSync', 'BeeCountCloudProvider 初始化失败', e, st);
+  }
+  return null;
+});
+
+/// BeeCount Cloud 服务端版本号。拉一次后 keepAlive,Mine 页面 / 云同步页
+/// 都能直接用;失败就 null,UI 自己隐藏。非 BeeCount Cloud 模式直接 null。
+final beecountCloudServerVersionProvider =
+    FutureProvider<String?>((ref) async {
+  final cloud = await ref.watch(beecountCloudProviderInstance.future);
+  if (cloud == null) return null;
+  try {
+    final v = await cloud.fetchServerVersion();
+    return v.version.isEmpty ? null : v.version;
+  } catch (_) {
+    return null;
   }
 });
 
+/// 双向对齐 profile:server 上缺失但本地有的字段,把本地推上去。
+/// 解决"用户一直在用 A,但 AI 配置 / 主题 / 外观早就设好了,server 从未收到过"
+/// 这个"初次开启跨设备同步时对端啥都没有"的坑。
+///
+/// 运行时机:
+///   1. Bootstrap 完成 syncMyProfile 之后 —— 首次开启云同步,自动推上去
+///   2. 云同步页下拉深度检测时 —— 用户手动触发,也做一次对账
+///
+/// 规则:只推 server 为空但本地非默认的字段。不强制覆盖 —— 如果双方都有值,
+/// 以 server 为权威(syncMyProfile 里的 apply 已经把 server 值落到本地了)。
+///
+/// 参数 [read] 接受 Ref.read 或 WidgetRef.read(两者签名相同,共用实现),
+/// 这样 bootstrap FutureProvider 和 UI 下拉刷新都能调。
+Future<void> reconcileProfileToServer({
+  required Future<BeeCountCloudProvider?> cloudProviderFuture,
+  required Color currentThemeColor,
+  required bool currentIncomeIsRed,
+  required String currentHeaderStyle,
+  required bool currentCompactAmount,
+  required bool currentShowTransactionTime,
+}) async {
+  try {
+    final cloud = await cloudProviderFuture;
+    if (cloud == null) return;
+    final profile = await cloud.getMyProfile();
+
+    // theme_primary_color
+    if (profile.themePrimaryColor == null ||
+        profile.themePrimaryColor!.isEmpty) {
+      try {
+        // ignore: deprecated_member_use
+        final hex =
+            '#${currentThemeColor.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+        await cloud.updateMyProfileThemeColor(hex: hex);
+        logger.info('CloudSync', 'reconcile: pushed theme_primary_color=$hex');
+      } catch (e, st) {
+        logger.warning('CloudSync', 'reconcile theme 推送失败: $e', st);
+      }
+    }
+
+    // income_is_red
+    if (profile.incomeIsRed == null) {
+      try {
+        await cloud.updateMyProfileIncomeColorScheme(
+            incomeIsRed: currentIncomeIsRed);
+        logger.info('CloudSync',
+            'reconcile: pushed income_is_red=$currentIncomeIsRed');
+      } catch (e, st) {
+        logger.warning('CloudSync', 'reconcile income 推送失败: $e', st);
+      }
+    }
+
+    // appearance
+    if (profile.appearance == null || profile.appearance!.isEmpty) {
+      try {
+        final appearance = <String, dynamic>{
+          'header_decoration_style': currentHeaderStyle,
+          'compact_amount': currentCompactAmount,
+          'show_transaction_time': currentShowTransactionTime,
+        };
+        await cloud.updateMyProfileAppearance(appearance: appearance);
+        logger.info('CloudSync', 'reconcile: pushed appearance=$appearance');
+      } catch (e, st) {
+        logger.warning('CloudSync', 'reconcile appearance 推送失败: $e', st);
+      }
+    }
+
+    // ai_config
+    if (profile.aiConfig == null || profile.aiConfig!.isEmpty) {
+      try {
+        final snapshot = await AIProviderManager.snapshotForSync();
+        // 只在本地有实际内容时推 —— 新用户 providers 里只有默认 GLM 且
+        // apiKey 为空,推上去也是空壳子,跳过避免污染。
+        final providers = snapshot['providers'] as List? ?? const [];
+        final hasAnyValidProvider = providers.any((p) =>
+            p is Map && (p['apiKey'] as String?)?.isNotEmpty == true);
+        if (hasAnyValidProvider) {
+          await cloud.updateMyProfileAiConfig(aiConfig: snapshot);
+          logger.info('CloudSync',
+              'reconcile: pushed ai_config (providers=${providers.length})');
+        }
+      } catch (e, st) {
+        logger.warning('CloudSync', 'reconcile ai_config 推送失败: $e', st);
+      }
+    }
+
+    // avatar —— 首次上传的坑:老用户本地早就有头像,但 server 上是空的,
+    // 之前 reconcile 完全没碰头像逻辑,只 syncMyProfile 里单向下载。
+    // 规则:server 没 avatarUrl 且本地存在 avatar 文件 → 上传。避免覆盖 server
+    // 更新的头像(server 有就跳过,以 server 为权威)。
+    if (profile.avatarUrl == null || profile.avatarUrl!.isEmpty) {
+      try {
+        final localPath = await AvatarService.getAvatarPath();
+        if (localPath != null && await File(localPath).exists()) {
+          final bytes = await File(localPath).readAsBytes();
+          if (bytes.isNotEmpty) {
+            final fileName = localPath.split('/').last;
+            final mimeType = fileName.toLowerCase().endsWith('.png')
+                ? 'image/png'
+                : 'image/jpeg';
+            final result = await cloud.uploadMyAvatar(
+              bytes: bytes,
+              fileName: fileName,
+              mimeType: mimeType,
+            );
+            await AvatarService.setStoredRemoteVersion(result.avatarVersion);
+            logger.info('CloudSync',
+                'reconcile: pushed avatar server_version=${result.avatarVersion}');
+          }
+        }
+      } catch (e, st) {
+        logger.warning('CloudSync', 'reconcile avatar 推送失败: $e', st);
+      }
+    }
+  } catch (e, st) {
+    logger.warning('CloudSync', 'reconcileProfileToServer 失败: $e', st);
+  }
+}
+
+// ==================== /profile/me 拉下来的值回写本地的工具函数 ====================
+//
+// 下面三个函数都由 SyncEngine 的 onThemeColorApplied / onIncomeColorApplied /
+// onAppearanceApplied 回调触发:先比对当前值,不同才写。写 Riverpod state 会
+// 触发 theme_providers 里的 ref.listen,那段 listener 原本会推送回 server ——
+// "写了相同值不再触发" 的保证由 Riverpod 自己给,StateProvider 收到相同值不
+// 会 notify。所以只要我们正确跳过"相同值",就不会产生 echo 循环。
+
+void _applyThemeColorFromServer(Ref ref, String hex) {
+  try {
+    final normalized = hex.startsWith('#') ? hex : '#$hex';
+    final code = int.tryParse(normalized.substring(1), radix: 16);
+    if (code == null) return;
+    final currentColor = ref.read(primaryColorProvider);
+    final nextColor = Color(0xFF000000 | code);
+    // ignore: deprecated_member_use
+    if (currentColor.value == nextColor.value) return;
+    ref.read(primaryColorProvider.notifier).state = nextColor;
+    logger.info('profile_sync', 'applied theme_primary_color from server: $normalized');
+  } catch (e, st) {
+    logger.warning('profile_sync', 'apply theme color failed: $e', st);
+  }
+}
+
+void _applyIncomeColorFromServer(Ref ref, bool incomeIsRed) {
+  final current = ref.read(incomeExpenseColorSchemeProvider);
+  if (current == incomeIsRed) return;
+  ref.read(incomeExpenseColorSchemeProvider.notifier).state = incomeIsRed;
+  logger.info('profile_sync', 'applied income_is_red from server: $incomeIsRed');
+}
+
+void _applyAppearanceFromServer(Ref ref, Map<String, dynamic> appearance) {
+  final headerStyle = appearance['header_decoration_style'] as String?;
+  if (headerStyle != null && headerStyle.isNotEmpty) {
+    final current = ref.read(headerDecorationStyleProvider);
+    if (current != headerStyle) {
+      ref.read(headerDecorationStyleProvider.notifier).state = headerStyle;
+    }
+  }
+  final compact = appearance['compact_amount'] as bool?;
+  if (compact != null) {
+    final current = ref.read(compactAmountProvider);
+    if (current != compact) {
+      ref.read(compactAmountProvider.notifier).state = compact;
+    }
+  }
+  final showTime = appearance['show_transaction_time'] as bool?;
+  if (showTime != null) {
+    final current = ref.read(showTransactionTimeProvider);
+    if (current != showTime) {
+      ref.read(showTransactionTimeProvider.notifier).state = showTime;
+    }
+  }
+  logger.info('profile_sync', 'applied appearance from server: $appearance');
+}
+
 // 用于触发设置页同步状态的刷新（每次 +1 即可触发 FutureBuilder 重新获取）
 final syncStatusRefreshProvider = StateProvider<int>((ref) => 0);
+
+/// 按账本触发同步状态刷新（用于远端增量拉取后的局部刷新）
+final syncStatusRefreshByLedgerProvider =
+    StateProvider.family<int, int>((ref, _) => 0);
+
+/// 按账本触发页面数据刷新（减少全局刷新带来的闪烁）
+final ledgerDataRefreshByLedgerProvider =
+    StateProvider.family<int, int>((ref, _) => 0);
+
+/// 按账本记录"远端变更应用中"状态，用于页面局部防闪渲染
+final remoteApplyInProgressByLedgerProvider =
+    StateProvider.family<bool, int>((ref, _) => false);
+
+/// 待重试的头像上传本地路径
+final pendingAvatarUploadPathProvider = StateProvider<String?>((ref) => null);
+
+/// 最近一次头像上传失败信息（用于云同步页提示）
+final pendingAvatarUploadErrorProvider = StateProvider<String?>((ref) => null);
+
+/// 当前用户云端资料
+final cloudMyProfileProvider =
+    FutureProvider<BeeCountCloudProfile?>((ref) async {
+  ref.watch(syncStatusRefreshProvider);
+  final config = await ref.watch(activeCloudConfigProvider.future);
+  if (!config.valid || config.type != CloudBackendType.beecountCloud) {
+    return null;
+  }
+  // TODO(cloud-v2): 在 Phase 2 通过 SyncEngine 获取用户资料
+  return null;
+});
 
 // ====== 账本同步相关 ======
 
@@ -185,37 +677,23 @@ final ledgerListRefreshProvider = StateProvider<int>((ref) => 0);
 final uploadingLedgerIdsProvider = StateProvider<Set<int>>((ref) => {});
 
 /// 本地账本列表（快速，仅本地）
-final localLedgersProvider = FutureProvider<List<LedgerDisplayItem>>((ref) async {
+final localLedgersProvider =
+    FutureProvider<List<LedgerDisplayItem>>((ref) async {
   // 监听刷新触发器（账本列表和统计信息）
   ref.watch(ledgerListRefreshProvider);
-  ref.watch(statsRefreshProvider);  // 监听统计刷新，确保自动记账后刷新
+  ref.watch(statsRefreshProvider); // 监听统计刷新，确保自动记账后刷新
 
   try {
-    // 使用 syncServiceProvider，TransactionsSyncManager 现在包含账本管理功能
-    final syncService = ref.watch(syncServiceProvider);
-
-    // 获取账户功能开启状态
-    final accountFeatureEnabled = await ref.watch(accountFeatureEnabledProvider.future);
-
-    // syncServiceProvider 是同步的，直接使用
-    if (syncService is TransactionsSyncManager) {
-      return syncService.getLocalLedgers(accountFeatureEnabled: accountFeatureEnabled);
-    }
-
-    // 如果是 LocalOnlySyncService，只返回本地账本
     final repo = ref.watch(repositoryProvider);
 
-    // 确保 repo 是 BaseRepository 类型
-    if (repo is! BaseRepository) {
-      logger.warning('LocalLedgers', 'Repository 类型不是 BaseRepository: ${repo.runtimeType}');
-      return [];
-    }
+    // 获取账户功能开启状态
+    final accountFeatureEnabled =
+        await ref.watch(accountFeatureEnabledProvider.future);
 
     final localLedgers = await repo.getAllLedgers();
 
     final result = <LedgerDisplayItem>[];
     for (final ledger in localLedgers) {
-      // 使用 getLedgerStats 一次性获取余额和交易数，内部会自动查询 transactions
       final stats = await repo.getLedgerStats(
         ledgerId: ledger.id,
         accountFeatureEnabled: accountFeatureEnabled,
@@ -239,20 +717,68 @@ final localLedgersProvider = FutureProvider<List<LedgerDisplayItem>>((ref) async
 });
 
 /// 远程账本列表（慢速，网络请求）
-final remoteLedgersProvider = FutureProvider<List<LedgerDisplayItem>>((ref) async {
+///
+/// 调用 BeeCount Cloud 的 `/read/ledgers` 取 server 上当前用户所有账本，再
+/// 跟本地 Drift ledgers 表按 `syncId` 对齐，把**已经在本地存在**的那部分过滤
+/// 掉，只把**纯远程**的账本作为 remote-only 展示在账本页。
+///
+/// 这样自动 bootstrap 拉不下来的账本（网络抖动 / 竞态 / 后续新建等），
+/// 用户点一下列表里的 "远程账本" 就能手动恢复。
+final remoteLedgersProvider =
+    FutureProvider<List<LedgerDisplayItem>>((ref) async {
   // 监听刷新触发器
   ref.watch(ledgerListRefreshProvider);
 
-  // 使用 syncServiceProvider
-  final syncService = ref.watch(syncServiceProvider);
-
-  // 只有 TransactionsSyncManager 才有远程账本
-  if (syncService is TransactionsSyncManager) {
-    return syncService.getRemoteLedgers();
+  final activeAsync = ref.watch(activeCloudConfigProvider);
+  if (!activeAsync.hasValue) return const [];
+  final config = activeAsync.value!;
+  if (!config.valid || config.type != CloudBackendType.beecountCloud) {
+    return const [];
   }
 
-  // LocalOnlySyncService 没有远程账本
-  return [];
+  final providerAsync = ref.watch(beecountCloudProviderInstance);
+  if (!providerAsync.hasValue || providerAsync.value == null) {
+    return const [];
+  }
+  final cloudProvider = providerAsync.value!;
+
+  // 未登录不查（readLedgers 会 401）
+  try {
+    final user = await cloudProvider.auth.currentUser;
+    if (user == null) return const [];
+  } catch (_) {
+    return const [];
+  }
+
+  try {
+    final remote = await cloudProvider.readLedgers();
+
+    // 本地已有的 syncId 集合，用来过滤掉"已下载过"的账本
+    final repo = ref.read(repositoryProvider);
+    final localLedgers = await repo.getAllLedgers();
+    final localSyncIds = <String>{
+      for (final l in localLedgers)
+        if (l.syncId != null && l.syncId!.isNotEmpty) l.syncId!,
+    };
+
+    final out = <LedgerDisplayItem>[];
+    for (final r in remote) {
+      if (r.ledgerId.isEmpty) continue;
+      if (localSyncIds.contains(r.ledgerId)) continue;
+      out.add(LedgerDisplayItem.fromRemote(
+        remoteSyncId: r.ledgerId,
+        name: r.ledgerName.isEmpty ? '(unnamed)' : r.ledgerName,
+        currency: r.currency,
+        updatedAt: r.updatedAt ?? DateTime.now(),
+        transactionCount: r.transactionCount,
+        balance: r.incomeTotal - r.expenseTotal,
+      ));
+    }
+    return out;
+  } catch (e, st) {
+    logger.warning('SyncProvider', 'remoteLedgersProvider: readLedgers 失败: $e', st);
+    return const [];
+  }
 });
 
 /// 账本列表（带刷新支持）- 兼容旧代码
@@ -261,31 +787,14 @@ final allLedgersProvider = FutureProvider<List<LedgerDisplayItem>>((ref) async {
   ref.watch(ledgerListRefreshProvider);
 
   try {
-    // 使用 syncServiceProvider，TransactionsSyncManager 现在包含账本管理功能
-    final syncService = ref.watch(syncServiceProvider);
-
-    // syncServiceProvider 是同步的，直接使用
-    if (syncService is TransactionsSyncManager) {
-      return syncService.getAllLedgers();
-    }
-
-    // 如果是 LocalOnlySyncService，只返回本地账本
     final repo = ref.watch(repositoryProvider);
-
-    // 确保 repo 是 BaseRepository 类型
-    if (repo is! BaseRepository) {
-      logger.warning('AllLedgers', 'Repository 类型不是 BaseRepository: ${repo.runtimeType}');
-      return [];
-    }
-
     final localLedgers = await repo.getAllLedgers();
 
     final result = <LedgerDisplayItem>[];
     for (final ledger in localLedgers) {
-      // 使用 Repository 的 getLedgerStats 方法获取统计数据
       final stats = await repo.getLedgerStats(
         ledgerId: ledger.id,
-        accountFeatureEnabled: false, // 这里使用默认值，实际应该从provider读取
+        accountFeatureEnabled: false,
       );
 
       result.add(LedgerDisplayItem.fromLocal(

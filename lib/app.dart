@@ -16,7 +16,10 @@ import 'l10n/app_localizations.dart';
 import 'widget/widget_manager.dart';
 import 'widgets/ui/ui.dart';
 import 'widgets/ui/speed_dial_fab.dart';
+import 'cloud/sync_service.dart';
 import 'cloud/transactions_sync_manager.dart';
+import 'cloud/sync/sync_engine.dart';
+import 'providers/sync_providers.dart' as sp;
 import 'utils/voice_billing_helper.dart';
 import 'utils/image_billing_helper.dart';
 import 'services/ai/ai_constants.dart';
@@ -128,18 +131,90 @@ class _BeeAppState extends ConsumerState<BeeApp>
     logger.info('AppLink', 'BeeApp: AppLink 监听已设置');
   }
 
-  /// 后台刷新账本同步状态
+  /// 后台刷新账本同步状态 / 触发首次同步
+  ///
+  /// 坑点：syncServiceProvider 只在 cloud_sync_page 里被 watch。重启 app 后
+  /// 这里是一次 ref.read，等 beecountCloudProviderInstance 异步就绪再重建时没有
+  /// 监听者，provider 内部的 auto-sync 块永远跑不到 —— 用户看到"app 启动没同步本地
+  /// 数据到 BeeCount Cloud"。这里 listenManual 保持 provider 活跃，并在它从占位
+  /// 对象变成真正的 SyncEngine 时主动触发一次 sync。
   void _refreshLedgersStatusInBackground() {
+    // 冷启动时先 eager-await beecountCloudProviderInstance 一次，强制让这个
+    // FutureProvider 真正跑起来。否则只是"被定义"但没人读，
+    // BeeCountCloudAuthService.initialize() 永远不会跑，session 不会从
+    // SharedPreferences 恢复 —— 就是之前用户感受到的"必须打开配置保存才会
+    // 登录"bug 的根因。后面的 listenManual 再做后续响应式逻辑。
+    Future.microtask(() async {
+      try {
+        await ref.read(sp.beecountCloudProviderInstance.future);
+      } catch (_) {
+        // 非 BeeCount Cloud 配置或初始化失败：忽略，让下面的 listenManual 兜住。
+      }
+    });
+
     Future.microtask(() async {
       try {
         final syncService = ref.read(syncServiceProvider);
         if (syncService is TransactionsSyncManager) {
           await syncService.refreshAllLedgersStatus();
-          // 刷新完成后触发账本列表更新
           ref.read(ledgerListRefreshProvider.notifier).state++;
+        } else if (syncService is SyncEngine) {
+          _triggerInitialCloudSync(syncService);
         }
       } catch (e) {
         // 静默失败，不影响App启动
+      }
+    });
+
+    // 持续监听 syncServiceProvider：即使第一次读到的是 LocalOnly（配置尚未加载）
+    // 也能在 SyncEngine 实例就绪后再触发一次同步。
+    ref.listenManual<SyncService>(
+      syncServiceProvider,
+      (prev, next) {
+        if (prev is SyncEngine || next is! SyncEngine) return;
+        _triggerInitialCloudSync(next);
+      },
+      fireImmediately: false,
+    );
+  }
+
+  void _triggerInitialCloudSync(SyncEngine engine) {
+    Future(() async {
+      try {
+        // 用户可能有多个本地账本。原先只同步 currentLedgerIdProvider，其他账本
+        // 永远不会被推送上去。这里遍历所有本地账本，挨个触发一次 sync()。
+        final db = ref.read(databaseProvider);
+        final ledgers = await db.select(db.ledgers).get();
+        if (ledgers.isEmpty) {
+          logger.info('AppStart', '本地无账本，跳过首次同步');
+          return;
+        }
+        logger.info('AppStart', '触发 BeeCount Cloud 首次同步，本地账本数=${ledgers.length}');
+        int totalPushed = 0;
+        int totalPulled = 0;
+        for (final ledger in ledgers) {
+          try {
+            final result = await engine.sync(ledgerId: ledger.id.toString());
+            if (result.hasError) {
+              logger.error('AppStart',
+                  '账本 ${ledger.name}(${ledger.id}) 同步失败: ${result.error}');
+            } else {
+              totalPushed += result.pushed;
+              totalPulled += result.pulled;
+              logger.info('AppStart',
+                  '账本 ${ledger.name}(${ledger.id}) 同步完成: pushed=${result.pushed}, pulled=${result.pulled}');
+            }
+          } catch (e, st) {
+            logger.error('AppStart',
+                '账本 ${ledger.name}(${ledger.id}) 同步异常', e, st);
+          }
+        }
+        logger.info('AppStart',
+            'BeeCount Cloud 首次同步汇总: pushed=$totalPushed, pulled=$totalPulled');
+        ref.read(syncStatusRefreshProvider.notifier).state++;
+        ref.read(ledgerListRefreshProvider.notifier).state++;
+      } catch (e, st) {
+        logger.error('AppStart', 'BeeCount Cloud 首次同步异常', e, st);
       }
     });
   }

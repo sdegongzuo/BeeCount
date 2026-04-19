@@ -18,6 +18,7 @@ import '../cloud/cloud_service_page.dart';
 import '../../services/system/logger_service.dart';
 import '../../services/ui/avatar_service.dart';
 import '../../providers/avatar_providers.dart';
+import '../../providers/sync_providers.dart' as sp;
 import '../../services/export/share_poster_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../category/category_manage_page.dart';
@@ -30,6 +31,7 @@ import '../settings/widget_management_page.dart';
 import '../automation/auto_billing_settings_page.dart';
 import '../ai/ai_settings_page.dart';
 import '../cloud/cloud_sync_page.dart';
+import '../cloud/beecount_cloud_sync_page.dart';
 import '../../utils/website_urls.dart';
 import '../../providers/github_star_provider.dart';
 import '../settings/data_management_page.dart';
@@ -83,41 +85,53 @@ class MinePage extends ConsumerWidget {
                         0),
                     child: Column(
                       children: [
-                        // 云服务
-                        AppListTile(
-                          leading: Icons.cloud_queue_outlined,
-                          title: AppLocalizations.of(sectionContext)
-                              .mineCloudService,
-                          subtitle: activeCfg.when(
-                            loading: () => AppLocalizations.of(sectionContext)
-                                .mineCloudServiceLoading,
-                            error: (e, _) =>
-                                '${AppLocalizations.of(sectionContext).commonError}: $e',
-                            data: (cfg) {
-                              switch (cfg.type) {
-                                case CloudBackendType.local:
-                                  return AppLocalizations.of(sectionContext)
-                                      .mineCloudServiceOffline;
-                                case CloudBackendType.webdav:
-                                  return AppLocalizations.of(sectionContext)
-                                      .mineCloudServiceWebDAV;
-                                case CloudBackendType.icloud:
-                                  return 'iCloud';
-                                case CloudBackendType.supabase:
-                                  return AppLocalizations.of(sectionContext)
-                                      .mineCloudServiceCustom;
-                                case CloudBackendType.s3:
-                                  return 'S3';
-                              }
+                        // 云服务 —— BeeCount Cloud 模式下 subtitle 带上
+                        // server 版本号(从 fetchServerVersion 拉的 FutureProvider),
+                        // 一眼看到 cloud 哪版。其它模式没版本概念,保留原文案。
+                        Consumer(builder: (ctx, r, _) {
+                          final cloudVersion = r
+                              .watch(beecountCloudServerVersionProvider)
+                              .valueOrNull;
+                          return AppListTile(
+                            leading: Icons.cloud_queue_outlined,
+                            title: AppLocalizations.of(sectionContext)
+                                .mineCloudService,
+                            subtitle: activeCfg.when(
+                              loading: () => AppLocalizations.of(sectionContext)
+                                  .mineCloudServiceLoading,
+                              error: (e, _) =>
+                                  '${AppLocalizations.of(sectionContext).commonError}: $e',
+                              data: (cfg) {
+                                switch (cfg.type) {
+                                  case CloudBackendType.local:
+                                    return AppLocalizations.of(sectionContext)
+                                        .mineCloudServiceOffline;
+                                  case CloudBackendType.webdav:
+                                    return AppLocalizations.of(sectionContext)
+                                        .mineCloudServiceWebDAV;
+                                  case CloudBackendType.icloud:
+                                    return 'iCloud';
+                                  case CloudBackendType.supabase:
+                                    return AppLocalizations.of(sectionContext)
+                                        .mineCloudServiceCustom;
+                                  case CloudBackendType.s3:
+                                    return 'S3';
+                                  case CloudBackendType.beecountCloud:
+                                    return cloudVersion != null &&
+                                            cloudVersion.isNotEmpty
+                                        ? 'BeeCount Cloud v$cloudVersion'
+                                        : 'BeeCount Cloud';
+                                }
+                              },
+                            ),
+                            onTap: () async {
+                              await Navigator.of(sectionContext).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const CloudServicePage()),
+                              );
                             },
-                          ),
-                          onTap: () async {
-                            await Navigator.of(sectionContext).push(
-                              MaterialPageRoute(
-                                  builder: (_) => const CloudServicePage()),
-                            );
-                          },
-                        ),
+                          );
+                        }),
                         // 同步状态
                         Builder(
                           builder: (ctx) {
@@ -246,11 +260,22 @@ class MinePage extends ConsumerWidget {
                                                         context), // ⭐ 使用 Token
                                                     size: 20),
                                         onTap: () async {
+                                          // BeeCount Cloud 专属页跟老的
+                                          // iCloud/WebDAV/Supabase 页语义完全不同,
+                                          // 路由按 config.type 分叉,避免 UI 里
+                                          // 大段 if-else 分支。
+                                          final cfg = ref
+                                              .read(activeCloudConfigProvider)
+                                              .valueOrNull;
+                                          final isBeeCount = cfg != null &&
+                                              cfg.type ==
+                                                  CloudBackendType.beecountCloud;
                                           await Navigator.of(sectionContext)
                                               .push(
                                             MaterialPageRoute(
-                                                builder: (_) =>
-                                                    const CloudSyncPage()),
+                                                builder: (_) => isBeeCount
+                                                    ? const BeeCountCloudSyncPage()
+                                                    : const CloudSyncPage()),
                                           );
                                         },
                                       ),
@@ -723,6 +748,10 @@ class _MinePageHeader extends ConsumerStatefulWidget {
 }
 
 class _MinePageHeaderState extends ConsumerState<_MinePageHeader> {
+  // 本地 optimistic 状态：用户自己刚选完图片时立刻更新到这里，配合 setState
+  // 让 UI 零延迟响应。后台同步（BeeCountCloud 拉下来的头像）落盘后通过
+  // ref.watch(avatarPathProvider) 自动传播到这里；_avatarPath 只是初始化/
+  // optimistic override，渲染时 avatarPathProvider 的值优先。
   String? _avatarPath;
   bool _isLoadingAvatar = true;
 
@@ -787,12 +816,14 @@ class _MinePageHeaderState extends ConsumerState<_MinePageHeader> {
         if (mounted && path != null) {
           setState(() => _avatarPath = path);
           ref.invalidate(avatarPathProvider);
+          await _syncAvatarToCloud(path);
         }
       } else if (result == 'camera') {
         final path = await AvatarService.takePhotoAndSaveAvatar();
         if (mounted && path != null) {
           setState(() => _avatarPath = path);
           ref.invalidate(avatarPathProvider);
+          await _syncAvatarToCloud(path);
         }
       } else if (result == 'delete') {
         await AvatarService.deleteAvatar();
@@ -807,10 +838,51 @@ class _MinePageHeaderState extends ConsumerState<_MinePageHeader> {
     }
   }
 
+  /// 头像同步到 BeeCount Cloud（走 /api/v1/profile/avatar）。
+  /// 失败仅记日志，不阻塞用户使用本地头像；iCloud/WebDAV/Supabase 场景跳过。
+  Future<void> _syncAvatarToCloud(String absolutePath) async {
+    try {
+      final providerInstance = await ref.read(sp.beecountCloudProviderInstance.future);
+      if (providerInstance == null) {
+        logger.debug('avatar_sync', '非 BeeCount Cloud 模式，跳过头像云同步');
+        return;
+      }
+      final file = File(absolutePath);
+      if (!file.existsSync()) {
+        logger.warning('avatar_sync', 'upload skipped: file missing $absolutePath');
+        return;
+      }
+      final bytes = await file.readAsBytes();
+      final name = absolutePath.split('/').last;
+      logger.info('avatar_sync',
+          'upload start path=$absolutePath size=${bytes.length}B');
+      final result = await providerInstance.uploadMyAvatar(
+        bytes: bytes,
+        fileName: name,
+        mimeType: name.toLowerCase().endsWith('.png')
+            ? 'image/png'
+            : 'image/jpeg',
+      );
+      // 上传成功后把本地 remoteVersion 立刻推到 server 的新版本，避免下一次
+      // bootstrap 再触发一次重新下载自己刚传的头像。
+      await AvatarService.setStoredRemoteVersion(result.avatarVersion);
+      logger.info('avatar_sync',
+          'upload done server_version=${result.avatarVersion} url=${result.avatarUrl}');
+    } catch (e, st) {
+      logger.warning('avatar_sync', 'upload failed (non-blocking): $e', st);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // 头像功能不受云同步限制，任何时候都可以上传
     final canEditAvatar = true;
+
+    // 监听云同步写下来的头像路径：当 SyncEngine.syncMyProfile 从服务端拉到
+    // 新头像并 bump avatarRefreshProvider 时，这里自动拿到新值，无需手动刷新。
+    // 优先级：云同步路径 > 本地 optimistic (_avatarPath)。
+    final avatarAsync = ref.watch(avatarPathProvider);
+    final effectiveAvatarPath = avatarAsync.asData?.value ?? _avatarPath;
 
     // 获取当前账本信息
     final currentLedgerId = ref.watch(currentLedgerIdProvider);
@@ -878,9 +950,13 @@ class _MinePageHeaderState extends ConsumerState<_MinePageHeader> {
                                   ),
                                 ),
                               )
-                            : (_avatarPath != null
+                            : (effectiveAvatarPath != null
                                 ? Image.file(
-                                    File(_avatarPath!),
+                                    // key 加入 path：Flutter 以 (File, key) 区
+                                    // 分不同图片，否则从 A.jpg 换到 B.jpg（路径
+                                    // 不同但 widget 复用）有时仍显示缓存的 A。
+                                    key: ValueKey(effectiveAvatarPath),
+                                    File(effectiveAvatarPath),
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
                                       return BeeIcon(

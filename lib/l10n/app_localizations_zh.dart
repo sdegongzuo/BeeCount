@@ -1338,10 +1338,19 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get mineLoginTitle => '登录 / 注册';
+  String get mineLoginTitle => '登录';
 
   @override
   String get mineLoginSubtitle => '仅在同步时需要';
+
+  @override
+  String get cloudReloginTitle => '重新登录';
+
+  @override
+  String get cloudReloginSuccess => '已重新登录';
+
+  @override
+  String get cloudReloginFailed => '重新登录失败';
 
   @override
   String get mineLoggedInEmail => '已登录';
@@ -2339,46 +2348,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authLogin => '登录';
 
   @override
-  String get authSignup => '注册';
-
-  @override
   String get authEmail => '邮箱';
 
   @override
   String get authPassword => '密码';
 
   @override
-  String get authPasswordRequirement => '密码（至少 6 位，需包含字母和数字）';
-
-  @override
-  String get authConfirmPassword => '确认密码';
-
-  @override
   String get authInvalidEmail => '请输入有效的邮箱地址';
 
   @override
   String get authPasswordRequirementShort => '密码需包含字母和数字，长度至少 6 位';
-
-  @override
-  String get authPasswordMismatch => '两次输入的密码不一致';
-
-  @override
-  String get authResendVerification => '重发验证邮件';
-
-  @override
-  String get authSignupSuccess => '注册成功';
-
-  @override
-  String get authVerificationEmailSent => '验证邮件已发送，请前往邮箱完成验证后再登录。';
-
-  @override
-  String get authBackToMinePage => '返回我的页面';
-
-  @override
-  String get authVerificationEmailResent => '验证邮件已重新发送。';
-
-  @override
-  String get authResendAction => '重发验证';
 
   @override
   String get authErrorInvalidCredentials => '邮箱或密码不正确。';
@@ -2399,28 +2378,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authErrorEmailInvalid => '邮箱地址无效，请检查是否拼写有误。';
 
   @override
-  String get authErrorEmailExists => '该邮箱已注册，请直接登录或重置密码。';
-
-  @override
   String get authErrorWeakPassword => '密码过于简单，请包含字母和数字，长度至少 6 位。';
-
-  @override
-  String get authErrorSignupFailed => '注册失败，请稍后再试。';
-
-  @override
-  String authErrorUserNotFound(String action) {
-    return '邮箱未注册，无法$action。';
-  }
-
-  @override
-  String authErrorEmailNotVerified(String action) {
-    return '邮箱未验证，无法$action。';
-  }
-
-  @override
-  String authErrorActionFailed(String action) {
-    return '$action失败，请稍后再试。';
-  }
 
   @override
   String get importSelectCsvFile => '请选择文件进行导入（支持 CSV/TSV/XLSX 格式）';
@@ -3148,6 +3106,84 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudCustomS3Subtitle => 'AWS S3 / Cloudflare R2 / MinIO';
 
   @override
+  String get cloudBeeCountCloudTitle => 'BeeCount Cloud';
+
+  @override
+  String get cloudBeeCountCloudSubtitle => '自建云服务 · 增量同步 · 多设备协同';
+
+  @override
+  String get cloudConfigureBeeCountCloudTitle => '配置 BeeCount Cloud';
+
+  @override
+  String get cloudBeeCountCloudUrlLabel => '服务器地址';
+
+  @override
+  String get cloudBeeCountCloudUrlHint => 'https://your-server.com';
+
+  @override
+  String get cloudBeeCountCloudApiPrefixLabel => 'API 前缀';
+
+  @override
+  String get cloudBeeCountCloudApiPrefixHint => '/api/v1';
+
+  @override
+  String get cloudBeeCountCloudEmailLabel => '邮箱';
+
+  @override
+  String get cloudBeeCountCloudEmailHint => 'your@email.com';
+
+  @override
+  String get cloudBeeCountCloudPasswordLabel => '密码';
+
+  @override
+  String get cloudBeeCountCloudPasswordHint => '输入密码';
+
+  @override
+  String get cloudBeeCountCloudLoginSuccess => '登录成功';
+
+  @override
+  String get cloudBeeCountCloudLoginFailed => '登录失败';
+
+  @override
+  String get cloudBeeCountCloudSyncSubtitle => '增量同步 · 多设备协同';
+
+  @override
+  String get cloudBeeCountCloudConnected => '已连接';
+
+  @override
+  String get cloudBeeCountCloudNotConnected => '未连接';
+
+  @override
+  String get cloudBeeCountCloudNotConnectedHint => '请先在云服务设置中配置并登录';
+
+  @override
+  String get cloudBeeCountCloudAutoSync => '增量同步';
+
+  @override
+  String get cloudBeeCountCloudAutoSyncHint => '数据变更自动同步到云端，无需手动操作';
+
+  @override
+  String get cloudBeeCountCloudMultiDevice => '多设备协同';
+
+  @override
+  String get cloudBeeCountCloudMultiDeviceHint => '多台设备间自动保持数据一致';
+
+  @override
+  String get cloudBeeCountCloudAttachment => '附件同步';
+
+  @override
+  String get cloudBeeCountCloudAttachmentHint => '账单图片等附件自动云端备份';
+
+  @override
+  String get cloudTabOffline => '离线模式';
+
+  @override
+  String get cloudTabBackup => '备份同步';
+
+  @override
+  String get cloudTabCloudSync => '云端协同';
+
+  @override
   String get cloudIcloudSubtitle => '使用 Apple ID 自动同步';
 
   @override
@@ -3590,10 +3626,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get welcomeCloudSyncFeature1 => '完全离线使用，无需云服务';
 
   @override
-  String get welcomeCloudSyncFeature2 => 'iCloud 同步（iOS 用户零配置）';
+  String get welcomeCloudSyncFeature2 => 'BeeCount Cloud 自建云（多设备实时协同 + Web 端）';
 
   @override
-  String get welcomeCloudSyncFeature3 => '自建 WebDAV/Supabase/S3 服务';
+  String get welcomeCloudSyncFeature3 => 'iCloud / WebDAV / Supabase / S3 任选';
 
   @override
   String get widgetManagement => '桌面小组件';
@@ -3872,7 +3908,78 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cloudSyncPageSubtitle => '手动上传和下载账本数据';
 
   @override
+  String get cloudTutorialTitle => '使用教程';
+
+  @override
+  String get cloudTutorialIntro => 'BeeCount Cloud 是可以自建的云同步服务端,支持多设备实时协同。流程很简单:';
+
+  @override
+  String get cloudTutorialStep1Title => '第一步:部署或选择服务器';
+
+  @override
+  String get cloudTutorialStep1Desc => '自己部署:Docker 一行命令拉起(见 GitHub README 的 Docker 指南)。或直接使用朋友/团队已有的 BeeCount Cloud 服务器。';
+
+  @override
+  String get cloudTutorialStep2Title => '第二步:获取账号';
+
+  @override
+  String get cloudTutorialStep2Desc => 'BeeCount Cloud 不支持自助注册(避免公网服务被滥用)。自己部署的同学:首次启动 Docker 日志里会打印随机管理员账号密码,直接用。加入他人服务器的同学:让管理员在 Web 后台 →「用户」里帮你添加账号。';
+
+  @override
+  String get cloudTutorialStep3Title => '第三步:登录并开启同步';
+
+  @override
+  String get cloudTutorialStep3Desc => 'App 里选「BeeCount Cloud」,填服务器地址 + 管理员给你的账号,登录。首次会全量上传你本地所有账本数据,之后每次编辑实时推送。';
+
+  @override
+  String get cloudTutorialStep4Title => '第四步:其他设备登录';
+
+  @override
+  String get cloudTutorialStep4Desc => '手机、平板、Web 三端用同一账号登录,数据即刻互通。修改几秒内互相感知。';
+
+  @override
+  String get cloudTutorialTipTitle => '小贴士';
+
+  @override
+  String get cloudTutorialTipDesc => 'Web 端地址 = 服务器地址,浏览器直接访问即可。登录后可以管理账本、成员、查看日志。';
+
+  @override
+  String get cloudTutorialFeaturesTitle => '特色功能';
+
+  @override
+  String get cloudTutorialFeature1 => '📱 多设备实时协同:手机 A + 手机 B + Web 三端同账号,数据秒级同步';
+
+  @override
+  String get cloudTutorialFeature2 => '🌐 自带 Web 管理端:一个 Docker 镜像包含 server + web,浏览器即可使用';
+
+  @override
+  String get cloudTutorialFeature3 => '👥 多用户独立:一个服务器可以多人注册,各自数据完全隔离';
+
+  @override
+  String get cloudTutorialFeature4 => '🔜 规划中:共享账本(邀请家人 / 团队一起记同一本)';
+
+  @override
+  String get cloudTutorialGotIt => '我知道了';
+
+  @override
   String get cloudSyncHint => '下载时可自动对比差异并逐条预览。非实时同步，请避免多设备同时编辑同一账本。同步范围为账本数据（含关联的账户、分类、标签），不含附件。';
+
+  @override
+  String get cloudSyncNow => '立即同步';
+
+  @override
+  String get cloudSyncNowHint => '推送本地变更并拉取远端更新';
+
+  @override
+  String get cloudSyncInProgress => '正在同步...';
+
+  @override
+  String cloudSyncComplete(int pushed, int pulled) {
+    return '同步完成：推送 $pushed 条，拉取 $pulled 条';
+  }
+
+  @override
+  String get cloudAutoSyncHint => '数据变更后自动同步到云端';
 
   @override
   String get dataManagement => '数据管理';
@@ -5777,6 +5884,141 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get budgetSetupAction => '去设置';
+
+  @override
+  String get cloudCollabDevicesPageTitle => '设备会话';
+
+  @override
+  String get cloudCollabDevicesPageSubtitle => '管理当前账号活跃设备';
+
+  @override
+  String get cloudCollabDevicesViewAllSessions => '显示全部会话';
+
+  @override
+  String get cloudCollabDevicesViewModeHint => '默认展示近 30 天去重设备，可切换查看全部会话。';
+
+  @override
+  String get cloudCollabNoDevices => '当前没有活跃设备';
+
+  @override
+  String get cloudCollabUnknownDeviceName => '未知设备';
+
+  @override
+  String get cloudCollabDeviceCurrentTag => '当前设备';
+
+  @override
+  String get cloudCollabCurrentDeviceCannotRevoke => '当前设备不能远程下线。';
+
+  @override
+  String cloudCollabDeviceAppVersion(String version) {
+    return '应用：$version';
+  }
+
+  @override
+  String cloudCollabDeviceOsVersion(String version) {
+    return '系统：$version';
+  }
+
+  @override
+  String cloudCollabDeviceModel(String model) {
+    return '型号：$model';
+  }
+
+  @override
+  String cloudCollabDeviceLastIp(String ip) {
+    return 'IP：$ip';
+  }
+
+  @override
+  String cloudCollabDeviceSessionCount(String count) {
+    return '会话数：$count';
+  }
+
+  @override
+  String cloudCollabDeviceLastSeen(String time) {
+    return '最近活跃：$time';
+  }
+
+  @override
+  String cloudCollabDeviceCreatedAt(String time) {
+    return '创建时间：$time';
+  }
+
+  @override
+  String get cloudCollabDeviceRevokeTitle => '远程下线设备';
+
+  @override
+  String cloudCollabDeviceRevokeMessage(String name, String id) {
+    return '确认下线设备 $name（$id）吗？';
+  }
+
+  @override
+  String cloudCollabDeviceRevokeMultipleMessage(String name, String count) {
+    return '确认下线设备 $name 的 $count 个会话吗？';
+  }
+
+  @override
+  String get cloudCollabDeviceRevoked => '设备已下线';
+
+  @override
+  String get cloudCollabUnavailableMessage => '云同步功能暂不可用。';
+
+  @override
+  String get cloudCollabScopeDeniedHint => '服务端尚未开启 ALLOW_APP_RW_SCOPES，当前设备会话不可用。';
+
+  @override
+  String get cloudCollabScopeDeniedAction => '请在服务端 .env 或部署环境中设置 ALLOW_APP_RW_SCOPES=true，重启服务后重新登录 App。';
+
+  @override
+  String get syncHealthTitle => '同步状态';
+
+  @override
+  String syncHealthCheckFailed(String msg) {
+    return '检测失败：$msg';
+  }
+
+  @override
+  String get syncHealthHasDiff => '检测到差异，已自动同步';
+
+  @override
+  String get syncHealthInSync => '本地与云端一致';
+
+  @override
+  String get syncHealthGroupCurrentLedger => '当前账本';
+
+  @override
+  String get syncHealthGroupAll => '全部账本';
+
+  @override
+  String get syncHealthRowTx => '交易';
+
+  @override
+  String get syncHealthRowAttachment => '附件';
+
+  @override
+  String get syncHealthRowBudget => '预算';
+
+  @override
+  String get syncHealthRowAccount => '账户';
+
+  @override
+  String get syncHealthRowCategory => '分类';
+
+  @override
+  String get syncHealthRowTag => '标签';
+
+  @override
+  String get syncHealthRowUnpushed => '未推送变更';
+
+  @override
+  String syncHealthValue(int local, int remote) {
+    return '本地 $local · 云端 $remote';
+  }
+
+  @override
+  String syncHealthValueRemoteMissing(int local) {
+    return '本地 $local · 云端 —';
+  }
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -7112,10 +7354,19 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   }
 
   @override
-  String get mineLoginTitle => '登入 / 註冊';
+  String get mineLoginTitle => '登入';
 
   @override
   String get mineLoginSubtitle => '僅在同步時需要';
+
+  @override
+  String get cloudReloginTitle => '重新登入';
+
+  @override
+  String get cloudReloginSuccess => '已重新登入';
+
+  @override
+  String get cloudReloginFailed => '重新登入失敗';
 
   @override
   String get mineLoggedInEmail => '已登入';
@@ -8113,46 +8364,16 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get authLogin => '登入';
 
   @override
-  String get authSignup => '註冊';
-
-  @override
   String get authEmail => '電子郵件';
 
   @override
   String get authPassword => '密碼';
 
   @override
-  String get authPasswordRequirement => '密碼（至少 6 位，需包含字母和數字）';
-
-  @override
-  String get authConfirmPassword => '確認密碼';
-
-  @override
   String get authInvalidEmail => '請輸入有效的電子郵件地址';
 
   @override
   String get authPasswordRequirementShort => '密碼需包含字母和數字，長度至少 6 位';
-
-  @override
-  String get authPasswordMismatch => '兩次輸入的密碼不一致';
-
-  @override
-  String get authResendVerification => '重發驗證電子郵件';
-
-  @override
-  String get authSignupSuccess => '註冊成功';
-
-  @override
-  String get authVerificationEmailSent => '驗證電子郵件已發送，請前往電子郵件完成驗證後再登入。';
-
-  @override
-  String get authBackToMinePage => '返回我的頁面';
-
-  @override
-  String get authVerificationEmailResent => '驗證電子郵件已重新發送。';
-
-  @override
-  String get authResendAction => '重發驗證';
 
   @override
   String get authErrorInvalidCredentials => '電子郵件或密碼不正確。';
@@ -8173,28 +8394,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get authErrorEmailInvalid => '電子郵件地址無效，請檢查是否拼寫有誤。';
 
   @override
-  String get authErrorEmailExists => '該電子郵件已註冊，請直接登入或重設密碼。';
-
-  @override
   String get authErrorWeakPassword => '密碼過於簡單，請包含字母和數字，長度至少 6 位。';
-
-  @override
-  String get authErrorSignupFailed => '註冊失敗，請稍後再試。';
-
-  @override
-  String authErrorUserNotFound(String action) {
-    return '電子郵件未註冊，無法$action。';
-  }
-
-  @override
-  String authErrorEmailNotVerified(String action) {
-    return '電子郵件未驗證，無法$action。';
-  }
-
-  @override
-  String authErrorActionFailed(String action) {
-    return '$action失敗，請稍後再試。';
-  }
 
   @override
   String get importSelectCsvFile => '請選擇檔案進行匯入（支援 CSV/TSV/XLSX 格式）';
@@ -8922,6 +9122,84 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get cloudCustomS3Subtitle => 'AWS S3 / Cloudflare R2 / MinIO';
 
   @override
+  String get cloudBeeCountCloudTitle => 'BeeCount Cloud';
+
+  @override
+  String get cloudBeeCountCloudSubtitle => '自建雲服務 · 增量同步 · 多裝置協同';
+
+  @override
+  String get cloudConfigureBeeCountCloudTitle => '設定 BeeCount Cloud';
+
+  @override
+  String get cloudBeeCountCloudUrlLabel => '伺服器地址';
+
+  @override
+  String get cloudBeeCountCloudUrlHint => 'https://your-server.com';
+
+  @override
+  String get cloudBeeCountCloudApiPrefixLabel => 'API 前綴';
+
+  @override
+  String get cloudBeeCountCloudApiPrefixHint => '/api/v1';
+
+  @override
+  String get cloudBeeCountCloudEmailLabel => '電子郵件';
+
+  @override
+  String get cloudBeeCountCloudEmailHint => 'your@email.com';
+
+  @override
+  String get cloudBeeCountCloudPasswordLabel => '密碼';
+
+  @override
+  String get cloudBeeCountCloudPasswordHint => '輸入密碼';
+
+  @override
+  String get cloudBeeCountCloudLoginSuccess => '登入成功';
+
+  @override
+  String get cloudBeeCountCloudLoginFailed => '登入失敗';
+
+  @override
+  String get cloudBeeCountCloudSyncSubtitle => '增量同步 · 多裝置協同';
+
+  @override
+  String get cloudBeeCountCloudConnected => '已連接';
+
+  @override
+  String get cloudBeeCountCloudNotConnected => '未連接';
+
+  @override
+  String get cloudBeeCountCloudNotConnectedHint => '請先在雲服務設定中配置並登入';
+
+  @override
+  String get cloudBeeCountCloudAutoSync => '增量同步';
+
+  @override
+  String get cloudBeeCountCloudAutoSyncHint => '資料變更自動同步到雲端，無需手動操作';
+
+  @override
+  String get cloudBeeCountCloudMultiDevice => '多裝置協同';
+
+  @override
+  String get cloudBeeCountCloudMultiDeviceHint => '多台裝置間自動保持資料一致';
+
+  @override
+  String get cloudBeeCountCloudAttachment => '附件同步';
+
+  @override
+  String get cloudBeeCountCloudAttachmentHint => '帳單圖片等附件自動雲端備份';
+
+  @override
+  String get cloudTabOffline => '離線模式';
+
+  @override
+  String get cloudTabBackup => '備份同步';
+
+  @override
+  String get cloudTabCloudSync => '雲端協同';
+
+  @override
   String get cloudIcloudSubtitle => '使用 Apple ID 自動同步';
 
   @override
@@ -9364,10 +9642,10 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get welcomeCloudSyncFeature1 => '完全離線使用，無需雲端服務';
 
   @override
-  String get welcomeCloudSyncFeature2 => 'iCloud 同步（iOS 用戶零配置）';
+  String get welcomeCloudSyncFeature2 => 'BeeCount Cloud 自建雲（多裝置即時協同 + Web 端）';
 
   @override
-  String get welcomeCloudSyncFeature3 => '自建 WebDAV/Supabase/S3 服務';
+  String get welcomeCloudSyncFeature3 => 'iCloud / WebDAV / Supabase / S3 任選';
 
   @override
   String get widgetManagement => '桌面小組件';
@@ -9646,7 +9924,78 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get cloudSyncPageSubtitle => '手動上傳和下載帳本資料';
 
   @override
+  String get cloudTutorialTitle => '使用教程';
+
+  @override
+  String get cloudTutorialIntro => 'BeeCount Cloud 是可自建的雲同步服務端,支援多裝置即時協同。流程很簡單:';
+
+  @override
+  String get cloudTutorialStep1Title => '第一步:部署或選擇伺服器';
+
+  @override
+  String get cloudTutorialStep1Desc => '自行部署:Docker 一行指令拉起(詳見 GitHub README 的 Docker 指南)。或直接使用朋友/團隊既有的 BeeCount Cloud 伺服器。';
+
+  @override
+  String get cloudTutorialStep2Title => '第二步:取得帳號';
+
+  @override
+  String get cloudTutorialStep2Desc => 'BeeCount Cloud 不支援自助註冊(避免公網服務被濫用)。自行部署:Docker 首次啟動日誌會印出隨機管理員帳密,直接用。加入他人伺服器:請管理員在 Web 後台 →「使用者」裡為你建立帳號。';
+
+  @override
+  String get cloudTutorialStep3Title => '第三步:登入並開啟同步';
+
+  @override
+  String get cloudTutorialStep3Desc => 'App 內選「BeeCount Cloud」,填伺服器位址 + 管理員給你的帳號,登入。首次會全量上傳你本機所有帳本資料,之後每次編輯即時推送。';
+
+  @override
+  String get cloudTutorialStep4Title => '第四步:其他裝置登入';
+
+  @override
+  String get cloudTutorialStep4Desc => '手機、平板、Web 三端用同一帳號登入,資料即刻互通。修改數秒內互相感知。';
+
+  @override
+  String get cloudTutorialTipTitle => '小提示';
+
+  @override
+  String get cloudTutorialTipDesc => 'Web 端地址 = 伺服器位址,瀏覽器直接開啟即可。登入後可管理帳本、成員、查看紀錄。';
+
+  @override
+  String get cloudTutorialFeaturesTitle => '特色功能';
+
+  @override
+  String get cloudTutorialFeature1 => '📱 多裝置即時協同:手機 A + 手機 B + Web 三端同帳號,資料秒級同步';
+
+  @override
+  String get cloudTutorialFeature2 => '🌐 內建 Web 管理端:一個 Docker 映像檔含 server + web,瀏覽器即可使用';
+
+  @override
+  String get cloudTutorialFeature3 => '👥 多用戶獨立:一個伺服器可多人註冊,各自資料完全隔離';
+
+  @override
+  String get cloudTutorialFeature4 => '🔜 規劃中:共享帳本(邀請家人 / 團隊一起記同一本)';
+
+  @override
+  String get cloudTutorialGotIt => '我知道了';
+
+  @override
   String get cloudSyncHint => '下載時可自動對比差異並逐條預覽。非即時同步，請避免多裝置同時編輯同一帳本。同步範圍為帳本資料（含關聯的帳戶、分類、標籤），不含附件。';
+
+  @override
+  String get cloudSyncNow => '立即同步';
+
+  @override
+  String get cloudSyncNowHint => '推送本機變更並拉取遠端更新';
+
+  @override
+  String get cloudSyncInProgress => '正在同步...';
+
+  @override
+  String cloudSyncComplete(int pushed, int pulled) {
+    return '同步完成：推送 $pushed 條，拉取 $pulled 條';
+  }
+
+  @override
+  String get cloudAutoSyncHint => '資料變更後自動同步到雲端';
 
   @override
   String get dataManagement => '資料管理';
@@ -11527,4 +11876,139 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get budgetSetupAction => '去設置';
+
+  @override
+  String get cloudCollabDevicesPageTitle => '裝置工作階段';
+
+  @override
+  String get cloudCollabDevicesPageSubtitle => '管理目前帳號活躍裝置';
+
+  @override
+  String get cloudCollabDevicesViewAllSessions => '顯示全部工作階段';
+
+  @override
+  String get cloudCollabDevicesViewModeHint => '預設顯示近 30 天去重裝置，可切換檢視全部工作階段。';
+
+  @override
+  String get cloudCollabNoDevices => '目前沒有活躍裝置';
+
+  @override
+  String get cloudCollabUnknownDeviceName => '未知裝置';
+
+  @override
+  String get cloudCollabDeviceCurrentTag => '目前裝置';
+
+  @override
+  String get cloudCollabCurrentDeviceCannotRevoke => '目前裝置不能遠端下線。';
+
+  @override
+  String cloudCollabDeviceAppVersion(String version) {
+    return '應用：$version';
+  }
+
+  @override
+  String cloudCollabDeviceOsVersion(String version) {
+    return '系統：$version';
+  }
+
+  @override
+  String cloudCollabDeviceModel(String model) {
+    return '型號：$model';
+  }
+
+  @override
+  String cloudCollabDeviceLastIp(String ip) {
+    return 'IP：$ip';
+  }
+
+  @override
+  String cloudCollabDeviceSessionCount(String count) {
+    return '工作階段數：$count';
+  }
+
+  @override
+  String cloudCollabDeviceLastSeen(String time) {
+    return '最近活躍：$time';
+  }
+
+  @override
+  String cloudCollabDeviceCreatedAt(String time) {
+    return '建立時間：$time';
+  }
+
+  @override
+  String get cloudCollabDeviceRevokeTitle => '遠端下線裝置';
+
+  @override
+  String cloudCollabDeviceRevokeMessage(String name, String id) {
+    return '確認下線裝置 $name（$id）嗎？';
+  }
+
+  @override
+  String cloudCollabDeviceRevokeMultipleMessage(String name, String count) {
+    return '確認下線裝置 $name 的 $count 個工作階段嗎？';
+  }
+
+  @override
+  String get cloudCollabDeviceRevoked => '裝置已下線';
+
+  @override
+  String get cloudCollabUnavailableMessage => '雲端同步功能暫時不可用。';
+
+  @override
+  String get cloudCollabScopeDeniedHint => '伺服器尚未開啟 ALLOW_APP_RW_SCOPES，目前裝置工作階段不可用。';
+
+  @override
+  String get cloudCollabScopeDeniedAction => '請在伺服器 .env 或部署環境設定 ALLOW_APP_RW_SCOPES=true，重啟服務後重新登入 App。';
+
+  @override
+  String get syncHealthTitle => '同步狀態';
+
+  @override
+  String syncHealthCheckFailed(String msg) {
+    return '檢測失敗：$msg';
+  }
+
+  @override
+  String get syncHealthHasDiff => '偵測到差異，已自動同步';
+
+  @override
+  String get syncHealthInSync => '本地與雲端一致';
+
+  @override
+  String get syncHealthGroupCurrentLedger => '當前帳本';
+
+  @override
+  String get syncHealthGroupAll => '全部帳本';
+
+  @override
+  String get syncHealthRowTx => '交易';
+
+  @override
+  String get syncHealthRowAttachment => '附件';
+
+  @override
+  String get syncHealthRowBudget => '預算';
+
+  @override
+  String get syncHealthRowAccount => '帳戶';
+
+  @override
+  String get syncHealthRowCategory => '分類';
+
+  @override
+  String get syncHealthRowTag => '標籤';
+
+  @override
+  String get syncHealthRowUnpushed => '未推送變更';
+
+  @override
+  String syncHealthValue(int local, int remote) {
+    return '本地 $local · 雲端 $remote';
+  }
+
+  @override
+  String syncHealthValueRemoteMissing(int local) {
+    return '本地 $local · 雲端 —';
+  }
 }

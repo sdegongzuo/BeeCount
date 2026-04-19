@@ -68,6 +68,8 @@ class ImportAttachment {
   final int? width;
   final int? height;
   final int sortOrder;
+  final String? cloudFileId;
+  final String? cloudSha256;
 
   const ImportAttachment({
     required this.fileName,
@@ -76,6 +78,8 @@ class ImportAttachment {
     this.width,
     this.height,
     this.sortOrder = 0,
+    this.cloudFileId,
+    this.cloudSha256,
   });
 }
 
@@ -523,6 +527,8 @@ class DataImportService {
                   width: attachment.width,
                   height: attachment.height,
                   sortOrder: attachment.sortOrder,
+                  cloudFileId: attachment.cloudFileId,
+                  cloudSha256: attachment.cloudSha256,
                 );
               } catch (_) {
                 // 附件记录创建失败不影响交易导入

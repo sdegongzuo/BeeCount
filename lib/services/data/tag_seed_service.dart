@@ -1,6 +1,5 @@
-import 'package:drift/drift.dart';
+import '../../data/repositories/base_repository.dart';
 import '../../l10n/app_localizations.dart';
-import '../../data/db.dart';
 import '../system/logger_service.dart';
 
 /// 预设标签服务
@@ -71,8 +70,12 @@ class TagSeedService {
   /// 生成默认标签
   /// 如果标签已存在（同名），则跳过
   /// 返回新创建的标签数量
+  ///
+  /// 走 `repo.createTag` 而不是直接 `db.into(db.tags).insert` —— 确保每个新
+  /// 建标签都被 ChangeTracker 记进 sync_changes 日志。否则这批种子标签永远
+  /// 不会被 push 到云端,web / 其他设备看不到(之前就是这个 bug)。
   static Future<int> seedDefaultTags(
-    BeeDatabase db,
+    BaseRepository repo,
     AppLocalizations l10n,
   ) async {
     logger.info('TagSeedService', '开始生成默认标签');
@@ -83,22 +86,17 @@ class TagSeedService {
     for (int i = 0; i < defaultTags.length; i++) {
       final tagDef = defaultTags[i];
 
-      // 检查是否已存在同名标签
-      final existing = await (db.select(db.tags)
-        ..where((t) => t.name.equals(tagDef.name))).getSingleOrNull();
-
+      // 检查是否已存在同名标签 —— 复用 repo 的 query 接口,跨本地/云端实现一致。
+      final existing = await repo.getTagByName(tagDef.name);
       if (existing != null) {
         logger.debug('TagSeedService', '标签已存在，跳过: ${tagDef.name}');
         continue;
       }
 
-      // 创建标签
-      await db.into(db.tags).insert(
-        TagsCompanion.insert(
-          name: tagDef.name,
-          color: tagDef.color != null ? Value(tagDef.color) : const Value.absent(),
-          sortOrder: Value(i),
-        ),
+      await repo.createTag(
+        name: tagDef.name,
+        color: tagDef.color,
+        sortOrder: i,
       );
 
       createdCount++;

@@ -8,11 +8,8 @@ import '../../styles/tokens.dart';
 import '../../services/system/logger_service.dart';
 import '../../l10n/app_localizations.dart';
 
-enum AuthMode { login, signup }
-
 class AuthPage extends ConsumerStatefulWidget {
-  const AuthPage({super.key, this.initialMode = AuthMode.login});
-  final AuthMode initialMode;
+  const AuthPage({super.key});
 
   @override
   ConsumerState<AuthPage> createState() => _AuthPageState();
@@ -21,26 +18,14 @@ class AuthPage extends ConsumerStatefulWidget {
 class _AuthPageState extends ConsumerState<AuthPage> {
   final emailCtrl = TextEditingController();
   final pwdCtrl = TextEditingController();
-  final pwd2Ctrl = TextEditingController();
   String? errorText;
-  String? infoText;
   bool busy = false;
-  late bool isSignup;
   bool _showPwd = false;
-  bool _showPwd2 = false;
   bool _rememberAccount = false;
-  void _switchMode(bool toSignup) {
-    setState(() {
-      isSignup = toSignup;
-      errorText = null;
-      infoText = null;
-    });
-  }
 
   @override
   void initState() {
     super.initState();
-    isSignup = widget.initialMode == AuthMode.signup;
     // 延迟加载凭证，确保 provider 已初始化
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSavedCredentials();
@@ -48,56 +33,78 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 
   Future<void> _loadSavedCredentials() async {
-    // Only load credentials when in Supabase mode and login mode
     try {
       final cloudConfig = await ref.read(activeCloudConfigProvider.future);
-      if (cloudConfig.type != CloudBackendType.supabase) {
+      String? savedEmail;
+      String? savedPassword;
+      if (cloudConfig.type == CloudBackendType.supabase) {
+        savedEmail = cloudConfig.supabaseEmail;
+        savedPassword = cloudConfig.supabasePassword;
+      } else if (cloudConfig.type == CloudBackendType.beecountCloud) {
+        // BeeCount Cloud：跟 Supabase 一样，勾选"记住账号"时同时存邮箱+密码，
+        // 作为 token 失效时的兜底登录途径（见 beecountCloudProviderInstance
+        // 里的 fallback signInWithEmail）。
+        savedEmail = cloudConfig.beecountCloudEmail;
+        savedPassword = cloudConfig.beecountCloudPassword;
+      } else {
         return;
       }
 
-      if (cloudConfig.supabaseEmail != null && cloudConfig.supabaseEmail!.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            emailCtrl.text = cloudConfig.supabaseEmail!;
-            if (cloudConfig.supabasePassword != null && cloudConfig.supabasePassword!.isNotEmpty) {
-              pwdCtrl.text = cloudConfig.supabasePassword!;
-              _rememberAccount = true;
-            }
-          });
-        }
+      if (savedEmail != null && savedEmail.isNotEmpty && mounted) {
+        setState(() {
+          emailCtrl.text = savedEmail!;
+          if (savedPassword != null && savedPassword.isNotEmpty) {
+            pwdCtrl.text = savedPassword;
+            _rememberAccount = true;
+          }
+        });
       }
     } catch (e) {
-      // 忽略加载错误，用户可以手动输入
       logger.warning('auth', '加载保存的账号密码失败: $e');
     }
   }
 
   Future<void> _saveCredentials(String email, String password) async {
-    // Only save credentials when in Supabase mode
     try {
       final cloudConfig = await ref.read(activeCloudConfigProvider.future);
-      if (cloudConfig.type != CloudBackendType.supabase) {
+      final store = ref.read(cloudServiceStoreProvider);
+
+      if (cloudConfig.type == CloudBackendType.supabase) {
+        // Supabase 仍旧保留"记住账号"时同时存密码（老 SDK 没有 refresh token 持久化）。
+        final updatedConfig = CloudServiceConfig(
+          type: cloudConfig.type,
+          name: cloudConfig.name,
+          supabaseUrl: cloudConfig.supabaseUrl,
+          supabaseAnonKey: cloudConfig.supabaseAnonKey,
+          supabaseBucket: cloudConfig.supabaseBucket ?? 'beecount-backups',
+          supabaseEmail: _rememberAccount ? email : null,
+          supabasePassword: _rememberAccount ? password : null,
+        );
+        await store.saveOnly(updatedConfig);
+        ref.invalidate(supabaseConfigProvider);
+        ref.invalidate(activeCloudConfigProvider);
+        logger.info('auth', 'Supabase 账号密码保存状态：${_rememberAccount ? "已保存" : "已清除"}');
         return;
       }
 
-      final store = ref.read(cloudServiceStoreProvider);
-
-      // Create updated config with or without credentials based on checkbox
-      final updatedConfig = CloudServiceConfig(
-        type: cloudConfig.type,
-        name: cloudConfig.name,
-        supabaseUrl: cloudConfig.supabaseUrl,
-        supabaseAnonKey: cloudConfig.supabaseAnonKey,
-        supabaseBucket: cloudConfig.supabaseBucket ?? 'beecount-backups',  // 确保有默认值
-        supabaseEmail: _rememberAccount ? email : null,
-        supabasePassword: _rememberAccount ? password : null,
-      );
-
-      await store.saveOnly(updatedConfig);
-      ref.invalidate(supabaseConfigProvider);
-      ref.invalidate(activeCloudConfigProvider);
-
-      logger.info('auth', '账号密码保存状态：${_rememberAccount ? "已保存" : "已清除"}');
+      if (cloudConfig.type == CloudBackendType.beecountCloud) {
+        // BeeCount Cloud：勾选"记住账号"时存邮箱+密码 —— token 机制平时够用，
+        // 但 token 失效 / 老版本升级 / 本地 SharedPreferences 被清等场景都靠
+        // 这份密码做兜底自动登录。
+        final updatedConfig = CloudServiceConfig(
+          type: cloudConfig.type,
+          name: cloudConfig.name,
+          beecountCloudBaseUrl: cloudConfig.beecountCloudBaseUrl,
+          beecountCloudApiPrefix: cloudConfig.beecountCloudApiPrefix,
+          beecountCloudEmail: _rememberAccount ? email : null,
+          beecountCloudPassword: _rememberAccount ? password : null,
+        );
+        await store.saveOnly(updatedConfig);
+        ref.invalidate(beecountCloudConfigProvider);
+        ref.invalidate(activeCloudConfigProvider);
+        logger.info('auth',
+            'BeeCount Cloud 账号密码保存状态：${_rememberAccount ? "已保存" : "已清除"}');
+      }
     } catch (e, st) {
       logger.error('auth', '保存账号密码失败', e, st);
     }
@@ -107,7 +114,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   void dispose() {
     emailCtrl.dispose();
     pwdCtrl.dispose();
-    pwd2Ctrl.dispose();
     super.dispose();
   }
 
@@ -166,66 +172,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       return AppLocalizations.of(context).authErrorNetworkIssue;
     }
     return AppLocalizations.of(context).authErrorLoginFailed;
-  }
-
-  String friendlySignupError(Object e) {
-    final code = _supabaseCode(e);
-    if (code != null) {
-      switch (code) {
-        case 'email_address_invalid':
-          return AppLocalizations.of(context).authErrorEmailInvalid;
-        case 'user_already_exists':
-        case 'email_address_exists':
-          return AppLocalizations.of(context).authErrorEmailExists;
-        case 'weak_password':
-          return AppLocalizations.of(context).authErrorWeakPassword;
-        case 'over_email_send_rate_limit':
-          return AppLocalizations.of(context).authErrorRateLimit;
-      }
-    }
-    final lower = e.toString().toLowerCase();
-    if (lower.contains('weak') ||
-        (lower.contains('password') && lower.contains('at least'))) {
-      return AppLocalizations.of(context).authErrorWeakPassword;
-    }
-    if (lower.contains('already') && lower.contains('registered')) {
-      return AppLocalizations.of(context).authErrorEmailExists;
-    }
-    if (lower.contains('rate') && lower.contains('limit')) {
-      return AppLocalizations.of(context).authErrorRateLimit;
-    }
-    if (lower.contains('network') || lower.contains('timeout')) {
-      return AppLocalizations.of(context).authErrorNetworkIssue;
-    }
-    return AppLocalizations.of(context).authErrorSignupFailed;
-  }
-
-  String friendlyActionError(Object e, {required String action}) {
-    final code = _supabaseCode(e);
-    if (code != null) {
-      switch (code) {
-        case 'user_not_found':
-          return AppLocalizations.of(context).authErrorUserNotFound(action);
-        case 'over_email_send_rate_limit':
-          return AppLocalizations.of(context).authErrorRateLimit;
-        case 'email_address_not_confirmed':
-        case 'email_not_confirmed':
-          return AppLocalizations.of(context).authErrorEmailNotVerified(action);
-      }
-    }
-    final lower = e.toString().toLowerCase();
-    if (lower.contains('email') &&
-        lower.contains('not') &&
-        lower.contains('confirm')) {
-      return AppLocalizations.of(context).authErrorEmailNotVerified(action);
-    }
-    if (lower.contains('rate') && lower.contains('limit')) {
-      return AppLocalizations.of(context).authErrorRateLimit;
-    }
-    if (lower.contains('network') || lower.contains('timeout')) {
-      return AppLocalizations.of(context).authErrorNetworkIssue;
-    }
-    return AppLocalizations.of(context).authErrorActionFailed(action);
   }
 
   // 恢复流程改为登录后回到“我的”页由其触发，不再在登录页内执行
@@ -307,7 +253,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
       backgroundColor: BeeTokens.scaffoldBackground(context),
       body: Column(
         children: [
-          PrimaryHeader(title: isSignup ? AppLocalizations.of(context).authSignup : AppLocalizations.of(context).authLogin, showBack: true),
+          PrimaryHeader(title: AppLocalizations.of(context).authLogin, showBack: true),
           Expanded(
             child: Center(
               child: Padding(
@@ -331,53 +277,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ChoiceChip(
-                              selected: !isSignup,
-                              label: Text(AppLocalizations.of(context).authLogin),
-                              selectedColor: theme.colorScheme.primary,
-                              backgroundColor: BeeTokens.surface(context),
-                              side: BorderSide(
-                                color: theme.colorScheme.primary,
-                                width: (!isSignup) ? 0 : 1,
-                              ),
-                              labelStyle: TextStyle(
-                                color: (!isSignup)
-                                    ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.primary,
-                                fontWeight: (!isSignup)
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                              ),
-                              onSelected: (v) => _switchMode(false),
-                              checkmarkColor: theme.colorScheme.onPrimary,
-                            ),
-                            const SizedBox(width: 8),
-                            ChoiceChip(
-                              selected: isSignup,
-                              label: Text(AppLocalizations.of(context).authSignup),
-                              selectedColor: theme.colorScheme.primary,
-                              backgroundColor: BeeTokens.surface(context),
-                              side: BorderSide(
-                                color: theme.colorScheme.primary,
-                                width: (isSignup) ? 0 : 1,
-                              ),
-                              labelStyle: TextStyle(
-                                color: (isSignup)
-                                    ? theme.colorScheme.onPrimary
-                                    : theme.colorScheme.primary,
-                                fontWeight: (isSignup)
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                              ),
-                              onSelected: (v) => _switchMode(true),
-                              checkmarkColor: theme.colorScheme.onPrimary,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
                         TextField(
                           controller: emailCtrl,
                           keyboardType: TextInputType.emailAddress,
@@ -388,7 +287,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                           controller: pwdCtrl,
                           obscureText: !_showPwd,
                           decoration: InputDecoration(
-                            labelText: isSignup ? AppLocalizations.of(context).authPasswordRequirement : AppLocalizations.of(context).authPassword,
+                            labelText: AppLocalizations.of(context).authPassword,
                             suffixIcon: IconButton(
                               icon: Icon(_showPwd
                                   ? Icons.visibility_off_outlined
@@ -398,65 +297,46 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                             ),
                           ),
                         ),
-                        if (isSignup) ...[
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: pwd2Ctrl,
-                            obscureText: !_showPwd2,
-                            decoration: InputDecoration(
-                              labelText: AppLocalizations.of(context).authConfirmPassword,
-                              suffixIcon: IconButton(
-                                icon: Icon(_showPwd2
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined),
-                                onPressed: () =>
-                                    setState(() => _showPwd2 = !_showPwd2),
+                        const SizedBox(height: 4),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _rememberAccount = !_rememberAccount;
+                            });
+                          },
+                          child: Row(
+                            children: [
+                              Checkbox(
+                                value: _rememberAccount,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _rememberAccount = value ?? false;
+                                  });
+                                },
                               ),
-                            ),
-                          ),
-                        ],
-                        if (!isSignup) ...[
-                          const SizedBox(height: 4),
-                          InkWell(
-                            onTap: () {
-                              setState(() {
-                                _rememberAccount = !_rememberAccount;
-                              });
-                            },
-                            child: Row(
-                              children: [
-                                Checkbox(
-                                  value: _rememberAccount,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _rememberAccount = value ?? false;
-                                    });
-                                  },
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        AppLocalizations.of(context).authRememberAccount,
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          color: BeeTokens.textPrimary(context),
-                                        ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      AppLocalizations.of(context).authRememberAccount,
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: BeeTokens.textPrimary(context),
                                       ),
-                                      Text(
-                                        AppLocalizations.of(context).authRememberAccountHint,
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: BeeTokens.textSecondary(context),
-                                          fontSize: 11,
-                                        ),
+                                    ),
+                                    Text(
+                                      AppLocalizations.of(context).authRememberAccountHint,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: BeeTokens.textSecondary(context),
+                                        fontSize: 11,
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                         const SizedBox(height: 12),
                         if (errorText != null)
                           Padding(
@@ -466,94 +346,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                               style: TextStyle(color: BeeTokens.error(context)),
                             ),
                           ),
-                        if (infoText != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Text(
-                              infoText!,
-                              style: TextStyle(color: BeeTokens.success(context)),
-                            ),
-                          ),
                         SizedBox(
                           width: double.infinity,
-                          child: isSignup
-                              ? OutlinedButton(
-                                  style: OutlinedButton.styleFrom(
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: radius),
-                                    foregroundColor:
-                                        Theme.of(context).colorScheme.primary,
-                                    side: BorderSide(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary),
-                                  ),
-                                  onPressed: busy
-                                      ? null
-                                      : () async {
-                                          final email = emailCtrl.text.trim();
-                                          final pwd = pwdCtrl.text;
-                                          final pwd2 = pwd2Ctrl.text;
-                                          logger.info('auth', '开始注册：邮箱=$email');
-                                          if (!isValidEmail(email)) {
-                                            setState(
-                                                () => errorText = 'AppLocalizations.of(context).authInvalidEmail');
-                                            return;
-                                          }
-                                          if (!isValidPassword(pwd)) {
-                                            setState(() => errorText =
-                                                'AppLocalizations.of(context).authPasswordRequirementShort');
-                                            return;
-                                          }
-                                          if (pwd != pwd2) {
-                                            setState(
-                                                () => errorText = AppLocalizations.of(context).authPasswordMismatch);
-                                            return;
-                                          }
-                                          setState(() {
-                                            busy = true;
-                                            errorText = null;
-                                            infoText = null;
-                                          });
-                                          try {
-                                            final auth = await ref.read(authServiceProvider.future);
-                                            await auth.signUpWithEmail(
-                                                email: email, password: pwd);
-                                            if (!context.mounted) return;
-                                            logger.info('auth',
-                                                '注册成功，已发送验证邮件：邮箱=$email');
-                                            Navigator.of(context)
-                                                .pushReplacement(
-                                              MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      const SignupSuccessPage()),
-                                            );
-                                          } catch (e, stSignup) {
-                                            final friendlyMsg = friendlySignupError(e);
-                                            final detailedMsg = 'Type: ${e.runtimeType}, Message: $e';
-                                            logger.error(
-                                                'auth',
-                                                '注册失败：邮箱=$email，用户友好信息=$friendlyMsg，详细错误=$detailedMsg',
-                                                e,
-                                                stSignup);
-                                            setState(() => errorText =
-                                                '$friendlyMsg\n\n调试信息: $detailedMsg');
-                                          } finally {
-                                            if (mounted) {
-                                              setState(() => busy = false);
-                                            }
-                                          }
-                                        },
-                                  child: busy
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2),
-                                        )
-                                      : Text(AppLocalizations.of(context).authSignup),
-                                )
-                              : FilledButton(
+                          child: FilledButton(
                                   style: FilledButton.styleFrom(
                                     shape: RoundedRectangleBorder(
                                         borderRadius: radius),
@@ -577,7 +372,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                                           setState(() {
                                             busy = true;
                                             errorText = null;
-                                            infoText = null;
                                           });
                                           try {
                                             final auth = await ref.read(authServiceProvider.future);
@@ -636,48 +430,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                                       : Text(AppLocalizations.of(context).authLogin),
                                 ),
                         ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: busy
-                                  ? null
-                                  : () async {
-                                      final email = emailCtrl.text.trim();
-                                      if (!isValidEmail(email)) {
-                                        setState(
-                                            () => errorText = 'AppLocalizations.of(context).authInvalidEmail');
-                                        return;
-                                      }
-                                      setState(() {
-                                        errorText = null;
-                                        infoText = null;
-                                        busy = true;
-                                      });
-                                      try {
-                                        final auth = await ref.read(authServiceProvider.future);
-                                        await auth.resendEmailVerification(
-                                            email: email);
-                                        if (!context.mounted) return;
-                                        showToast(context, AppLocalizations.of(context).authVerificationEmailResent);
-                                        setState(() => infoText = AppLocalizations.of(context).authVerificationEmailResent);
-                                      } catch (e) {
-                                        final msg = friendlyActionError(e,
-                                            action: AppLocalizations.of(context).authResendAction);
-                                        if (!context.mounted) return;
-                                        showToast(context, msg);
-                                        setState(() => errorText = msg);
-                                      } finally {
-                                        if (mounted) {
-                                          setState(() => busy = false);
-                                        }
-                                      }
-                                    },
-                              child: Text(AppLocalizations.of(context).authResendVerification),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
@@ -691,58 +443,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 }
 
+/// 对外暴露的就是 LoginPage —— 登录一件事。注册走不通(server 禁自助注册,
+/// Supabase 官网注册 or 管理员后台加账号),内部也没有 SignupPage / VerifyPage。
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
   @override
-  Widget build(BuildContext context) =>
-      const AuthPage(initialMode: AuthMode.login);
+  Widget build(BuildContext context) => const AuthPage();
 }
-
-class SignupPage extends StatelessWidget {
-  const SignupPage({super.key});
-  @override
-  Widget build(BuildContext context) =>
-      const AuthPage(initialMode: AuthMode.signup);
-}
-
-class SignupSuccessPage extends StatelessWidget {
-  const SignupSuccessPage({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: BeeTokens.scaffoldBackground(context),
-      body: Column(
-        children: [
-          PrimaryHeader(title: AppLocalizations.of(context).authSignupSuccess, showBack: false),
-          Expanded(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.mark_email_read_outlined,
-                        size: 72, color: BeeTokens.success(context)),
-                    const SizedBox(height: 12),
-                    Text(
-                      AppLocalizations.of(context).authVerificationEmailSent,
-                      style: TextStyle(color: BeeTokens.textPrimary(context)),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: () =>
-                          Navigator.of(context).popUntil((r) => r.isFirst),
-                      child: Text(AppLocalizations.of(context).authBackToMinePage),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// 旧的对话框已废弃，改为独立页面展示

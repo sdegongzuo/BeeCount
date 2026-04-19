@@ -417,56 +417,20 @@
   "attachmentExportPreviewTitle": "匯出預覽",
   "attachmentImportPreviewTitle": "匯入預覽",
   "attachmentTakePhoto": "拍照",
-  "authBackToMinePage": "返回我的頁面",
-  "authConfirmPassword": "確認密碼",
   "authEmail": "電子郵件",
-  "authErrorActionFailed": "{action}失敗，請稍後再試。",
-  "@authErrorActionFailed": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
-  "authErrorEmailExists": "該電子郵件已註冊，請直接登入或重設密碼。",
   "authErrorEmailInvalid": "電子郵件地址無效，請檢查是否拼寫有誤。",
   "authErrorEmailNotConfirmed": "電子郵件未驗證，請先到電子郵件完成驗證再登入。",
-  "authErrorEmailNotVerified": "電子郵件未驗證，無法{action}。",
-  "@authErrorEmailNotVerified": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
   "authErrorInvalidCredentials": "電子郵件或密碼不正確。",
   "authErrorLoginFailed": "登入失敗，請稍後再試。",
   "authErrorNetworkIssue": "網路異常，請檢查網路後重試。",
   "authErrorRateLimit": "操作過於頻繁，請稍後再試。",
-  "authErrorSignupFailed": "註冊失敗，請稍後再試。",
-  "authErrorUserNotFound": "電子郵件未註冊，無法{action}。",
-  "@authErrorUserNotFound": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
   "authErrorWeakPassword": "密碼過於簡單，請包含字母和數字，長度至少 6 位。",
   "authInvalidEmail": "請輸入有效的電子郵件地址",
   "authLogin": "登入",
   "authPassword": "密碼",
-  "authPasswordMismatch": "兩次輸入的密碼不一致",
-  "authPasswordRequirement": "密碼（至少 6 位，需包含字母和數字）",
   "authPasswordRequirementShort": "密碼需包含字母和數字，長度至少 6 位",
   "authRememberAccount": "記住帳號密碼",
   "authRememberAccountHint": "下次登入時自動填入（僅Supabase）",
-  "authResendAction": "重發驗證",
-  "authResendVerification": "重發驗證電子郵件",
-  "authSignup": "註冊",
-  "authSignupSuccess": "註冊成功",
-  "authVerificationEmailResent": "驗證電子郵件已重新發送。",
-  "authVerificationEmailSent": "驗證電子郵件已發送，請前往電子郵件完成驗證後再登入。",
   "autoBilling": "自動記帳",
   "autoBillingBatteryDesc": "自動記帳需要應用程式在背景保持執行。部分手機會在鎖屏後自動清理背景應用程式，導致自動記帳功能失效。建議關閉電池最佳化以確保功能正常工作。",
   "autoBillingBatteryGuideTitle": "電池最佳化設定",
@@ -696,6 +660,32 @@
   "cloudConfigureWebdavTitle": "設定 WebDAV",
   "cloudCustomS3Subtitle": "AWS S3 / Cloudflare R2 / MinIO",
   "cloudCustomS3Title": "S3 協議儲存",
+  "cloudBeeCountCloudTitle": "BeeCount Cloud",
+  "cloudBeeCountCloudSubtitle": "自建雲服務 · 增量同步 · 多裝置協同",
+  "cloudConfigureBeeCountCloudTitle": "設定 BeeCount Cloud",
+  "cloudBeeCountCloudUrlLabel": "伺服器地址",
+  "cloudBeeCountCloudUrlHint": "https://your-server.com",
+  "cloudBeeCountCloudApiPrefixLabel": "API 前綴",
+  "cloudBeeCountCloudApiPrefixHint": "/api/v1",
+  "cloudBeeCountCloudEmailLabel": "電子郵件",
+  "cloudBeeCountCloudEmailHint": "your@email.com",
+  "cloudBeeCountCloudPasswordLabel": "密碼",
+  "cloudBeeCountCloudPasswordHint": "輸入密碼",
+  "cloudBeeCountCloudLoginSuccess": "登入成功",
+  "cloudBeeCountCloudLoginFailed": "登入失敗",
+  "cloudBeeCountCloudSyncSubtitle": "增量同步 · 多裝置協同",
+  "cloudBeeCountCloudConnected": "已連接",
+  "cloudBeeCountCloudNotConnected": "未連接",
+  "cloudBeeCountCloudNotConnectedHint": "請先在雲服務設定中配置並登入",
+  "cloudBeeCountCloudAutoSync": "增量同步",
+  "cloudBeeCountCloudAutoSyncHint": "資料變更自動同步到雲端，無需手動操作",
+  "cloudBeeCountCloudMultiDevice": "多裝置協同",
+  "cloudBeeCountCloudMultiDeviceHint": "多台裝置間自動保持資料一致",
+  "cloudBeeCountCloudAttachment": "附件同步",
+  "cloudBeeCountCloudAttachmentHint": "帳單圖片等附件自動雲端備份",
+  "cloudTabOffline": "離線模式",
+  "cloudTabBackup": "備份同步",
+  "cloudTabCloudSync": "雲端協同",
   "cloudCustomSupabaseSubtitle": "點擊設定自建Supabase服務",
   "cloudCustomSupabaseTitle": "自訂 Supabase",
   "cloudCustomWebdavSubtitle": "點擊設定堅果雲/Nextcloud等",
@@ -846,8 +836,37 @@
     }
   },
   "cloudSyncHint": "下載時可自動對比差異並逐條預覽。非即時同步，請避免多裝置同時編輯同一帳本。同步範圍為帳本資料（含關聯的帳戶、分類、標籤），不含附件。",
+  "cloudSyncNow": "立即同步",
+  "cloudSyncNowHint": "推送本機變更並拉取遠端更新",
+  "cloudSyncInProgress": "正在同步...",
+  "cloudSyncComplete": "同步完成：推送 {pushed} 條，拉取 {pulled} 條",
+  "@cloudSyncComplete": {
+    "placeholders": {
+      "pushed": {"type": "int"},
+      "pulled": {"type": "int"}
+    }
+  },
+  "cloudAutoSyncHint": "資料變更後自動同步到雲端",
   "cloudSyncPageSubtitle": "手動上傳和下載帳本資料",
   "cloudSyncPageTitle": "雲同步",
+  "cloudTutorialTitle": "使用教程",
+  "cloudTutorialIntro": "BeeCount Cloud 是可自建的雲同步服務端,支援多裝置即時協同。流程很簡單:",
+  "cloudTutorialStep1Title": "第一步:部署或選擇伺服器",
+  "cloudTutorialStep1Desc": "自行部署:Docker 一行指令拉起(詳見 GitHub README 的 Docker 指南)。或直接使用朋友/團隊既有的 BeeCount Cloud 伺服器。",
+  "cloudTutorialStep2Title": "第二步:取得帳號",
+  "cloudTutorialStep2Desc": "BeeCount Cloud 不支援自助註冊(避免公網服務被濫用)。自行部署:Docker 首次啟動日誌會印出隨機管理員帳密,直接用。加入他人伺服器:請管理員在 Web 後台 →「使用者」裡為你建立帳號。",
+  "cloudTutorialStep3Title": "第三步:登入並開啟同步",
+  "cloudTutorialStep3Desc": "App 內選「BeeCount Cloud」,填伺服器位址 + 管理員給你的帳號,登入。首次會全量上傳你本機所有帳本資料,之後每次編輯即時推送。",
+  "cloudTutorialStep4Title": "第四步:其他裝置登入",
+  "cloudTutorialStep4Desc": "手機、平板、Web 三端用同一帳號登入,資料即刻互通。修改數秒內互相感知。",
+  "cloudTutorialTipTitle": "小提示",
+  "cloudTutorialTipDesc": "Web 端地址 = 伺服器位址,瀏覽器直接開啟即可。登入後可管理帳本、成員、查看紀錄。",
+  "cloudTutorialFeaturesTitle": "特色功能",
+  "cloudTutorialFeature1": "📱 多裝置即時協同:手機 A + 手機 B + Web 三端同帳號,資料秒級同步",
+  "cloudTutorialFeature2": "🌐 內建 Web 管理端:一個 Docker 映像檔含 server + web,瀏覽器即可使用",
+  "cloudTutorialFeature3": "👥 多用戶獨立:一個伺服器可多人註冊,各自資料完全隔離",
+  "cloudTutorialFeature4": "🔜 規劃中:共享帳本(邀請家人 / 團隊一起記同一本)",
+  "cloudTutorialGotIt": "我知道了",
   "cloudTest": "測試",
   "cloudTestConnection": "測試連線",
   "cloudTestError": "測試失敗",
@@ -1371,9 +1390,12 @@
   "mineImportProgressSubtitle": "進度：{done}/{total}，成功 {ok}，失敗 {fail}",
   "mineImportProgressTitle": "後台匯入中…",
   "mineLanguageSettings": "語言設定",
+  "cloudReloginTitle": "重新登入",
+  "cloudReloginSuccess": "已重新登入",
+  "cloudReloginFailed": "重新登入失敗",
   "mineLoggedInEmail": "已登入",
   "mineLoginSubtitle": "僅在同步時需要",
-  "mineLoginTitle": "登入 / 註冊",
+  "mineLoginTitle": "登入",
   "mineLogoutButton": "退出",
   "mineLogoutConfirmMessage": "確定要退出當前帳號登入嗎？\n退出後將無法使用雲同步功能。",
   "mineLogoutConfirmTitle": "退出登入",
@@ -2063,8 +2085,8 @@
   "welcomeCategoryModeTitle": "選擇分類模式",
   "welcomeCloudSyncDescription": "BeeCount 支援多種同步方式，資料完全由你掌控",
   "welcomeCloudSyncFeature1": "完全離線使用，無需雲端服務",
-  "welcomeCloudSyncFeature2": "iCloud 同步（iOS 用戶零配置）",
-  "welcomeCloudSyncFeature3": "自建 WebDAV/Supabase/S3 服務",
+  "welcomeCloudSyncFeature2": "BeeCount Cloud 自建雲（多裝置即時協同 + Web 端）",
+  "welcomeCloudSyncFeature3": "iCloud / WebDAV / Supabase / S3 任選",
   "welcomeCloudSyncTitle": "可選的雲端同步",
   "welcomeCurrencyDescription": "選擇您常用的貨幣，之後可以隨時在設定中更改",
   "welcomeExistingUserTitle": "老用戶？",
@@ -2305,5 +2327,60 @@
   "budgetManagement": "預算管理",
   "budgetManagementDesc": "設置月度預算，控制支出",
   "budgetSetupHint": "設置預算，輕鬆掌控每月開支",
-  "budgetSetupAction": "去設置"
+  "budgetSetupAction": "去設置",
+
+  "cloudCollabDevicesPageTitle": "裝置工作階段",
+  "cloudCollabDevicesPageSubtitle": "管理目前帳號活躍裝置",
+  "cloudCollabDevicesViewAllSessions": "顯示全部工作階段",
+  "cloudCollabDevicesViewModeHint": "預設顯示近 30 天去重裝置，可切換檢視全部工作階段。",
+  "cloudCollabNoDevices": "目前沒有活躍裝置",
+  "cloudCollabUnknownDeviceName": "未知裝置",
+  "cloudCollabDeviceCurrentTag": "目前裝置",
+  "cloudCollabCurrentDeviceCannotRevoke": "目前裝置不能遠端下線。",
+  "cloudCollabDeviceAppVersion": "應用：{version}",
+  "cloudCollabDeviceOsVersion": "系統：{version}",
+  "cloudCollabDeviceModel": "型號：{model}",
+  "cloudCollabDeviceLastIp": "IP：{ip}",
+  "cloudCollabDeviceSessionCount": "工作階段數：{count}",
+  "cloudCollabDeviceLastSeen": "最近活躍：{time}",
+  "cloudCollabDeviceCreatedAt": "建立時間：{time}",
+  "cloudCollabDeviceRevokeTitle": "遠端下線裝置",
+  "cloudCollabDeviceRevokeMessage": "確認下線裝置 {name}（{id}）嗎？",
+  "cloudCollabDeviceRevokeMultipleMessage": "確認下線裝置 {name} 的 {count} 個工作階段嗎？",
+  "cloudCollabDeviceRevoked": "裝置已下線",
+  "cloudCollabUnavailableMessage": "雲端同步功能暫時不可用。",
+  "cloudCollabScopeDeniedHint": "伺服器尚未開啟 ALLOW_APP_RW_SCOPES，目前裝置工作階段不可用。",
+  "cloudCollabScopeDeniedAction": "請在伺服器 .env 或部署環境設定 ALLOW_APP_RW_SCOPES=true，重啟服務後重新登入 App。",
+
+  "syncHealthTitle": "同步狀態",
+  "syncHealthCheckFailed": "檢測失敗：{msg}",
+  "@syncHealthCheckFailed": {
+    "placeholders": {
+      "msg": { "type": "String" }
+    }
+  },
+  "syncHealthHasDiff": "偵測到差異，已自動同步",
+  "syncHealthInSync": "本地與雲端一致",
+  "syncHealthGroupCurrentLedger": "當前帳本",
+  "syncHealthGroupAll": "全部帳本",
+  "syncHealthRowTx": "交易",
+  "syncHealthRowAttachment": "附件",
+  "syncHealthRowBudget": "預算",
+  "syncHealthRowAccount": "帳戶",
+  "syncHealthRowCategory": "分類",
+  "syncHealthRowTag": "標籤",
+  "syncHealthRowUnpushed": "未推送變更",
+  "syncHealthValue": "本地 {local} · 雲端 {remote}",
+  "@syncHealthValue": {
+    "placeholders": {
+      "local": { "type": "int" },
+      "remote": { "type": "int" }
+    }
+  },
+  "syncHealthValueRemoteMissing": "本地 {local} · 雲端 —",
+  "@syncHealthValueRemoteMissing": {
+    "placeholders": {
+      "local": { "type": "int" }
+    }
+  }
 }

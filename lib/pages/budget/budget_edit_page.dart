@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,7 @@ import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../providers/budget_providers.dart';
+import '../../services/billing/post_processor.dart';
 import '../../services/data/category_service.dart';
 import '../../styles/tokens.dart';
 import '../../utils/currencies.dart';
@@ -529,6 +532,12 @@ class _BudgetEditPageState extends ConsumerState<BudgetEditPage> {
       // 刷新预算数据
       ref.read(budgetRefreshProvider.notifier).state++;
 
+      // 触发一次 sync:预算变更走 changeTracker 已经记在表里了,但
+      // PostProcessor.sync 只在 tx 写入时才调。如果用户只改预算不加交易,
+      // 那条 change 会压在本地没 push 出去 → B 端 / web 看不到。这里手动
+      // 推一下,不阻塞 UI。
+      unawaited(PostProcessor.sync(ref, ledgerId: ledgerId));
+
       if (mounted) {
         showToast(context, l10n.budgetSaveSuccess);
         Navigator.pop(context);
@@ -570,10 +579,15 @@ class _BudgetEditPageState extends ConsumerState<BudgetEditPage> {
 
     try {
       final repo = ref.read(repositoryProvider);
+      final ledgerId = ref.read(currentLedgerIdProvider);
       await repo.deleteBudget(widget.budget!.id);
 
       // 刷新预算数据
       ref.read(budgetRefreshProvider.notifier).state++;
+
+      // 跟保存路径一样:删预算也要 flush 一次 sync,否则 B 端 / web 永远
+      // 看到幽灵预算。
+      unawaited(PostProcessor.sync(ref, ledgerId: ledgerId));
 
       if (mounted) {
         showToast(context, l10n.budgetDeleteSuccess);

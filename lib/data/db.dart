@@ -19,6 +19,12 @@ class Ledgers extends Table {
   TextColumn get currency => text().withDefault(const Constant('CNY'))();
   TextColumn get type => text().withDefault(const Constant('personal'))();  // personal / shared
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  // 跨设备同步唯一标识：跟 accounts/categories/tags 的 syncId 同语义，
+  // 对齐 BeeCount Cloud server 的 ledger.external_id。device B 首次登录
+  // 通过 readLedgers() 拉到的 ext_id 会写到这里，后续 push/pull 都用这个
+  // 做设备间的 ledger 匹配，而不是本地 autoIncrement id（A/B 本地 id 必然
+  // 不一致）。v21 migration 里已为旧数据把 id 回填成 syncId 以兼容。
+  TextColumn get syncId => text().nullable()();
 }
 
 class Accounts extends Table {
@@ -40,6 +46,7 @@ class Accounts extends Table {
   TextColumn get bankName => text().nullable()(); // 开户行
   TextColumn get cardLastFour => text().nullable()(); // 卡号后四位
   TextColumn get note => text().nullable()(); // 备注
+  TextColumn get syncId => text().nullable()(); // 跨设备同步唯一标识 (UUID)
 }
 
 class Categories extends Table {
@@ -57,6 +64,7 @@ class Categories extends Table {
       text().withDefault(const Constant('material'))(); // material / custom / community
   TextColumn get customIconPath => text().nullable()(); // 自定义图标本地路径
   TextColumn get communityIconId => text().nullable()(); // 社区图标ID（预留）
+  TextColumn get syncId => text().nullable()(); // 跨设备同步唯一标识 (UUID)
 }
 
 class Transactions extends Table {
@@ -133,6 +141,30 @@ class Tags extends Table {
   TextColumn get color => text().nullable()();        // 颜色值（如 #FF5722）
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();  // 排序
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  TextColumn get syncId => text().nullable()(); // 跨设备同步唯一标识 (UUID)
+}
+
+// 本地变更追踪表（用于增量同步）
+class LocalChanges extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get entityType => text()();       // transaction/account/category/tag
+  IntColumn get entityId => integer()();       // 本地实体ID
+  TextColumn get entitySyncId => text()();     // 实体的 syncId (UUID)
+  IntColumn get ledgerId => integer()();       // 关联账本ID
+  TextColumn get action => text()();           // create/update/delete
+  TextColumn get payloadJson => text().nullable()(); // 变更后的完整 JSON
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get pushedAt => dateTime().nullable()(); // 非null表示已推送
+}
+
+// 同步状态表
+class SyncState extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get deviceId => text()();         // 设备唯一标识
+  TextColumn get providerType => text().withDefault(const Constant('beecount_cloud'))(); // 防止不同 provider 的 cursor 冲突
+  IntColumn get serverCursor => integer().withDefault(const Constant(0))(); // 服务端变更游标
+  DateTimeColumn get lastPushAt => dateTime().nullable()();
+  DateTimeColumn get lastPullAt => dateTime().nullable()();
 }
 
 // 交易-标签关联表
@@ -152,12 +184,18 @@ class TransactionAttachments extends Table {
   IntColumn get width => integer().nullable()();      // 图片宽度
   IntColumn get height => integer().nullable()();     // 图片高度
   IntColumn get sortOrder => integer().withDefault(const Constant(0))(); // 排序序号
+  TextColumn get cloudFileId => text().nullable()();   // 云端文件ID
+  TextColumn get cloudSha256 => text().nullable()();   // 云端文件SHA256
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 // 预算表
 class Budgets extends Table {
   IntColumn get id => integer().autoIncrement()();
+
+  /// 跨设备同步 syncId(UUID)。v22 新增,migration 给老行补 UUID;之后每次 create
+  /// 都必须填。server 端按此做 entity_sync_id,跨设备 LWW 合并。
+  TextColumn get syncId => text().nullable()();
 
   /// 关联账本ID
   IntColumn get ledgerId => integer()();
@@ -199,12 +237,14 @@ class Budgets extends Table {
   TransactionTags,
   Budgets,
   TransactionAttachments,
+  LocalChanges,
+  SyncState,
 ])
 class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 18; // v18: 账户添加元信息字段
+  int get schemaVersion => 22; // v22: budgets 加 syncId（跨设备同步）
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -596,6 +636,151 @@ class BeeDatabase extends _$BeeDatabase {
             }
 
             print('[DB Migration] v18 迁移完成');
+          }
+          if (from < 19) {
+            // v19: 同步基础设施
+            print('[DB Migration] 开始迁移到 v19: 同步基础设施');
+
+            // 1. 为 accounts 添加 sync_id
+            final accountInfo =
+                await customSelect('PRAGMA table_info(accounts)').get();
+            if (!accountInfo.any((row) => row.data['name'] == 'sync_id')) {
+              await customStatement(
+                  'ALTER TABLE accounts ADD COLUMN sync_id TEXT;');
+              // 回填 UUID
+              await customStatement('''
+                UPDATE accounts SET sync_id =
+                  lower(hex(randomblob(4))) || '-' ||
+                  lower(hex(randomblob(2))) || '-4' ||
+                  substr(lower(hex(randomblob(2))),2) || '-' ||
+                  substr('89ab', abs(random()) % 4 + 1, 1) ||
+                  substr(lower(hex(randomblob(2))),2) || '-' ||
+                  lower(hex(randomblob(6)))
+                WHERE sync_id IS NULL;
+              ''');
+              await customStatement(
+                  'CREATE INDEX IF NOT EXISTS idx_accounts_sync_id ON accounts(sync_id);');
+              logger.info('DB', 'v19: accounts.sync_id 已添加并回填');
+            }
+
+            // 2. 为 categories 添加 sync_id
+            final categoryInfo =
+                await customSelect('PRAGMA table_info(categories)').get();
+            if (!categoryInfo.any((row) => row.data['name'] == 'sync_id')) {
+              await customStatement(
+                  'ALTER TABLE categories ADD COLUMN sync_id TEXT;');
+              await customStatement('''
+                UPDATE categories SET sync_id =
+                  lower(hex(randomblob(4))) || '-' ||
+                  lower(hex(randomblob(2))) || '-4' ||
+                  substr(lower(hex(randomblob(2))),2) || '-' ||
+                  substr('89ab', abs(random()) % 4 + 1, 1) ||
+                  substr(lower(hex(randomblob(2))),2) || '-' ||
+                  lower(hex(randomblob(6)))
+                WHERE sync_id IS NULL;
+              ''');
+              await customStatement(
+                  'CREATE INDEX IF NOT EXISTS idx_categories_sync_id ON categories(sync_id);');
+              logger.info('DB', 'v19: categories.sync_id 已添加并回填');
+            }
+
+            // 3. 为 tags 添加 sync_id
+            final tagInfo =
+                await customSelect('PRAGMA table_info(tags)').get();
+            if (!tagInfo.any((row) => row.data['name'] == 'sync_id')) {
+              await customStatement(
+                  'ALTER TABLE tags ADD COLUMN sync_id TEXT;');
+              await customStatement('''
+                UPDATE tags SET sync_id =
+                  lower(hex(randomblob(4))) || '-' ||
+                  lower(hex(randomblob(2))) || '-4' ||
+                  substr(lower(hex(randomblob(2))),2) || '-' ||
+                  substr('89ab', abs(random()) % 4 + 1, 1) ||
+                  substr(lower(hex(randomblob(2))),2) || '-' ||
+                  lower(hex(randomblob(6)))
+                WHERE sync_id IS NULL;
+              ''');
+              await customStatement(
+                  'CREATE INDEX IF NOT EXISTS idx_tags_sync_id ON tags(sync_id);');
+              logger.info('DB', 'v19: tags.sync_id 已添加并回填');
+            }
+
+            // 4. 创建 local_changes 表
+            await migrator.createTable(localChanges);
+            logger.info('DB', 'v19: local_changes 表已创建');
+
+            // 5. 创建 sync_state 表
+            await migrator.createTable(syncState);
+            logger.info('DB', 'v19: sync_state 表已创建');
+
+            print('[DB Migration] v19 迁移完成');
+          }
+          if (from < 20) {
+            // v20: 附件云端同步字段
+            print('[DB Migration] 开始迁移到 v20: 附件云端同步字段');
+
+            final tableInfo =
+                await customSelect('PRAGMA table_info(transaction_attachments)').get();
+            final hasCloudFileId =
+                tableInfo.any((row) => row.data['name'] == 'cloud_file_id');
+            final hasCloudSha256 =
+                tableInfo.any((row) => row.data['name'] == 'cloud_sha256');
+
+            if (!hasCloudFileId) {
+              await customStatement(
+                  'ALTER TABLE transaction_attachments ADD COLUMN cloud_file_id TEXT;');
+              logger.info('DB', 'v20: cloud_file_id 字段已添加');
+            }
+
+            if (!hasCloudSha256) {
+              await customStatement(
+                  'ALTER TABLE transaction_attachments ADD COLUMN cloud_sha256 TEXT;');
+              logger.info('DB', 'v20: cloud_sha256 字段已添加');
+            }
+
+            print('[DB Migration] v20 迁移完成');
+          }
+          if (from < 21) {
+            // v21: ledgers 加 syncId（跨设备同步 ledger 匹配）
+            print('[DB Migration] 开始迁移到 v21: ledgers.sync_id');
+
+            final ledgerInfo =
+                await customSelect('PRAGMA table_info(ledgers)').get();
+            if (!ledgerInfo.any((row) => row.data['name'] == 'sync_id')) {
+              await customStatement(
+                  'ALTER TABLE ledgers ADD COLUMN sync_id TEXT;');
+              // 把现有 ledger.id 回填成 syncId（转字符串）。这样旧 A 设备已推
+              // 到 server 的 external_id（= 当时的 id.toString()）对得上新列，
+              // 后续 push/pull 都走 syncId，无脑兼容。
+              await customStatement(
+                  "UPDATE ledgers SET sync_id = CAST(id AS TEXT) WHERE sync_id IS NULL;");
+              await customStatement(
+                  'CREATE INDEX IF NOT EXISTS idx_ledgers_sync_id ON ledgers(sync_id);');
+              logger.info('DB', 'v21: ledgers.sync_id 已添加并回填');
+            }
+
+            print('[DB Migration] v21 迁移完成');
+          }
+          if (from < 22) {
+            // v22: budgets 加 syncId(跨设备同步 budget 匹配)
+            print('[DB Migration] 开始迁移到 v22: budgets.sync_id');
+
+            final budgetInfo =
+                await customSelect('PRAGMA table_info(budgets)').get();
+            if (!budgetInfo.any((row) => row.data['name'] == 'sync_id')) {
+              await customStatement(
+                  'ALTER TABLE budgets ADD COLUMN sync_id TEXT;');
+              // SQLite 没有原生 UUID。用 lower(hex(randomblob(16))) 造 32 位
+              // 随机 hex,足够当 server entity_sync_id 用。格式跟 UUID 不是
+              // 标准 36 位,但 server 侧校验只要求非空字符串。
+              await customStatement(
+                  "UPDATE budgets SET sync_id = lower(hex(randomblob(16))) WHERE sync_id IS NULL;");
+              await customStatement(
+                  'CREATE INDEX IF NOT EXISTS idx_budgets_sync_id ON budgets(sync_id);');
+              logger.info('DB', 'v22: budgets.sync_id 已添加并回填');
+            }
+
+            print('[DB Migration] v22 迁移完成');
           }
         },
       );

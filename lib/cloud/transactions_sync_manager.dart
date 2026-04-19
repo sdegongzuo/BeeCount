@@ -102,17 +102,25 @@ class TransactionsSyncManager implements SyncService {
     return 'ledger_$ledgerId.json';
   }
 
-  /// 获取本地最大发生时间（用于方向判断）
-  DateTime? _getLocalUpdatedAt(int ledgerId) {
-    // 优先使用最近修改时间
+  /// 本地最大发生时间（用于 flutter_cloud_sync 的方向判断）。
+  /// 取 `max(最近本地写入时间, SELECT MAX(happened_at) WHERE ledger=...)`。
+  /// 之前只返回 `_recentLocalChangeAt`，冷启动时为 null，方向判断只能靠 count。
+  /// 两台设备交易条数相同、但内容不同的时候，count 判断会误判方向。
+  Future<DateTime?> _computeLocalUpdatedAt(int ledgerId) async {
     final recentChange = _recentLocalChangeAt[ledgerId];
-    if (recentChange != null) {
-      return recentChange;
+    DateTime? dbMax;
+    try {
+      final query = db.selectOnly(db.transactions)
+        ..addColumns([db.transactions.happenedAt.max()])
+        ..where(db.transactions.ledgerId.equals(ledgerId));
+      final row = await query.getSingleOrNull();
+      dbMax = row?.read(db.transactions.happenedAt.max());
+    } catch (e) {
+      logger.warning('CloudSync', '读取本地 MAX(happenedAt) 失败: $e');
     }
-
-    // TODO: 可以从数据库查询最大 happenedAt
-    // 暂时返回 null，让包使用 count 判断
-    return null;
+    if (recentChange == null) return dbMax;
+    if (dbMax == null) return recentChange;
+    return recentChange.isAfter(dbMax) ? recentChange : dbMax;
   }
 
   @override
@@ -351,7 +359,7 @@ class TransactionsSyncManager implements SyncService {
       final fcsStatus = await _syncManager!.getStatus(
           data: ledgerId,
           path: _pathForLedger(ledgerId),
-          localUpdatedAt: _getLocalUpdatedAt(ledgerId),
+          localUpdatedAt: await _computeLocalUpdatedAt(ledgerId),
           forceRefresh: true);
 
       // 转换包的 SyncStatus 为 BeeCount 的 SyncStatus
@@ -439,7 +447,7 @@ class TransactionsSyncManager implements SyncService {
       final status = await _syncManager!.getStatus(
         data: ledgerId,
         path: _pathForLedger(ledgerId),
-        localUpdatedAt: _getLocalUpdatedAt(ledgerId),
+        localUpdatedAt: await _computeLocalUpdatedAt(ledgerId),
         forceRefresh: true,
       );
 
@@ -657,7 +665,7 @@ class TransactionsSyncManager implements SyncService {
           }
 
           result.add(LedgerDisplayItem.fromRemote(
-            remoteId: remoteId,
+            remoteSyncId: remoteId.toString(),
             name: name,
             currency: currency,
             updatedAt: updatedAt,

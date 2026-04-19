@@ -16,6 +16,8 @@ abstract class AttachmentRepository {
     int? width,
     int? height,
     int sortOrder = 0,
+    String? cloudFileId,
+    String? cloudSha256,
   });
 
   /// 根据ID获取附件
@@ -35,6 +37,9 @@ abstract class AttachmentRepository {
 
   /// 批量更新附件排序
   Future<void> updateAttachmentSortOrders(List<({int id, int sortOrder})> updates);
+
+  /// 更新附件云端引用（上传后回填）
+  Future<void> updateAttachmentCloudRef(int id, {String? cloudFileId, String? cloudSha256});
 
   // ============================================
   // 查询操作

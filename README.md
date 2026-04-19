@@ -4,13 +4,13 @@
 
 ![GitHub stars](https://img.shields.io/github/stars/TNT-Likely/BeeCount?style=social)
 ![License](https://img.shields.io/badge/license-商业源代码许可-orange.svg)
-![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-lightgrey.svg)
+![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-lightgrey.svg)
 ![Flutter](https://img.shields.io/badge/Flutter-3.27%2B-02569B?logo=flutter)
 ![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
 
 **你的数据，你做主的开源记账应用**
 
-**核心优势：支持 iCloud/自建 Supabase/WebDAV/S3 协议服务器，数据完全掌控在你手中**
+**核心优势：支持 BeeCount Cloud 自建云（多端实时同步 + Web 端）/ iCloud / Supabase / WebDAV / S3，数据完全掌控在你手中**
 
 <br/>
 
@@ -41,6 +41,8 @@
 > 🤖 **Android** - [Google Play](https://play.google.com/store/apps/details?id=com.tntlikely.beecount) | [下载 APK](https://github.com/TNT-Likely/BeeCount/releases/latest) | 支持 Android 5.0+
 >
 > 🍎 **iOS** - [App Store](https://apps.apple.com/app/id6754611670) | [TestFlight 公测版](https://testflight.apple.com/join/Eaw2rWxa) | 支持 iOS 15.5+
+>
+> 🌐 **Web** - 内置于 [BeeCount Cloud](#-beecount-cloud自建云同步--web-端) 自部署镜像,浏览器直接访问服务器地址即可
 >
 > 💡 在 App Store 或 Google Play 搜索 **"蜜蜂记账 - 简洁记账本"** 即可下载
 >
@@ -143,10 +145,11 @@
 
 | 云同步方案 | 适用场景 | 特点 |
 |---------|---------|------|
-| **iCloud** | iOS 用户 | 🆕 零配置、原生集成、Apple 生态无缝同步 |
+| **BeeCount Cloud** | 追求多端实时协同的用户 | 🆕 Docker 一键自建 + 多设备实时秒同步 + 自带 Web 管理端 + 多用户 |
+| **iCloud** | iOS 用户 | 零配置、原生集成、Apple 生态无缝同步 |
 | **Supabase** | 无 NAS 的用户 | 免费额度充足、配置简单、云端托管 |
 | **WebDAV** | 有 NAS 的用户 | 数据完全本地化、支持群晖/绿联云/Nextcloud |
-| **S3 协议** | 追求灵活性的用户 | 🆕 支持 Cloudflare R2/AWS S3/MinIO，免费额度大 |
+| **S3 协议** | 追求灵活性的用户 | 支持 Cloudflare R2/AWS S3/MinIO,免费额度大 |
 
 **为什么选择自建？**
 
@@ -235,6 +238,115 @@
 - **成本可控**：大多数方案都提供免费额度或一次性购买
 - **稳定可靠**：不依赖第三方托管服务，自主掌控
 - **灵活选择**：根据自己的需求选择最合适的方案
+
+---
+
+### 🆕 BeeCount Cloud（自建云同步 + Web 端)
+
+**适用场景**:想要多设备(手机 A + 手机 B + Web)**实时**秒级同步 + 在浏览器直接管理账本的用户;
+有 NAS / VPS / 群晖 / 本机 Docker 环境的用户。
+
+**核心能力**:
+
+- 📱 **多设备实时协同**:手机 A 改一笔,手机 B 和 Web 几秒内看到(WebSocket 推送)
+- 🌐 **自带 Web 管理端**:一个 Docker 镜像 = server + web,浏览器直接打开服务器地址即用
+- 👥 **多用户独立**:一个服务器可以多人注册账号,数据互相隔离,各自只看自己的
+- 🔜 **规划中**:共享账本(邀请家人 / 团队一起记同一本)
+- 🐳 **一键部署**:下面这份 `docker-compose.yml` 就能跑起来
+- 🔒 **完整开源**:server 代码在 [BeeCount-Cloud](https://github.com/TNT-Likely/BeeCount-Cloud) 仓库
+
+**一键部署**:
+
+把下面内容存为 `docker-compose.yml`:
+
+```yaml
+services:
+  beecount-cloud:
+    image: sunxiao0721/beecount-cloud:latest
+    restart: unless-stopped
+    ports:
+      - "8869:8080"
+    volumes:
+      - ./data:/data
+```
+
+然后:
+
+```bash
+docker compose up -d
+# 查看首次启动生成的随机管理员账号密码:
+docker compose logs beecount-cloud | grep -A 10 "初次启动"
+```
+
+看到类似:
+
+```
+ BeeCount Cloud — 初次启动,已自动创建管理员账号:
+
+   邮箱:    owner@example.com
+   密码:    FIDodUnwprkw1zUi
+```
+
+拿这个账号:
+
+- 浏览器访问 `http://<你的服务器 IP>:8869` 即可用 **Web 管理端**
+- App 里选「BeeCount Cloud」,填服务器地址 + 上面账号登录
+
+**添加家人 / 队友**:Web 后台 →「用户」→「新增用户」输入对方邮箱和密码 → 告诉他们登录就行。
+每个用户数据互相隔离,看不到别人的账本(未来支持共享账本后才会互相可见)。
+
+**进阶配置**:
+
+```yaml
+services:
+  beecount-cloud:
+    image: sunxiao0721/beecount-cloud:latest
+    restart: unless-stopped
+    ports:
+      - "8869:8080"
+    environment:
+      # 自指定管理员账号(替代默认随机生成):
+      BOOTSTRAP_ADMIN_EMAIL: me@example.com
+      BOOTSTRAP_ADMIN_PASSWORD: <你的强密码>
+      # 自指定 JWT 密钥(默认会自动生成到 /data/.jwt_secret):
+      # JWT_SECRET: <32+ 字节随机串>
+    volumes:
+      - ./data:/data
+```
+
+**Web 管理端预览**:
+
+<div align="center">
+  <img src="demo/preview/web/zh-01-home.png" alt="Web 首页" width="600" />
+  <br/>
+  <sub>💰 首页:收支、资产构成、分类热力、趋势 —— 一屏总览(暗黑模式)</sub>
+</div>
+
+<br/>
+
+<div align="center">
+  <img src="demo/preview/web/zh-02-transactions.png" alt="Web 交易列表" width="600" />
+  <br/>
+  <sub>📒 交易列表:关键字 / 分类 / 账户 / 日期 / 标签多维筛选</sub>
+</div>
+
+<br/>
+
+<div align="center">
+  <img src="demo/preview/web/zh-03-devices.png" alt="Web 在线设备" width="600" />
+  <br/>
+  <sub>📱 在线设备:管理员可以看到当前所有登录设备 + 最近活跃 / IP</sub>
+</div>
+
+> 💡 **支持 PWA(渐进式网页应用)**:Web 管理端已接入 PWA,浏览器地址栏右侧会出现"安装"图标,
+> 点一下就能把 Web 作为独立 app 装到桌面 / Dock / 开始菜单,打开后没浏览器地址栏,
+> 跟原生 app 体感几乎一致。网络断开时能离线读缓存的数据,恢复后自动同步。
+
+> 💡 **数据位置**:SQLite 数据库 + 附件 + JWT 密钥全部在 `./data/` 目录,迁移/备份整个目录就行。
+
+> 💡 **公网部署**:建议在前面套一层 nginx / caddy 做 HTTPS + 域名。App 和 Web 都支持 `https://` 地址。
+
+[📖 更多详情 + 代码审查报告 → BeeCount-Cloud 仓库](https://github.com/TNT-Likely/BeeCount-Cloud)
 
 ---
 
@@ -676,6 +788,7 @@ A:
 
 | 仓库 | 说明 |
 |------|------|
+| [BeeCount-Cloud](https://github.com/TNT-Likely/BeeCount-Cloud) | 🆕 自建云同步服务端 + Web 管理端(FastAPI + React) |
 | [BeeCount-Website](https://github.com/TNT-Likely/BeeCount-Website) | 官网/文档仓库 |
 | [beecount-openharmony](https://github.com/TNT-Likely/beecount-openharmony) | 鸿蒙版本仓库（已停止更新） |
 | [BeeShot](https://github.com/TNT-Likely/BeeShot) | App Store 截图生成器 |

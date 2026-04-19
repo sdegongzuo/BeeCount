@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+import 'package:uuid/uuid.dart';
 
 import '../../db.dart';
 import '../../../services/system/logger_service.dart';
@@ -8,6 +9,7 @@ import '../account_repository.dart';
 /// 本地账户Repository实现
 /// 基于 Drift 数据库实现
 class LocalAccountRepository implements AccountRepository {
+  static const _uuid = Uuid();
   final BeeDatabase db;
 
   LocalAccountRepository(this.db);
@@ -117,6 +119,7 @@ class LocalAccountRepository implements AccountRepository {
         bankName: d.Value(bankName),
         cardLastFour: d.Value(cardLastFour),
         note: d.Value(note),
+        syncId: d.Value(_uuid.v4()),
       );
 
       logger.info('AccountCreate', '📦 Companion 创建成功，准备插入数据库');

@@ -13,6 +13,22 @@ class AIProviderManager {
   static const String _keyProviders = 'ai_providers_v2';
   static const String _keyBinding = 'ai_capability_binding_v2';
 
+  /// 全局回调:任何改了 providers / binding / custom_prompt 的地方都会打到这里,
+  /// sync_providers 启动时注入一个"推送 AI 配置到 server"的实现,就能把变更
+  /// 无感同步到另一台设备 + web。fire-and-forget,不抛。
+  static void Function()? onConfigChanged;
+
+  /// 保存自定义提示词。跟 providers/binding 同套路,走统一的 onConfigChanged。
+  static Future<void> saveCustomPrompt(String prompt) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('ai_custom_prompt', prompt);
+    try {
+      onConfigChanged?.call();
+    } catch (e, st) {
+      logger.warning(_tag, 'onConfigChanged 触发失败: $e', st);
+    }
+  }
+
   /// 生成简单的唯一ID
   static String _generateId() {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -190,6 +206,11 @@ class AIProviderManager {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = jsonEncode(providers.map((p) => p.toJson()).toList());
     await prefs.setString(_keyProviders, jsonStr);
+    try {
+      onConfigChanged?.call();
+    } catch (e, st) {
+      logger.warning(_tag, 'onConfigChanged 触发失败: $e', st);
+    }
   }
 
   /// 获取能力绑定配置
@@ -210,12 +231,80 @@ class AIProviderManager {
     }
   }
 
-  /// 保存能力绑定配置
+  /// 保存能力绑定配置。保存后触发 onConfigChanged,把当前 AI 全量配置推到 server。
   static Future<void> saveCapabilityBinding(AICapabilityBinding binding) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = jsonEncode(binding.toJson());
     await prefs.setString(_keyBinding, jsonStr);
     logger.info(_tag, '保存能力绑定: text=${binding.textProviderId}, vision=${binding.visionProviderId}, speech=${binding.speechProviderId}');
+    try {
+      onConfigChanged?.call();
+    } catch (e, st) {
+      logger.warning(_tag, 'onConfigChanged 触发失败: $e', st);
+    }
+  }
+
+  /// 当前 AI 配置的完整 snapshot,用于推给 server 同步到另一端。
+  /// 包括 providers / binding / custom_prompt / strategy 和几个开关。
+  static Future<Map<String, dynamic>> snapshotForSync() async {
+    final prefs = await SharedPreferences.getInstance();
+    final providers = await getProviders();
+    final binding = await getCapabilityBinding();
+    return {
+      'providers': providers.map((p) => p.toJson()).toList(),
+      'binding': binding.toJson(),
+      'custom_prompt': prefs.getString('ai_custom_prompt') ?? '',
+      'strategy': prefs.getString('ai_strategy') ?? '',
+      'bill_extraction_enabled':
+          prefs.getBool('ai_bill_extraction_enabled') ?? false,
+      'use_vision': prefs.getBool('ai_use_vision') ?? false,
+    };
+  }
+
+  /// 把 server /profile/me 返回的 ai_config dict 落到本地 SharedPreferences。
+  /// 只改跟 server 不同的字段,避免 saveXxx 回调再次触发 onConfigChanged 循环。
+  static Future<void> applyFromServer(Map<String, dynamic> config) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // providers(比较序列化后的 string,简单又稳)
+    final rawProviders = config['providers'];
+    if (rawProviders is List) {
+      final jsonStr = jsonEncode(rawProviders);
+      if (prefs.getString(_keyProviders) != jsonStr) {
+        await prefs.setString(_keyProviders, jsonStr);
+      }
+    }
+
+    final rawBinding = config['binding'];
+    if (rawBinding is Map<String, dynamic>) {
+      final jsonStr = jsonEncode(rawBinding);
+      if (prefs.getString(_keyBinding) != jsonStr) {
+        await prefs.setString(_keyBinding, jsonStr);
+      }
+    }
+
+    final prompt = config['custom_prompt'] as String?;
+    if (prompt != null && prefs.getString('ai_custom_prompt') != prompt) {
+      await prefs.setString('ai_custom_prompt', prompt);
+    }
+
+    final strategy = config['strategy'] as String?;
+    if (strategy != null && strategy.isNotEmpty &&
+        prefs.getString('ai_strategy') != strategy) {
+      await prefs.setString('ai_strategy', strategy);
+    }
+
+    final billEnabled = config['bill_extraction_enabled'] as bool?;
+    if (billEnabled != null &&
+        prefs.getBool('ai_bill_extraction_enabled') != billEnabled) {
+      await prefs.setBool('ai_bill_extraction_enabled', billEnabled);
+    }
+
+    final useVision = config['use_vision'] as bool?;
+    if (useVision != null && prefs.getBool('ai_use_vision') != useVision) {
+      await prefs.setBool('ai_use_vision', useVision);
+    }
+    logger.info(_tag, 'AI 配置已从 server 应用到本地');
   }
 
   /// 设置单个能力的服务商

@@ -26,6 +26,11 @@ class LedgerDisplayItem {
   /// 是否为仅远程账本（本地不存在）
   final bool isRemoteOnly;
 
+  /// 仅远程账本独有：server 端 external_id（= syncId）。本地账本此字段为 null。
+  /// 下载回本地时必须用这个字段去 server 精准拉取，而不是用 `id`，因为
+  /// remote-only 项的 `id` 是仅用于 UI 唯一化的占位 hashCode。
+  final String? remoteSyncId;
+
   const LedgerDisplayItem({
     required this.id,
     required this.name,
@@ -34,6 +39,7 @@ class LedgerDisplayItem {
     required this.balance,
     required this.lastUpdated,
     this.isRemoteOnly = false,
+    this.remoteSyncId,
   });
 
   /// 从本地账本创建
@@ -58,7 +64,7 @@ class LedgerDisplayItem {
 
   /// 从远程索引创建
   factory LedgerDisplayItem.fromRemote({
-    required int remoteId,
+    required String remoteSyncId,
     required String name,
     required String currency,
     required DateTime updatedAt,
@@ -66,13 +72,16 @@ class LedgerDisplayItem {
     required double balance,
   }) {
     return LedgerDisplayItem(
-      id: remoteId,
+      // id 是 remoteSyncId 的 hashCode，只为 UI 列表唯一性；真正用于
+      // 下载/映射的 server 标识在 `remoteSyncId` 字段里。
+      id: remoteSyncId.hashCode,
       name: name,
       currency: currency,
       transactionCount: transactionCount,
       balance: balance,
       lastUpdated: updatedAt,
       isRemoteOnly: true,
+      remoteSyncId: remoteSyncId,
     );
   }
 

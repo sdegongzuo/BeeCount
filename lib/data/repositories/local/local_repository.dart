@@ -1,4 +1,5 @@
 import '../../db.dart';
+import '../../../cloud/sync/change_tracker.dart';
 import '../base_repository.dart';
 import '../budget_repository.dart';
 import 'local_ledger_repository.dart';
@@ -20,6 +21,9 @@ class LocalRepository extends BaseRepository {
   /// 仅供需要直接数据库访问的场景使用（如数据库初始化、导入导出）
   final BeeDatabase db;
 
+  /// 可选的变更追踪器，用于云同步
+  ChangeTracker? changeTracker;
+
   // 子 Repository 实例
   late final LocalLedgerRepository _ledgerRepo;
   late final LocalTransactionRepository _transactionRepo;
@@ -32,7 +36,7 @@ class LocalRepository extends BaseRepository {
   late final LocalBudgetRepository _budgetRepo;
   late final LocalAttachmentRepository _attachmentRepo;
 
-  LocalRepository(this.db) {
+  LocalRepository(this.db, {this.changeTracker}) {
     _ledgerRepo = LocalLedgerRepository(db);
     _transactionRepo = LocalTransactionRepository(db);
     _categoryRepo = LocalCategoryRepository(db);
@@ -92,11 +96,39 @@ class LocalRepository extends BaseRepository {
       _ledgerRepo.updateLedgerName(id: id, name: name);
 
   @override
-  Future<void> updateLedger({required int id, String? name, String? currency}) =>
-      _ledgerRepo.updateLedger(id: id, name: name, currency: currency);
+  Future<void> updateLedger({required int id, String? name, String? currency}) async {
+    await _ledgerRepo.updateLedger(id: id, name: name, currency: currency);
+    if (changeTracker != null) {
+      final row =
+          await (db.select(db.ledgers)..where((l) => l.id.equals(id))).getSingleOrNull();
+      if (row != null && row.syncId != null && row.syncId!.isNotEmpty) {
+        await changeTracker!.recordChange(
+          entityType: 'ledger',
+          entityId: id,
+          entitySyncId: row.syncId!,
+          ledgerId: id,
+          action: 'update',
+        );
+      }
+    }
+  }
 
   @override
-  Future<void> deleteLedger(int id) => _ledgerRepo.deleteLedger(id);
+  Future<void> deleteLedger(int id) async {
+    await _ledgerRepo.deleteLedger(id);
+    if (changeTracker != null) {
+      // Ledger 表没有 syncId 列，mobile 向 server 推送 ledger_snapshot 时
+      // 都用本地 id 的字符串形式（见 sync_engine.fullPush line 1025）作为
+      // external_id / entity_sync_id，这里保持一致。
+      await changeTracker!.recordChange(
+        entityType: 'ledger_snapshot',
+        entityId: id,
+        entitySyncId: id.toString(),
+        ledgerId: id,
+        action: 'delete',
+      );
+    }
+  }
 
   @override
   Future<int> getMaxLedgerId() => _ledgerRepo.getMaxLedgerId();
@@ -173,18 +205,32 @@ class LocalRepository extends BaseRepository {
     required DateTime happenedAt,
     String? note,
     String? syncId,
-  }) =>
-      _transactionRepo.addTransaction(
-        ledgerId: ledgerId,
-        type: type,
-        amount: amount,
-        categoryId: categoryId,
-        accountId: accountId,
-        toAccountId: toAccountId,
-        happenedAt: happenedAt,
-        note: note,
-        syncId: syncId,
-      );
+  }) async {
+    final id = await _transactionRepo.addTransaction(
+      ledgerId: ledgerId,
+      type: type,
+      amount: amount,
+      categoryId: categoryId,
+      accountId: accountId,
+      toAccountId: toAccountId,
+      happenedAt: happenedAt,
+      note: note,
+      syncId: syncId,
+    );
+    if (changeTracker != null) {
+      final tx = await _transactionRepo.getTransactionById(id);
+      if (tx != null) {
+        await changeTracker!.recordChange(
+          entityType: 'transaction',
+          entityId: id,
+          entitySyncId: tx.syncId!,
+          ledgerId: ledgerId,
+          action: 'create',
+        );
+      }
+    }
+    return id;
+  }
 
   @override
   Future<int> insertTransactionsBatch(List<TransactionsCompanion> items) =>
@@ -199,19 +245,48 @@ class LocalRepository extends BaseRepository {
     String? note,
     DateTime? happenedAt,
     dynamic accountId,
-  }) =>
-      _transactionRepo.updateTransaction(
-        id: id,
-        type: type,
-        amount: amount,
-        categoryId: categoryId,
-        note: note,
-        happenedAt: happenedAt,
-        accountId: accountId,
-      );
+  }) async {
+    if (changeTracker != null) {
+      final tx = await _transactionRepo.getTransactionById(id);
+      if (tx?.syncId != null) {
+        await _transactionRepo.updateTransaction(
+          id: id, type: type, amount: amount,
+          categoryId: categoryId, note: note,
+          happenedAt: happenedAt, accountId: accountId,
+        );
+        await changeTracker!.recordChange(
+          entityType: 'transaction',
+          entityId: id,
+          entitySyncId: tx!.syncId!,
+          ledgerId: tx.ledgerId,
+          action: 'update',
+        );
+        return;
+      }
+    }
+    await _transactionRepo.updateTransaction(
+      id: id, type: type, amount: amount,
+      categoryId: categoryId, note: note,
+      happenedAt: happenedAt, accountId: accountId,
+    );
+  }
 
   @override
-  Future<void> deleteTransaction(int id) => _transactionRepo.deleteTransaction(id);
+  Future<void> deleteTransaction(int id) async {
+    if (changeTracker != null) {
+      final tx = await _transactionRepo.getTransactionById(id);
+      if (tx?.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'transaction',
+          entityId: id,
+          entitySyncId: tx!.syncId!,
+          ledgerId: tx.ledgerId,
+          action: 'delete',
+        );
+      }
+    }
+    await _transactionRepo.deleteTransaction(id);
+  }
 
   @override
   Future<Transaction?> getTransactionById(int id) => _transactionRepo.getTransactionById(id);
@@ -381,8 +456,19 @@ class LocalRepository extends BaseRepository {
   // ============================================
 
   @override
-  Future<int> createCategory({required String name, required String kind, String? icon, int? sortOrder}) =>
-      _categoryRepo.createCategory(name: name, kind: kind, icon: icon, sortOrder: sortOrder);
+  Future<int> createCategory({required String name, required String kind, String? icon, int? sortOrder}) async {
+    final id = await _categoryRepo.createCategory(name: name, kind: kind, icon: icon, sortOrder: sortOrder);
+    if (changeTracker != null) {
+      final cat = await _categoryRepo.getCategoryById(id);
+      if (cat?.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'category', entityId: id,
+          entitySyncId: cat!.syncId!, ledgerId: 0, action: 'create',
+        );
+      }
+    }
+    return id;
+  }
 
   @override
   Future<int> createSubCategory({
@@ -391,21 +477,47 @@ class LocalRepository extends BaseRepository {
     required String kind,
     String? icon,
     int? sortOrder,
-  }) =>
-      _categoryRepo.createSubCategory(
-        parentId: parentId,
-        name: name,
-        kind: kind,
-        icon: icon,
-        sortOrder: sortOrder,
+  }) async {
+    final id = await _categoryRepo.createSubCategory(
+      parentId: parentId, name: name, kind: kind, icon: icon, sortOrder: sortOrder,
+    );
+    if (changeTracker != null) {
+      final cat = await _categoryRepo.getCategoryById(id);
+      if (cat?.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'category', entityId: id,
+          entitySyncId: cat!.syncId!, ledgerId: 0, action: 'create',
+        );
+      }
+    }
+    return id;
+  }
+
+  @override
+  Future<void> updateCategory(int id, {String? name, String? icon, int? parentId, int? level}) async {
+    final cat = changeTracker != null ? await _categoryRepo.getCategoryById(id) : null;
+    await _categoryRepo.updateCategory(id, name: name, icon: icon, parentId: parentId, level: level);
+    if (cat?.syncId != null) {
+      await changeTracker!.recordChange(
+        entityType: 'category', entityId: id,
+        entitySyncId: cat!.syncId!, ledgerId: 0, action: 'update',
       );
+    }
+  }
 
   @override
-  Future<void> updateCategory(int id, {String? name, String? icon, int? parentId, int? level}) =>
-      _categoryRepo.updateCategory(id, name: name, icon: icon, parentId: parentId, level: level);
-
-  @override
-  Future<void> deleteCategory(int id) => _categoryRepo.deleteCategory(id);
+  Future<void> deleteCategory(int id) async {
+    if (changeTracker != null) {
+      final cat = await _categoryRepo.getCategoryById(id);
+      if (cat?.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'category', entityId: id,
+          entitySyncId: cat!.syncId!, ledgerId: 0, action: 'delete',
+        );
+      }
+    }
+    await _categoryRepo.deleteCategory(id);
+  }
 
   @override
   Future<void> deleteCategoriesByIds(List<int> ids) =>
@@ -540,18 +652,40 @@ class LocalRepository extends BaseRepository {
     String? icon,
     String? customIconPath,
     String? communityIconId,
-  }) =>
-      _categoryRepo.updateCategoryIcon(
-        id,
-        iconType: iconType,
-        icon: icon,
-        customIconPath: customIconPath,
-        communityIconId: communityIconId,
-      );
+  }) async {
+    await _categoryRepo.updateCategoryIcon(
+      id,
+      iconType: iconType,
+      icon: icon,
+      customIconPath: customIconPath,
+      communityIconId: communityIconId,
+    );
+    // 图标改动也需要 push 到服务端 —— 否则 mobile 改了图标 web 永远看不到。
+    // ledgerId=0：分类是 user-scoped，和 name 改动走同一条 push 通道。
+    if (changeTracker != null) {
+      final cat = await _categoryRepo.getCategoryById(id);
+      if (cat?.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'category', entityId: id,
+          entitySyncId: cat!.syncId!, ledgerId: 0, action: 'update',
+        );
+      }
+    }
+  }
 
   @override
-  Future<void> clearCategoryCustomIcon(int id, {String? materialIcon}) =>
-      _categoryRepo.clearCategoryCustomIcon(id, materialIcon: materialIcon);
+  Future<void> clearCategoryCustomIcon(int id, {String? materialIcon}) async {
+    await _categoryRepo.clearCategoryCustomIcon(id, materialIcon: materialIcon);
+    if (changeTracker != null) {
+      final cat = await _categoryRepo.getCategoryById(id);
+      if (cat?.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'category', entityId: id,
+          entitySyncId: cat!.syncId!, ledgerId: 0, action: 'update',
+        );
+      }
+    }
+  }
 
   @override
   Future<List<String>> getCustomIconPaths() => _categoryRepo.getCustomIconPaths();
@@ -601,20 +735,34 @@ class LocalRepository extends BaseRepository {
     String? bankName,
     String? cardLastFour,
     String? note,
-  }) =>
-      _accountRepo.createAccount(
-        ledgerId: ledgerId,
-        name: name,
-        type: type,
-        currency: currency,
-        initialBalance: initialBalance,
-        creditLimit: creditLimit,
-        billingDay: billingDay,
-        paymentDueDay: paymentDueDay,
-        bankName: bankName,
-        cardLastFour: cardLastFour,
-        note: note,
-      );
+  }) async {
+    final id = await _accountRepo.createAccount(
+      ledgerId: ledgerId,
+      name: name,
+      type: type,
+      currency: currency,
+      initialBalance: initialBalance,
+      creditLimit: creditLimit,
+      billingDay: billingDay,
+      paymentDueDay: paymentDueDay,
+      bankName: bankName,
+      cardLastFour: cardLastFour,
+      note: note,
+    );
+    if (changeTracker != null) {
+      final account = await _accountRepo.getAccount(id);
+      if (account?.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'account',
+          entityId: id,
+          entitySyncId: account!.syncId!,
+          ledgerId: ledgerId,
+          action: 'create',
+        );
+      }
+    }
+    return id;
+  }
 
   @override
   Future<void> updateAccount(
@@ -631,22 +779,33 @@ class LocalRepository extends BaseRepository {
     String? cardLastFour,
     String? note,
     bool clearMetadataFields = false,
-  }) =>
-      _accountRepo.updateAccount(
-        id,
-        name: name,
-        type: type,
-        currency: currency,
-        initialBalance: initialBalance,
-        creditLimit: creditLimit,
-        billingDay: billingDay,
-        paymentDueDay: paymentDueDay,
-        clearCreditCardFields: clearCreditCardFields,
-        bankName: bankName,
-        cardLastFour: cardLastFour,
-        note: note,
-        clearMetadataFields: clearMetadataFields,
+  }) async {
+    final account = changeTracker != null ? await _accountRepo.getAccount(id) : null;
+    await _accountRepo.updateAccount(
+      id,
+      name: name,
+      type: type,
+      currency: currency,
+      initialBalance: initialBalance,
+      creditLimit: creditLimit,
+      billingDay: billingDay,
+      paymentDueDay: paymentDueDay,
+      clearCreditCardFields: clearCreditCardFields,
+      bankName: bankName,
+      cardLastFour: cardLastFour,
+      note: note,
+      clearMetadataFields: clearMetadataFields,
+    );
+    if (account?.syncId != null) {
+      await changeTracker!.recordChange(
+        entityType: 'account',
+        entityId: id,
+        entitySyncId: account!.syncId!,
+        ledgerId: account.ledgerId,
+        action: 'update',
       );
+    }
+  }
 
   @override
   Future<List<Account>> getCreditCardAccounts() =>
@@ -657,7 +816,21 @@ class LocalRepository extends BaseRepository {
       _accountRepo.getCreditCardUsedAmount(accountId);
 
   @override
-  Future<void> deleteAccount(int id) => _accountRepo.deleteAccount(id);
+  Future<void> deleteAccount(int id) async {
+    if (changeTracker != null) {
+      final account = await _accountRepo.getAccount(id);
+      if (account?.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'account',
+          entityId: id,
+          entitySyncId: account!.syncId!,
+          ledgerId: account.ledgerId,
+          action: 'delete',
+        );
+      }
+    }
+    await _accountRepo.deleteAccount(id);
+  }
 
   @override
   Future<double> getAccountBalance(int accountId) =>
@@ -1050,8 +1223,19 @@ class LocalRepository extends BaseRepository {
     required String name,
     String? color,
     int sortOrder = 0,
-  }) =>
-      _tagRepo.createTag(name: name, color: color, sortOrder: sortOrder);
+  }) async {
+    final id = await _tagRepo.createTag(name: name, color: color, sortOrder: sortOrder);
+    if (changeTracker != null) {
+      final tag = await _tagRepo.getTagById(id);
+      if (tag?.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'tag', entityId: id,
+          entitySyncId: tag!.syncId!, ledgerId: 0, action: 'create',
+        );
+      }
+    }
+    return id;
+  }
 
   @override
   Future<void> updateTag(
@@ -1059,11 +1243,30 @@ class LocalRepository extends BaseRepository {
     String? name,
     String? color,
     int? sortOrder,
-  }) =>
-      _tagRepo.updateTag(id, name: name, color: color, sortOrder: sortOrder);
+  }) async {
+    final tag = changeTracker != null ? await _tagRepo.getTagById(id) : null;
+    await _tagRepo.updateTag(id, name: name, color: color, sortOrder: sortOrder);
+    if (tag?.syncId != null) {
+      await changeTracker!.recordChange(
+        entityType: 'tag', entityId: id,
+        entitySyncId: tag!.syncId!, ledgerId: 0, action: 'update',
+      );
+    }
+  }
 
   @override
-  Future<void> deleteTag(int id) => _tagRepo.deleteTag(id);
+  Future<void> deleteTag(int id) async {
+    if (changeTracker != null) {
+      final tag = await _tagRepo.getTagById(id);
+      if (tag?.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'tag', entityId: id,
+          entitySyncId: tag!.syncId!, ledgerId: 0, action: 'delete',
+        );
+      }
+    }
+    await _tagRepo.deleteTag(id);
+  }
 
   @override
   Future<Tag?> getTagById(int id) => _tagRepo.getTagById(id);
@@ -1188,15 +1391,30 @@ class LocalRepository extends BaseRepository {
     required double amount,
     String period = 'monthly',
     int startDay = 1,
-  }) =>
-      _budgetRepo.createBudget(
-        ledgerId: ledgerId,
-        type: type,
-        categoryId: categoryId,
-        amount: amount,
-        period: period,
-        startDay: startDay,
-      );
+  }) async {
+    final id = await _budgetRepo.createBudget(
+      ledgerId: ledgerId,
+      type: type,
+      categoryId: categoryId,
+      amount: amount,
+      period: period,
+      startDay: startDay,
+    );
+    if (changeTracker != null) {
+      final row = await (db.select(db.budgets)..where((b) => b.id.equals(id)))
+          .getSingleOrNull();
+      if (row?.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'budget',
+          entityId: id,
+          entitySyncId: row!.syncId!,
+          ledgerId: ledgerId,
+          action: 'create',
+        );
+      }
+    }
+    return id;
+  }
 
   @override
   Future<void> updateBudget(
@@ -1204,11 +1422,60 @@ class LocalRepository extends BaseRepository {
     double? amount,
     int? startDay,
     bool? enabled,
-  }) =>
-      _budgetRepo.updateBudget(id, amount: amount, startDay: startDay, enabled: enabled);
+  }) async {
+    await _budgetRepo.updateBudget(
+      id,
+      amount: amount,
+      startDay: startDay,
+      enabled: enabled,
+    );
+    if (changeTracker != null) {
+      final row = await (db.select(db.budgets)..where((b) => b.id.equals(id)))
+          .getSingleOrNull();
+      if (row != null && row.syncId != null) {
+        await changeTracker!.recordChange(
+          entityType: 'budget',
+          entityId: id,
+          entitySyncId: row.syncId!,
+          ledgerId: row.ledgerId,
+          action: 'update',
+        );
+      }
+    }
+  }
 
   @override
-  Future<void> deleteBudget(int id) => _budgetRepo.deleteBudget(id);
+  Future<void> deleteBudget(int id) async {
+    // 先拿到要删的行(syncId / ledgerId),再走仓库的级联删除。删总预算会连同
+    // 带所有分类预算一起清;这里需要为每条挂掉的 budget 登记一条 delete change,
+    // 否则对端的总预算删不掉。
+    final target = await (db.select(db.budgets)..where((b) => b.id.equals(id)))
+        .getSingleOrNull();
+    if (target == null) return;
+
+    List<Budget> toRecord = [target];
+    if (target.type == 'total') {
+      // 总预算的删除会级联清同 ledger 下所有 budget。
+      toRecord = await (db.select(db.budgets)
+            ..where((b) => b.ledgerId.equals(target.ledgerId)))
+          .get();
+    }
+
+    await _budgetRepo.deleteBudget(id);
+
+    if (changeTracker != null) {
+      for (final b in toRecord) {
+        if (b.syncId == null) continue;
+        await changeTracker!.recordChange(
+          entityType: 'budget',
+          entityId: b.id,
+          entitySyncId: b.syncId!,
+          ledgerId: b.ledgerId,
+          action: 'delete',
+        );
+      }
+    }
+  }
 
   @override
   Future<Budget?> getTotalBudget(int ledgerId) => _budgetRepo.getTotalBudget(ledgerId);
@@ -1255,16 +1522,26 @@ class LocalRepository extends BaseRepository {
     int? width,
     int? height,
     int sortOrder = 0,
-  }) =>
-      _attachmentRepo.createAttachment(
-        transactionId: transactionId,
-        fileName: fileName,
-        originalName: originalName,
-        fileSize: fileSize,
-        width: width,
-        height: height,
-        sortOrder: sortOrder,
-      );
+    String? cloudFileId,
+    String? cloudSha256,
+  }) async {
+    final id = await _attachmentRepo.createAttachment(
+      transactionId: transactionId,
+      fileName: fileName,
+      originalName: originalName,
+      fileSize: fileSize,
+      width: width,
+      height: height,
+      sortOrder: sortOrder,
+      cloudFileId: cloudFileId,
+      cloudSha256: cloudSha256,
+    );
+    // 附件本身不走 sync_change 表（server 通过 tx payload 里的 attachments
+    // 数组下发），但必须给父 tx 登记一条 update change，否则另一台设备永远
+    // 收不到"这条 tx 多了附件"的通知。
+    await _recordTransactionUpdateForAttachmentChange(transactionId);
+    return id;
+  }
 
   @override
   Future<TransactionAttachment?> getAttachmentById(int id) =>
@@ -1275,11 +1552,37 @@ class LocalRepository extends BaseRepository {
       _attachmentRepo.getAttachmentsByTransaction(transactionId);
 
   @override
-  Future<void> deleteAttachment(int id) => _attachmentRepo.deleteAttachment(id);
+  Future<void> deleteAttachment(int id) async {
+    // 在真正删除之前读出 transactionId，删除后登记父 tx update，让 B 端 pull
+    // 下去也能看到附件已被移除。
+    final row = await _attachmentRepo.getAttachmentById(id);
+    await _attachmentRepo.deleteAttachment(id);
+    if (row != null) {
+      await _recordTransactionUpdateForAttachmentChange(row.transactionId);
+    }
+  }
 
   @override
-  Future<void> deleteAttachmentsByTransaction(int transactionId) =>
-      _attachmentRepo.deleteAttachmentsByTransaction(transactionId);
+  Future<void> deleteAttachmentsByTransaction(int transactionId) async {
+    await _attachmentRepo.deleteAttachmentsByTransaction(transactionId);
+    await _recordTransactionUpdateForAttachmentChange(transactionId);
+  }
+
+  /// 附件增删触发父 tx 的 update change，让 push 侧重序列化 tx payload
+  /// （带上新 attachments 数组）推到 server，B 端 pull 后同步到视图。
+  Future<void> _recordTransactionUpdateForAttachmentChange(
+      int transactionId) async {
+    if (changeTracker == null) return;
+    final tx = await _transactionRepo.getTransactionById(transactionId);
+    if (tx == null || tx.syncId == null) return;
+    await changeTracker!.recordChange(
+      entityType: 'transaction',
+      entityId: transactionId,
+      entitySyncId: tx.syncId!,
+      ledgerId: tx.ledgerId,
+      action: 'update',
+    );
+  }
 
   @override
   Future<void> updateAttachmentSortOrder(int id, int sortOrder) =>
@@ -1288,6 +1591,10 @@ class LocalRepository extends BaseRepository {
   @override
   Future<void> updateAttachmentSortOrders(List<({int id, int sortOrder})> updates) =>
       _attachmentRepo.updateAttachmentSortOrders(updates);
+
+  @override
+  Future<void> updateAttachmentCloudRef(int id, {String? cloudFileId, String? cloudSha256}) =>
+      _attachmentRepo.updateAttachmentCloudRef(id, cloudFileId: cloudFileId, cloudSha256: cloudSha256);
 
   @override
   Future<bool> attachmentExistsByFileName(String fileName) =>

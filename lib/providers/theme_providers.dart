@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/system/logger_service.dart';
 import '../theme.dart';
 import '../widget/widget_manager.dart';
 import '../providers.dart';
@@ -91,8 +94,36 @@ final primaryColorInitProvider = FutureProvider<void>((ref) async {
     } catch (e) {
       // Silently fail
     }
+
+    // 推送主题色到 server，让 web 端通过 WS profile_change 自动跟随。
+    // 同步方向单向：mobile → server → web；web 本地改色不回推。
+    unawaited(() async {
+      try {
+        final cloudProvider =
+            await ref.read(beecountCloudProviderInstance.future);
+        if (cloudProvider == null) return;
+        final hex = _colorToHex(next);
+        await cloudProvider.updateMyProfileThemeColor(hex: hex);
+        logger.info(
+            'theme_providers', 'primary color pushed to server: $hex');
+      } catch (e) {
+        logger.warning(
+            'theme_providers', 'push primary color failed (non-blocking): $e');
+      }
+    }());
   });
 });
+
+/// Flutter [Color] → `#RRGGBB`。忽略 alpha，server 只存 6 位 hex。
+String _colorToHex(Color color) {
+  final r = (color.r * 255).toInt() & 0xff;
+  final g = (color.g * 255).toInt() & 0xff;
+  final b = (color.b * 255).toInt() & 0xff;
+  return '#${r.toRadixString(16).padLeft(2, '0')}'
+          '${g.toRadixString(16).padLeft(2, '0')}'
+          '${b.toRadixString(16).padLeft(2, '0')}'
+      .toUpperCase();
+}
 
 // 隐私模式持久化初始化：
 // - 启动时加载保存的隐私模式状态
@@ -128,6 +159,7 @@ final compactAmountInitProvider = FutureProvider<void>((ref) async {
   }
   ref.listen<bool>(compactAmountProvider, (prev, next) async {
     await prefs.setBool('compactAmount', next);
+    _pushAppearanceToCloud(ref);
   });
 });
 
@@ -145,6 +177,7 @@ final showTransactionTimeInitProvider = FutureProvider<void>((ref) async {
   }
   ref.listen<bool>(showTransactionTimeProvider, (prev, next) async {
     await prefs.setBool('showTransactionTime', next);
+    _pushAppearanceToCloud(ref);
   });
 });
 
@@ -157,8 +190,37 @@ final headerDecorationStyleInitProvider = FutureProvider<void>((ref) async {
   }
   ref.listen<String>(headerDecorationStyleProvider, (prev, next) async {
     await prefs.setString('headerDecorationStyle', next);
+    _pushAppearanceToCloud(ref);
   });
 });
+
+/// 把 header_decoration_style / compact_amount / show_transaction_time
+/// 的当前值打包推给 server 的 /profile/me。非 BeeCount Cloud 模式 provider
+/// 返回 null 直接跳过。fire-and-forget,失败只打 warning。
+///
+/// 用整包 PATCH 是故意的:三者属于同一组"外观",任何一个改动都重发全量,server
+/// 写入 appearance_json 整体替换,对端用 WS profile_change 事件拉 /profile/me
+/// 拿到最新 dict 应用。
+void _pushAppearanceToCloud(Ref ref) {
+  unawaited(() async {
+    try {
+      final cloudProvider =
+          await ref.read(beecountCloudProviderInstance.future);
+      if (cloudProvider == null) return;
+      final appearance = <String, dynamic>{
+        'header_decoration_style': ref.read(headerDecorationStyleProvider),
+        'compact_amount': ref.read(compactAmountProvider),
+        'show_transaction_time': ref.read(showTransactionTimeProvider),
+      };
+      await cloudProvider.updateMyProfileAppearance(appearance: appearance);
+      logger.info('theme_providers',
+          'pushed appearance to server: $appearance');
+    } catch (e, st) {
+      logger.warning('theme_providers',
+          'push appearance failed (non-blocking): $e', st);
+    }
+  }());
+}
 
 // 收支颜色方案Provider（默认红色收入、绿色支出）
 // true = 红色收入、绿色支出
@@ -188,5 +250,23 @@ final incomeExpenseColorSchemeInitProvider = FutureProvider<void>((ref) async {
     } catch (e) {
       // Silently fail
     }
+
+    // BeeCount Cloud 模式下把配色偏好推给 server；web 端会通过 WS
+    // profile_change 事件实时刷新。非 Cloud 模式 provider 返回 null，跳过。
+    unawaited(() async {
+      try {
+        final cloudProvider =
+            await ref.read(beecountCloudProviderInstance.future);
+        if (cloudProvider == null) return;
+        await cloudProvider.updateMyProfileIncomeColorScheme(
+          incomeIsRed: next,
+        );
+        logger.info('theme_providers',
+            'income color scheme pushed to server: incomeIsRed=$next');
+      } catch (e) {
+        logger.warning('theme_providers',
+            'push income color scheme failed (non-blocking): $e');
+      }
+    }());
   });
 });

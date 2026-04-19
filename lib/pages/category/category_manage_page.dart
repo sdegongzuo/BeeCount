@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../providers.dart';
 import '../../widgets/ui/ui.dart';
 import '../../data/db.dart' as db;
+import '../../services/billing/post_processor.dart';
 import '../../services/category_package_service.dart';
 import '../../services/system/logger_service.dart';
 import '../../l10n/app_localizations.dart';
@@ -420,6 +422,12 @@ class _CategoryManagePageState extends ConsumerState<CategoryManagePage> with Ti
       final ids = unusedCategories.map((item) => item.category.id).toList();
       await repo.deleteCategoriesByIds(ids);
 
+      // 把批量删除推到服务端（分类是 user-scoped ledgerId=0 变更）。
+      final activeLedgerId = ref.read(currentLedgerIdProvider);
+      if (activeLedgerId > 0) {
+        unawaited(PostProcessor.sync(ref, ledgerId: activeLedgerId));
+      }
+
       if (!mounted) return;
       showToast(context, l10n.categoryClearUnusedSuccess(ids.length));
       ref.invalidate(categoriesWithCountProvider);
@@ -686,6 +694,12 @@ class _CategoryGridViewState extends ConsumerState<_CategoryGridView> {
       return (id: entry.value.category.id, sortOrder: entry.key);
     }).toList();
     await repo.updateCategorySortOrders(updates);
+
+    // 拖拽排序也记了 ChangeTracker 变更，推到云端让 web 的 sortOrder 一致。
+    final activeLedgerId = ref.read(currentLedgerIdProvider);
+    if (activeLedgerId > 0) {
+      unawaited(PostProcessor.sync(ref, ledgerId: activeLedgerId));
+    }
 
     // 3. 刷新 provider 以同步其他地方的数据
     ref.invalidate(categoriesWithCountProvider);

@@ -1,3 +1,4 @@
+import 'package:flutter_cloud_sync/flutter_cloud_sync.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart';
@@ -5,6 +6,7 @@ import '../data/db.dart';
 import '../data/repositories/local/local_repository.dart';
 import '../data/repositories/cloud/cloud_repository.dart';
 import '../data/repositories/base_repository.dart';
+import '../cloud/sync/change_tracker.dart';
 import '../services/system/logger_service.dart';
 import 'sync_providers.dart';
 import 'cloud_mode_providers.dart';
@@ -29,8 +31,13 @@ final repositoryProvider = Provider<BaseRepository>((ref) {
   switch (mode) {
     case AppMode.local:
       // 本地优先模式：使用 LocalRepository（基于 Drift）
-      logger.info('RepositoryProvider', '✅ 使用 LocalRepository (本地模式)');
-      return LocalRepository(db);
+      // 仅 BeeCount Cloud 模式注入 ChangeTracker（增量同步变更追踪）
+      final config = ref.watch(activeCloudConfigProvider).valueOrNull;
+      final tracker = (config?.type == CloudBackendType.beecountCloud && config!.valid)
+          ? ChangeTracker(db)
+          : null;
+      logger.info('RepositoryProvider', '✅ 使用 LocalRepository (本地模式, changeTracker=${tracker != null})');
+      return LocalRepository(db, changeTracker: tracker);
 
     case AppMode.cloud:
       // 仅云端模式：使用 CloudRepository（基于 Supabase）
@@ -137,6 +144,8 @@ final appInitProvider = FutureProvider<void>((ref) async {
 
 // 分类Provider
 final categoriesProvider = FutureProvider<List<Category>>((ref) async {
+  // 同步代数 bump 后重算，让 web 改分类能立即反映到 mobile。
+  ref.watch(syncGenerationProvider);
   final repo = ref.watch(repositoryProvider);
   return await repo.getAllCategories();
 });
@@ -184,6 +193,7 @@ final allAccountsStreamProvider = StreamProvider<List<Account>>((ref) {
 
 // 获取单个账户信息
 final accountByIdProvider = FutureProvider.family<Account?, int>((ref, accountId) async {
+  ref.watch(syncGenerationProvider);
   final repo = ref.watch(repositoryProvider);
   return await repo.getAccount(accountId);
 });
