@@ -12,6 +12,7 @@ import '../../data/db.dart' as db;
 import '../../l10n/app_localizations.dart';
 import '../../utils/category_utils.dart';
 import '../../styles/tokens.dart';
+import '../../services/billing/post_processor.dart';
 import '../../services/custom_icon_service.dart';
 import '../../services/system/logger_service.dart';
 import '../transaction/category_detail_page.dart';
@@ -543,6 +544,13 @@ class _CategoryEditPageState extends ConsumerState<CategoryEditPage> {
         ref.invalidate(transferCategoryProvider);
       }
 
+      // 分类也是 user-scoped，ChangeTracker 记在 ledgerId=0；用当前 ledger
+      // 触发一次 sync 把新增/重命名推到服务端，web 秒刷。
+      final activeLedgerId = ref.read(currentLedgerIdProvider);
+      if (activeLedgerId > 0) {
+        unawaited(PostProcessor.sync(ref, ledgerId: activeLedgerId));
+      }
+
       if (!mounted) return;
       Navigator.of(context).pop(true); // 返回true表示有更新
     } catch (e) {
@@ -605,6 +613,12 @@ class _CategoryEditPageState extends ConsumerState<CategoryEditPage> {
 
       // 刷新分类列表
       ref.invalidate(categoriesProvider);
+
+      // 把分类删除推到服务端（user-scoped ledgerId=0 变更搭车）。
+      final activeLedgerId = ref.read(currentLedgerIdProvider);
+      if (activeLedgerId > 0) {
+        unawaited(PostProcessor.sync(ref, ledgerId: activeLedgerId));
+      }
 
       showToast(context,
           AppLocalizations.of(context).categoryDeleted(widget.category!.name));

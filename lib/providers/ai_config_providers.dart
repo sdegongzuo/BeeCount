@@ -126,6 +126,12 @@ class AIConfigNotifier extends StateNotifier<AIConfigData> {
         AIConstants.keyAiStrategy, _strategyToString(state.strategy));
     await prefs.setBool(AIConstants.keyAiBillExtractionEnabled, state.enabled);
     await prefs.setBool(AIConstants.keyAiUseVision, state.useVision);
+    // 策略 / 账单提取开关 / 图片识别开关也属于 AI 配置 snapshot 的一部分,
+    // 同样走 AIProviderManager.onConfigChanged 推到 server。不触发的话
+    // web/B 设备只能拉到 providers + binding + prompt,strategy 等设置落不下去。
+    try {
+      AIProviderManager.onConfigChanged?.call();
+    } catch (_) {}
   }
 
   /// 设置执行策略

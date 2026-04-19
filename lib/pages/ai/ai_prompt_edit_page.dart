@@ -12,6 +12,7 @@ import '../../providers/theme_providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/ai/bill_extraction_service.dart';
 import '../../services/ai/ai_constants.dart';
+import '../../services/ai/ai_provider_manager.dart';
 
 /// AI提示词编辑页面
 class AIPromptEditPage extends ConsumerStatefulWidget {
@@ -65,8 +66,9 @@ class _AIPromptEditPageState extends ConsumerState<AIPromptEditPage> {
   }
 
   Future<void> _savePrompt() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AIConstants.keyAiCustomPrompt, _promptController.text);
+    // 走 AIProviderManager.saveCustomPrompt 而不是直接 setString,
+    // 这样 onConfigChanged 能触发把整组 AI 配置推到 server,跨设备同步。
+    await AIProviderManager.saveCustomPrompt(_promptController.text);
 
     setState(() {
       _savedPrompt = _promptController.text;

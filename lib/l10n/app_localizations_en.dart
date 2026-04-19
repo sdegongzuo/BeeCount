@@ -1344,6 +1344,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mineLoginSubtitle => 'Only needed for sync';
 
   @override
+  String get cloudReloginTitle => 'Re-login';
+
+  @override
+  String get cloudReloginSuccess => 'Re-logged in';
+
+  @override
+  String get cloudReloginFailed => 'Re-login failed';
+
+  @override
   String get mineLoggedInEmail => 'Logged in';
 
   @override
@@ -3148,6 +3157,84 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cloudCustomS3Subtitle => 'AWS S3 / Cloudflare R2 / MinIO';
 
   @override
+  String get cloudBeeCountCloudTitle => 'BeeCount Cloud';
+
+  @override
+  String get cloudBeeCountCloudSubtitle => 'Self-hosted · Incremental sync · Multi-device';
+
+  @override
+  String get cloudConfigureBeeCountCloudTitle => 'Configure BeeCount Cloud';
+
+  @override
+  String get cloudBeeCountCloudUrlLabel => 'Server URL';
+
+  @override
+  String get cloudBeeCountCloudUrlHint => 'https://your-server.com';
+
+  @override
+  String get cloudBeeCountCloudApiPrefixLabel => 'API Prefix';
+
+  @override
+  String get cloudBeeCountCloudApiPrefixHint => '/api/v1';
+
+  @override
+  String get cloudBeeCountCloudEmailLabel => 'Email';
+
+  @override
+  String get cloudBeeCountCloudEmailHint => 'your@email.com';
+
+  @override
+  String get cloudBeeCountCloudPasswordLabel => 'Password';
+
+  @override
+  String get cloudBeeCountCloudPasswordHint => 'Enter password';
+
+  @override
+  String get cloudBeeCountCloudLoginSuccess => 'Login successful';
+
+  @override
+  String get cloudBeeCountCloudLoginFailed => 'Login failed';
+
+  @override
+  String get cloudBeeCountCloudSyncSubtitle => 'Incremental sync · Multi-device';
+
+  @override
+  String get cloudBeeCountCloudConnected => 'Connected';
+
+  @override
+  String get cloudBeeCountCloudNotConnected => 'Not connected';
+
+  @override
+  String get cloudBeeCountCloudNotConnectedHint => 'Configure and login in cloud service settings';
+
+  @override
+  String get cloudBeeCountCloudAutoSync => 'Incremental Sync';
+
+  @override
+  String get cloudBeeCountCloudAutoSyncHint => 'Changes sync to cloud automatically';
+
+  @override
+  String get cloudBeeCountCloudMultiDevice => 'Multi-device Sync';
+
+  @override
+  String get cloudBeeCountCloudMultiDeviceHint => 'Keep data consistent across devices';
+
+  @override
+  String get cloudBeeCountCloudAttachment => 'Attachment Sync';
+
+  @override
+  String get cloudBeeCountCloudAttachmentHint => 'Receipt images backed up to cloud automatically';
+
+  @override
+  String get cloudTabOffline => 'Offline';
+
+  @override
+  String get cloudTabBackup => 'Backup';
+
+  @override
+  String get cloudTabCloudSync => 'Cloud Sync';
+
+  @override
   String get cloudIcloudSubtitle => 'Auto sync with Apple ID';
 
   @override
@@ -3873,6 +3960,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSyncHint => 'Downloads automatically compare differences for selective preview. Not real-time — avoid editing the same ledger on multiple devices simultaneously. Sync scope covers ledger data (including associated accounts, categories, and tags), excluding attachments.';
+
+  @override
+  String get cloudSyncNow => 'Sync Now';
+
+  @override
+  String get cloudSyncNowHint => 'Push local changes and pull remote updates';
+
+  @override
+  String get cloudSyncInProgress => 'Syncing...';
+
+  @override
+  String cloudSyncComplete(int pushed, int pulled) {
+    return 'Sync complete: pushed $pushed, pulled $pulled';
+  }
+
+  @override
+  String get cloudAutoSyncHint => 'Auto-sync to cloud after data changes';
 
   @override
   String get dataManagement => 'Data Management';
@@ -5777,4 +5881,139 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get budgetSetupAction => 'Set up';
+
+  @override
+  String get cloudCollabDevicesPageTitle => 'Device Sessions';
+
+  @override
+  String get cloudCollabDevicesPageSubtitle => 'Manage active devices';
+
+  @override
+  String get cloudCollabDevicesViewAllSessions => 'Show all sessions';
+
+  @override
+  String get cloudCollabDevicesViewModeHint => 'Default view shows deduped devices active in the last 30 days.';
+
+  @override
+  String get cloudCollabNoDevices => 'No active devices';
+
+  @override
+  String get cloudCollabUnknownDeviceName => 'Unknown Device';
+
+  @override
+  String get cloudCollabDeviceCurrentTag => 'Current Device';
+
+  @override
+  String get cloudCollabCurrentDeviceCannotRevoke => 'Current device cannot be revoked.';
+
+  @override
+  String cloudCollabDeviceAppVersion(String version) {
+    return 'App: $version';
+  }
+
+  @override
+  String cloudCollabDeviceOsVersion(String version) {
+    return 'OS: $version';
+  }
+
+  @override
+  String cloudCollabDeviceModel(String model) {
+    return 'Model: $model';
+  }
+
+  @override
+  String cloudCollabDeviceLastIp(String ip) {
+    return 'IP: $ip';
+  }
+
+  @override
+  String cloudCollabDeviceSessionCount(String count) {
+    return 'Sessions: $count';
+  }
+
+  @override
+  String cloudCollabDeviceLastSeen(String time) {
+    return 'Last seen: $time';
+  }
+
+  @override
+  String cloudCollabDeviceCreatedAt(String time) {
+    return 'Created: $time';
+  }
+
+  @override
+  String get cloudCollabDeviceRevokeTitle => 'Revoke Device';
+
+  @override
+  String cloudCollabDeviceRevokeMessage(String name, String id) {
+    return 'Revoke device $name ($id)?';
+  }
+
+  @override
+  String cloudCollabDeviceRevokeMultipleMessage(String name, String count) {
+    return 'Revoke $count sessions for device $name?';
+  }
+
+  @override
+  String get cloudCollabDeviceRevoked => 'Device revoked';
+
+  @override
+  String get cloudCollabUnavailableMessage => 'Cloud sync is unavailable.';
+
+  @override
+  String get cloudCollabScopeDeniedHint => 'Server has not enabled ALLOW_APP_RW_SCOPES, so device sessions are unavailable.';
+
+  @override
+  String get cloudCollabScopeDeniedAction => 'Set ALLOW_APP_RW_SCOPES=true in server .env, restart the service, then sign in again.';
+
+  @override
+  String get syncHealthTitle => 'Sync status';
+
+  @override
+  String syncHealthCheckFailed(String msg) {
+    return 'Check failed: $msg';
+  }
+
+  @override
+  String get syncHealthHasDiff => 'Diff detected; auto-synced';
+
+  @override
+  String get syncHealthInSync => 'Local matches cloud';
+
+  @override
+  String get syncHealthGroupCurrentLedger => 'Current ledger';
+
+  @override
+  String get syncHealthGroupAll => 'All ledgers';
+
+  @override
+  String get syncHealthRowTx => 'Transactions';
+
+  @override
+  String get syncHealthRowAttachment => 'Attachments';
+
+  @override
+  String get syncHealthRowBudget => 'Budgets';
+
+  @override
+  String get syncHealthRowAccount => 'Accounts';
+
+  @override
+  String get syncHealthRowCategory => 'Categories';
+
+  @override
+  String get syncHealthRowTag => 'Tags';
+
+  @override
+  String get syncHealthRowUnpushed => 'Pending pushes';
+
+  @override
+  String syncHealthValue(int local, int remote) {
+    return 'Local $local · Cloud $remote';
+  }
+
+  @override
+  String syncHealthValueRemoteMissing(int local) {
+    return 'Local $local · Cloud —';
+  }
 }

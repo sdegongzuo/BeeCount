@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+import 'package:uuid/uuid.dart';
 
 import '../../db.dart';
 import '../../category_node.dart';
@@ -8,6 +9,7 @@ import '../category_repository.dart';
 /// 本地分类Repository实现
 /// 基于 Drift 数据库实现
 class LocalCategoryRepository implements CategoryRepository {
+  static const _uuid = Uuid();
   final BeeDatabase db;
 
   LocalCategoryRepository(this.db);
@@ -25,6 +27,7 @@ class LocalCategoryRepository implements CategoryRepository {
         kind: kind,
         icon: d.Value(icon),
         sortOrder: d.Value(sortOrder ?? 0),
+        syncId: d.Value(_uuid.v4()),
       ),
     );
   }
@@ -45,6 +48,7 @@ class LocalCategoryRepository implements CategoryRepository {
         parentId: d.Value(parentId),
         level: d.Value(2),
         sortOrder: d.Value(sortOrder ?? 0),
+        syncId: d.Value(_uuid.v4()),
       ),
     );
   }
@@ -97,7 +101,7 @@ class LocalCategoryRepository implements CategoryRepository {
         .getSingleOrNull();
     if (existing != null) return existing.id;
     return db.into(db.categories).insert(CategoriesCompanion.insert(
-        name: name, kind: kind, icon: const d.Value(null)));
+        name: name, kind: kind, icon: const d.Value(null), syncId: d.Value(_uuid.v4())));
   }
 
   @override

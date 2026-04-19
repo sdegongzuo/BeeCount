@@ -187,14 +187,17 @@ Future<String> exportTransactionsJson(BeeDatabase db, int ledgerId) async {
           ..where((a) => a.transactionId.isIn(txIds)))
         .get();
     for (final a in allAttachments) {
-      attachmentsMap.putIfAbsent(a.transactionId, () => []).add({
+      final attMap = <String, dynamic>{
         'fileName': a.fileName,
         'originalName': a.originalName,
         'fileSize': a.fileSize,
         'width': a.width,
         'height': a.height,
         'sortOrder': a.sortOrder,
-      });
+      };
+      if (a.cloudFileId != null) attMap['cloudFileId'] = a.cloudFileId;
+      if (a.cloudSha256 != null) attMap['cloudSha256'] = a.cloudSha256;
+      attachmentsMap.putIfAbsent(a.transactionId, () => []).add(attMap);
     }
   }
 
@@ -368,6 +371,8 @@ ImportData parseJsonToImportData(String jsonStr) {
             width: a['width'] as int?,
             height: a['height'] as int?,
             sortOrder: a['sortOrder'] as int? ?? 0,
+            cloudFileId: a['cloudFileId'] as String?,
+            cloudSha256: a['cloudSha256'] as String?,
           );
         }).toList();
       }

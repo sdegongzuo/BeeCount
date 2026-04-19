@@ -696,6 +696,32 @@
   "cloudConfigureWebdavTitle": "設定 WebDAV",
   "cloudCustomS3Subtitle": "AWS S3 / Cloudflare R2 / MinIO",
   "cloudCustomS3Title": "S3 協議儲存",
+  "cloudBeeCountCloudTitle": "BeeCount Cloud",
+  "cloudBeeCountCloudSubtitle": "自建雲服務 · 增量同步 · 多裝置協同",
+  "cloudConfigureBeeCountCloudTitle": "設定 BeeCount Cloud",
+  "cloudBeeCountCloudUrlLabel": "伺服器地址",
+  "cloudBeeCountCloudUrlHint": "https://your-server.com",
+  "cloudBeeCountCloudApiPrefixLabel": "API 前綴",
+  "cloudBeeCountCloudApiPrefixHint": "/api/v1",
+  "cloudBeeCountCloudEmailLabel": "電子郵件",
+  "cloudBeeCountCloudEmailHint": "your@email.com",
+  "cloudBeeCountCloudPasswordLabel": "密碼",
+  "cloudBeeCountCloudPasswordHint": "輸入密碼",
+  "cloudBeeCountCloudLoginSuccess": "登入成功",
+  "cloudBeeCountCloudLoginFailed": "登入失敗",
+  "cloudBeeCountCloudSyncSubtitle": "增量同步 · 多裝置協同",
+  "cloudBeeCountCloudConnected": "已連接",
+  "cloudBeeCountCloudNotConnected": "未連接",
+  "cloudBeeCountCloudNotConnectedHint": "請先在雲服務設定中配置並登入",
+  "cloudBeeCountCloudAutoSync": "增量同步",
+  "cloudBeeCountCloudAutoSyncHint": "資料變更自動同步到雲端，無需手動操作",
+  "cloudBeeCountCloudMultiDevice": "多裝置協同",
+  "cloudBeeCountCloudMultiDeviceHint": "多台裝置間自動保持資料一致",
+  "cloudBeeCountCloudAttachment": "附件同步",
+  "cloudBeeCountCloudAttachmentHint": "帳單圖片等附件自動雲端備份",
+  "cloudTabOffline": "離線模式",
+  "cloudTabBackup": "備份同步",
+  "cloudTabCloudSync": "雲端協同",
   "cloudCustomSupabaseSubtitle": "點擊設定自建Supabase服務",
   "cloudCustomSupabaseTitle": "自訂 Supabase",
   "cloudCustomWebdavSubtitle": "點擊設定堅果雲/Nextcloud等",
@@ -846,6 +872,17 @@
     }
   },
   "cloudSyncHint": "下載時可自動對比差異並逐條預覽。非即時同步，請避免多裝置同時編輯同一帳本。同步範圍為帳本資料（含關聯的帳戶、分類、標籤），不含附件。",
+  "cloudSyncNow": "立即同步",
+  "cloudSyncNowHint": "推送本機變更並拉取遠端更新",
+  "cloudSyncInProgress": "正在同步...",
+  "cloudSyncComplete": "同步完成：推送 {pushed} 條，拉取 {pulled} 條",
+  "@cloudSyncComplete": {
+    "placeholders": {
+      "pushed": {"type": "int"},
+      "pulled": {"type": "int"}
+    }
+  },
+  "cloudAutoSyncHint": "資料變更後自動同步到雲端",
   "cloudSyncPageSubtitle": "手動上傳和下載帳本資料",
   "cloudSyncPageTitle": "雲同步",
   "cloudTest": "測試",
@@ -1371,6 +1408,9 @@
   "mineImportProgressSubtitle": "進度：{done}/{total}，成功 {ok}，失敗 {fail}",
   "mineImportProgressTitle": "後台匯入中…",
   "mineLanguageSettings": "語言設定",
+  "cloudReloginTitle": "重新登入",
+  "cloudReloginSuccess": "已重新登入",
+  "cloudReloginFailed": "重新登入失敗",
   "mineLoggedInEmail": "已登入",
   "mineLoginSubtitle": "僅在同步時需要",
   "mineLoginTitle": "登入 / 註冊",
@@ -2305,5 +2345,60 @@
   "budgetManagement": "預算管理",
   "budgetManagementDesc": "設置月度預算，控制支出",
   "budgetSetupHint": "設置預算，輕鬆掌控每月開支",
-  "budgetSetupAction": "去設置"
+  "budgetSetupAction": "去設置",
+
+  "cloudCollabDevicesPageTitle": "裝置工作階段",
+  "cloudCollabDevicesPageSubtitle": "管理目前帳號活躍裝置",
+  "cloudCollabDevicesViewAllSessions": "顯示全部工作階段",
+  "cloudCollabDevicesViewModeHint": "預設顯示近 30 天去重裝置，可切換檢視全部工作階段。",
+  "cloudCollabNoDevices": "目前沒有活躍裝置",
+  "cloudCollabUnknownDeviceName": "未知裝置",
+  "cloudCollabDeviceCurrentTag": "目前裝置",
+  "cloudCollabCurrentDeviceCannotRevoke": "目前裝置不能遠端下線。",
+  "cloudCollabDeviceAppVersion": "應用：{version}",
+  "cloudCollabDeviceOsVersion": "系統：{version}",
+  "cloudCollabDeviceModel": "型號：{model}",
+  "cloudCollabDeviceLastIp": "IP：{ip}",
+  "cloudCollabDeviceSessionCount": "工作階段數：{count}",
+  "cloudCollabDeviceLastSeen": "最近活躍：{time}",
+  "cloudCollabDeviceCreatedAt": "建立時間：{time}",
+  "cloudCollabDeviceRevokeTitle": "遠端下線裝置",
+  "cloudCollabDeviceRevokeMessage": "確認下線裝置 {name}（{id}）嗎？",
+  "cloudCollabDeviceRevokeMultipleMessage": "確認下線裝置 {name} 的 {count} 個工作階段嗎？",
+  "cloudCollabDeviceRevoked": "裝置已下線",
+  "cloudCollabUnavailableMessage": "雲端同步功能暫時不可用。",
+  "cloudCollabScopeDeniedHint": "伺服器尚未開啟 ALLOW_APP_RW_SCOPES，目前裝置工作階段不可用。",
+  "cloudCollabScopeDeniedAction": "請在伺服器 .env 或部署環境設定 ALLOW_APP_RW_SCOPES=true，重啟服務後重新登入 App。",
+
+  "syncHealthTitle": "同步狀態",
+  "syncHealthCheckFailed": "檢測失敗：{msg}",
+  "@syncHealthCheckFailed": {
+    "placeholders": {
+      "msg": { "type": "String" }
+    }
+  },
+  "syncHealthHasDiff": "偵測到差異，已自動同步",
+  "syncHealthInSync": "本地與雲端一致",
+  "syncHealthGroupCurrentLedger": "當前帳本",
+  "syncHealthGroupAll": "全部帳本",
+  "syncHealthRowTx": "交易",
+  "syncHealthRowAttachment": "附件",
+  "syncHealthRowBudget": "預算",
+  "syncHealthRowAccount": "帳戶",
+  "syncHealthRowCategory": "分類",
+  "syncHealthRowTag": "標籤",
+  "syncHealthRowUnpushed": "未推送變更",
+  "syncHealthValue": "本地 {local} · 雲端 {remote}",
+  "@syncHealthValue": {
+    "placeholders": {
+      "local": { "type": "int" },
+      "remote": { "type": "int" }
+    }
+  },
+  "syncHealthValueRemoteMissing": "本地 {local} · 雲端 —",
+  "@syncHealthValueRemoteMissing": {
+    "placeholders": {
+      "local": { "type": "int" }
+    }
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+import 'package:uuid/uuid.dart';
 
 import '../../db.dart';
 import '../tag_repository.dart';
@@ -6,6 +7,7 @@ import '../tag_repository.dart';
 /// 本地标签Repository实现
 /// 基于 Drift 数据库实现
 class LocalTagRepository implements TagRepository {
+  static const _uuid = Uuid();
   final BeeDatabase db;
 
   LocalTagRepository(this.db);
@@ -25,6 +27,7 @@ class LocalTagRepository implements TagRepository {
         name: name,
         color: d.Value(color),
         sortOrder: d.Value(sortOrder),
+        syncId: d.Value(_uuid.v4()),
       ),
     );
   }

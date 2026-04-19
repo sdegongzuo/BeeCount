@@ -481,7 +481,12 @@ class SyncDiffService {
           }
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      // Best-effort import — log and continue with partial cache so the caller
+      // can still apply transactions against what did land. Previously swallowed
+      // silently which made "why is my data stale" un-diagnosable.
+      logger.error('SyncDiff', '分类导入失败（部分）', e, st);
+    }
 
     return cache;
   }
@@ -512,7 +517,9 @@ class SyncDiffService {
           nameToId[acc.name] = id;
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      logger.error('SyncDiff', '账户导入失败（部分）', e, st);
+    }
 
     return nameToId;
   }
@@ -534,7 +541,9 @@ class SyncDiffService {
           nameToId[tag.name] = id;
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      logger.error('SyncDiff', '标签导入失败（部分）', e, st);
+    }
 
     return nameToId;
   }

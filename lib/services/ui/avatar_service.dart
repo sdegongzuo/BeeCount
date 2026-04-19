@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,6 +8,8 @@ import 'package:image_picker/image_picker.dart';
 /// 头像管理服务
 class AvatarService {
   static const String _avatarPathKey = 'user_avatar_path';
+  // 服务端的 avatar_version —— sync 时拿来和新拉到的 version 对比，相同就跳过下载。
+  static const String _avatarRemoteVersionKey = 'user_avatar_remote_version';
 
   /// 获取用户头像路径
   ///
@@ -130,12 +133,54 @@ class AvatarService {
     return newPath;
   }
 
+  /// 从字节流保存头像（初始同步从云端下载后用它落盘）。
+  static Future<String?> saveAvatarFromBytes(
+    Uint8List bytes, {
+    String extension = '.jpg',
+  }) async {
+    if (bytes.isEmpty) return null;
+    await _deleteOldAvatar();
+    final appDir = await getApplicationDocumentsDirectory();
+    final avatarDir = Directory(p.join(appDir.path, 'avatars'));
+    if (!await avatarDir.exists()) {
+      await avatarDir.create(recursive: true);
+    }
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final ext = extension.startsWith('.') ? extension : '.$extension';
+    final fileName = 'avatar_$timestamp$ext';
+    final relativePath = 'avatars/$fileName';
+    final newPath = p.join(avatarDir.path, fileName);
+    await File(newPath).writeAsBytes(bytes);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_avatarPathKey, relativePath);
+    return newPath;
+  }
+
+  /// 取上一次同步下来的远端头像版本（没同步过返回 null 或 0）。
+  static Future<int> getStoredRemoteVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_avatarRemoteVersionKey) ?? 0;
+  }
+
+  /// 更新本地缓存的远端头像版本。
+  static Future<void> setStoredRemoteVersion(int version) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_avatarRemoteVersionKey, version);
+  }
+
+  /// 清掉本地缓存的远端版本号（登出时用，避免换账号后复用旧版本号跳过下载）。
+  static Future<void> clearStoredRemoteVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_avatarRemoteVersionKey);
+  }
+
   /// 删除头像
   static Future<void> deleteAvatar() async {
     await _deleteOldAvatar();
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_avatarPathKey);
+    await prefs.remove(_avatarRemoteVersionKey);
   }
 
   /// 删除旧头像文件（内部方法）

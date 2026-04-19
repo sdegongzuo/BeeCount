@@ -23,6 +23,8 @@ class LocalAttachmentRepository implements AttachmentRepository {
     int? width,
     int? height,
     int sortOrder = 0,
+    String? cloudFileId,
+    String? cloudSha256,
   }) async {
     return await db.into(db.transactionAttachments).insert(
       TransactionAttachmentsCompanion.insert(
@@ -33,6 +35,8 @@ class LocalAttachmentRepository implements AttachmentRepository {
         width: d.Value(width),
         height: d.Value(height),
         sortOrder: d.Value(sortOrder),
+        cloudFileId: d.Value(cloudFileId),
+        cloudSha256: d.Value(cloudSha256),
       ),
     );
   }
@@ -67,6 +71,17 @@ class LocalAttachmentRepository implements AttachmentRepository {
     await (db.update(db.transactionAttachments)
       ..where((t) => t.id.equals(id))).write(
       TransactionAttachmentsCompanion(sortOrder: d.Value(sortOrder)),
+    );
+  }
+
+  @override
+  Future<void> updateAttachmentCloudRef(int id, {String? cloudFileId, String? cloudSha256}) async {
+    await (db.update(db.transactionAttachments)
+      ..where((t) => t.id.equals(id))).write(
+      TransactionAttachmentsCompanion(
+        cloudFileId: d.Value(cloudFileId),
+        cloudSha256: d.Value(cloudSha256),
+      ),
     );
   }
 

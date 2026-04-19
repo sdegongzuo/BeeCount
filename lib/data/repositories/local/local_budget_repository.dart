@@ -1,10 +1,17 @@
 import 'package:drift/drift.dart' as d;
+import 'package:uuid/uuid.dart';
 
 import '../../db.dart';
 import '../budget_repository.dart';
 
+const _uuid = Uuid();
+
 /// 本地预算Repository实现
 /// 基于 Drift 数据库实现
+///
+/// 这里 NOT 直接调 changeTracker;changeTracker 的注入是通过 LocalRepository
+/// 包装层(lib/data/repositories/local/local_repository.dart)在 CRUD 前后
+/// 统一 recordChange,保持跟 transaction / account 的代码结构一致。
 class LocalBudgetRepository implements BudgetRepository {
   final BeeDatabase db;
 
@@ -23,6 +30,8 @@ class LocalBudgetRepository implements BudgetRepository {
     String period = 'monthly',
     int startDay = 1,
   }) async {
+    // 每条新建预算分配一个 UUID,跨设备 LWW 用。syncId 在 DB schema 上允许
+    // NULL,只是为了 v22 migration 对老数据兼容;新建走这里永远填。
     return await db.into(db.budgets).insert(
       BudgetsCompanion.insert(
         ledgerId: ledgerId,
@@ -31,6 +40,7 @@ class LocalBudgetRepository implements BudgetRepository {
         amount: amount,
         period: d.Value(period),
         startDay: d.Value(startDay),
+        syncId: d.Value(_uuid.v4()),
       ),
     );
   }

@@ -1415,6 +1415,8 @@ class CloudRepository extends BaseRepository {
     int? width,
     int? height,
     int sortOrder = 0,
+    String? cloudFileId,
+    String? cloudSha256,
   }) async {
     throw UnimplementedError('附件功能在云端模式下暂不可用');
   }
@@ -1446,6 +1448,11 @@ class CloudRepository extends BaseRepository {
 
   @override
   Future<void> updateAttachmentSortOrders(List<({int id, int sortOrder})> updates) async {
+    throw UnimplementedError('附件功能在云端模式下暂不可用');
+  }
+
+  @override
+  Future<void> updateAttachmentCloudRef(int id, {String? cloudFileId, String? cloudSha256}) async {
     throw UnimplementedError('附件功能在云端模式下暂不可用');
   }
 

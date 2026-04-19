@@ -48,56 +48,78 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 
   Future<void> _loadSavedCredentials() async {
-    // Only load credentials when in Supabase mode and login mode
     try {
       final cloudConfig = await ref.read(activeCloudConfigProvider.future);
-      if (cloudConfig.type != CloudBackendType.supabase) {
+      String? savedEmail;
+      String? savedPassword;
+      if (cloudConfig.type == CloudBackendType.supabase) {
+        savedEmail = cloudConfig.supabaseEmail;
+        savedPassword = cloudConfig.supabasePassword;
+      } else if (cloudConfig.type == CloudBackendType.beecountCloud) {
+        // BeeCount Cloud：跟 Supabase 一样，勾选"记住账号"时同时存邮箱+密码，
+        // 作为 token 失效时的兜底登录途径（见 beecountCloudProviderInstance
+        // 里的 fallback signInWithEmail）。
+        savedEmail = cloudConfig.beecountCloudEmail;
+        savedPassword = cloudConfig.beecountCloudPassword;
+      } else {
         return;
       }
 
-      if (cloudConfig.supabaseEmail != null && cloudConfig.supabaseEmail!.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            emailCtrl.text = cloudConfig.supabaseEmail!;
-            if (cloudConfig.supabasePassword != null && cloudConfig.supabasePassword!.isNotEmpty) {
-              pwdCtrl.text = cloudConfig.supabasePassword!;
-              _rememberAccount = true;
-            }
-          });
-        }
+      if (savedEmail != null && savedEmail.isNotEmpty && mounted) {
+        setState(() {
+          emailCtrl.text = savedEmail!;
+          if (savedPassword != null && savedPassword.isNotEmpty) {
+            pwdCtrl.text = savedPassword;
+            _rememberAccount = true;
+          }
+        });
       }
     } catch (e) {
-      // 忽略加载错误，用户可以手动输入
       logger.warning('auth', '加载保存的账号密码失败: $e');
     }
   }
 
   Future<void> _saveCredentials(String email, String password) async {
-    // Only save credentials when in Supabase mode
     try {
       final cloudConfig = await ref.read(activeCloudConfigProvider.future);
-      if (cloudConfig.type != CloudBackendType.supabase) {
+      final store = ref.read(cloudServiceStoreProvider);
+
+      if (cloudConfig.type == CloudBackendType.supabase) {
+        // Supabase 仍旧保留"记住账号"时同时存密码（老 SDK 没有 refresh token 持久化）。
+        final updatedConfig = CloudServiceConfig(
+          type: cloudConfig.type,
+          name: cloudConfig.name,
+          supabaseUrl: cloudConfig.supabaseUrl,
+          supabaseAnonKey: cloudConfig.supabaseAnonKey,
+          supabaseBucket: cloudConfig.supabaseBucket ?? 'beecount-backups',
+          supabaseEmail: _rememberAccount ? email : null,
+          supabasePassword: _rememberAccount ? password : null,
+        );
+        await store.saveOnly(updatedConfig);
+        ref.invalidate(supabaseConfigProvider);
+        ref.invalidate(activeCloudConfigProvider);
+        logger.info('auth', 'Supabase 账号密码保存状态：${_rememberAccount ? "已保存" : "已清除"}');
         return;
       }
 
-      final store = ref.read(cloudServiceStoreProvider);
-
-      // Create updated config with or without credentials based on checkbox
-      final updatedConfig = CloudServiceConfig(
-        type: cloudConfig.type,
-        name: cloudConfig.name,
-        supabaseUrl: cloudConfig.supabaseUrl,
-        supabaseAnonKey: cloudConfig.supabaseAnonKey,
-        supabaseBucket: cloudConfig.supabaseBucket ?? 'beecount-backups',  // 确保有默认值
-        supabaseEmail: _rememberAccount ? email : null,
-        supabasePassword: _rememberAccount ? password : null,
-      );
-
-      await store.saveOnly(updatedConfig);
-      ref.invalidate(supabaseConfigProvider);
-      ref.invalidate(activeCloudConfigProvider);
-
-      logger.info('auth', '账号密码保存状态：${_rememberAccount ? "已保存" : "已清除"}');
+      if (cloudConfig.type == CloudBackendType.beecountCloud) {
+        // BeeCount Cloud：勾选"记住账号"时存邮箱+密码 —— token 机制平时够用，
+        // 但 token 失效 / 老版本升级 / 本地 SharedPreferences 被清等场景都靠
+        // 这份密码做兜底自动登录。
+        final updatedConfig = CloudServiceConfig(
+          type: cloudConfig.type,
+          name: cloudConfig.name,
+          beecountCloudBaseUrl: cloudConfig.beecountCloudBaseUrl,
+          beecountCloudApiPrefix: cloudConfig.beecountCloudApiPrefix,
+          beecountCloudEmail: _rememberAccount ? email : null,
+          beecountCloudPassword: _rememberAccount ? password : null,
+        );
+        await store.saveOnly(updatedConfig);
+        ref.invalidate(beecountCloudConfigProvider);
+        ref.invalidate(activeCloudConfigProvider);
+        logger.info('auth',
+            'BeeCount Cloud 账号密码保存状态：${_rememberAccount ? "已保存" : "已清除"}');
+      }
     } catch (e, st) {
       logger.error('auth', '保存账号密码失败', e, st);
     }

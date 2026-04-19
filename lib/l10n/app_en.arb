@@ -597,6 +597,9 @@
   "mineDownloadResult": "Imported: {inserted} records",
   "mineLoginTitle": "Login / Register",
   "mineLoginSubtitle": "Only needed for sync",
+  "cloudReloginTitle": "Re-login",
+  "cloudReloginSuccess": "Re-logged in",
+  "cloudReloginFailed": "Re-login failed",
   "mineLoggedInEmail": "Logged in",
   "mineLogoutSubtitle": "Tap to logout",
   "mineLogoutConfirmTitle": "Logout",
@@ -1382,6 +1385,32 @@
   "cloudCustomWebdavSubtitle": "Click to configure Nutstore/Nextcloud etc.",
   "cloudCustomS3Title": "S3 Protocol Storage",
   "cloudCustomS3Subtitle": "AWS S3 / Cloudflare R2 / MinIO",
+  "cloudBeeCountCloudTitle": "BeeCount Cloud",
+  "cloudBeeCountCloudSubtitle": "Self-hosted · Incremental sync · Multi-device",
+  "cloudConfigureBeeCountCloudTitle": "Configure BeeCount Cloud",
+  "cloudBeeCountCloudUrlLabel": "Server URL",
+  "cloudBeeCountCloudUrlHint": "https://your-server.com",
+  "cloudBeeCountCloudApiPrefixLabel": "API Prefix",
+  "cloudBeeCountCloudApiPrefixHint": "/api/v1",
+  "cloudBeeCountCloudEmailLabel": "Email",
+  "cloudBeeCountCloudEmailHint": "your@email.com",
+  "cloudBeeCountCloudPasswordLabel": "Password",
+  "cloudBeeCountCloudPasswordHint": "Enter password",
+  "cloudBeeCountCloudLoginSuccess": "Login successful",
+  "cloudBeeCountCloudLoginFailed": "Login failed",
+  "cloudBeeCountCloudSyncSubtitle": "Incremental sync · Multi-device",
+  "cloudBeeCountCloudConnected": "Connected",
+  "cloudBeeCountCloudNotConnected": "Not connected",
+  "cloudBeeCountCloudNotConnectedHint": "Configure and login in cloud service settings",
+  "cloudBeeCountCloudAutoSync": "Incremental Sync",
+  "cloudBeeCountCloudAutoSyncHint": "Changes sync to cloud automatically",
+  "cloudBeeCountCloudMultiDevice": "Multi-device Sync",
+  "cloudBeeCountCloudMultiDeviceHint": "Keep data consistent across devices",
+  "cloudBeeCountCloudAttachment": "Attachment Sync",
+  "cloudBeeCountCloudAttachmentHint": "Receipt images backed up to cloud automatically",
+  "cloudTabOffline": "Offline",
+  "cloudTabBackup": "Backup",
+  "cloudTabCloudSync": "Cloud Sync",
   "cloudIcloudSubtitle": "Auto sync with Apple ID",
   "cloudIcloudNotAvailableTitle": "iCloud Not Available",
   "cloudIcloudNotAvailableMessage": "Please sign in to iCloud in Settings and try again",
@@ -1678,6 +1707,17 @@
   "cloudSyncPageTitle": "Cloud Sync",
   "cloudSyncPageSubtitle": "Manual upload and download ledger data",
   "cloudSyncHint": "Downloads automatically compare differences for selective preview. Not real-time — avoid editing the same ledger on multiple devices simultaneously. Sync scope covers ledger data (including associated accounts, categories, and tags), excluding attachments.",
+  "cloudSyncNow": "Sync Now",
+  "cloudSyncNowHint": "Push local changes and pull remote updates",
+  "cloudSyncInProgress": "Syncing...",
+  "cloudSyncComplete": "Sync complete: pushed {pushed}, pulled {pulled}",
+  "@cloudSyncComplete": {
+    "placeholders": {
+      "pushed": {"type": "int"},
+      "pulled": {"type": "int"}
+    }
+  },
+  "cloudAutoSyncHint": "Auto-sync to cloud after data changes",
   "dataManagement": "Data Management",
   "dataManagementDesc": "Import, export, categories and accounts",
   "dataManagementPageTitle": "Data Management",
@@ -2595,5 +2635,107 @@
   "budgetManagement": "Budget",
   "budgetManagementDesc": "Set monthly budget and control spending",
   "budgetSetupHint": "Set a budget to control monthly spending",
-  "budgetSetupAction": "Set up"
+  "budgetSetupAction": "Set up",
+
+  "cloudCollabDevicesPageTitle": "Device Sessions",
+  "cloudCollabDevicesPageSubtitle": "Manage active devices",
+  "cloudCollabDevicesViewAllSessions": "Show all sessions",
+  "cloudCollabDevicesViewModeHint": "Default view shows deduped devices active in the last 30 days.",
+  "cloudCollabNoDevices": "No active devices",
+  "cloudCollabUnknownDeviceName": "Unknown Device",
+  "cloudCollabDeviceCurrentTag": "Current Device",
+  "cloudCollabCurrentDeviceCannotRevoke": "Current device cannot be revoked.",
+  "cloudCollabDeviceAppVersion": "App: {version}",
+  "@cloudCollabDeviceAppVersion": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceOsVersion": "OS: {version}",
+  "@cloudCollabDeviceOsVersion": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceModel": "Model: {model}",
+  "@cloudCollabDeviceModel": {
+    "placeholders": {
+      "model": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceLastIp": "IP: {ip}",
+  "@cloudCollabDeviceLastIp": {
+    "placeholders": {
+      "ip": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceSessionCount": "Sessions: {count}",
+  "@cloudCollabDeviceSessionCount": {
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceLastSeen": "Last seen: {time}",
+  "@cloudCollabDeviceLastSeen": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceCreatedAt": "Created: {time}",
+  "@cloudCollabDeviceCreatedAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceRevokeTitle": "Revoke Device",
+  "cloudCollabDeviceRevokeMessage": "Revoke device {name} ({id})?",
+  "@cloudCollabDeviceRevokeMessage": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "id": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceRevokeMultipleMessage": "Revoke {count} sessions for device {name}?",
+  "@cloudCollabDeviceRevokeMultipleMessage": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "count": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceRevoked": "Device revoked",
+  "cloudCollabUnavailableMessage": "Cloud sync is unavailable.",
+  "cloudCollabScopeDeniedHint": "Server has not enabled ALLOW_APP_RW_SCOPES, so device sessions are unavailable.",
+  "cloudCollabScopeDeniedAction": "Set ALLOW_APP_RW_SCOPES=true in server .env, restart the service, then sign in again.",
+
+  "syncHealthTitle": "Sync status",
+  "syncHealthCheckFailed": "Check failed: {msg}",
+  "@syncHealthCheckFailed": {
+    "placeholders": {
+      "msg": { "type": "String" }
+    }
+  },
+  "syncHealthHasDiff": "Diff detected; auto-synced",
+  "syncHealthInSync": "Local matches cloud",
+  "syncHealthGroupCurrentLedger": "Current ledger",
+  "syncHealthGroupAll": "All ledgers",
+  "syncHealthRowTx": "Transactions",
+  "syncHealthRowAttachment": "Attachments",
+  "syncHealthRowBudget": "Budgets",
+  "syncHealthRowAccount": "Accounts",
+  "syncHealthRowCategory": "Categories",
+  "syncHealthRowTag": "Tags",
+  "syncHealthRowUnpushed": "Pending pushes",
+  "syncHealthValue": "Local {local} · Cloud {remote}",
+  "@syncHealthValue": {
+    "placeholders": {
+      "local": { "type": "int" },
+      "remote": { "type": "int" }
+    }
+  },
+  "syncHealthValueRemoteMissing": "Local {local} · Cloud —",
+  "@syncHealthValueRemoteMissing": {
+    "placeholders": {
+      "local": { "type": "int" }
+    }
+  }
 }

@@ -2550,6 +2550,24 @@ abstract class AppLocalizations {
   /// **'Only needed for sync'**
   String get mineLoginSubtitle;
 
+  /// No description provided for @cloudReloginTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-login'**
+  String get cloudReloginTitle;
+
+  /// No description provided for @cloudReloginSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-logged in'**
+  String get cloudReloginSuccess;
+
+  /// No description provided for @cloudReloginFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-login failed'**
+  String get cloudReloginFailed;
+
   /// No description provided for @mineLoggedInEmail.
   ///
   /// In en, this message translates to:
@@ -5958,6 +5976,162 @@ abstract class AppLocalizations {
   /// **'AWS S3 / Cloudflare R2 / MinIO'**
   String get cloudCustomS3Subtitle;
 
+  /// No description provided for @cloudBeeCountCloudTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'BeeCount Cloud'**
+  String get cloudBeeCountCloudTitle;
+
+  /// No description provided for @cloudBeeCountCloudSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-hosted · Incremental sync · Multi-device'**
+  String get cloudBeeCountCloudSubtitle;
+
+  /// No description provided for @cloudConfigureBeeCountCloudTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure BeeCount Cloud'**
+  String get cloudConfigureBeeCountCloudTitle;
+
+  /// No description provided for @cloudBeeCountCloudUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get cloudBeeCountCloudUrlLabel;
+
+  /// No description provided for @cloudBeeCountCloudUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://your-server.com'**
+  String get cloudBeeCountCloudUrlHint;
+
+  /// No description provided for @cloudBeeCountCloudApiPrefixLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'API Prefix'**
+  String get cloudBeeCountCloudApiPrefixLabel;
+
+  /// No description provided for @cloudBeeCountCloudApiPrefixHint.
+  ///
+  /// In en, this message translates to:
+  /// **'/api/v1'**
+  String get cloudBeeCountCloudApiPrefixHint;
+
+  /// No description provided for @cloudBeeCountCloudEmailLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get cloudBeeCountCloudEmailLabel;
+
+  /// No description provided for @cloudBeeCountCloudEmailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'your@email.com'**
+  String get cloudBeeCountCloudEmailHint;
+
+  /// No description provided for @cloudBeeCountCloudPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get cloudBeeCountCloudPasswordLabel;
+
+  /// No description provided for @cloudBeeCountCloudPasswordHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter password'**
+  String get cloudBeeCountCloudPasswordHint;
+
+  /// No description provided for @cloudBeeCountCloudLoginSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Login successful'**
+  String get cloudBeeCountCloudLoginSuccess;
+
+  /// No description provided for @cloudBeeCountCloudLoginFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Login failed'**
+  String get cloudBeeCountCloudLoginFailed;
+
+  /// No description provided for @cloudBeeCountCloudSyncSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Incremental sync · Multi-device'**
+  String get cloudBeeCountCloudSyncSubtitle;
+
+  /// No description provided for @cloudBeeCountCloudConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get cloudBeeCountCloudConnected;
+
+  /// No description provided for @cloudBeeCountCloudNotConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get cloudBeeCountCloudNotConnected;
+
+  /// No description provided for @cloudBeeCountCloudNotConnectedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure and login in cloud service settings'**
+  String get cloudBeeCountCloudNotConnectedHint;
+
+  /// No description provided for @cloudBeeCountCloudAutoSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Incremental Sync'**
+  String get cloudBeeCountCloudAutoSync;
+
+  /// No description provided for @cloudBeeCountCloudAutoSyncHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes sync to cloud automatically'**
+  String get cloudBeeCountCloudAutoSyncHint;
+
+  /// No description provided for @cloudBeeCountCloudMultiDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Multi-device Sync'**
+  String get cloudBeeCountCloudMultiDevice;
+
+  /// No description provided for @cloudBeeCountCloudMultiDeviceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep data consistent across devices'**
+  String get cloudBeeCountCloudMultiDeviceHint;
+
+  /// No description provided for @cloudBeeCountCloudAttachment.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachment Sync'**
+  String get cloudBeeCountCloudAttachment;
+
+  /// No description provided for @cloudBeeCountCloudAttachmentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt images backed up to cloud automatically'**
+  String get cloudBeeCountCloudAttachmentHint;
+
+  /// No description provided for @cloudTabOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline'**
+  String get cloudTabOffline;
+
+  /// No description provided for @cloudTabBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup'**
+  String get cloudTabBackup;
+
+  /// No description provided for @cloudTabCloudSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud Sync'**
+  String get cloudTabCloudSync;
+
   /// No description provided for @cloudIcloudSubtitle.
   ///
   /// In en, this message translates to:
@@ -7379,6 +7553,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Downloads automatically compare differences for selective preview. Not real-time — avoid editing the same ledger on multiple devices simultaneously. Sync scope covers ledger data (including associated accounts, categories, and tags), excluding attachments.'**
   String get cloudSyncHint;
+
+  /// No description provided for @cloudSyncNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Now'**
+  String get cloudSyncNow;
+
+  /// No description provided for @cloudSyncNowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Push local changes and pull remote updates'**
+  String get cloudSyncNowHint;
+
+  /// No description provided for @cloudSyncInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing...'**
+  String get cloudSyncInProgress;
+
+  /// No description provided for @cloudSyncComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync complete: pushed {pushed}, pulled {pulled}'**
+  String cloudSyncComplete(int pushed, int pulled);
+
+  /// No description provided for @cloudAutoSyncHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-sync to cloud after data changes'**
+  String get cloudAutoSyncHint;
 
   /// No description provided for @dataManagement.
   ///
@@ -11027,6 +11231,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set up'**
   String get budgetSetupAction;
+
+  /// No description provided for @cloudCollabDevicesPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Device Sessions'**
+  String get cloudCollabDevicesPageTitle;
+
+  /// No description provided for @cloudCollabDevicesPageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage active devices'**
+  String get cloudCollabDevicesPageSubtitle;
+
+  /// No description provided for @cloudCollabDevicesViewAllSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all sessions'**
+  String get cloudCollabDevicesViewAllSessions;
+
+  /// No description provided for @cloudCollabDevicesViewModeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Default view shows deduped devices active in the last 30 days.'**
+  String get cloudCollabDevicesViewModeHint;
+
+  /// No description provided for @cloudCollabNoDevices.
+  ///
+  /// In en, this message translates to:
+  /// **'No active devices'**
+  String get cloudCollabNoDevices;
+
+  /// No description provided for @cloudCollabUnknownDeviceName.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Device'**
+  String get cloudCollabUnknownDeviceName;
+
+  /// No description provided for @cloudCollabDeviceCurrentTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Device'**
+  String get cloudCollabDeviceCurrentTag;
+
+  /// No description provided for @cloudCollabCurrentDeviceCannotRevoke.
+  ///
+  /// In en, this message translates to:
+  /// **'Current device cannot be revoked.'**
+  String get cloudCollabCurrentDeviceCannotRevoke;
+
+  /// No description provided for @cloudCollabDeviceAppVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'App: {version}'**
+  String cloudCollabDeviceAppVersion(String version);
+
+  /// No description provided for @cloudCollabDeviceOsVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'OS: {version}'**
+  String cloudCollabDeviceOsVersion(String version);
+
+  /// No description provided for @cloudCollabDeviceModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model: {model}'**
+  String cloudCollabDeviceModel(String model);
+
+  /// No description provided for @cloudCollabDeviceLastIp.
+  ///
+  /// In en, this message translates to:
+  /// **'IP: {ip}'**
+  String cloudCollabDeviceLastIp(String ip);
+
+  /// No description provided for @cloudCollabDeviceSessionCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions: {count}'**
+  String cloudCollabDeviceSessionCount(String count);
+
+  /// No description provided for @cloudCollabDeviceLastSeen.
+  ///
+  /// In en, this message translates to:
+  /// **'Last seen: {time}'**
+  String cloudCollabDeviceLastSeen(String time);
+
+  /// No description provided for @cloudCollabDeviceCreatedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Created: {time}'**
+  String cloudCollabDeviceCreatedAt(String time);
+
+  /// No description provided for @cloudCollabDeviceRevokeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke Device'**
+  String get cloudCollabDeviceRevokeTitle;
+
+  /// No description provided for @cloudCollabDeviceRevokeMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke device {name} ({id})?'**
+  String cloudCollabDeviceRevokeMessage(String name, String id);
+
+  /// No description provided for @cloudCollabDeviceRevokeMultipleMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Revoke {count} sessions for device {name}?'**
+  String cloudCollabDeviceRevokeMultipleMessage(String name, String count);
+
+  /// No description provided for @cloudCollabDeviceRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Device revoked'**
+  String get cloudCollabDeviceRevoked;
+
+  /// No description provided for @cloudCollabUnavailableMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud sync is unavailable.'**
+  String get cloudCollabUnavailableMessage;
+
+  /// No description provided for @cloudCollabScopeDeniedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Server has not enabled ALLOW_APP_RW_SCOPES, so device sessions are unavailable.'**
+  String get cloudCollabScopeDeniedHint;
+
+  /// No description provided for @cloudCollabScopeDeniedAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Set ALLOW_APP_RW_SCOPES=true in server .env, restart the service, then sign in again.'**
+  String get cloudCollabScopeDeniedAction;
+
+  /// No description provided for @syncHealthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync status'**
+  String get syncHealthTitle;
+
+  /// No description provided for @syncHealthCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Check failed: {msg}'**
+  String syncHealthCheckFailed(String msg);
+
+  /// No description provided for @syncHealthHasDiff.
+  ///
+  /// In en, this message translates to:
+  /// **'Diff detected; auto-synced'**
+  String get syncHealthHasDiff;
+
+  /// No description provided for @syncHealthInSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Local matches cloud'**
+  String get syncHealthInSync;
+
+  /// No description provided for @syncHealthGroupCurrentLedger.
+  ///
+  /// In en, this message translates to:
+  /// **'Current ledger'**
+  String get syncHealthGroupCurrentLedger;
+
+  /// No description provided for @syncHealthGroupAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All ledgers'**
+  String get syncHealthGroupAll;
+
+  /// No description provided for @syncHealthRowTx.
+  ///
+  /// In en, this message translates to:
+  /// **'Transactions'**
+  String get syncHealthRowTx;
+
+  /// No description provided for @syncHealthRowAttachment.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachments'**
+  String get syncHealthRowAttachment;
+
+  /// No description provided for @syncHealthRowBudget.
+  ///
+  /// In en, this message translates to:
+  /// **'Budgets'**
+  String get syncHealthRowBudget;
+
+  /// No description provided for @syncHealthRowAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts'**
+  String get syncHealthRowAccount;
+
+  /// No description provided for @syncHealthRowCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get syncHealthRowCategory;
+
+  /// No description provided for @syncHealthRowTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get syncHealthRowTag;
+
+  /// No description provided for @syncHealthRowUnpushed.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending pushes'**
+  String get syncHealthRowUnpushed;
+
+  /// No description provided for @syncHealthValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Local {local} · Cloud {remote}'**
+  String syncHealthValue(int local, int remote);
+
+  /// No description provided for @syncHealthValueRemoteMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Local {local} · Cloud —'**
+  String syncHealthValueRemoteMissing(int local);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

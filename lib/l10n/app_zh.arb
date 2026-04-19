@@ -542,6 +542,9 @@
   "mineDownloadResult": "导入：{inserted} 条",
   "mineLoginTitle": "登录 / 注册",
   "mineLoginSubtitle": "仅在同步时需要",
+  "cloudReloginTitle": "重新登录",
+  "cloudReloginSuccess": "已重新登录",
+  "cloudReloginFailed": "重新登录失败",
   "mineLoggedInEmail": "已登录",
   "mineLogoutSubtitle": "点击可退出登录",
   "mineLogoutConfirmTitle": "退出登录",
@@ -1297,6 +1300,32 @@
   "cloudCustomWebdavSubtitle": "点击配置坚果云/Nextcloud等",
   "cloudCustomS3Title": "S3 协议存储",
   "cloudCustomS3Subtitle": "AWS S3 / Cloudflare R2 / MinIO",
+  "cloudBeeCountCloudTitle": "BeeCount Cloud",
+  "cloudBeeCountCloudSubtitle": "自建云服务 · 增量同步 · 多设备协同",
+  "cloudConfigureBeeCountCloudTitle": "配置 BeeCount Cloud",
+  "cloudBeeCountCloudUrlLabel": "服务器地址",
+  "cloudBeeCountCloudUrlHint": "https://your-server.com",
+  "cloudBeeCountCloudApiPrefixLabel": "API 前缀",
+  "cloudBeeCountCloudApiPrefixHint": "/api/v1",
+  "cloudBeeCountCloudEmailLabel": "邮箱",
+  "cloudBeeCountCloudEmailHint": "your@email.com",
+  "cloudBeeCountCloudPasswordLabel": "密码",
+  "cloudBeeCountCloudPasswordHint": "输入密码",
+  "cloudBeeCountCloudLoginSuccess": "登录成功",
+  "cloudBeeCountCloudLoginFailed": "登录失败",
+  "cloudBeeCountCloudSyncSubtitle": "增量同步 · 多设备协同",
+  "cloudBeeCountCloudConnected": "已连接",
+  "cloudBeeCountCloudNotConnected": "未连接",
+  "cloudBeeCountCloudNotConnectedHint": "请先在云服务设置中配置并登录",
+  "cloudBeeCountCloudAutoSync": "增量同步",
+  "cloudBeeCountCloudAutoSyncHint": "数据变更自动同步到云端，无需手动操作",
+  "cloudBeeCountCloudMultiDevice": "多设备协同",
+  "cloudBeeCountCloudMultiDeviceHint": "多台设备间自动保持数据一致",
+  "cloudBeeCountCloudAttachment": "附件同步",
+  "cloudBeeCountCloudAttachmentHint": "账单图片等附件自动云端备份",
+  "cloudTabOffline": "离线模式",
+  "cloudTabBackup": "备份同步",
+  "cloudTabCloudSync": "云端协同",
   "cloudIcloudSubtitle": "使用 Apple ID 自动同步",
   "cloudIcloudNotAvailableTitle": "iCloud 不可用",
   "cloudIcloudNotAvailableMessage": "请在系统设置中登录 iCloud 账户后再试",
@@ -1572,6 +1601,17 @@
   "cloudSyncPageTitle": "云同步",
   "cloudSyncPageSubtitle": "手动上传和下载账本数据",
   "cloudSyncHint": "下载时可自动对比差异并逐条预览。非实时同步，请避免多设备同时编辑同一账本。同步范围为账本数据（含关联的账户、分类、标签），不含附件。",
+  "cloudSyncNow": "立即同步",
+  "cloudSyncNowHint": "推送本地变更并拉取远端更新",
+  "cloudSyncInProgress": "正在同步...",
+  "cloudSyncComplete": "同步完成：推送 {pushed} 条，拉取 {pulled} 条",
+  "@cloudSyncComplete": {
+    "placeholders": {
+      "pushed": {"type": "int"},
+      "pulled": {"type": "int"}
+    }
+  },
+  "cloudAutoSyncHint": "数据变更后自动同步到云端",
   "dataManagement": "数据管理",
   "dataManagementDesc": "导入导出、分类账户管理",
   "dataManagementPageTitle": "数据管理",
@@ -2555,5 +2595,107 @@
   "budgetManagement": "预算管理",
   "budgetManagementDesc": "设置月度预算，控制支出",
   "budgetSetupHint": "设置预算，轻松掌控每月开支",
-  "budgetSetupAction": "去设置"
+  "budgetSetupAction": "去设置",
+
+  "cloudCollabDevicesPageTitle": "设备会话",
+  "cloudCollabDevicesPageSubtitle": "管理当前账号活跃设备",
+  "cloudCollabDevicesViewAllSessions": "显示全部会话",
+  "cloudCollabDevicesViewModeHint": "默认展示近 30 天去重设备，可切换查看全部会话。",
+  "cloudCollabNoDevices": "当前没有活跃设备",
+  "cloudCollabUnknownDeviceName": "未知设备",
+  "cloudCollabDeviceCurrentTag": "当前设备",
+  "cloudCollabCurrentDeviceCannotRevoke": "当前设备不能远程下线。",
+  "cloudCollabDeviceAppVersion": "应用：{version}",
+  "@cloudCollabDeviceAppVersion": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceOsVersion": "系统：{version}",
+  "@cloudCollabDeviceOsVersion": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceModel": "型号：{model}",
+  "@cloudCollabDeviceModel": {
+    "placeholders": {
+      "model": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceLastIp": "IP：{ip}",
+  "@cloudCollabDeviceLastIp": {
+    "placeholders": {
+      "ip": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceSessionCount": "会话数：{count}",
+  "@cloudCollabDeviceSessionCount": {
+    "placeholders": {
+      "count": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceLastSeen": "最近活跃：{time}",
+  "@cloudCollabDeviceLastSeen": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceCreatedAt": "创建时间：{time}",
+  "@cloudCollabDeviceCreatedAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceRevokeTitle": "远程下线设备",
+  "cloudCollabDeviceRevokeMessage": "确认下线设备 {name}（{id}）吗？",
+  "@cloudCollabDeviceRevokeMessage": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "id": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceRevokeMultipleMessage": "确认下线设备 {name} 的 {count} 个会话吗？",
+  "@cloudCollabDeviceRevokeMultipleMessage": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "count": { "type": "String" }
+    }
+  },
+  "cloudCollabDeviceRevoked": "设备已下线",
+  "cloudCollabUnavailableMessage": "云同步功能暂不可用。",
+  "cloudCollabScopeDeniedHint": "服务端尚未开启 ALLOW_APP_RW_SCOPES，当前设备会话不可用。",
+  "cloudCollabScopeDeniedAction": "请在服务端 .env 或部署环境中设置 ALLOW_APP_RW_SCOPES=true，重启服务后重新登录 App。",
+
+  "syncHealthTitle": "同步状态",
+  "syncHealthCheckFailed": "检测失败：{msg}",
+  "@syncHealthCheckFailed": {
+    "placeholders": {
+      "msg": { "type": "String" }
+    }
+  },
+  "syncHealthHasDiff": "检测到差异，已自动同步",
+  "syncHealthInSync": "本地与云端一致",
+  "syncHealthGroupCurrentLedger": "当前账本",
+  "syncHealthGroupAll": "全部账本",
+  "syncHealthRowTx": "交易",
+  "syncHealthRowAttachment": "附件",
+  "syncHealthRowBudget": "预算",
+  "syncHealthRowAccount": "账户",
+  "syncHealthRowCategory": "分类",
+  "syncHealthRowTag": "标签",
+  "syncHealthRowUnpushed": "未推送变更",
+  "syncHealthValue": "本地 {local} · 云端 {remote}",
+  "@syncHealthValue": {
+    "placeholders": {
+      "local": { "type": "int" },
+      "remote": { "type": "int" }
+    }
+  },
+  "syncHealthValueRemoteMissing": "本地 {local} · 云端 —",
+  "@syncHealthValueRemoteMissing": {
+    "placeholders": {
+      "local": { "type": "int" }
+    }
+  }
 }

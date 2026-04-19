@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
+import '../../services/billing/post_processor.dart';
 import '../../services/data/tag_seed_service.dart';
 import '../../services/export/config_export_service.dart';
 import '../../services/system/logger_service.dart';
@@ -175,8 +176,15 @@ class _TagManagePageState extends ConsumerState<TagManagePage> {
     );
 
     if (confirmed == true && mounted) {
-      final db = ref.read(databaseProvider);
-      await TagSeedService.seedDefaultTags(db, l10n);
+      final repo = ref.read(repositoryProvider);
+      await TagSeedService.seedDefaultTags(repo, l10n);
+      // 跟普通手工新建的 tag 一样走 sync_changes 路径,这里再顺手 push 一下,
+      // 保证云同步页还没被下拉刷新时就已经开始把种子标签推到云端。
+      // 标签是用户级、不挂账本,但 PostProcessor.sync 需要 ledgerId —— 用
+      // 当前账本即可,sync engine 会把所有 unpushed changes(包括 ledger=0 的)
+      // 一起带上。
+      final currentLedgerId = ref.read(currentLedgerIdProvider);
+      await PostProcessor.sync(ref, ledgerId: currentLedgerId);
       ref.read(tagListRefreshProvider.notifier).state++;
 
       if (mounted) {

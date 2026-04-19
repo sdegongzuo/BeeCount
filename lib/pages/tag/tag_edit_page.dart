@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/tag_providers.dart';
 import '../../providers/database_providers.dart';
+import '../../services/billing/post_processor.dart';
 import '../../services/data/tag_seed_service.dart';
 import '../../styles/tokens.dart';
 import '../../widgets/ui/ui.dart';
@@ -276,6 +279,15 @@ class _TagEditPageState extends ConsumerState<TagEditPage> {
       }
 
       ref.read(tagListRefreshProvider.notifier).state++;
+
+      // 标签是 user-scoped，但 ChangeTracker 记在 ledgerId=0；_push(ledger) 会
+      // 顺便把 ledgerId=0 的未推变更一起捎走。用当前激活的 ledgerId 触发 sync
+      // 就能把这次重命名实时推到服务端，web 端 WS 收到后 2 秒内就能刷新。
+      final activeLedgerId = ref.read(currentLedgerIdProvider);
+      if (activeLedgerId > 0) {
+        // 不 await：后台异步推送，不阻塞 UI 关闭。
+        unawaited(PostProcessor.sync(ref, ledgerId: activeLedgerId));
+      }
 
       if (mounted) {
         Navigator.of(context).pop();

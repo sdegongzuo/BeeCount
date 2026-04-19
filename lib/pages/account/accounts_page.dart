@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:collection/collection.dart';
 
 import '../../providers.dart';
+import '../../services/billing/post_processor.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/amount_text.dart';
 import '../../widgets/biz/section_card.dart';
@@ -59,6 +62,12 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
 
     // 写入数据库，延迟清除本地状态让 stream 先到位
     ref.read(repositoryProvider).updateAccountSortOrders(updates).then((_) {
+      // 账户拖拽排序也推到服务端。账户的 ChangeTracker 变更用的是 account.ledgerId
+      // （非 0），走常规 push 路径即可。
+      final activeLedgerId = ref.read(currentLedgerIdProvider);
+      if (activeLedgerId > 0) {
+        unawaited(PostProcessor.sync(ref, ledgerId: activeLedgerId));
+      }
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) setState(() => _reorderingGroups = null);
       });

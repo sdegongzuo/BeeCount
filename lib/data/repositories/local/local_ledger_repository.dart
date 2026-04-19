@@ -1,7 +1,10 @@
 import 'package:drift/drift.dart' as d;
+import 'package:uuid/uuid.dart';
 
 import '../../db.dart';
 import '../ledger_repository.dart';
+
+const _uuid = Uuid();
 
 /// 本地账本Repository实现
 /// 基于 Drift 数据库实现
@@ -130,8 +133,17 @@ class LocalLedgerRepository implements LedgerRepository {
     required String name,
     String currency = 'CNY',
   }) async {
+    // syncId 是跨设备稳定外键。新建账本必须现场写入 UUID，否则 push 侧
+    // 的 `ledger.syncId ?? ledger.id.toString()` 会 fallback 到本地 int id，
+    // 第二台设备本地 int id 不同 → server 会 auto-create 一个 external_id
+    // 为本地 int id 字符串的 duplicate ledger。
     return db.into(db.ledgers).insert(
-        LedgersCompanion.insert(name: name, currency: d.Value(currency)));
+          LedgersCompanion.insert(
+            name: name,
+            currency: d.Value(currency),
+            syncId: d.Value(_uuid.v4()),
+          ),
+        );
   }
 
   @override
