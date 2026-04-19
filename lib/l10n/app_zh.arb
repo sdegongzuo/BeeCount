@@ -540,7 +540,7 @@
   "mineDownloadNeedCloudService": "仅限云服务模式可用",
   "mineDownloadComplete": "同步完成",
   "mineDownloadResult": "导入：{inserted} 条",
-  "mineLoginTitle": "登录 / 注册",
+  "mineLoginTitle": "登录",
   "mineLoginSubtitle": "仅在同步时需要",
   "cloudReloginTitle": "重新登录",
   "cloudReloginSuccess": "已重新登录",
@@ -954,53 +954,17 @@
   "cloudConfigureS3Title": "配置 S3",
   "cloudWebdavRemotePathHelp": "数据存储的远程目录路径",
   "authLogin": "登录",
-  "authSignup": "注册",
   "authEmail": "邮箱",
   "authPassword": "密码",
-  "authPasswordRequirement": "密码（至少 6 位，需包含字母和数字）",
-  "authConfirmPassword": "确认密码",
   "authInvalidEmail": "请输入有效的邮箱地址",
   "authPasswordRequirementShort": "密码需包含字母和数字，长度至少 6 位",
-  "authPasswordMismatch": "两次输入的密码不一致",
-  "authResendVerification": "重发验证邮件",
-  "authSignupSuccess": "注册成功",
-  "authVerificationEmailSent": "验证邮件已发送，请前往邮箱完成验证后再登录。",
-  "authBackToMinePage": "返回我的页面",
-  "authVerificationEmailResent": "验证邮件已重新发送。",
-  "authResendAction": "重发验证",
   "authErrorInvalidCredentials": "邮箱或密码不正确。",
   "authErrorEmailNotConfirmed": "邮箱未验证，请先到邮箱完成验证再登录。",
   "authErrorRateLimit": "操作过于频繁，请稍后再试。",
   "authErrorNetworkIssue": "网络异常，请检查网络后重试。",
   "authErrorLoginFailed": "登录失败，请稍后再试。",
   "authErrorEmailInvalid": "邮箱地址无效，请检查是否拼写有误。",
-  "authErrorEmailExists": "该邮箱已注册，请直接登录或重置密码。",
   "authErrorWeakPassword": "密码过于简单，请包含字母和数字，长度至少 6 位。",
-  "authErrorSignupFailed": "注册失败，请稍后再试。",
-  "authErrorUserNotFound": "邮箱未注册，无法{action}。",
-  "authErrorEmailNotVerified": "邮箱未验证，无法{action}。",
-  "authErrorActionFailed": "{action}失败，请稍后再试。",
-  "@authErrorUserNotFound": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
-  "@authErrorEmailNotVerified": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
-  "@authErrorActionFailed": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
   "importSelectCsvFile": "请选择文件进行导入（支持 CSV/TSV/XLSX 格式）",
   "@importFileOpenError": {
     "placeholders": {
@@ -1484,8 +1448,8 @@
   "welcomeCloudSyncTitle": "可选的云同步",
   "welcomeCloudSyncDescription": "BeeCount 支持多种同步方式，数据完全由你掌控",
   "welcomeCloudSyncFeature1": "完全离线使用，无需云服务",
-  "welcomeCloudSyncFeature2": "iCloud 同步（iOS 用户零配置）",
-  "welcomeCloudSyncFeature3": "自建 WebDAV/Supabase/S3 服务",
+  "welcomeCloudSyncFeature2": "BeeCount Cloud 自建云（多设备实时协同 + Web 端）",
+  "welcomeCloudSyncFeature3": "iCloud / WebDAV / Supabase / S3 任选",
   "widgetManagement": "桌面小组件",
   "widgetManagementDesc": "在主屏幕快速查看收支情况",
   "widgetPreview": "小组件预览",
@@ -1600,6 +1564,24 @@
   "aiTypeExpense": "支出",
   "cloudSyncPageTitle": "云同步",
   "cloudSyncPageSubtitle": "手动上传和下载账本数据",
+  "cloudTutorialTitle": "使用教程",
+  "cloudTutorialIntro": "BeeCount Cloud 是可以自建的云同步服务端,支持多设备实时协同。流程很简单:",
+  "cloudTutorialStep1Title": "第一步:部署或选择服务器",
+  "cloudTutorialStep1Desc": "自己部署:Docker 一行命令拉起(见 GitHub README 的 Docker 指南)。或直接使用朋友/团队已有的 BeeCount Cloud 服务器。",
+  "cloudTutorialStep2Title": "第二步:获取账号",
+  "cloudTutorialStep2Desc": "BeeCount Cloud 不支持自助注册(避免公网服务被滥用)。自己部署的同学:首次启动 Docker 日志里会打印随机管理员账号密码,直接用。加入他人服务器的同学:让管理员在 Web 后台 →「用户」里帮你添加账号。",
+  "cloudTutorialStep3Title": "第三步:登录并开启同步",
+  "cloudTutorialStep3Desc": "App 里选「BeeCount Cloud」,填服务器地址 + 管理员给你的账号,登录。首次会全量上传你本地所有账本数据,之后每次编辑实时推送。",
+  "cloudTutorialStep4Title": "第四步:其他设备登录",
+  "cloudTutorialStep4Desc": "手机、平板、Web 三端用同一账号登录,数据即刻互通。修改几秒内互相感知。",
+  "cloudTutorialTipTitle": "小贴士",
+  "cloudTutorialTipDesc": "Web 端地址 = 服务器地址,浏览器直接访问即可。登录后可以管理账本、成员、查看日志。",
+  "cloudTutorialFeaturesTitle": "特色功能",
+  "cloudTutorialFeature1": "📱 多设备实时协同:手机 A + 手机 B + Web 三端同账号,数据秒级同步",
+  "cloudTutorialFeature2": "🌐 自带 Web 管理端:一个 Docker 镜像包含 server + web,浏览器即可使用",
+  "cloudTutorialFeature3": "👥 多用户独立:一个服务器可以多人注册,各自数据完全隔离",
+  "cloudTutorialFeature4": "🔜 规划中:共享账本(邀请家人 / 团队一起记同一本)",
+  "cloudTutorialGotIt": "我知道了",
   "cloudSyncHint": "下载时可自动对比差异并逐条预览。非实时同步，请避免多设备同时编辑同一账本。同步范围为账本数据（含关联的账户、分类、标签），不含附件。",
   "cloudSyncNow": "立即同步",
   "cloudSyncNowHint": "推送本地变更并拉取远端更新",

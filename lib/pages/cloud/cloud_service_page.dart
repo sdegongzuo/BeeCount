@@ -276,6 +276,7 @@ class _CloudServicePageState extends ConsumerState<CloudServicePage> {
                           onConfigure: bcCfg?.valid == true
                               ? () => _configureService(CloudBackendType.beecountCloud)
                               : null,
+                          onShowGuide: _showBeeCountCloudHelpDialog,
                         ),
                       ),
                     ],
@@ -925,6 +926,167 @@ class _CloudServicePageState extends ConsumerState<CloudServicePage> {
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: Text(l10n.commonConfirm),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBeeCountCloudHelpDialog() {
+    final l10n = AppLocalizations.of(context);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.cloud_circle, color: BeeTokens.brandCloud),
+            const SizedBox(width: 8),
+            Text(l10n.cloudTutorialTitle),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 介绍
+              Text(
+                l10n.cloudTutorialIntro,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: BeeTokens.textSecondary(context),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // 4 步教程
+              _buildBeeCloudStep('1', l10n.cloudTutorialStep1Title, l10n.cloudTutorialStep1Desc),
+              _buildBeeCloudStep('2', l10n.cloudTutorialStep2Title, l10n.cloudTutorialStep2Desc),
+              _buildBeeCloudStep('3', l10n.cloudTutorialStep3Title, l10n.cloudTutorialStep3Desc),
+              _buildBeeCloudStep('4', l10n.cloudTutorialStep4Title, l10n.cloudTutorialStep4Desc),
+              const SizedBox(height: 4),
+              // 特色功能 —— 强调 Web + 多设备协同 + 多用户 + 共享账本规划
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: BeeTokens.brandCloud.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.cloudTutorialFeaturesTitle,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: BeeTokens.brandCloud,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(l10n.cloudTutorialFeature1, style: const TextStyle(fontSize: 12.5, height: 1.7)),
+                    Text(l10n.cloudTutorialFeature2, style: const TextStyle(fontSize: 12.5, height: 1.7)),
+                    Text(l10n.cloudTutorialFeature3, style: const TextStyle(fontSize: 12.5, height: 1.7)),
+                    Text(l10n.cloudTutorialFeature4, style: const TextStyle(fontSize: 12.5, height: 1.7)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Tip
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: BeeTokens.brandCloud.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, color: BeeTokens.brandCloud, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '${l10n.cloudTutorialTipTitle}: ',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: BeeTokens.textSecondary(context),
+                              ),
+                            ),
+                            TextSpan(
+                              text: l10n.cloudTutorialTipDesc,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: BeeTokens.textSecondary(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.cloudTutorialGotIt),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBeeCloudStep(String num, String title, String desc) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: BeeTokens.brandCloud,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              num,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    )),
+                const SizedBox(height: 3),
+                Text(
+                  desc,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: BeeTokens.textSecondary(context),
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

@@ -417,56 +417,20 @@
   "attachmentExportPreviewTitle": "匯出預覽",
   "attachmentImportPreviewTitle": "匯入預覽",
   "attachmentTakePhoto": "拍照",
-  "authBackToMinePage": "返回我的頁面",
-  "authConfirmPassword": "確認密碼",
   "authEmail": "電子郵件",
-  "authErrorActionFailed": "{action}失敗，請稍後再試。",
-  "@authErrorActionFailed": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
-  "authErrorEmailExists": "該電子郵件已註冊，請直接登入或重設密碼。",
   "authErrorEmailInvalid": "電子郵件地址無效，請檢查是否拼寫有誤。",
   "authErrorEmailNotConfirmed": "電子郵件未驗證，請先到電子郵件完成驗證再登入。",
-  "authErrorEmailNotVerified": "電子郵件未驗證，無法{action}。",
-  "@authErrorEmailNotVerified": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
   "authErrorInvalidCredentials": "電子郵件或密碼不正確。",
   "authErrorLoginFailed": "登入失敗，請稍後再試。",
   "authErrorNetworkIssue": "網路異常，請檢查網路後重試。",
   "authErrorRateLimit": "操作過於頻繁，請稍後再試。",
-  "authErrorSignupFailed": "註冊失敗，請稍後再試。",
-  "authErrorUserNotFound": "電子郵件未註冊，無法{action}。",
-  "@authErrorUserNotFound": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
   "authErrorWeakPassword": "密碼過於簡單，請包含字母和數字，長度至少 6 位。",
   "authInvalidEmail": "請輸入有效的電子郵件地址",
   "authLogin": "登入",
   "authPassword": "密碼",
-  "authPasswordMismatch": "兩次輸入的密碼不一致",
-  "authPasswordRequirement": "密碼（至少 6 位，需包含字母和數字）",
   "authPasswordRequirementShort": "密碼需包含字母和數字，長度至少 6 位",
   "authRememberAccount": "記住帳號密碼",
   "authRememberAccountHint": "下次登入時自動填入（僅Supabase）",
-  "authResendAction": "重發驗證",
-  "authResendVerification": "重發驗證電子郵件",
-  "authSignup": "註冊",
-  "authSignupSuccess": "註冊成功",
-  "authVerificationEmailResent": "驗證電子郵件已重新發送。",
-  "authVerificationEmailSent": "驗證電子郵件已發送，請前往電子郵件完成驗證後再登入。",
   "autoBilling": "自動記帳",
   "autoBillingBatteryDesc": "自動記帳需要應用程式在背景保持執行。部分手機會在鎖屏後自動清理背景應用程式，導致自動記帳功能失效。建議關閉電池最佳化以確保功能正常工作。",
   "autoBillingBatteryGuideTitle": "電池最佳化設定",
@@ -885,6 +849,24 @@
   "cloudAutoSyncHint": "資料變更後自動同步到雲端",
   "cloudSyncPageSubtitle": "手動上傳和下載帳本資料",
   "cloudSyncPageTitle": "雲同步",
+  "cloudTutorialTitle": "使用教程",
+  "cloudTutorialIntro": "BeeCount Cloud 是可自建的雲同步服務端,支援多裝置即時協同。流程很簡單:",
+  "cloudTutorialStep1Title": "第一步:部署或選擇伺服器",
+  "cloudTutorialStep1Desc": "自行部署:Docker 一行指令拉起(詳見 GitHub README 的 Docker 指南)。或直接使用朋友/團隊既有的 BeeCount Cloud 伺服器。",
+  "cloudTutorialStep2Title": "第二步:取得帳號",
+  "cloudTutorialStep2Desc": "BeeCount Cloud 不支援自助註冊(避免公網服務被濫用)。自行部署:Docker 首次啟動日誌會印出隨機管理員帳密,直接用。加入他人伺服器:請管理員在 Web 後台 →「使用者」裡為你建立帳號。",
+  "cloudTutorialStep3Title": "第三步:登入並開啟同步",
+  "cloudTutorialStep3Desc": "App 內選「BeeCount Cloud」,填伺服器位址 + 管理員給你的帳號,登入。首次會全量上傳你本機所有帳本資料,之後每次編輯即時推送。",
+  "cloudTutorialStep4Title": "第四步:其他裝置登入",
+  "cloudTutorialStep4Desc": "手機、平板、Web 三端用同一帳號登入,資料即刻互通。修改數秒內互相感知。",
+  "cloudTutorialTipTitle": "小提示",
+  "cloudTutorialTipDesc": "Web 端地址 = 伺服器位址,瀏覽器直接開啟即可。登入後可管理帳本、成員、查看紀錄。",
+  "cloudTutorialFeaturesTitle": "特色功能",
+  "cloudTutorialFeature1": "📱 多裝置即時協同:手機 A + 手機 B + Web 三端同帳號,資料秒級同步",
+  "cloudTutorialFeature2": "🌐 內建 Web 管理端:一個 Docker 映像檔含 server + web,瀏覽器即可使用",
+  "cloudTutorialFeature3": "👥 多用戶獨立:一個伺服器可多人註冊,各自資料完全隔離",
+  "cloudTutorialFeature4": "🔜 規劃中:共享帳本(邀請家人 / 團隊一起記同一本)",
+  "cloudTutorialGotIt": "我知道了",
   "cloudTest": "測試",
   "cloudTestConnection": "測試連線",
   "cloudTestError": "測試失敗",
@@ -1413,7 +1395,7 @@
   "cloudReloginFailed": "重新登入失敗",
   "mineLoggedInEmail": "已登入",
   "mineLoginSubtitle": "僅在同步時需要",
-  "mineLoginTitle": "登入 / 註冊",
+  "mineLoginTitle": "登入",
   "mineLogoutButton": "退出",
   "mineLogoutConfirmMessage": "確定要退出當前帳號登入嗎？\n退出後將無法使用雲同步功能。",
   "mineLogoutConfirmTitle": "退出登入",
@@ -2103,8 +2085,8 @@
   "welcomeCategoryModeTitle": "選擇分類模式",
   "welcomeCloudSyncDescription": "BeeCount 支援多種同步方式，資料完全由你掌控",
   "welcomeCloudSyncFeature1": "完全離線使用，無需雲端服務",
-  "welcomeCloudSyncFeature2": "iCloud 同步（iOS 用戶零配置）",
-  "welcomeCloudSyncFeature3": "自建 WebDAV/Supabase/S3 服務",
+  "welcomeCloudSyncFeature2": "BeeCount Cloud 自建雲（多裝置即時協同 + Web 端）",
+  "welcomeCloudSyncFeature3": "iCloud / WebDAV / Supabase / S3 任選",
   "welcomeCloudSyncTitle": "可選的雲端同步",
   "welcomeCurrencyDescription": "選擇您常用的貨幣，之後可以隨時在設定中更改",
   "welcomeExistingUserTitle": "老用戶？",

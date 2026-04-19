@@ -2541,7 +2541,7 @@ abstract class AppLocalizations {
   /// No description provided for @mineLoginTitle.
   ///
   /// In en, this message translates to:
-  /// **'Login / Register'**
+  /// **'Login'**
   String get mineLoginTitle;
 
   /// No description provided for @mineLoginSubtitle.
@@ -4458,12 +4458,6 @@ abstract class AppLocalizations {
   /// **'Login'**
   String get authLogin;
 
-  /// No description provided for @authSignup.
-  ///
-  /// In en, this message translates to:
-  /// **'Sign Up'**
-  String get authSignup;
-
   /// No description provided for @authEmail.
   ///
   /// In en, this message translates to:
@@ -4476,18 +4470,6 @@ abstract class AppLocalizations {
   /// **'Password'**
   String get authPassword;
 
-  /// No description provided for @authPasswordRequirement.
-  ///
-  /// In en, this message translates to:
-  /// **'Password (at least 6 characters, include letters and numbers)'**
-  String get authPasswordRequirement;
-
-  /// No description provided for @authConfirmPassword.
-  ///
-  /// In en, this message translates to:
-  /// **'Confirm Password'**
-  String get authConfirmPassword;
-
   /// No description provided for @authInvalidEmail.
   ///
   /// In en, this message translates to:
@@ -4499,48 +4481,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Password must contain letters and numbers, at least 6 characters'**
   String get authPasswordRequirementShort;
-
-  /// No description provided for @authPasswordMismatch.
-  ///
-  /// In en, this message translates to:
-  /// **'Passwords do not match'**
-  String get authPasswordMismatch;
-
-  /// No description provided for @authResendVerification.
-  ///
-  /// In en, this message translates to:
-  /// **'Resend verification email'**
-  String get authResendVerification;
-
-  /// No description provided for @authSignupSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Registration successful'**
-  String get authSignupSuccess;
-
-  /// No description provided for @authVerificationEmailSent.
-  ///
-  /// In en, this message translates to:
-  /// **'Verification email sent, please go to your email to complete verification before logging in.'**
-  String get authVerificationEmailSent;
-
-  /// No description provided for @authBackToMinePage.
-  ///
-  /// In en, this message translates to:
-  /// **'Back to My Page'**
-  String get authBackToMinePage;
-
-  /// No description provided for @authVerificationEmailResent.
-  ///
-  /// In en, this message translates to:
-  /// **'Verification email resent.'**
-  String get authVerificationEmailResent;
-
-  /// No description provided for @authResendAction.
-  ///
-  /// In en, this message translates to:
-  /// **'resend verification'**
-  String get authResendAction;
 
   /// No description provided for @authErrorInvalidCredentials.
   ///
@@ -4578,41 +4518,11 @@ abstract class AppLocalizations {
   /// **'Email address is invalid, please check for spelling errors.'**
   String get authErrorEmailInvalid;
 
-  /// No description provided for @authErrorEmailExists.
-  ///
-  /// In en, this message translates to:
-  /// **'This email is already registered, please login directly or reset password.'**
-  String get authErrorEmailExists;
-
   /// No description provided for @authErrorWeakPassword.
   ///
   /// In en, this message translates to:
   /// **'Password is too simple, please include letters and numbers, at least 6 characters.'**
   String get authErrorWeakPassword;
-
-  /// No description provided for @authErrorSignupFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Registration failed, please try again later.'**
-  String get authErrorSignupFailed;
-
-  /// No description provided for @authErrorUserNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'Email not registered, cannot {action}.'**
-  String authErrorUserNotFound(String action);
-
-  /// No description provided for @authErrorEmailNotVerified.
-  ///
-  /// In en, this message translates to:
-  /// **'Email not verified, cannot {action}.'**
-  String authErrorEmailNotVerified(String action);
-
-  /// No description provided for @authErrorActionFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'{action} failed, please try again later.'**
-  String authErrorActionFailed(String action);
 
   /// No description provided for @importSelectCsvFile.
   ///
@@ -6999,13 +6909,13 @@ abstract class AppLocalizations {
   /// No description provided for @welcomeCloudSyncFeature2.
   ///
   /// In en, this message translates to:
-  /// **'iCloud sync (zero config for iOS users)'**
+  /// **'BeeCount Cloud self-hosted (real-time multi-device + Web UI)'**
   String get welcomeCloudSyncFeature2;
 
   /// No description provided for @welcomeCloudSyncFeature3.
   ///
   /// In en, this message translates to:
-  /// **'Self-hosted WebDAV/Supabase/S3 service'**
+  /// **'Or pick iCloud / WebDAV / Supabase / S3'**
   String get welcomeCloudSyncFeature3;
 
   /// No description provided for @widgetManagement.
@@ -7547,6 +7457,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Manual upload and download ledger data'**
   String get cloudSyncPageSubtitle;
+
+  /// No description provided for @cloudTutorialTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting Started'**
+  String get cloudTutorialTitle;
+
+  /// No description provided for @cloudTutorialIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'BeeCount Cloud is a self-hosted sync server that supports real-time multi-device collaboration. The flow is simple:'**
+  String get cloudTutorialIntro;
+
+  /// No description provided for @cloudTutorialStep1Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Step 1: Deploy or join a server'**
+  String get cloudTutorialStep1Title;
+
+  /// No description provided for @cloudTutorialStep1Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-host with one Docker command (see the Docker guide in GitHub README). Or join an existing BeeCount Cloud server run by a friend / team.'**
+  String get cloudTutorialStep1Desc;
+
+  /// No description provided for @cloudTutorialStep2Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Step 2: Get an account'**
+  String get cloudTutorialStep2Title;
+
+  /// No description provided for @cloudTutorialStep2Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'BeeCount Cloud does NOT offer self-registration (to prevent abuse on public servers). If you self-host: the first Docker boot prints a random admin email + password to the logs — use that. Joining someone else\'s server: ask the admin to create an account for you in Web → Users.'**
+  String get cloudTutorialStep2Desc;
+
+  /// No description provided for @cloudTutorialStep3Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Step 3: Login + enable sync'**
+  String get cloudTutorialStep3Title;
+
+  /// No description provided for @cloudTutorialStep3Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'In the app, pick BeeCount Cloud, enter the server URL and the account you got in step 2. First login uploads your entire local ledger; every subsequent edit is pushed in real time.'**
+  String get cloudTutorialStep3Desc;
+
+  /// No description provided for @cloudTutorialStep4Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Step 4: Login from other devices'**
+  String get cloudTutorialStep4Title;
+
+  /// No description provided for @cloudTutorialStep4Desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone / tablet / Web — same account, instant shared state. Edits propagate within seconds.'**
+  String get cloudTutorialStep4Desc;
+
+  /// No description provided for @cloudTutorialTipTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip'**
+  String get cloudTutorialTipTitle;
+
+  /// No description provided for @cloudTutorialTipDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The Web UI lives at the server URL. Open it in a browser to manage ledgers, members, and view logs.'**
+  String get cloudTutorialTipDesc;
+
+  /// No description provided for @cloudTutorialFeaturesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Features'**
+  String get cloudTutorialFeaturesTitle;
+
+  /// No description provided for @cloudTutorialFeature1.
+  ///
+  /// In en, this message translates to:
+  /// **'📱 Real-time multi-device: phone A + phone B + Web on one account, sub-second sync'**
+  String get cloudTutorialFeature1;
+
+  /// No description provided for @cloudTutorialFeature2.
+  ///
+  /// In en, this message translates to:
+  /// **'🌐 Web UI included: one Docker image ships server + Web, browser ready'**
+  String get cloudTutorialFeature2;
+
+  /// No description provided for @cloudTutorialFeature3.
+  ///
+  /// In en, this message translates to:
+  /// **'👥 Multi-user isolation: multiple users on one server, data fully separated'**
+  String get cloudTutorialFeature3;
+
+  /// No description provided for @cloudTutorialFeature4.
+  ///
+  /// In en, this message translates to:
+  /// **'🔜 Planned: shared ledgers (invite family / team to a common ledger)'**
+  String get cloudTutorialFeature4;
+
+  /// No description provided for @cloudTutorialGotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get cloudTutorialGotIt;
 
   /// No description provided for @cloudSyncHint.
   ///

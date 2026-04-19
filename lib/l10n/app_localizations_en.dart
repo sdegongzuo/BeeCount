@@ -1338,7 +1338,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get mineLoginTitle => 'Login / Register';
+  String get mineLoginTitle => 'Login';
 
   @override
   String get mineLoginSubtitle => 'Only needed for sync';
@@ -2348,46 +2348,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authLogin => 'Login';
 
   @override
-  String get authSignup => 'Sign Up';
-
-  @override
   String get authEmail => 'Email';
 
   @override
   String get authPassword => 'Password';
 
   @override
-  String get authPasswordRequirement => 'Password (at least 6 characters, include letters and numbers)';
-
-  @override
-  String get authConfirmPassword => 'Confirm Password';
-
-  @override
   String get authInvalidEmail => 'Please enter a valid email address';
 
   @override
   String get authPasswordRequirementShort => 'Password must contain letters and numbers, at least 6 characters';
-
-  @override
-  String get authPasswordMismatch => 'Passwords do not match';
-
-  @override
-  String get authResendVerification => 'Resend verification email';
-
-  @override
-  String get authSignupSuccess => 'Registration successful';
-
-  @override
-  String get authVerificationEmailSent => 'Verification email sent, please go to your email to complete verification before logging in.';
-
-  @override
-  String get authBackToMinePage => 'Back to My Page';
-
-  @override
-  String get authVerificationEmailResent => 'Verification email resent.';
-
-  @override
-  String get authResendAction => 'resend verification';
 
   @override
   String get authErrorInvalidCredentials => 'Email or password is incorrect.';
@@ -2408,28 +2378,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authErrorEmailInvalid => 'Email address is invalid, please check for spelling errors.';
 
   @override
-  String get authErrorEmailExists => 'This email is already registered, please login directly or reset password.';
-
-  @override
   String get authErrorWeakPassword => 'Password is too simple, please include letters and numbers, at least 6 characters.';
-
-  @override
-  String get authErrorSignupFailed => 'Registration failed, please try again later.';
-
-  @override
-  String authErrorUserNotFound(String action) {
-    return 'Email not registered, cannot $action.';
-  }
-
-  @override
-  String authErrorEmailNotVerified(String action) {
-    return 'Email not verified, cannot $action.';
-  }
-
-  @override
-  String authErrorActionFailed(String action) {
-    return '$action failed, please try again later.';
-  }
 
   @override
   String get importSelectCsvFile => 'Please select a file to import (CSV/TSV/XLSX supported)';
@@ -3677,10 +3626,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get welcomeCloudSyncFeature1 => 'Completely offline usage, no cloud needed';
 
   @override
-  String get welcomeCloudSyncFeature2 => 'iCloud sync (zero config for iOS users)';
+  String get welcomeCloudSyncFeature2 => 'BeeCount Cloud self-hosted (real-time multi-device + Web UI)';
 
   @override
-  String get welcomeCloudSyncFeature3 => 'Self-hosted WebDAV/Supabase/S3 service';
+  String get welcomeCloudSyncFeature3 => 'Or pick iCloud / WebDAV / Supabase / S3';
 
   @override
   String get widgetManagement => 'Home Screen Widget';
@@ -3957,6 +3906,60 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cloudSyncPageSubtitle => 'Manual upload and download ledger data';
+
+  @override
+  String get cloudTutorialTitle => 'Getting Started';
+
+  @override
+  String get cloudTutorialIntro => 'BeeCount Cloud is a self-hosted sync server that supports real-time multi-device collaboration. The flow is simple:';
+
+  @override
+  String get cloudTutorialStep1Title => 'Step 1: Deploy or join a server';
+
+  @override
+  String get cloudTutorialStep1Desc => 'Self-host with one Docker command (see the Docker guide in GitHub README). Or join an existing BeeCount Cloud server run by a friend / team.';
+
+  @override
+  String get cloudTutorialStep2Title => 'Step 2: Get an account';
+
+  @override
+  String get cloudTutorialStep2Desc => 'BeeCount Cloud does NOT offer self-registration (to prevent abuse on public servers). If you self-host: the first Docker boot prints a random admin email + password to the logs — use that. Joining someone else\'s server: ask the admin to create an account for you in Web → Users.';
+
+  @override
+  String get cloudTutorialStep3Title => 'Step 3: Login + enable sync';
+
+  @override
+  String get cloudTutorialStep3Desc => 'In the app, pick BeeCount Cloud, enter the server URL and the account you got in step 2. First login uploads your entire local ledger; every subsequent edit is pushed in real time.';
+
+  @override
+  String get cloudTutorialStep4Title => 'Step 4: Login from other devices';
+
+  @override
+  String get cloudTutorialStep4Desc => 'Phone / tablet / Web — same account, instant shared state. Edits propagate within seconds.';
+
+  @override
+  String get cloudTutorialTipTitle => 'Tip';
+
+  @override
+  String get cloudTutorialTipDesc => 'The Web UI lives at the server URL. Open it in a browser to manage ledgers, members, and view logs.';
+
+  @override
+  String get cloudTutorialFeaturesTitle => 'Features';
+
+  @override
+  String get cloudTutorialFeature1 => '📱 Real-time multi-device: phone A + phone B + Web on one account, sub-second sync';
+
+  @override
+  String get cloudTutorialFeature2 => '🌐 Web UI included: one Docker image ships server + Web, browser ready';
+
+  @override
+  String get cloudTutorialFeature3 => '👥 Multi-user isolation: multiple users on one server, data fully separated';
+
+  @override
+  String get cloudTutorialFeature4 => '🔜 Planned: shared ledgers (invite family / team to a common ledger)';
+
+  @override
+  String get cloudTutorialGotIt => 'Got it';
 
   @override
   String get cloudSyncHint => 'Downloads automatically compare differences for selective preview. Not real-time — avoid editing the same ledger on multiple devices simultaneously. Sync scope covers ledger data (including associated accounts, categories, and tags), excluding attachments.';
