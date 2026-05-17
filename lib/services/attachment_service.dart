@@ -87,13 +87,34 @@ class AttachmentService {
     try {
       final dir = await getAttachmentDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final ext = path.extension(sourceFile.path).toLowerCase();
-      final finalExt = ext.isEmpty ? '.jpg' : ext;
-      final fileName = 'tx_${transactionId}_${timestamp}_$index$finalExt';
-      final destPath = '${dir.path}/$fileName';
+      final requestedFormat = ref.read(smartBillingAttachmentFormatProvider);
+      var format = _effectiveFormat(requestedFormat);
+      var fileName =
+          _buildAttachmentFileName(transactionId, timestamp, index, format);
+      var destPath = '${dir.path}/$fileName';
 
       // 压缩图片并保存
-      final compressedFile = await _compressImage(sourceFile, destPath);
+      var compressedFile = await _compressImage(
+        sourceFile,
+        destPath,
+        format,
+        copyOnFailure: format == SmartBillingAttachmentFormat.jpeg,
+      );
+      if (compressedFile == null &&
+          format != SmartBillingAttachmentFormat.jpeg) {
+        logger.warning(
+            'AttachmentService', '${format.storageKey} 压缩失败，已回退为 JPEG');
+        format = SmartBillingAttachmentFormat.jpeg;
+        fileName =
+            _buildAttachmentFileName(transactionId, timestamp, index, format);
+        destPath = '${dir.path}/$fileName';
+        compressedFile = await _compressImage(
+          sourceFile,
+          destPath,
+          format,
+          copyOnFailure: true,
+        );
+      }
       if (compressedFile == null) {
         logger.error('AttachmentService', '图片压缩失败');
         return null;
@@ -302,7 +323,12 @@ class AttachmentService {
   // ============================================
 
   /// 压缩图片
-  Future<File?> _compressImage(File source, String targetPath) async {
+  Future<File?> _compressImage(
+    File source,
+    String targetPath,
+    SmartBillingAttachmentFormat format, {
+    required bool copyOnFailure,
+  }) async {
     try {
       final result = await FlutterImageCompress.compressAndGetFile(
         source.path,
@@ -310,11 +336,15 @@ class AttachmentService {
         minWidth: maxWidth,
         minHeight: maxHeight,
         quality: quality,
-        format: CompressFormat.jpeg,
+        format: _compressFormat(format),
       );
 
       if (result != null) {
         return File(result.path);
+      }
+
+      if (!copyOnFailure) {
+        return null;
       }
 
       // 如果压缩失败，直接复制原文件
@@ -322,6 +352,10 @@ class AttachmentService {
       return File(targetPath);
     } catch (e) {
       logger.error('AttachmentService', '压缩图片失败', e);
+      if (!copyOnFailure) {
+        return null;
+      }
+
       // 尝试直接复制
       try {
         await source.copy(targetPath);
@@ -330,6 +364,45 @@ class AttachmentService {
         logger.error('AttachmentService', '复制图片也失败', copyError);
         return null;
       }
+    }
+  }
+
+  String _buildAttachmentFileName(
+    int transactionId,
+    int timestamp,
+    int index,
+    SmartBillingAttachmentFormat format,
+  ) {
+    return 'tx_${transactionId}_${timestamp}_$index${_extensionForFormat(format)}';
+  }
+
+  SmartBillingAttachmentFormat _effectiveFormat(
+      SmartBillingAttachmentFormat format) {
+    if (format == SmartBillingAttachmentFormat.avif) {
+      logger.warning('AttachmentService', '当前压缩库不支持 AVIF 编码，已回退为 WebP');
+      return SmartBillingAttachmentFormat.webp;
+    }
+    return format;
+  }
+
+  String _extensionForFormat(SmartBillingAttachmentFormat format) {
+    switch (format) {
+      case SmartBillingAttachmentFormat.jpeg:
+        return '.jpg';
+      case SmartBillingAttachmentFormat.webp:
+        return '.webp';
+      case SmartBillingAttachmentFormat.avif:
+        return '.avif';
+    }
+  }
+
+  CompressFormat _compressFormat(SmartBillingAttachmentFormat format) {
+    switch (format) {
+      case SmartBillingAttachmentFormat.jpeg:
+      case SmartBillingAttachmentFormat.avif:
+        return CompressFormat.jpeg;
+      case SmartBillingAttachmentFormat.webp:
+        return CompressFormat.webp;
     }
   }
 
@@ -371,7 +444,8 @@ final attachmentServiceProvider = Provider<AttachmentService>((ref) {
 });
 
 /// 交易附件列表 Provider
-final transactionAttachmentsProvider = StreamProvider.family<List<TransactionAttachment>, int>(
+final transactionAttachmentsProvider =
+    StreamProvider.family<List<TransactionAttachment>, int>(
   (ref, transactionId) {
     final repo = ref.watch(repositoryProvider);
     return repo.watchAttachmentsByTransaction(transactionId);
@@ -391,7 +465,8 @@ final attachmentCountProvider = FutureProvider.family<int, int>(
 );
 
 /// 批量获取交易附件数量 Provider
-final attachmentCountsProvider = FutureProvider.family<Map<int, int>, List<int>>(
+final attachmentCountsProvider =
+    FutureProvider.family<Map<int, int>, List<int>>(
   (ref, transactionIds) async {
     if (transactionIds.isEmpty) return {};
     final repo = ref.read(repositoryProvider);

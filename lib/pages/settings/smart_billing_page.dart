@@ -14,11 +14,92 @@ import '../../l10n/app_localizations.dart';
 
 /// Google Play 版本(CI 注入)。截屏自动记账依赖 READ_MEDIA_IMAGES,在 Google
 /// Play 渠道被砍掉,这里用来隐藏入口。详见 release.yml 的临时 manifest 配置。
-const _isGooglePlayBuild = bool.fromEnvironment('GOOGLE_PLAY', defaultValue: false);
+const _isGooglePlayBuild =
+    bool.fromEnvironment('GOOGLE_PLAY', defaultValue: false);
 
 /// 智能记账二级页面
 class SmartBillingPage extends ConsumerWidget {
   const SmartBillingPage({super.key});
+
+  String _attachmentFormatLabel(
+    AppLocalizations l10n,
+    SmartBillingAttachmentFormat format,
+  ) {
+    switch (format) {
+      case SmartBillingAttachmentFormat.jpeg:
+        return l10n.smartBillingAttachmentFormatJpeg;
+      case SmartBillingAttachmentFormat.webp:
+        return l10n.smartBillingAttachmentFormatWebp;
+      case SmartBillingAttachmentFormat.avif:
+        return l10n.smartBillingAttachmentFormatAvif;
+    }
+  }
+
+  String _attachmentFormatDesc(
+    AppLocalizations l10n,
+    SmartBillingAttachmentFormat format,
+  ) {
+    switch (format) {
+      case SmartBillingAttachmentFormat.jpeg:
+        return l10n.smartBillingAttachmentFormatJpegDesc;
+      case SmartBillingAttachmentFormat.webp:
+        return l10n.smartBillingAttachmentFormatWebpDesc;
+      case SmartBillingAttachmentFormat.avif:
+        return l10n.smartBillingAttachmentFormatAvifDesc;
+    }
+  }
+
+  Future<void> _showAttachmentFormatSheet(
+      BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
+    final current = ref.read(smartBillingAttachmentFormatProvider);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l10n.smartBillingAttachmentFormat,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ),
+              RadioGroup<SmartBillingAttachmentFormat>(
+                groupValue: current,
+                onChanged: (value) {
+                  if (value == null) return;
+                  ref
+                      .read(smartBillingAttachmentFormatProvider.notifier)
+                      .state = value;
+                  Navigator.of(context).pop();
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final format in SmartBillingAttachmentFormat.values)
+                      RadioListTile<SmartBillingAttachmentFormat>(
+                        value: format,
+                        title: Text(_attachmentFormatLabel(l10n, format)),
+                        subtitle: Text(_attachmentFormatDesc(l10n, format)),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   /// 显示功能引导弹窗
   void _showFeatureGuideDialog(
@@ -35,7 +116,8 @@ class SmartBillingPage extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
+            Icon(Icons.info_outline,
+                color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 8),
             Text(title),
           ],
@@ -74,7 +156,8 @@ class SmartBillingPage extends ConsumerWidget {
                       aiRequirement,
                       style: TextStyle(
                         fontSize: 13,
-                        color: requiresAI ? Colors.orange[900] : Colors.blue[900],
+                        color:
+                            requiresAI ? Colors.orange[900] : Colors.blue[900],
                       ),
                     ),
                   ),
@@ -150,7 +233,8 @@ class SmartBillingPage extends ConsumerWidget {
                         subtitle: l10n.aiSettingsSubtitle,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const AISettingsPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const AISettingsPage()),
                           );
                         },
                       ),
@@ -234,7 +318,9 @@ class SmartBillingPage extends ConsumerWidget {
                               : l10n.autoScreenshotBillingIosDesc,
                           onTap: () async {
                             await Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const AutoBillingSettingsPage()),
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const AutoBillingSettingsPage()),
                             );
                           },
                         ),
@@ -247,7 +333,8 @@ class SmartBillingPage extends ConsumerWidget {
                         subtitle: l10n.shortcutsGuideDesc,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const ShortcutsGuidePage()),
+                            MaterialPageRoute(
+                                builder: (_) => const ShortcutsGuidePage()),
                           );
                         },
                       ),
@@ -271,7 +358,9 @@ class SmartBillingPage extends ConsumerWidget {
                           value: ref.watch(smartBillingAutoTagsProvider),
                           activeColor: ref.watch(primaryColorProvider),
                           onChanged: (value) {
-                            ref.read(smartBillingAutoTagsProvider.notifier).state = value;
+                            ref
+                                .read(smartBillingAutoTagsProvider.notifier)
+                                .state = value;
                           },
                         ),
                       ),
@@ -285,9 +374,23 @@ class SmartBillingPage extends ConsumerWidget {
                           value: ref.watch(smartBillingAutoAttachmentProvider),
                           activeColor: ref.watch(primaryColorProvider),
                           onChanged: (value) {
-                            ref.read(smartBillingAutoAttachmentProvider.notifier).state = value;
+                            ref
+                                .read(
+                                    smartBillingAutoAttachmentProvider.notifier)
+                                .state = value;
                           },
                         ),
+                      ),
+                      BeeTokens.cardDivider(context),
+                      AppListTile(
+                        leading: Icons.image_outlined,
+                        title: l10n.smartBillingAttachmentFormat,
+                        subtitle: _attachmentFormatLabel(
+                          l10n,
+                          ref.watch(smartBillingAttachmentFormatProvider),
+                        ),
+                        enabled: ref.watch(smartBillingAutoAttachmentProvider),
+                        onTap: () => _showAttachmentFormatSheet(context, ref),
                       ),
                     ],
                   ),
