@@ -13,6 +13,37 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    tasks.matching { task ->
+        task.name.startsWith("extract") && task.name.endsWith("Annotations")
+    }.configureEach { task ->
+        task.enabled = false
+    }
+    tasks.matching { task ->
+        task.name.startsWith("lintVital")
+    }.configureEach { task ->
+        task.enabled = false
+    }
+
+    tasks.register("createEmptyReleaseTypedefs") {
+        def typedefFile = layout.buildDirectory.file("intermediates/annotations_typedef_file/release/extractReleaseAnnotations/typedefs.txt")
+        outputs.file(typedefFile)
+        doLast {
+            def file = typedefFile.get().asFile
+            file.parentFile.mkdirs()
+            if (!file.exists()) {
+                file.text = ""
+            }
+        }
+    }
+
+    tasks.matching { task ->
+        task.name == "syncReleaseLibJars"
+    }.configureEach { task ->
+        task.dependsOn("createEmptyReleaseTypedefs")
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
