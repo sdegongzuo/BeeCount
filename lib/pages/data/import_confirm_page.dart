@@ -52,6 +52,7 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
   };
   bool importing = false;
   int ok = 0, fail = 0, skipped = 0; // skipped: 跳过的非收支类型记录
+  int duplicateSkipped = 0;
   int step = 0; // 0: 字段映射, 1: 分类映射
   bool _cancelled = false;
   List<String> distinctCategories = [];
@@ -396,6 +397,8 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
       importing = true;
       ok = 0;
       fail = 0;
+      skipped = 0;
+      duplicateSkipped = 0;
     });
     final repo = ref.read(repositoryProvider);
     final ledgerId = ref.read(currentLedgerIdProvider);
@@ -514,7 +517,9 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
 
       ok = result.inserted;
       fail = result.failed;
-      skipped = skippedTypes.values.fold(0, (a, b) => a + b);
+      duplicateSkipped = result.skippedDuplicates;
+      skipped =
+          skippedTypes.values.fold(0, (a, b) => a + b) + duplicateSkipped;
       done = total;
 
       // 显式触发一次同步上推。SyncCoordinator 监听 local_changes 表已经会
@@ -593,7 +598,17 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
         final skippedList = skippedTypes.entries
             .map((e) => '${e.key}(${e.value})')
             .join('、');
-        message += '\n${l10nToast.importSkippedNonTransactionTypes(typeSkipped)}\n$skippedList';
+        message +=
+            '\n${l10nToast.importSkippedNonTransactionTypes(typeSkipped)}\n$skippedList';
+      }
+      if (duplicateSkipped > 0) {
+        final isZh = Localizations.localeOf(currentContext)
+            .languageCode
+            .toLowerCase()
+            .startsWith('zh');
+        message += isZh
+            ? '\n跳过重复记录：$duplicateSkipped 条'
+            : '\nSkipped duplicate records: $duplicateSkipped';
       }
     }
 

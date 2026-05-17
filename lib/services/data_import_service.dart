@@ -142,10 +142,12 @@ class ImportData {
 class ImportResult {
   final int inserted;
   final int failed;
+  final int skippedDuplicates;
 
   const ImportResult({
     required this.inserted,
     required this.failed,
+    this.skippedDuplicates = 0,
   });
 }
 
@@ -404,8 +406,23 @@ class DataImportService {
   }) async {
     int inserted = 0;
     int failed = 0;
+    int skippedDuplicates = 0;
     int processed = 0;
     final total = transactions.length;
+    final seenTransactionKeys = <String>{};
+
+    try {
+      final existingTransactions = await repo.getTransactionsByLedger(ledgerId);
+      for (final tx in existingTransactions) {
+        seenTransactionKeys.add(_dedupeKey(
+          type: tx.type,
+          amount: tx.amount,
+          happenedAt: tx.happenedAt,
+        ));
+      }
+    } catch (e) {
+      logger.warning('DataImportService', '加载现有交易用于导入去重失败，将继续导入', e);
+    }
 
     // 批量待插入列表
     final toInsert = <TransactionsCompanion>[];
@@ -415,6 +432,18 @@ class DataImportService {
     final localCategoryCache = Map<String, int>.from(categoryCache);
 
     for (final tx in transactions) {
+      final dedupeKey = _dedupeKey(
+        type: tx.type,
+        amount: tx.amount,
+        happenedAt: tx.happenedAt,
+      );
+      if (seenTransactionKeys.contains(dedupeKey)) {
+        skippedDuplicates++;
+        processed++;
+        continue;
+      }
+      seenTransactionKeys.add(dedupeKey);
+
       // 解析分类ID
       int? categoryId;
       // 优先使用预解析的分类ID
@@ -574,7 +603,21 @@ class DataImportService {
 
     if (onProgress != null) onProgress(processed, total);
 
-    return ImportResult(inserted: inserted, failed: failed);
+    return ImportResult(
+      inserted: inserted,
+      failed: failed,
+      skippedDuplicates: skippedDuplicates,
+    );
+  }
+
+  String _dedupeKey({
+    required String type,
+    required double amount,
+    required DateTime happenedAt,
+  }) {
+    final normalizedTime = happenedAt.toUtc().millisecondsSinceEpoch ~/ 1000;
+    final normalizedAmount = amount.abs().toStringAsFixed(8);
+    return '$normalizedTime|$normalizedAmount|$type';
   }
 }
 

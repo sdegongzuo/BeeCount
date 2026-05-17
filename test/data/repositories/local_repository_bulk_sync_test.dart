@@ -24,6 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:beecount/cloud/sync/change_tracker.dart';
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/local/local_repository.dart';
+import 'package:beecount/services/data_import_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -249,6 +250,60 @@ void main() {
 
       final changes = await tracker.getUnpushedChanges();
       expect(changes, isEmpty);
+    });
+  });
+
+  group('data import dedupe', () {
+    test('按时间、金额、类型跳过已有交易和导入批次内重复交易', () async {
+      final ledgerId = await repo.createLedger(name: 'dedupe');
+      final happenedAt = DateTime(2026, 5, 16, 12, 30);
+
+      await repo.addTransaction(
+        ledgerId: ledgerId,
+        type: 'expense',
+        amount: 12.34,
+        happenedAt: happenedAt,
+      );
+
+      final result = await dataImportService.importData(
+        repo,
+        ledgerId,
+        ImportData(
+          transactions: [
+            ImportTransaction(
+              type: 'expense',
+              amount: 12.34,
+              happenedAt: happenedAt,
+            ),
+            ImportTransaction(
+              type: 'income',
+              amount: 88,
+              happenedAt: happenedAt,
+            ),
+            ImportTransaction(
+              type: 'income',
+              amount: 88,
+              happenedAt: happenedAt,
+            ),
+          ],
+        ),
+      );
+
+      expect(result.inserted, 1);
+      expect(result.failed, 0);
+      expect(result.skippedDuplicates, 2);
+
+      final transactions = await repo.getTransactionsByLedger(ledgerId);
+      expect(transactions.length, 2);
+      expect(
+        transactions
+            .where((t) =>
+                t.type == 'income' &&
+                t.amount == 88 &&
+                t.happenedAt == happenedAt)
+            .length,
+        1,
+      );
     });
   });
 }
