@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../../providers.dart';
@@ -13,6 +14,8 @@ import '../../data/repositories/base_repository.dart';
 import '../../data/db.dart';
 import '../../widgets/ui/ui.dart';
 import '../../utils/category_utils.dart';
+
+enum ExportLimitMode { all, first, last }
 
 class ExportPage extends ConsumerStatefulWidget {
   const ExportPage({super.key});
@@ -24,6 +27,19 @@ class _ExportPageState extends ConsumerState<ExportPage> {
   bool exporting = false;
   double progress = 0;
   String? savedPath;
+  bool useDateRange = false;
+  DateTime? startDate;
+  DateTime? endDate;
+  ExportLimitMode limitMode = ExportLimitMode.all;
+  final TextEditingController limitController = TextEditingController(
+    text: '100',
+  );
+
+  @override
+  void dispose() {
+    limitController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,47 +48,208 @@ class _ExportPageState extends ConsumerState<ExportPage> {
     return Scaffold(
       body: Column(
         children: [
-          PrimaryHeader(title: AppLocalizations.of(context).exportTitle, showBack: true),
+          PrimaryHeader(
+            title: AppLocalizations.of(context).exportTitle,
+            showBack: true,
+          ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(AppLocalizations.of(context).exportDescription),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: exporting ? null : () => _export(repo, ledgerId),
-                    icon: const Icon(Icons.save_alt_outlined),
-                    label: Text(Platform.isIOS ? AppLocalizations.of(context).exportButtonIOS : AppLocalizations.of(context).exportButtonAndroid),
-                  ),
-                  const SizedBox(height: 16),
-                  if (exporting)
-                    Row(
-                      children: [
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: LinearProgressIndicator(
-                              value: progress == 0 ? null : progress),
-                        ),
-                      ],
-                    ),
-                  if (savedPath != null) ...[
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(AppLocalizations.of(context).exportDescription),
                     const SizedBox(height: 12),
-                    Text(AppLocalizations.of(context).exportSavedTo(savedPath!)),
+                    _buildDateRangeOptions(context),
+                    const SizedBox(height: 12),
+                    _buildLimitOptions(context),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: exporting
+                          ? null
+                          : () => _export(repo, ledgerId),
+                      icon: const Icon(Icons.save_alt_outlined),
+                      label: Text(
+                        Platform.isIOS
+                            ? AppLocalizations.of(context).exportButtonIOS
+                            : AppLocalizations.of(context).exportButtonAndroid,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (exporting)
+                      Row(
+                        children: [
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: LinearProgressIndicator(
+                              value: progress == 0 ? null : progress,
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (savedPath != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        AppLocalizations.of(context).exportSavedTo(savedPath!),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
-          )
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildLimitOptions(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    final isZh = locale.languageCode == 'zh';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          isZh ? '导出条数' : 'Export count',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SegmentedButton<ExportLimitMode>(
+            segments: [
+              ButtonSegment(
+                value: ExportLimitMode.all,
+                icon: const Icon(Icons.all_inclusive),
+                label: Text(isZh ? '全部' : 'All'),
+              ),
+              ButtonSegment(
+                value: ExportLimitMode.first,
+                icon: const Icon(Icons.vertical_align_top),
+                label: Text(isZh ? '前 N 条' : 'First N'),
+              ),
+              ButtonSegment(
+                value: ExportLimitMode.last,
+                icon: const Icon(Icons.vertical_align_bottom),
+                label: Text(isZh ? '后 N 条' : 'Last N'),
+              ),
+            ],
+            selected: {limitMode},
+            onSelectionChanged: exporting
+                ? null
+                : (selection) {
+                    setState(() {
+                      limitMode = selection.first;
+                    });
+                  },
+          ),
+        ),
+        if (limitMode != ExportLimitMode.all) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 180,
+            child: TextField(
+              controller: limitController,
+              enabled: !exporting,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                labelText: isZh ? '条数' : 'Count',
+                isDense: true,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDateRangeOptions(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    final isZh = locale.languageCode == 'zh';
+    final dateFormat = DateFormat('yyyy-MM-dd');
+    final startText = startDate == null
+        ? (isZh ? '开始日期' : 'Start date')
+        : dateFormat.format(startDate!);
+    final endText = endDate == null
+        ? (isZh ? '结束日期' : 'End date')
+        : dateFormat.format(endDate!);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(isZh ? '按时间段导出' : 'Export by date range'),
+          subtitle: Text(
+            isZh ? '关闭时导出当前账本全部数据' : 'Off exports all data in this ledger',
+          ),
+          value: useDateRange,
+          onChanged: exporting
+              ? null
+              : (value) {
+                  setState(() {
+                    useDateRange = value;
+                  });
+                },
+        ),
+        if (useDateRange)
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: exporting ? null : () => _pickDate(isStart: true),
+                  icon: const Icon(Icons.event_outlined),
+                  label: Text(startText, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: exporting ? null : () => _pickDate(isStart: false),
+                  icon: const Icon(Icons.event_available_outlined),
+                  label: Text(endText, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final now = DateTime.now();
+    final initialDate = isStart
+        ? (startDate ?? endDate ?? now)
+        : (endDate ?? startDate ?? now);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(now.year + 10),
+    );
+    if (picked == null) return;
+
+    setState(() {
+      if (isStart) {
+        startDate = DateTime(picked.year, picked.month, picked.day);
+        if (endDate != null && startDate!.isAfter(endDate!)) {
+          endDate = startDate;
+        }
+      } else {
+        endDate = DateTime(picked.year, picked.month, picked.day);
+        if (startDate != null && endDate!.isBefore(startDate!)) {
+          startDate = endDate;
+        }
+      }
+    });
   }
 
   Future<void> _export(BaseRepository repo, int ledgerId) async {
@@ -100,7 +277,28 @@ class _ExportPageState extends ConsumerState<ExportPage> {
       }
 
       // 获取交易和分类数据
-      final transactionsWithCategory = await repo.transactionsWithCategoryAll(ledgerId: ledgerId).first;
+      var transactionsWithCategory = await repo
+          .transactionsWithCategoryAll(ledgerId: ledgerId)
+          .first;
+      if (useDateRange) {
+        final rangeStart = startDate == null
+            ? null
+            : DateTime(startDate!.year, startDate!.month, startDate!.day);
+        final rangeEnd = endDate == null
+            ? null
+            : DateTime(endDate!.year, endDate!.month, endDate!.day + 1);
+        transactionsWithCategory = transactionsWithCategory.where((txWithCat) {
+          final happenedAt = txWithCat.t.happenedAt.toLocal();
+          if (rangeStart != null && happenedAt.isBefore(rangeStart)) {
+            return false;
+          }
+          if (rangeEnd != null && !happenedAt.isBefore(rangeEnd)) {
+            return false;
+          }
+          return true;
+        }).toList();
+      }
+      transactionsWithCategory = _applyLimit(transactionsWithCategory);
       final total = transactionsWithCategory.length;
       final rows = <List<dynamic>>[];
       final l10n = AppLocalizations.of(context);
@@ -111,7 +309,7 @@ class _ExportPageState extends ConsumerState<ExportPage> {
         l10n.exportCsvHeaderAmount,
         l10n.exportCsvHeaderAccount,
         l10n.exportCsvHeaderFromAccount, // 转出账户
-        l10n.exportCsvHeaderToAccount,   // 转入账户
+        l10n.exportCsvHeaderToAccount, // 转入账户
         l10n.exportCsvHeaderNote,
         l10n.exportCsvHeaderTime,
         l10n.exportCsvHeaderTags,
@@ -119,11 +317,15 @@ class _ExportPageState extends ConsumerState<ExportPage> {
       ]);
 
       // 批量获取所有交易的标签
-      final transactionIds = transactionsWithCategory.map((tx) => tx.t.id).toList();
+      final transactionIds = transactionsWithCategory
+          .map((tx) => tx.t.id)
+          .toList();
       final tagsMap = await repo.getTagsForTransactions(transactionIds);
 
       // 批量获取所有交易的附件
-      final attachmentsMap = await repo.getAttachmentsForTransactions(transactionIds);
+      final attachmentsMap = await repo.getAttachmentsForTransactions(
+        transactionIds,
+      );
 
       // 缓存所有账户信息，避免重复查询
       final allAccounts = await repo.getAllAccounts();
@@ -186,7 +388,10 @@ class _ExportPageState extends ConsumerState<ExportPage> {
             if (c.level == 2 && c.parentId != null) {
               // 二级分类：分类列填一级分类名称，二级分类列填当前分类名称
               final parentCategory = allCategories[c.parentId];
-              categoryName = CategoryUtils.getDisplayName(parentCategory?.name, context);
+              categoryName = CategoryUtils.getDisplayName(
+                parentCategory?.name,
+                context,
+              );
               subCategoryName = CategoryUtils.getDisplayName(c.name, context);
             } else {
               // 一级分类：分类列填当前分类，二级分类列留空
@@ -205,7 +410,9 @@ class _ExportPageState extends ConsumerState<ExportPage> {
 
         // 获取该交易的附件，用逗号分隔文件名
         final transactionAttachments = attachmentsMap[t.id] ?? [];
-        final attachmentsStr = transactionAttachments.map((a) => a.fileName).join(',');
+        final attachmentsStr = transactionAttachments
+            .map((a) => a.fileName)
+            .join(',');
 
         rows.add([
           typeStr,
@@ -228,10 +435,12 @@ class _ExportPageState extends ConsumerState<ExportPage> {
       final csvStr = const ListToCsvConverter(eol: '\n').convert(rows);
       final ts = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final path = p.join(directory, 'beecount_$ts.csv');
-      
+
       // 添加UTF-8 BOM标记，确保Excel正确识别中文编码
       const utf8Bom = '\uFEFF';
-      await File(path).writeAsString(utf8Bom + csvStr, encoding: Encoding.getByName('utf-8')!);
+      await File(
+        path,
+      ).writeAsString(utf8Bom + csvStr, encoding: Encoding.getByName('utf-8')!);
       setState(() {
         savedPath = path;
         exporting = false;
@@ -241,18 +450,56 @@ class _ExportPageState extends ConsumerState<ExportPage> {
       final l10nDialog = AppLocalizations.of(context);
       if (shareAfter) {
         // 触发分享面板
-        await Share.shareXFiles([XFile(path)], text: l10nDialog.exportShareText);
-        await AppDialog.info(context,
-            title: l10nDialog.exportSuccessTitle, message: l10nDialog.exportSuccessMessageIOS(path));
+        await Share.shareXFiles([
+          XFile(path),
+        ], text: l10nDialog.exportShareText);
+        await AppDialog.info(
+          context,
+          title: l10nDialog.exportSuccessTitle,
+          message: l10nDialog.exportSuccessMessageIOS(path),
+        );
       } else {
-        await AppDialog.info(context, title: l10nDialog.exportSuccessTitle, message: l10nDialog.exportSuccessMessageAndroid(path));
+        await AppDialog.info(
+          context,
+          title: l10nDialog.exportSuccessTitle,
+          message: l10nDialog.exportSuccessMessageAndroid(path),
+        );
       }
     } catch (e) {
       if (!mounted) return;
       setState(() => exporting = false);
       final l10nError = AppLocalizations.of(context);
-      await AppDialog.error(context, title: l10nError.exportFailedTitle, message: e.toString());
+      await AppDialog.error(
+        context,
+        title: l10nError.exportFailedTitle,
+        message: e.toString(),
+      );
     }
+  }
+
+  List<({Transaction t, Category? category})> _applyLimit(
+    List<({Transaction t, Category? category})> transactions,
+  ) {
+    if (limitMode == ExportLimitMode.all) {
+      return transactions;
+    }
+
+    final limit = int.tryParse(limitController.text.trim());
+    if (limit == null || limit <= 0) {
+      final isZh = Localizations.localeOf(context).languageCode == 'zh';
+      throw Exception(
+        isZh ? '导出条数必须大于 0' : 'Export count must be greater than 0',
+      );
+    }
+
+    if (transactions.length <= limit) {
+      return transactions;
+    }
+
+    if (limitMode == ExportLimitMode.first) {
+      return transactions.take(limit).toList();
+    }
+    return transactions.skip(transactions.length - limit).toList();
   }
 
   /// 将英文类型转换为中文显示名称

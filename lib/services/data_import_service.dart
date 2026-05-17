@@ -91,6 +91,8 @@ class ImportTransaction {
   final String? categoryKind;
   final DateTime happenedAt;
   final String? note;
+  final String? paymentMethod;
+  final String? counterparty;
   final String? accountName; // 普通账户（收入/支出）
   final String? fromAccountName; // 转出账户（转账）
   final String? toAccountName; // 转入账户（转账）
@@ -106,6 +108,8 @@ class ImportTransaction {
     this.categoryKind,
     required this.happenedAt,
     this.note,
+    this.paymentMethod,
+    this.counterparty,
     this.accountName,
     this.fromAccountName,
     this.toAccountName,
@@ -500,6 +504,8 @@ class DataImportService {
         toAccountId: d.Value(toAccountId),
         happenedAt: d.Value(tx.happenedAt),
         note: d.Value(tx.note),
+        paymentMethod: d.Value(tx.paymentMethod),
+        counterparty: d.Value(tx.counterparty),
         syncId: d.Value(tx.syncId),
       );
 

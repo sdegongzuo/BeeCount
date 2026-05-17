@@ -78,6 +78,8 @@ class Transactions extends Table {
   IntColumn get toAccountId => integer().nullable()();
   DateTimeColumn get happenedAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get note => text().nullable()();
+  TextColumn get paymentMethod => text().nullable()(); // 支付方式/收付款方式
+  TextColumn get counterparty => text().nullable()(); // 交易对方
   IntColumn get recurringId => integer().nullable()(); // 关联到重复交易模板
   TextColumn get syncId => text().nullable()(); // 跨设备同步唯一标识 (UUID)
 }
@@ -250,7 +252,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 23; // v23: 清空分类 icon 的历史数据走 byName 一次性回填
+  int get schemaVersion => 24; // v24: 交易保留支付方式和交易对方
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -820,6 +822,31 @@ class BeeDatabase extends _$BeeDatabase {
             }
             logger.info('DB', 'v23: backfilled $updated categories');
             print('[DB Migration] v23 迁移完成: 回填 $updated 条分类');
+          }
+          if (from < 24) {
+            // v24: 导入外部账单时保留支付方式和交易对方。
+            print('[DB Migration] 开始迁移到 v24: transaction payment metadata');
+
+            final tableInfo =
+                await customSelect('PRAGMA table_info(transactions)').get();
+            final hasPaymentMethod =
+                tableInfo.any((row) => row.data['name'] == 'payment_method');
+            final hasCounterparty =
+                tableInfo.any((row) => row.data['name'] == 'counterparty');
+
+            if (!hasPaymentMethod) {
+              await customStatement(
+                  'ALTER TABLE transactions ADD COLUMN payment_method TEXT;');
+              logger.info('DB', 'v24: payment_method 字段已添加');
+            }
+
+            if (!hasCounterparty) {
+              await customStatement(
+                  'ALTER TABLE transactions ADD COLUMN counterparty TEXT;');
+              logger.info('DB', 'v24: counterparty 字段已添加');
+            }
+
+            print('[DB Migration] v24 迁移完成');
           }
         },
       );

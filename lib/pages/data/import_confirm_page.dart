@@ -21,12 +21,7 @@ class ImportConfirmPage extends ConsumerStatefulWidget {
   final String csvText;
   final bool hasHeader;
   final BillSourceType billType;
-  const ImportConfirmPage({
-    super.key,
-    required this.csvText,
-    required this.hasHeader,
-    required this.billType,
-  });
+  const ImportConfirmPage({super.key, required this.csvText, required this.hasHeader, required this.billType});
 
   @override
   ConsumerState<ImportConfirmPage> createState() => _ImportConfirmPageState();
@@ -42,13 +37,17 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
     'type': null,
     'amount': null,
     'category': null,
-    'sub_category': null,       // 二级分类
+    'sub_category': null, // 二级分类
     'account': null,
     'from_account': null,
     'to_account': null,
     'note': null,
-    'tags': null,                // 标签（逗号分隔）
-    'attachments': null,         // 附件文件名（逗号分隔）
+    'payment_method': null,
+    'counterparty': null,
+    'alipay_counterparty': null,
+    'alipay_counterparty_account': null,
+    'tags': null, // 标签（逗号分隔）
+    'attachments': null, // 附件文件名（逗号分隔）
   };
   bool importing = false;
   int ok = 0, fail = 0, skipped = 0; // skipped: 跳过的非收支类型记录
@@ -118,132 +117,104 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
       return Scaffold(
         body: Column(
           children: [
-            PrimaryHeader(
-                title: AppLocalizations.of(context)!.importPreparing,
-                showBack: true),
-            Expanded(
-              child: Center(
-                child: CircularProgressIndicator(),
-              ),
-            )
+            PrimaryHeader(title: AppLocalizations.of(context)!.importPreparing, showBack: true),
+            Expanded(child: Center(child: CircularProgressIndicator())),
           ],
         ),
       );
     }
-    final columnCount =
-        rows.isNotEmpty ? rows[widget.hasHeader ? headerRow : 0].length : 0;
+    final columnCount = rows.isNotEmpty ? rows[widget.hasHeader ? headerRow : 0].length : 0;
     List<DropdownMenuItem<int>> items() => List.generate(columnCount, (i) {
-          final header = widget.hasHeader
-              ? rows[headerRow]
-              : (rows.isNotEmpty ? rows.first : const <String>[]);
-          final label = (widget.hasHeader &&
-                  i < header.length &&
-                  header[i].trim().isNotEmpty)
-              ? header[i].trim()
-              : AppLocalizations.of(context)!.importColumnNumber(i + 1);
-          return DropdownMenuItem(
-              value: i, child: Text(label, overflow: TextOverflow.ellipsis));
-        });
+      final header = widget.hasHeader ? rows[headerRow] : (rows.isNotEmpty ? rows.first : const <String>[]);
+      final label = (widget.hasHeader && i < header.length && header[i].trim().isNotEmpty)
+          ? header[i].trim()
+          : AppLocalizations.of(context)!.importColumnNumber(i + 1);
+      return DropdownMenuItem(
+        value: i,
+        child: Text(label, overflow: TextOverflow.ellipsis),
+      );
+    });
 
     return Scaffold(
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PrimaryHeader(
-              title: step == 0
-                  ? AppLocalizations.of(context)!.importConfirmMapping
-                  : AppLocalizations.of(context)!.importCategoryMapping,
-              showBack: true),
+            title: step == 0
+                ? AppLocalizations.of(context)!.importConfirmMapping
+                : AppLocalizations.of(context)!.importCategoryMapping,
+            showBack: true,
+          ),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               children: [
                 if (step == 0) ...[
-                  if (rows.isEmpty)
-                    Text(AppLocalizations.of(context)!.importNoDataParsed),
+                  if (rows.isEmpty) Text(AppLocalizations.of(context)!.importNoDataParsed),
                   Wrap(
                     spacing: 12,
                     runSpacing: 8,
                     children: [
-                      _mapRow(AppLocalizations.of(context)!.importFieldDate,
-                          'date', items()),
-                      _mapRow(AppLocalizations.of(context)!.importFieldType,
-                          'type', items()),
-                      _mapRow(AppLocalizations.of(context)!.importFieldAmount,
-                          'amount', items()),
-                      _mapRow(AppLocalizations.of(context)!.importFieldCategory,
-                          'category', items()),
-                      _mapRow(AppLocalizations.of(context)!.exportCsvHeaderSubCategory,
-                          'sub_category', items()),
-                      _mapRow(AppLocalizations.of(context)!.importFieldAccount,
-                          'account', items()),
-                      _mapRow(AppLocalizations.of(context)!.exportCsvHeaderFromAccount,
-                          'from_account', items()),
-                      _mapRow(AppLocalizations.of(context)!.exportCsvHeaderToAccount,
-                          'to_account', items()),
-                      _mapRow(AppLocalizations.of(context)!.importFieldNote,
-                          'note', items()),
-                      _mapRow(AppLocalizations.of(context)!.exportCsvHeaderTags,
-                          'tags', items()),
-                      _mapRow(AppLocalizations.of(context)!.exportCsvHeaderAttachments,
-                          'attachments', items()),
+                      _mapRow(AppLocalizations.of(context)!.importFieldDate, 'date', items()),
+                      _mapRow(AppLocalizations.of(context)!.importFieldType, 'type', items()),
+                      _mapRow(AppLocalizations.of(context)!.importFieldAmount, 'amount', items()),
+                      _mapRow(AppLocalizations.of(context)!.importFieldCategory, 'category', items()),
+                      _mapRow(AppLocalizations.of(context)!.exportCsvHeaderSubCategory, 'sub_category', items()),
+                      _mapRow(AppLocalizations.of(context)!.importFieldAccount, 'account', items()),
+                      _mapRow(AppLocalizations.of(context)!.exportCsvHeaderFromAccount, 'from_account', items()),
+                      _mapRow(AppLocalizations.of(context)!.exportCsvHeaderToAccount, 'to_account', items()),
+                      _mapRow(AppLocalizations.of(context)!.importFieldNote, 'note', items()),
+                      _mapRow('支付方式', 'payment_method', items()),
+                      _mapRow('交易对方', 'counterparty', items()),
+                      _mapRow(AppLocalizations.of(context)!.exportCsvHeaderTags, 'tags', items()),
+                      _mapRow(AppLocalizations.of(context)!.exportCsvHeaderAttachments, 'attachments', items()),
                     ],
                   ),
                   const SizedBox(height: 12),
                   // 预览仅展示前 N 行，避免大文件一次性渲染导致卡顿
-                  Text(AppLocalizations.of(context)!.importPreview,
-                      style: Theme.of(context).textTheme.labelLarge),
+                  Text(AppLocalizations.of(context)!.importPreview, style: Theme.of(context).textTheme.labelLarge),
                   const SizedBox(height: 6),
                   SizedBox(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      child: Builder(builder: (_) {
-                        const int maxPreview = 10; // 预览最多 100 行
-                        final totalRows = rows.length;
-                        final dataStart =
-                            widget.hasHeader ? (headerRow + 1) : 0;
-                        // 保证包含表头行 + 最多 maxPreview-1 行数据
-                        final header = widget.hasHeader
-                            ? [rows[headerRow]]
-                            : <List<String>>[];
-                        final body = totalRows > dataStart
-                            ? () {
-                                final take = (maxPreview - header.length);
-                                final end = (dataStart + take <= totalRows)
-                                    ? dataStart + take
-                                    : totalRows;
-                                return rows.sublist(dataStart, end);
-                              }()
-                            : const <List<String>>[];
-                        final limited = [...header, ...body];
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _PreviewTable(rows: limited),
-                            if (totalRows > limited.length)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6.0),
-                                child: Text(
-                                  AppLocalizations.of(context)!
-                                      .importPreviewLimit(
-                                          limited.length, totalRows),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(color: BeeTokens.textTertiary(context)),
+                      child: Builder(
+                        builder: (_) {
+                          const int maxPreview = 10; // 预览最多 100 行
+                          final totalRows = rows.length;
+                          final dataStart = widget.hasHeader ? (headerRow + 1) : 0;
+                          // 保证包含表头行 + 最多 maxPreview-1 行数据
+                          final header = widget.hasHeader ? [rows[headerRow]] : <List<String>>[];
+                          final body = totalRows > dataStart
+                              ? () {
+                                  final take = (maxPreview - header.length);
+                                  final end = (dataStart + take <= totalRows) ? dataStart + take : totalRows;
+                                  return rows.sublist(dataStart, end);
+                                }()
+                              : const <List<String>>[];
+                          final limited = [...header, ...body];
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _PreviewTable(rows: limited),
+                              if (totalRows > limited.length)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 6.0),
+                                  child: Text(
+                                    AppLocalizations.of(context)!.importPreviewLimit(limited.length, totalRows),
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.copyWith(color: BeeTokens.textTertiary(context)),
+                                  ),
                                 ),
-                              ),
-                          ],
-                        );
-                      }),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ] else ...[
-                  if (mapping['category'] == null)
-                    Text(AppLocalizations.of(context)!
-                        .importCategoryNotSelected),
-                  Text(AppLocalizations.of(context)!
-                      .importCategoryMappingDescription),
+                  if (mapping['category'] == null) Text(AppLocalizations.of(context)!.importCategoryNotSelected),
+                  Text(AppLocalizations.of(context)!.importCategoryMappingDescription),
                   const SizedBox(height: 8),
                   FutureBuilder<List<schema.Category>>(
                     future: allCategoriesFuture,
@@ -251,25 +222,23 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
                       final cats = snap.data ?? [];
                       final l10n = AppLocalizations.of(context)!;
                       final items = <DropdownMenuItem<int?>>[
-                        DropdownMenuItem(
-                            value: null,
-                            child: Text(l10n.importKeepOriginalName)),
-                        ...cats.map((c) => DropdownMenuItem<int?>(
-                              value: c.id,
-                              child: Text(
-                                  '${CategoryUtils.getDisplayName(c.name, context, kind: c.kind)} (${c.kind == 'income' ? l10n.categoryIncome : l10n.categoryExpense})'),
-                            )),
+                        DropdownMenuItem(value: null, child: Text(l10n.importKeepOriginalName)),
+                        ...cats.map(
+                          (c) => DropdownMenuItem<int?>(
+                            value: c.id,
+                            child: Text(
+                              '${CategoryUtils.getDisplayName(c.name, context, kind: c.kind)} (${c.kind == 'income' ? l10n.categoryIncome : l10n.categoryExpense})',
+                            ),
+                          ),
+                        ),
                       ];
                       // 为每个源分类预设自动匹配（仅在首次加载时执行）
-                      if (categoryMapping.values.every((v) => v == null) &&
-                          cats.isNotEmpty) {
+                      if (categoryMapping.values.every((v) => v == null) && cats.isNotEmpty) {
                         bool hasMatch = false;
                         for (final sourceName in distinctCategories) {
                           // 直接使用源分类名称查找匹配
                           try {
-                            final matchingCategory = cats.firstWhere(
-                              (c) => c.name == sourceName,
-                            );
+                            final matchingCategory = cats.firstWhere((c) => c.name == sourceName);
                             categoryMapping[sourceName] = matchingCategory.id;
                             hasMatch = true;
                           } catch (e) {
@@ -291,20 +260,16 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
                               padding: const EdgeInsets.symmetric(vertical: 6),
                               child: Row(
                                 children: [
-                                  Expanded(
-                                      child: Text(name,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis)),
+                                  Expanded(child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis)),
                                   const SizedBox(width: 12),
                                   DropdownButton<int?>(
                                     value: categoryMapping[name],
                                     items: items,
-                                    onChanged: (v) => setState(
-                                        () => categoryMapping[name] = v),
+                                    onChanged: (v) => setState(() => categoryMapping[name] = v),
                                   ),
                                 ],
                               ),
-                            )
+                            ),
                         ],
                       );
                     },
@@ -319,9 +284,7 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  if (importing)
-                    Text(
-                        AppLocalizations.of(context)!.importProgress(ok, fail)),
+                  if (importing) Text(AppLocalizations.of(context)!.importProgress(ok, fail)),
                   const Spacer(),
                   if (step == 0)
                     FilledButton(
@@ -333,10 +296,7 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
                           if (mapping['from_account'] != null || mapping['to_account'] != null) {
                             _startImport();
                           } else {
-                            showToast(
-                                context,
-                                AppLocalizations.of(context)!
-                                    .importSelectCategoryFirst);
+                            showToast(context, AppLocalizations.of(context)!.importSelectCategoryFirst);
                           }
                           return;
                         }
@@ -347,16 +307,13 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
                     )
                   else ...[
                     OutlinedButton(
-                      onPressed:
-                          importing ? null : () => setState(() => step = 0),
-                      child: Text(
-                          AppLocalizations.of(context)!.importPreviousStep),
+                      onPressed: importing ? null : () => setState(() => step = 0),
+                      child: Text(AppLocalizations.of(context)!.importPreviousStep),
                     ),
                     const SizedBox(width: 12),
                     FilledButton(
                       onPressed: importing ? null : _startImport,
-                      child:
-                          Text(AppLocalizations.of(context)!.importStartImport),
+                      child: Text(AppLocalizations.of(context)!.importStartImport),
                     ),
                   ],
                 ],
@@ -421,57 +378,52 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
       context: currentContext,
       barrierDismissible: false,
       builder: (dctx) {
-        return Consumer(builder: (dctx, r, _) {
-          final p = r.watch(importProgressProvider);
-          final percent =
-              p.total == 0 ? 0.0 : (p.done / p.total).clamp(0.0, 1.0);
-          return AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            title: Text(AppLocalizations.of(context)!.importInProgress),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LinearProgressIndicator(
-                    value: percent > 0 && percent < 1 ? percent : null),
-                const SizedBox(height: 8),
-                // 实时进度文案（每50条更新一次，足够流畅）
-                Text(
-                    AppLocalizations.of(context)!
-                        .importProgressDetail(p.done, p.fail, p.ok, p.total),
-                    style: Theme.of(dctx)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: BeeTokens.textTertiary(context))),
+        return Consumer(
+          builder: (dctx, r, _) {
+            final p = r.watch(importProgressProvider);
+            final percent = p.total == 0 ? 0.0 : (p.done / p.total).clamp(0.0, 1.0);
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              title: Text(AppLocalizations.of(context)!.importInProgress),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LinearProgressIndicator(value: percent > 0 && percent < 1 ? percent : null),
+                  const SizedBox(height: 8),
+                  // 实时进度文案（每50条更新一次，足够流畅）
+                  Text(
+                    AppLocalizations.of(context)!.importProgressDetail(p.done, p.fail, p.ok, p.total),
+                    style: Theme.of(dctx).textTheme.bodySmall?.copyWith(color: BeeTokens.textTertiary(context)),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    dialogOpen = false;
+                    Navigator.of(dctx).pop();
+                    // 返回到数据管理页面继续后台导入
+                    if (mounted) {
+                      // Pop回DataManagementPage: ImportConfirmPage -> ImportPage
+                      Navigator.of(currentContext).pop(); // Close ImportConfirmPage
+                      Navigator.of(currentContext).pop(); // Close ImportPage, back to DataManagementPage
+                    }
+                  },
+                  child: Text(AppLocalizations.of(context)!.importBackgroundImport),
+                ),
+                TextButton(
+                  onPressed: () {
+                    _cancelled = true;
+                    dialogOpen = false;
+                    Navigator.of(dctx).pop();
+                  },
+                  child: Text(AppLocalizations.of(context)!.importCancelImport),
+                ),
               ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  dialogOpen = false;
-                  Navigator.of(dctx).pop();
-                  // 返回到数据管理页面继续后台导入
-                  if (mounted) {
-                    // Pop回DataManagementPage: ImportConfirmPage -> ImportPage
-                    Navigator.of(currentContext).pop(); // Close ImportConfirmPage
-                    Navigator.of(currentContext).pop(); // Close ImportPage, back to DataManagementPage
-                  }
-                },
-                child:
-                    Text(AppLocalizations.of(context)!.importBackgroundImport),
-              ),
-              TextButton(
-                onPressed: () {
-                  _cancelled = true;
-                  dialogOpen = false;
-                  Navigator.of(dctx).pop();
-                },
-                child: Text(AppLocalizations.of(context)!.importCancelImport),
-              ),
-            ],
-          );
-        });
+            );
+          },
+        );
       },
     );
 
@@ -557,8 +509,7 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
       Future<void>.delayed(const Duration(seconds: 5), () {
         // 延长到5秒，让用户看到动画
         try {
-          container.read(importProgressProvider.notifier).state =
-              ImportProgress.empty;
+          container.read(importProgressProvider.notifier).state = ImportProgress.empty;
           // 刷新"我的"页统计（笔数/天数）
           container.invalidate(countsForLedgerProvider(ledgerId));
           // 触发全局统计刷新（用于"我的"页顶部聚合信息）
@@ -577,8 +528,7 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
     }
 
     // 显示导入完成提示
-    final cancelledText =
-        _cancelled ? AppLocalizations.of(currentContext)!.importCancelled : '';
+    final cancelledText = _cancelled ? AppLocalizations.of(currentContext)!.importCancelled : '';
     final l10nToast = AppLocalizations.of(currentContext)!;
 
     // 构建提示信息
@@ -590,9 +540,7 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
       final typeSkipped = skippedTypes.values.fold(0, (a, b) => a + b);
 
       if (typeSkipped > 0) {
-        final skippedList = skippedTypes.entries
-            .map((e) => '${e.key}(${e.value})')
-            .join('、');
+        final skippedList = skippedTypes.entries.map((e) => '${e.key}(${e.value})').join('、');
         message += '\n${l10nToast.importSkippedNonTransactionTypes(typeSkipped)}\n$skippedList';
       }
     }
@@ -617,12 +565,7 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
         builder: (ctx) => AlertDialog(
           title: Text(l10nToast.importCompleteTitle),
           content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(l10nToast.commonConfirm),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10nToast.commonConfirm))],
         ),
       );
 
@@ -663,6 +606,14 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
     // 收集唯一账户和标签
     final uniqueAccountNames = <String>{};
     final uniqueTagNames = <String>{};
+    final sourceTagName = switch (widget.billType) {
+      BillSourceType.alipay => '支付宝导入',
+      BillSourceType.wechat => '微信导入',
+      BillSourceType.generic => null,
+    };
+    if (sourceTagName != null) {
+      uniqueTagNames.add(sourceTagName);
+    }
     // 收集分类信息（用于创建分类）
     final categoryInfoMap = <String, ({String kind, String? icon, String? parentName})>{};
 
@@ -708,16 +659,30 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
       final typeRaw = getBy('type') ?? 'expense';
       final typeStr = typeRaw.trim().toLowerCase();
       String? type;
-      if (typeStr == '收入' || typeStr == '收' || typeStr == '入账' || typeStr == '进账' ||
-          typeStr == '入帳' || typeStr == '進帳' ||  // 繁体
-          typeStr == 'income' || typeStr == 'revenue' || typeStr == 'earning') {
+      if (typeStr == '收入' ||
+          typeStr == '收' ||
+          typeStr == '入账' ||
+          typeStr == '进账' ||
+          typeStr == '入帳' ||
+          typeStr == '進帳' || // 繁体
+          typeStr == 'income' ||
+          typeStr == 'revenue' ||
+          typeStr == 'earning') {
         type = 'income';
-      } else if (typeStr == '支出' || typeStr == '支' || typeStr == '出账' ||
-                 typeStr == '消费' || typeStr == '花费' ||
-                 typeStr == '出帳' || typeStr == '消費' || typeStr == '花費' ||  // 繁体
-                 typeStr == 'expense' || typeStr == 'spending' || typeStr == 'expenditure') {
+      } else if (typeStr == '支出' ||
+          typeStr == '支' ||
+          typeStr == '出账' ||
+          typeStr == '消费' ||
+          typeStr == '花费' ||
+          typeStr == '出帳' ||
+          typeStr == '消費' ||
+          typeStr == '花費' || // 繁体
+          typeStr == 'expense' ||
+          typeStr == 'spending' ||
+          typeStr == 'expenditure') {
         type = 'expense';
-      } else if (typeStr == '转账' || typeStr == '轉帳' || typeStr == 'transfer') {  // 添加繁体
+      } else if (typeStr == '转账' || typeStr == '轉帳' || typeStr == 'transfer') {
+        // 添加繁体
         type = 'transfer';
       }
 
@@ -731,27 +696,15 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
         if (subCategoryName != null && categoryName != null) {
           // 有二级分类
           final parentKey = '$categoryName:$type';
-          categoryInfoMap.putIfAbsent(parentKey, () => (
-            kind: type!,
-            icon: categoryIcon,
-            parentName: null,
-          ));
+          categoryInfoMap.putIfAbsent(parentKey, () => (kind: type!, icon: categoryIcon, parentName: null));
           final subKey = '$subCategoryName:$type:$categoryName';
-          categoryInfoMap.putIfAbsent(subKey, () => (
-            kind: type!,
-            icon: subCategoryIcon,
-            parentName: categoryName,
-          ));
+          categoryInfoMap.putIfAbsent(subKey, () => (kind: type!, icon: subCategoryIcon, parentName: categoryName));
         } else if (categoryName != null) {
           // 只有一级分类（仅当用户选择"保持原名"时才需要创建）
           final chosen = categoryMapping[categoryName];
           if (chosen == null) {
             final key = '$categoryName:$type';
-            categoryInfoMap.putIfAbsent(key, () => (
-              kind: type!,
-              icon: categoryIcon,
-              parentName: null,
-            ));
+            categoryInfoMap.putIfAbsent(key, () => (kind: type!, icon: categoryIcon, parentName: null));
           }
         }
       }
@@ -759,11 +712,7 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
 
     // 构建账户列表
     for (final name in uniqueAccountNames) {
-      accounts.add(ImportAccount(
-        name: name,
-        type: 'cash',
-        currency: ledgerCurrency,
-      ));
+      accounts.add(ImportAccount(name: name, type: 'cash', currency: ledgerCurrency));
     }
 
     // 构建标签列表
@@ -772,36 +721,21 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
     }
 
     // 构建分类列表（先一级后二级）
-    final level1Categories = categoryInfoMap.entries
-        .where((e) => e.value.parentName == null)
-        .toList();
-    final level2Categories = categoryInfoMap.entries
-        .where((e) => e.value.parentName != null)
-        .toList();
+    final level1Categories = categoryInfoMap.entries.where((e) => e.value.parentName == null).toList();
+    final level2Categories = categoryInfoMap.entries.where((e) => e.value.parentName != null).toList();
 
     for (final entry in level1Categories) {
       final parts = entry.key.split(':');
       final name = parts[0];
       final kind = parts[1];
-      categories.add(ImportCategory(
-        name: name,
-        kind: kind,
-        level: 1,
-        icon: entry.value.icon,
-      ));
+      categories.add(ImportCategory(name: name, kind: kind, level: 1, icon: entry.value.icon));
     }
     for (final entry in level2Categories) {
       final parts = entry.key.split(':');
       final name = parts[0];
       final kind = parts[1];
       final parentName = parts[2];
-      categories.add(ImportCategory(
-        name: name,
-        kind: kind,
-        level: 2,
-        icon: entry.value.icon,
-        parentName: parentName,
-      ));
+      categories.add(ImportCategory(name: name, kind: kind, level: 2, icon: entry.value.icon, parentName: parentName));
     }
 
     // 第二遍：构建交易列表
@@ -826,22 +760,38 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
       final fromAccountName = getBy('from_account');
       final toAccountName = getBy('to_account');
       final note = getBy('note');
+      final paymentMethod = _resolvePaymentMethod(getBy);
+      final counterparty = getBy('counterparty');
       final tagsStr = getBy('tags');
       final attachmentsStr = getBy('attachments');
 
       // 类型识别
       final typeStr = typeRaw.trim().toLowerCase();
       String? type;
-      if (typeStr == '收入' || typeStr == '收' || typeStr == '入账' || typeStr == '进账' ||
-          typeStr == '入帳' || typeStr == '進帳' ||  // 繁体
-          typeStr == 'income' || typeStr == 'revenue' || typeStr == 'earning') {
+      if (typeStr == '收入' ||
+          typeStr == '收' ||
+          typeStr == '入账' ||
+          typeStr == '进账' ||
+          typeStr == '入帳' ||
+          typeStr == '進帳' || // 繁体
+          typeStr == 'income' ||
+          typeStr == 'revenue' ||
+          typeStr == 'earning') {
         type = 'income';
-      } else if (typeStr == '支出' || typeStr == '支' || typeStr == '出账' ||
-                 typeStr == '消费' || typeStr == '花费' ||
-                 typeStr == '出帳' || typeStr == '消費' || typeStr == '花費' ||  // 繁体
-                 typeStr == 'expense' || typeStr == 'spending' || typeStr == 'expenditure') {
+      } else if (typeStr == '支出' ||
+          typeStr == '支' ||
+          typeStr == '出账' ||
+          typeStr == '消费' ||
+          typeStr == '花费' ||
+          typeStr == '出帳' ||
+          typeStr == '消費' ||
+          typeStr == '花費' || // 繁体
+          typeStr == 'expense' ||
+          typeStr == 'spending' ||
+          typeStr == 'expenditure') {
         type = 'expense';
-      } else if (typeStr == '转账' || typeStr == '轉帳' || typeStr == 'transfer') {  // 添加繁体
+      } else if (typeStr == '转账' || typeStr == '轉帳' || typeStr == 'transfer') {
+        // 添加繁体
         type = 'transfer';
       } else {
         // 未识别的类型：记录并跳过
@@ -861,16 +811,23 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
       if (tagsStr != null && tagsStr.isNotEmpty) {
         tagNames = tagsStr.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
       }
+      if (sourceTagName != null) {
+        tagNames = {
+          ...?tagNames,
+          sourceTagName,
+        }.toList();
+      }
 
       // 解析附件文件名列表
       List<ImportAttachment>? attachments;
       if (attachmentsStr != null && attachmentsStr.isNotEmpty) {
         final fileNames = attachmentsStr.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
         if (fileNames.isNotEmpty) {
-          attachments = fileNames.asMap().entries.map((entry) => ImportAttachment(
-            fileName: entry.value,
-            sortOrder: entry.key,
-          )).toList();
+          attachments = fileNames
+              .asMap()
+              .entries
+              .map((entry) => ImportAttachment(fileName: entry.value, sortOrder: entry.key))
+              .toList();
         }
       }
 
@@ -898,28 +855,42 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
         }
       }
 
-      transactions.add(ImportTransaction(
-        type: type,
-        amount: amount,
-        categoryName: finalCategoryName,
-        categoryKind: categoryKind,
+      transactions.add(
+        ImportTransaction(
+          type: type,
+          amount: amount,
+          categoryName: finalCategoryName,
+          categoryKind: categoryKind,
         categoryId: categoryId,
         happenedAt: date,
         note: note,
+        paymentMethod: paymentMethod,
+        counterparty: counterparty,
         accountName: type != 'transfer' ? accountName : null,
-        fromAccountName: type == 'transfer' ? fromAccountName : null,
-        toAccountName: type == 'transfer' ? toAccountName : null,
-        tagNames: tagNames,
-        attachments: attachments,
-      ));
+          fromAccountName: type == 'transfer' ? fromAccountName : null,
+          toAccountName: type == 'transfer' ? toAccountName : null,
+          tagNames: tagNames,
+          attachments: attachments,
+        ),
+      );
     }
 
-    return ImportData(
-      accounts: accounts,
-      categories: categories,
-      tags: tags,
-      transactions: transactions,
-    );
+    return ImportData(accounts: accounts, categories: categories, tags: tags, transactions: transactions);
+  }
+
+  String? _resolvePaymentMethod(String? Function(String key) getBy) {
+    if (widget.billType != BillSourceType.alipay) {
+      return getBy('payment_method');
+    }
+
+    final counterparty = getBy('alipay_counterparty');
+    final account = getBy('alipay_counterparty_account');
+    final parts = [
+      if (counterparty != null) counterparty,
+      if (account != null) account,
+    ];
+    if (parts.isEmpty) return getBy('payment_method');
+    return parts.join(' ');
   }
 
   void _buildDistinctCategories() {

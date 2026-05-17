@@ -64,10 +64,7 @@ class GenericBillParser implements BillParser {
   }
 
   @override
-  Map<String, dynamic>? parseRow(
-    List<String> row,
-    Map<String, int> columnMapping,
-  ) {
+  Map<String, dynamic>? parseRow(List<String> row, Map<String, int> columnMapping) {
     // 通用解析器直接使用列映射提取数据
     final result = <String, dynamic>{};
 
@@ -101,16 +98,10 @@ class GenericBillParser implements BillParser {
     if (noSpace == 'type' || noSpace == 'inout' || noSpace == 'direction') {
       return 'type';
     }
-    if (noSpace == 'amount' ||
-        noSpace == 'money' ||
-        noSpace == 'price' ||
-        noSpace == 'value') {
+    if (noSpace == 'amount' || noSpace == 'money' || noSpace == 'price' || noSpace == 'value') {
       return 'amount';
     }
-    if (noSpace == 'category' ||
-        noSpace == 'cate' ||
-        noSpace == 'subject' ||
-        noSpace == 'tag') {
+    if (noSpace == 'category' || noSpace == 'cate' || noSpace == 'subject' || noSpace == 'tag') {
       return 'category';
     }
     if (noSpace == 'note' ||
@@ -149,8 +140,16 @@ class GenericBillParser implements BillParser {
     if (_containsAny(s, ['类型', '收支', '收/支', '方向'])) {
       return 'type';
     }
-    if (_containsAny(
-        s, ['备注', '说明', '标题', '摘要', '附言', '商品名称', '商品说明', '交易对方', '商家'])) {
+    if (_containsAny(s, ['支付方式', '收/付款方式', '付款方式', '收款方式', 'Payment Method'])) {
+      return 'payment_method';
+    }
+    if (_containsAny(s, ['对方账号', '对方账户', '交易对方账号', 'Counterparty Account'])) {
+      return 'counterparty';
+    }
+    if (_containsAny(s, ['交易对方', '对方', '商户', 'Counterparty', 'Payee', 'Payer'])) {
+      return 'counterparty';
+    }
+    if (_containsAny(s, ['备注', '说明', '标题', '摘要', '附言', '商品名称', '商品说明', '交易对方', '商家'])) {
       return 'note';
     }
     // 账户匹配：需要区分普通账户、转出账户、转入账户
@@ -166,17 +165,7 @@ class GenericBillParser implements BillParser {
     }
 
     // 明确忽略的字段
-    if (_containsAny(s, [
-      '账目编号',
-      '编号',
-      '单号',
-      '流水号',
-      '交易号',
-      '相关图片',
-      '图片',
-      '交易单号',
-      '订单号'
-    ])) {
+    if (_containsAny(s, ['账目编号', '编号', '单号', '流水号', '交易号', '相关图片', '图片', '交易单号', '订单号'])) {
       return null;
     }
 
