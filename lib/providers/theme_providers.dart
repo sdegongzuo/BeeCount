@@ -163,10 +163,10 @@ final compactAmountInitProvider = FutureProvider<void>((ref) async {
   });
 });
 
-// 显示交易时间Provider（默认不显示）
+// 显示交易时间Provider（默认显示）
 // false = 只显示日期
 // true = 显示日期和时间（时:分）
-final showTransactionTimeProvider = StateProvider<bool>((ref) => false);
+final showTransactionTimeProvider = StateProvider<bool>((ref) => true);
 
 // 显示交易时间持久化初始化
 final showTransactionTimeInitProvider = FutureProvider<void>((ref) async {
@@ -177,6 +177,24 @@ final showTransactionTimeInitProvider = FutureProvider<void>((ref) async {
   }
   ref.listen<bool>(showTransactionTimeProvider, (prev, next) async {
     await prefs.setBool('showTransactionTime', next);
+    _pushAppearanceToCloud(ref);
+  });
+});
+
+// 显示转账账户Provider（默认显示）
+// false = 转账明细不显示转出/转入账户
+// true = 转账明细显示转出/转入账户
+final showTransferAccountsProvider = StateProvider<bool>((ref) => true);
+
+// 显示转账账户持久化初始化
+final showTransferAccountsInitProvider = FutureProvider<void>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final saved = prefs.getBool('showTransferAccounts');
+  if (saved != null) {
+    ref.read(showTransferAccountsProvider.notifier).state = saved;
+  }
+  ref.listen<bool>(showTransferAccountsProvider, (prev, next) async {
+    await prefs.setBool('showTransferAccounts', next);
     _pushAppearanceToCloud(ref);
   });
 });
@@ -211,6 +229,7 @@ void _pushAppearanceToCloud(Ref ref) {
         'header_decoration_style': ref.read(headerDecorationStyleProvider),
         'compact_amount': ref.read(compactAmountProvider),
         'show_transaction_time': ref.read(showTransactionTimeProvider),
+        'show_transfer_accounts': ref.read(showTransferAccountsProvider),
       };
       await cloudProvider.updateMyProfileAppearance(appearance: appearance);
       logger.info('theme_providers',

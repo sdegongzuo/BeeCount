@@ -21,6 +21,7 @@ typedef AmountEditorResult = ({
   String? note,
   DateTime date,
   int? accountId,
+  int? toAccountId,
   List<int> tagIds,
   List<File> pendingAttachments,
 });
@@ -31,8 +32,10 @@ class AmountEditorSheet extends ConsumerStatefulWidget {
   final double? initialAmount;
   final String? initialNote;
   final int? initialAccountId;
+  final int? initialToAccountId;
   final List<int>? initialTagIds; // 初始标签ID列表
   final bool showAccountPicker; // 是否显示账户选择
+  final bool showTransferAccountPickers; // 是否显示转账的转出/转入账户选择
   final ValueChanged<AmountEditorResult> onSubmit;
   final int ledgerId;
   final int? editingTransactionId; // 编辑模式时的交易ID，用于显示已有附件
@@ -44,8 +47,10 @@ class AmountEditorSheet extends ConsumerStatefulWidget {
     this.initialAmount,
     this.initialNote,
     this.initialAccountId,
+    this.initialToAccountId,
     this.initialTagIds,
     this.showAccountPicker = false,
+    this.showTransferAccountPickers = false,
     required this.onSubmit,
     required this.ledgerId,
     this.editingTransactionId,
@@ -59,6 +64,7 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
   late String _amountStr;
   late DateTime _date;
   int? _selectedAccountId;
+  int? _selectedToAccountId;
   final bool _negative = false; // 显示用途，仅影响UI，不改变保存逻辑
   final TextEditingController _noteCtrl = TextEditingController();
   // 运算缓存：支持简单 + / - 键入累计
@@ -80,12 +86,14 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
 
   // 待上传的附件列表（新建交易时）
   List<File> _pendingAttachments = [];
+  int _accountSelectorRefreshToken = 0;
 
   @override
   void initState() {
     super.initState();
     _date = widget.initialDate;
     _selectedAccountId = widget.initialAccountId;
+    _selectedToAccountId = widget.initialToAccountId;
     _selectedTagIds = List.from(widget.initialTagIds ?? []);
     // 保留原始小数（最多两位），避免编辑已有记录时小数被截断为整数
     final init = widget.initialAmount ?? 0;
@@ -449,6 +457,37 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
                 },
               ),
             ],
+            if (widget.showTransferAccountPickers) ...[
+              const SizedBox(height: 8),
+              _buildTransferAccountSelector(
+                label: AppLocalizations.of(context).transferFromAccount,
+                selectedAccountId: _selectedAccountId,
+                excludedAccountIds: _selectedToAccountId == null
+                    ? const <int>{}
+                    : {_selectedToAccountId!},
+                onAccountSelected: (accountId) {
+                  setState(() {
+                    _selectedAccountId = accountId;
+                    if (_selectedToAccountId == accountId) {
+                      _selectedToAccountId = null;
+                    }
+                  });
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildTransferAccountSelector(
+                label: AppLocalizations.of(context).transferToAccount,
+                selectedAccountId: _selectedToAccountId,
+                excludedAccountIds: _selectedAccountId == null
+                    ? const <int>{}
+                    : {_selectedAccountId!},
+                onAccountSelected: (accountId) {
+                  setState(() {
+                    _selectedToAccountId = accountId;
+                  });
+                },
+              ),
+            ],
             // 标签和附件选择区域（一行）
             const SizedBox(height: 8),
             _buildTagAndAttachmentRow(),
@@ -531,7 +570,15 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
 
                 // 判断是否处于运算模式
                 final isInCalcMode = _op != null;
-                final isEnabled = (isInCalcMode ? true : total.abs() > 0) && !_isSubmitting;
+                final hasValidTransferAccounts =
+                    !widget.showTransferAccountPickers ||
+                        (_selectedAccountId != null &&
+                            _selectedToAccountId != null &&
+                            _selectedAccountId != _selectedToAccountId);
+                final isEnabled =
+                    (isInCalcMode ? true : total.abs() > 0) &&
+                        hasValidTransferAccounts &&
+                        !_isSubmitting;
 
                 return Padding(
                   padding: const EdgeInsets.all(6),
@@ -562,6 +609,7 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
                                     : _noteCtrl.text,
                                 date: _date,
                                 accountId: _selectedAccountId,
+                                toAccountId: _selectedToAccountId,
                                 tagIds: _selectedTagIds,
                                 pendingAttachments: _pendingAttachments,
                               ));
@@ -659,6 +707,42 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTransferAccountSelector({
+    required String label,
+    required int? selectedAccountId,
+    required Set<int> excludedAccountIds,
+    required ValueChanged<int?> onAccountSelected,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 6),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: BeeTokens.textSecondary(context),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        AccountSelector(
+          selectedAccountId: selectedAccountId,
+          ledgerId: widget.ledgerId,
+          allowNull: false,
+          allowCreate: true,
+          refreshToken: _accountSelectorRefreshToken,
+          excludedAccountIds: excludedAccountIds,
+          onCreateAccount: (accountId) {
+            setState(() => _accountSelectorRefreshToken++);
+          },
+          onAccountSelected: onAccountSelected,
+        ),
+      ],
     );
   }
 

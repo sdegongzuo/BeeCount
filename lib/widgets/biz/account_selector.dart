@@ -6,8 +6,10 @@ import '../../styles/tokens.dart';
 import '../../utils/lru_cache.dart';
 import '../../utils/account_type_utils.dart';
 import '../../providers.dart';
+import '../../services/billing/post_processor.dart';
 import '../../services/system/logger_service.dart';
 import '../../l10n/app_localizations.dart';
+import '../ui/ui.dart';
 
 /// 账户选择器组件
 /// 横滑标签形式，支持 LRU 排序
@@ -15,12 +17,22 @@ class AccountSelector extends ConsumerStatefulWidget {
   final int? selectedAccountId;
   final ValueChanged<int?> onAccountSelected;
   final int ledgerId;
+  final bool allowNull;
+  final Set<int> excludedAccountIds;
+  final bool allowCreate;
+  final ValueChanged<int>? onCreateAccount;
+  final int refreshToken;
 
   const AccountSelector({
     super.key,
     required this.selectedAccountId,
     required this.onAccountSelected,
     required this.ledgerId,
+    this.allowNull = true,
+    this.excludedAccountIds = const {},
+    this.allowCreate = false,
+    this.onCreateAccount,
+    this.refreshToken = 0,
   });
 
   @override
@@ -44,6 +56,23 @@ class _AccountSelectorState extends ConsumerState<AccountSelector> {
     _loadAccounts();
   }
 
+  @override
+  void didUpdateWidget(covariant AccountSelector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    const setEquality = SetEquality<int>();
+    if (oldWidget.ledgerId != widget.ledgerId ||
+        oldWidget.refreshToken != widget.refreshToken ||
+        !setEquality.equals(
+          oldWidget.excludedAccountIds,
+          widget.excludedAccountIds,
+        )) {
+      _initialSelectedAccountId = widget.selectedAccountId;
+      _lruCache = LRUCache(key: 'account_lru_${widget.ledgerId}', maxSize: 20);
+      _isLoading = true;
+      _loadAccounts();
+    }
+  }
+
   Future<void> _loadAccounts() async {
     try {
       final repo = ref.read(repositoryProvider);
@@ -62,7 +91,10 @@ class _AccountSelectorState extends ConsumerState<AccountSelector> {
       // 获取所有账户，然后过滤与当前账本币种相同的可交易账户
       final allAccounts = await repo.getAllAccounts();
       final accounts = allAccounts
-          .where((a) => a.currency == ledger.currency && isTradableType(a.type))
+          .where((a) =>
+              a.currency == ledger.currency &&
+              isTradableType(a.type) &&
+              !widget.excludedAccountIds.contains(a.id))
           .toList();
 
       // 获取 LRU 排序
@@ -152,11 +184,13 @@ class _AccountSelectorState extends ConsumerState<AccountSelector> {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 2),
-        itemCount: sortedAccounts.length + 1, // +1 for "no account" option
+        itemCount: sortedAccounts.length +
+            (widget.allowNull ? 1 : 0) +
+            (widget.allowCreate ? 1 : 0),
         separatorBuilder: (_, __) => const SizedBox(width: 6),
         itemBuilder: (context, index) {
           // "无账户"永远在第一位
-          if (index == 0) {
+          if (widget.allowNull && index == 0) {
             final isSelected = widget.selectedAccountId == null;
             return _buildAccountChip(
               label: AppLocalizations.of(context).accountNone,
@@ -166,7 +200,21 @@ class _AccountSelectorState extends ConsumerState<AccountSelector> {
           }
 
           // 其他账户从索引 1 开始
-          final accountIndex = index - 1;
+          final accountIndex = widget.allowNull ? index - 1 : index;
+          if (accountIndex >= sortedAccounts.length) {
+            return _buildAccountChip(
+              label: '+ ${AppLocalizations.of(context).accountNewTitle}',
+              isSelected: false,
+              onTap: () async {
+                final createdId = await _showQuickCreateAccountDialog();
+                if (createdId != null) {
+                  await _loadAccounts();
+                  widget.onCreateAccount?.call(createdId);
+                  widget.onAccountSelected(createdId);
+                }
+              },
+            );
+          }
           final account = sortedAccounts[accountIndex];
           final isSelected = widget.selectedAccountId == account.id;
 
@@ -177,6 +225,80 @@ class _AccountSelectorState extends ConsumerState<AccountSelector> {
           );
         },
       ),
+    );
+  }
+
+  Future<int?> _showQuickCreateAccountDialog() async {
+    final l10n = AppLocalizations.of(context);
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    return showDialog<int>(
+      context: context,
+      builder: (dialogContext) {
+        var saving = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(l10n.accountNewTitle),
+            content: Form(
+              key: formKey,
+              child: TextFormField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: l10n.accountNameHint,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return l10n.accountNameRequired;
+                  }
+                  return null;
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => Navigator.pop(context),
+                child: Text(l10n.commonCancel),
+              ),
+              TextButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setDialogState(() => saving = true);
+                        try {
+                          final ledger =
+                              await ref.read(ledgerByIdProvider(widget.ledgerId).future);
+                          final id = await ref.read(repositoryProvider).createAccount(
+                                ledgerId: widget.ledgerId,
+                                name: controller.text.trim(),
+                                type: 'cash',
+                                currency: ledger?.currency ?? 'CNY',
+                              );
+                          PostProcessor.sync(ref, ledgerId: widget.ledgerId);
+                          if (context.mounted) {
+                            Navigator.pop(context, id);
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            setDialogState(() => saving = false);
+                            showToast(context, '${l10n.commonError}: $e');
+                          }
+                        }
+                      },
+                child: saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(l10n.commonSave),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

@@ -119,12 +119,30 @@ class _TransferFormState extends ConsumerState<TransferForm> {
         initialDate: widget.initialDate ?? DateTime.now(),
         initialAmount: widget.initialAmount,
         initialNote: widget.initialNote,
+        initialAccountId: _fromAccountId,
+        initialToAccountId: _toAccountId,
         initialTagIds: widget.initialTagIds,
+        showTransferAccountPickers: true,
         showAccountPicker: false,
         ledgerId: ledgerId,
         editingTransactionId: widget.editingTransactionId,
         onSubmit: (result) async {
           final attachmentService = ref.read(attachmentServiceProvider);
+          final fromAccountId = result.accountId;
+          final toAccountId = result.toAccountId;
+
+          if (fromAccountId == null || toAccountId == null) {
+            showToast(context, l10n.transferSelectAccount);
+            return;
+          }
+          if (fromAccountId == toAccountId) {
+            showToast(context, '转出账户和转入账户不能相同');
+            return;
+          }
+
+          _fromAccountId = fromAccountId;
+          _toAccountId = toAccountId;
+
           // 获取虚拟转账分类ID
           final transferCategory = await ref.read(transferCategoryProvider.future);
           final transferCategoryId = transferCategory.id;
@@ -139,12 +157,12 @@ class _TransferFormState extends ConsumerState<TransferForm> {
                 categoryId: transferCategoryId, // 使用虚拟转账分类ID
                 note: result.note,
                 happenedAt: result.date,
-                accountId: _fromAccountId,
+                accountId: fromAccountId,
               );
               // 更新 toAccountId（使用专用方法）
               await repo.updateTransactionFields(
                 id: widget.editingTransactionId!,
-                toAccountId: _toAccountId,
+                toAccountId: toAccountId,
               );
               // 更新标签
               if (result.tagIds.isNotEmpty) {
@@ -188,8 +206,8 @@ class _TransferFormState extends ConsumerState<TransferForm> {
                 type: 'transfer',
                 amount: result.amount,
                 categoryId: transferCategoryId, // 使用虚拟转账分类ID
-                accountId: _fromAccountId,
-                toAccountId: _toAccountId,
+                accountId: fromAccountId,
+                toAccountId: toAccountId,
                 note: result.note,
                 happenedAt: result.date,
               );
@@ -263,9 +281,26 @@ class _TransferFormState extends ConsumerState<TransferForm> {
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(32),
-              child: Text(
-                l10n.transferSelectAccount,
-                style: TextStyle(color: Colors.grey[600]),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.transferSelectAccount,
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () => _createQuickAccount(isFrom: true),
+                    icon: const Icon(Icons.add),
+                    label: Text('${l10n.accountNewTitle} - ${l10n.transferFromAccount}'),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _createQuickAccount(isFrom: false),
+                    icon: const Icon(Icons.add),
+                    label: Text('${l10n.accountNewTitle} - ${l10n.transferToAccount}'),
+                  ),
+                ],
               ),
             ),
           );
@@ -329,7 +364,11 @@ class _TransferFormState extends ConsumerState<TransferForm> {
     );
   }
 
-  Widget _buildAccountGrid(List<Account> accounts, bool isFrom, Color primary) {
+  Widget _buildAccountGrid(
+    List<Account> accounts,
+    bool isFrom,
+    Color primary,
+  ) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -339,8 +378,11 @@ class _TransferFormState extends ConsumerState<TransferForm> {
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemCount: accounts.length,
+      itemCount: accounts.length + 1,
       itemBuilder: (context, index) {
+        if (index == accounts.length) {
+          return _buildCreateAccountCard(isFrom, primary);
+        }
         final account = accounts[index];
         final isSelected = isFrom
             ? _fromAccountId == account.id
@@ -349,6 +391,134 @@ class _TransferFormState extends ConsumerState<TransferForm> {
         return _buildAccountCard(account, isSelected, isFrom, primary);
       },
     );
+  }
+
+  Widget _buildCreateAccountCard(bool isFrom, Color primary) {
+    final l10n = AppLocalizations.of(context);
+    return InkWell(
+      onTap: () => _createQuickAccount(isFrom: isFrom),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: primary.withValues(alpha: 0.06),
+          border: Border.all(color: primary.withValues(alpha: 0.35)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_circle_outline, color: primary, size: 32),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                l10n.accountNewTitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: primary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createQuickAccount({required bool isFrom}) async {
+    final l10n = AppLocalizations.of(context);
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final currentLedger = ref.read(currentLedgerProvider).valueOrNull;
+    final currency = currentLedger?.currency ?? 'CNY';
+
+    final createdId = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) {
+        var saving = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(
+              '${l10n.accountNewTitle} - '
+              '${isFrom ? l10n.transferFromAccount : l10n.transferToAccount}',
+            ),
+            content: Form(
+              key: formKey,
+              child: TextFormField(
+                controller: controller,
+                autofocus: true,
+                decoration: InputDecoration(hintText: l10n.accountNameHint),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return l10n.accountNameRequired;
+                  }
+                  return null;
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => Navigator.pop(context),
+                child: Text(l10n.commonCancel),
+              ),
+              TextButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setDialogState(() => saving = true);
+                        try {
+                          final id = await ref.read(repositoryProvider).createAccount(
+                                ledgerId: ref.read(currentLedgerIdProvider),
+                                name: controller.text.trim(),
+                                type: 'cash',
+                                currency: currency,
+                              );
+                          PostProcessor.sync(
+                            ref,
+                            ledgerId: ref.read(currentLedgerIdProvider),
+                          );
+                          if (context.mounted) Navigator.pop(context, id);
+                        } catch (e) {
+                          if (context.mounted) {
+                            setDialogState(() => saving = false);
+                            showToast(context, '${l10n.commonError}: $e');
+                          }
+                        }
+                      },
+                child: saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(l10n.commonSave),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (createdId == null || !mounted) return;
+    setState(() {
+      if (isFrom) {
+        _fromAccountId = createdId;
+        if (_toAccountId == createdId) {
+          _toAccountId = null;
+        }
+      } else {
+        _toAccountId = createdId;
+      }
+    });
+
+    if (_fromAccountId != null && _toAccountId != null) {
+      await _openAmountSheet();
+    }
   }
 
   Widget _buildAccountCard(

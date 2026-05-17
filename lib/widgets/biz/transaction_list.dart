@@ -406,6 +406,7 @@ class TransactionListState extends ConsumerState<TransactionList> {
             final isTransfer = it.t.type == 'transfer';
             final isExpense = it.t.type == 'expense';
             final isAdjustment = it.t.type == 'adjustment';
+            final showTransferAccounts = ref.watch(showTransferAccountsProvider);
 
             // 获取分类显示名称
             final categoryName = isAdjustment
@@ -417,23 +418,23 @@ class TransactionListState extends ConsumerState<TransactionList> {
             // 检查是否是当天最后一项
             final isLastInGroup = allItemsInDay.last.t.id == it.t.id;
 
-            // 获取账户名称（仅在账户功能启用且有账户ID时）
+            // 获取账户名称（普通收支受账户功能开关影响；转账始终尝试读取账户名）
             final accountFeatureEnabled = ref.watch(accountFeatureEnabledProvider).valueOrNull ?? true;
             String? accountName;
             String? toAccountName; // 转账目标账户名称
 
-            if (accountFeatureEnabled && it.t.accountId != null) {
+            if ((accountFeatureEnabled || isTransfer) && it.t.accountId != null) {
               // 优先使用预加载的账户名称
               accountName = _getAccountNameForTransaction(it.t.id);
-              if (isTransfer && it.t.toAccountId != null) {
-                toAccountName = _getToAccountNameForTransaction(it.t.id);
-              }
 
               // 预加载数据中找不到时，通过 Provider 获取（新记录的交易不在预加载缓存中）
               if (accountName == null) {
                 final accountAsync = ref.watch(accountByIdProvider(it.t.accountId!));
                 accountName = accountAsync.valueOrNull?.name;
               }
+            }
+            if (isTransfer && it.t.toAccountId != null) {
+              toAccountName = _getToAccountNameForTransaction(it.t.id);
               if (isTransfer && toAccountName == null && it.t.toAccountId != null) {
                 final toAccountAsync = ref.watch(accountByIdProvider(it.t.toAccountId!));
                 toAccountName = toAccountAsync.valueOrNull?.name;
@@ -483,8 +484,9 @@ class TransactionListState extends ConsumerState<TransactionList> {
                           .toList();
 
                       // 转账账户信息
-                      final transferAccountInfo = (accountName != null && toAccountName != null)
-                          ? '$accountName → $toAccountName'
+                      final transferAccountInfo = showTransferAccounts
+                          ? '${AppLocalizations.of(context).transferFromAccount}: ${accountName ?? AppLocalizations.of(context).accountNone} · '
+                              '${AppLocalizations.of(context).transferToAccount}: ${toAccountName ?? AppLocalizations.of(context).accountNone}'
                           : null;
 
                       // 获取附件数量（优先使用预加载数据）

@@ -131,6 +131,24 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         },
                       ),
                       BeeTokens.cardDivider(context),
+                      // 显示转账账户
+                      AppListTile(
+                        leading: Icons.swap_horiz_outlined,
+                        title: l10n.appearanceShowTransferAccounts,
+                        subtitle: l10n.appearanceShowTransferAccountsDesc,
+                        trailing: Switch.adaptive(
+                          value: ref.watch(showTransferAccountsProvider),
+                          onChanged: (value) {
+                            ref.read(showTransferAccountsProvider.notifier).state = value;
+                          },
+                          activeColor: ref.watch(primaryColorProvider),
+                        ),
+                        onTap: () {
+                          final current = ref.read(showTransferAccountsProvider);
+                          ref.read(showTransferAccountsProvider.notifier).state = !current;
+                        },
+                      ),
+                      BeeTokens.cardDivider(context),
                       // 收支颜色方案
                       AppListTile(
                         leading: Icons.palette_outlined,

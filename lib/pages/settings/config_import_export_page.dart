@@ -320,6 +320,13 @@ class _ConfigImportExportPageState
         logger.info('ConfigImport', '交易时间显示已刷新: $showTransactionTime');
       }
 
+      // 刷新转账账户显示
+      final showTransferAccounts = prefs.getBool('showTransferAccounts');
+      if (showTransferAccounts != null) {
+        ref.read(showTransferAccountsProvider.notifier).state = showTransferAccounts;
+        logger.info('ConfigImport', '转账账户显示已刷新: $showTransferAccounts');
+      }
+
       logger.info('ConfigImport', 'Provider 状态刷新完成');
     } catch (e) {
       logger.error('ConfigImport', '刷新 Provider 状态失败: $e');
