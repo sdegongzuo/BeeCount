@@ -36,6 +36,9 @@ assets/config.json
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+.flutter_sdk/
+.appdata/
+.localappdata/
 .pub-cache/
 .pub/
 build/
