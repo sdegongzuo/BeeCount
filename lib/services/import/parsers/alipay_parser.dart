@@ -6,6 +6,29 @@ class AlipayBillParser extends GenericBillParser {
   String get name => 'Alipay';
 
   @override
+  Map<String, int> mapColumns(List<String> headerRow) {
+    final mapping = super.mapColumns(headerRow);
+
+    for (int i = 0; i < headerRow.length; i++) {
+      final header = headerRow[i].trim();
+      if (header == '交易对方') {
+        mapping['alipay_counterparty'] = i;
+        if (mapping['note'] == i) {
+          mapping.remove('note');
+        }
+      } else if (header == '对方账号') {
+        mapping['alipay_counterparty_account'] = i;
+      } else if (header == '收/付款方式') {
+        mapping['counterparty'] = i;
+      } else if (header == '商品说明') {
+        mapping.putIfAbsent('note', () => i);
+      }
+    }
+
+    return mapping;
+  }
+
+  @override
   int findHeaderRow(List<List<String>> rows) {
     if (rows.isEmpty) return -1;
 

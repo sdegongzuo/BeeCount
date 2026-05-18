@@ -6,6 +6,27 @@ class WechatBillParser extends GenericBillParser {
   String get name => 'WeChat';
 
   @override
+  Map<String, int> mapColumns(List<String> headerRow) {
+    final mapping = super.mapColumns(headerRow);
+
+    for (int i = 0; i < headerRow.length; i++) {
+      final header = headerRow[i].trim();
+      if (header == '交易对方') {
+        mapping['counterparty'] = i;
+        if (mapping['note'] == i) {
+          mapping.remove('note');
+        }
+      } else if (header == '支付方式') {
+        mapping['payment_method'] = i;
+      } else if (header == '商品') {
+        mapping.putIfAbsent('note', () => i);
+      }
+    }
+
+    return mapping;
+  }
+
+  @override
   int findHeaderRow(List<List<String>> rows) {
     if (rows.isEmpty) return -1;
 
