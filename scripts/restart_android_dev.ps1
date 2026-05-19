@@ -5,6 +5,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+[Console]::InputEncoding = $Utf8NoBom
+[Console]::OutputEncoding = $Utf8NoBom
+$OutputEncoding = $Utf8NoBom
+$PSDefaultParameterValues["Get-Content:Encoding"] = "utf8"
+$PSDefaultParameterValues["Set-Content:Encoding"] = "utf8"
+$PSDefaultParameterValues["Add-Content:Encoding"] = "utf8"
+
 $Root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $Flutter = "D:\dev\flutter\flutter\bin\flutter.bat"
 $Adb = "D:\app\Android\sdk\platform-tools\adb.exe"
