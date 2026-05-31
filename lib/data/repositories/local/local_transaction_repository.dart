@@ -41,7 +41,8 @@ class LocalTransactionRepository implements TransactionRepository {
     return (db.select(db.transactions)
           ..where((t) =>
               t.ledgerId.equals(ledgerId) &
-              t.happenedAt.isBiggerOrEqualValue(start) & t.happenedAt.isSmallerThanValue(end))
+              t.happenedAt.isBiggerOrEqualValue(start) &
+              t.happenedAt.isSmallerThanValue(end))
           ..orderBy([
             (t) => d.OrderingTerm(
                 expression: t.happenedAt, mode: d.OrderingMode.desc)
@@ -59,8 +60,7 @@ class LocalTransactionRepository implements TransactionRepository {
       select.where((t) => t.ledgerId.equals(ledgerId));
     }
     select.orderBy([
-      (t) => d.OrderingTerm(
-          expression: t.happenedAt, mode: d.OrderingMode.desc)
+      (t) => d.OrderingTerm(expression: t.happenedAt, mode: d.OrderingMode.desc)
     ]);
     final q = select.join([
       d.leftOuterJoin(db.categories,
@@ -85,7 +85,8 @@ class LocalTransactionRepository implements TransactionRepository {
     final q = (db.select(db.transactions)
           ..where((t) =>
               t.ledgerId.equals(ledgerId) &
-              t.happenedAt.isBiggerOrEqualValue(start) & t.happenedAt.isSmallerThanValue(end))
+              t.happenedAt.isBiggerOrEqualValue(start) &
+              t.happenedAt.isSmallerThanValue(end))
           ..orderBy([
             (t) => d.OrderingTerm(
                 expression: t.happenedAt, mode: d.OrderingMode.desc)
@@ -113,7 +114,8 @@ class LocalTransactionRepository implements TransactionRepository {
     final q = (db.select(db.transactions)
           ..where((t) =>
               t.ledgerId.equals(ledgerId) &
-              t.happenedAt.isBiggerOrEqualValue(start) & t.happenedAt.isSmallerThanValue(end))
+              t.happenedAt.isBiggerOrEqualValue(start) &
+              t.happenedAt.isSmallerThanValue(end))
           ..orderBy([
             (t) => d.OrderingTerm(
                 expression: t.happenedAt, mode: d.OrderingMode.desc)
@@ -143,7 +145,8 @@ class LocalTransactionRepository implements TransactionRepository {
           ..where((t) =>
               t.ledgerId.equals(ledgerId) &
               t.type.equals(type) &
-              t.happenedAt.isBiggerOrEqualValue(start) & t.happenedAt.isSmallerThanValue(end))
+              t.happenedAt.isBiggerOrEqualValue(start) &
+              t.happenedAt.isSmallerThanValue(end))
           ..orderBy([
             (t) => d.OrderingTerm(
                 expression: t.happenedAt, mode: d.OrderingMode.desc)
@@ -177,6 +180,8 @@ class LocalTransactionRepository implements TransactionRepository {
     int? toAccountId,
     required DateTime happenedAt,
     String? note,
+    dynamic paymentMethod,
+    dynamic counterparty,
     String? syncId,
   }) async {
     return db.into(db.transactions).insert(TransactionsCompanion.insert(
@@ -188,6 +193,8 @@ class LocalTransactionRepository implements TransactionRepository {
           toAccountId: d.Value(toAccountId),
           happenedAt: d.Value(happenedAt),
           note: d.Value(note),
+          paymentMethod: d.Value(paymentMethod),
+          counterparty: d.Value(counterparty),
           syncId: d.Value(syncId ?? _uuid.v4()),
         ));
   }
@@ -215,6 +222,8 @@ class LocalTransactionRepository implements TransactionRepository {
     required double amount,
     int? categoryId,
     String? note,
+    dynamic paymentMethod,
+    dynamic counterparty,
     DateTime? happenedAt,
     dynamic accountId,
   }) async {
@@ -227,6 +236,22 @@ class LocalTransactionRepository implements TransactionRepository {
     } else {
       accountIdValue = d.Value(accountId as int?);
     }
+    final d.Value<String?> paymentMethodValue;
+    if (paymentMethod == null) {
+      paymentMethodValue = const d.Value.absent();
+    } else if (paymentMethod is d.Value<String?>) {
+      paymentMethodValue = paymentMethod;
+    } else {
+      paymentMethodValue = d.Value(paymentMethod as String?);
+    }
+    final d.Value<String?> counterpartyValue;
+    if (counterparty == null) {
+      counterpartyValue = const d.Value.absent();
+    } else if (counterparty is d.Value<String?>) {
+      counterpartyValue = counterparty;
+    } else {
+      counterpartyValue = d.Value(counterparty as String?);
+    }
 
     await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
       TransactionsCompanion(
@@ -234,6 +259,8 @@ class LocalTransactionRepository implements TransactionRepository {
         amount: d.Value(amount),
         categoryId: d.Value(categoryId),
         note: d.Value(note),
+        paymentMethod: paymentMethodValue,
+        counterparty: counterpartyValue,
         happenedAt:
             happenedAt != null ? d.Value(happenedAt) : const d.Value.absent(),
         accountId: accountIdValue,
@@ -277,11 +304,13 @@ class LocalTransactionRepository implements TransactionRepository {
         final file = File('${attachmentDir.path}/${attachment.fileName}');
         if (await file.exists()) {
           await file.delete();
-          logger.debug('LocalTransactionRepository', '删除附件文件: ${attachment.fileName}');
+          logger.debug(
+              'LocalTransactionRepository', '删除附件文件: ${attachment.fileName}');
         }
 
         // 删除缩略图
-        final thumbName = '${path.basenameWithoutExtension(attachment.fileName)}_thumb.jpg';
+        final thumbName =
+            '${path.basenameWithoutExtension(attachment.fileName)}_thumb.jpg';
         final thumbFile = File('${thumbDir.path}/$thumbName');
         if (await thumbFile.exists()) {
           await thumbFile.delete();
@@ -293,7 +322,8 @@ class LocalTransactionRepository implements TransactionRepository {
             ..where((a) => a.transactionId.equals(transactionId)))
           .go();
 
-      logger.info('LocalTransactionRepository', '已删除交易 $transactionId 的 ${attachments.length} 个附件');
+      logger.info('LocalTransactionRepository',
+          '已删除交易 $transactionId 的 ${attachments.length} 个附件');
     } catch (e, stackTrace) {
       logger.error('LocalTransactionRepository', '删除交易附件失败', e, stackTrace);
       // 不抛出异常，继续删除交易
@@ -309,9 +339,10 @@ class LocalTransactionRepository implements TransactionRepository {
   @override
   Future<int> insertTransactionCompanion(TransactionsCompanion item) async {
     // 自动补上 syncId（如果未提供）
-    final effective = item.syncId == const d.Value.absent() || item.syncId.value == null
-        ? item.copyWith(syncId: d.Value(_uuid.v4()))
-        : item;
+    final effective =
+        item.syncId == const d.Value.absent() || item.syncId.value == null
+            ? item.copyWith(syncId: d.Value(_uuid.v4()))
+            : item;
     return await db.into(db.transactions).insert(effective);
   }
 
@@ -377,8 +408,8 @@ class LocalTransactionRepository implements TransactionRepository {
     return await (db.select(db.transactions)
           ..where((t) => t.ledgerId.equals(ledgerId))
           ..orderBy([
-            (t) =>
-                d.OrderingTerm(expression: t.happenedAt, mode: d.OrderingMode.desc)
+            (t) => d.OrderingTerm(
+                expression: t.happenedAt, mode: d.OrderingMode.desc)
           ]))
         .get();
   }
@@ -395,8 +426,8 @@ class LocalTransactionRepository implements TransactionRepository {
               t.happenedAt.isBiggerOrEqualValue(start) &
               t.happenedAt.isSmallerThanValue(end))
           ..orderBy([
-            (t) =>
-                d.OrderingTerm(expression: t.happenedAt, mode: d.OrderingMode.desc)
+            (t) => d.OrderingTerm(
+                expression: t.happenedAt, mode: d.OrderingMode.desc)
           ]))
         .get();
   }
@@ -422,8 +453,8 @@ class LocalTransactionRepository implements TransactionRepository {
     return await (db.select(db.transactions)
           ..where((t) => t.ledgerId.equals(ledgerId))
           ..orderBy([
-            (t) =>
-                d.OrderingTerm(expression: t.happenedAt, mode: d.OrderingMode.asc)
+            (t) => d.OrderingTerm(
+                expression: t.happenedAt, mode: d.OrderingMode.asc)
           ])
           ..limit(1))
         .getSingleOrNull();
@@ -434,8 +465,8 @@ class LocalTransactionRepository implements TransactionRepository {
     return await (db.select(db.transactions)
           ..where((t) => t.ledgerId.equals(ledgerId))
           ..orderBy([
-            (t) =>
-                d.OrderingTerm(expression: t.happenedAt, mode: d.OrderingMode.desc)
+            (t) => d.OrderingTerm(
+                expression: t.happenedAt, mode: d.OrderingMode.desc)
           ])
           ..limit(1))
         .getSingleOrNull();
@@ -486,7 +517,8 @@ class LocalTransactionRepository implements TransactionRepository {
 
     // 查看一条交易的 happened_at 值
     if (totalCount > 0) {
-      final sampleQuery = 'SELECT happened_at FROM transactions WHERE ledger_id = ? LIMIT 1';
+      final sampleQuery =
+          'SELECT happened_at FROM transactions WHERE ledger_id = ? LIMIT 1';
       final sample = await db.customSelect(
         sampleQuery,
         variables: [d.Variable.withInt(ledgerId)],
@@ -495,7 +527,8 @@ class LocalTransactionRepository implements TransactionRepository {
       print('🔍 样例 happened_at 值(int): $happenedAtValue');
 
       // 尝试转换为 DateTime 看看
-      final asDateTime = DateTime.fromMillisecondsSinceEpoch(happenedAtValue * 1000);
+      final asDateTime =
+          DateTime.fromMillisecondsSinceEpoch(happenedAtValue * 1000);
       print('🔍 转换为 DateTime (假设是秒): $asDateTime');
     }
 
@@ -540,13 +573,15 @@ class LocalTransactionRepository implements TransactionRepository {
   }
 
   @override
-  Future<List<({
-    Transaction t,
-    Category? category,
-    List<Tag> tags,
-    List<TransactionAttachment> attachments,
-    Account? account,
-  })>> getTransactionsByDate({
+  Future<
+      List<
+          ({
+            Transaction t,
+            Category? category,
+            List<Tag> tags,
+            List<TransactionAttachment> attachments,
+            Account? account,
+          })>> getTransactionsByDate({
     required int ledgerId,
     required DateTime date,
   }) async {
@@ -643,13 +678,15 @@ class LocalTransactionRepository implements TransactionRepository {
   }
 
   @override
-  Future<List<({
-    Transaction t,
-    Category? category,
-    List<Tag> tags,
-    List<TransactionAttachment> attachments,
-    Account? account,
-  })>> getTransactionsByDateRange({
+  Future<
+      List<
+          ({
+            Transaction t,
+            Category? category,
+            List<Tag> tags,
+            List<TransactionAttachment> attachments,
+            Account? account,
+          })>> getTransactionsByDateRange({
     required int ledgerId,
     required DateTime startDate,
     required DateTime endDate,
@@ -775,6 +812,8 @@ class LocalTransactionRepository implements TransactionRepository {
     int? toAccountId,
     required DateTime happenedAt,
     String? note,
+    String? paymentMethod,
+    String? counterparty,
   }) async {
     await (db.update(db.transactions)..where((t) => t.syncId.equals(syncId)))
         .write(TransactionsCompanion(
@@ -785,6 +824,8 @@ class LocalTransactionRepository implements TransactionRepository {
       toAccountId: d.Value(toAccountId),
       happenedAt: d.Value(happenedAt),
       note: d.Value(note),
+      paymentMethod: d.Value(paymentMethod),
+      counterparty: d.Value(counterparty),
     ));
   }
 
@@ -812,6 +853,8 @@ class LocalTransactionRepository implements TransactionRepository {
       accountId: accountId,
       happenedAt: happenedAt,
       note: note,
+      paymentMethod: null,
+      counterparty: null,
     );
   }
 }

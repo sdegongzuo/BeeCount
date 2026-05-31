@@ -3614,13 +3614,13 @@ abstract class AppLocalizations {
   /// No description provided for @appearanceShowTransferAccounts.
   ///
   /// In en, this message translates to:
-  /// **'Show Transfer Accounts'**
+  /// **'Show Payment Method and Counterparty'**
   String get appearanceShowTransferAccounts;
 
   /// No description provided for @appearanceShowTransferAccountsDesc.
   ///
   /// In en, this message translates to:
-  /// **'Display from/to accounts for transfer transactions'**
+  /// **'Display payment method and counterparty in the transaction list'**
   String get appearanceShowTransferAccountsDesc;
 
   /// No description provided for @appearanceColorScheme.
@@ -4626,6 +4626,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'To Account'**
   String get exportCsvHeaderToAccount;
+
+  /// No description provided for @exportCsvHeaderPaymentMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Method'**
+  String get exportCsvHeaderPaymentMethod;
+
+  /// No description provided for @exportCsvHeaderCounterparty.
+  ///
+  /// In en, this message translates to:
+  /// **'Counterparty'**
+  String get exportCsvHeaderCounterparty;
 
   /// No description provided for @exportCsvHeaderNote.
   ///
@@ -8641,6 +8653,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'To Account'**
   String get transferToAccount;
+
+  /// No description provided for @transactionPaymentMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Method'**
+  String get transactionPaymentMethod;
+
+  /// No description provided for @transactionCounterparty.
+  ///
+  /// In en, this message translates to:
+  /// **'Counterparty'**
+  String get transactionCounterparty;
+
+  /// No description provided for @transactionPaymentMethodShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay'**
+  String get transactionPaymentMethodShort;
+
+  /// No description provided for @transactionCounterpartyShort.
+  ///
+  /// In en, this message translates to:
+  /// **'With'**
+  String get transactionCounterpartyShort;
 
   /// No description provided for @transferSelectAccount.
   ///

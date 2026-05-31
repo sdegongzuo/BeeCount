@@ -87,7 +87,8 @@ class TransactionListState extends ConsumerState<TransactionList> {
   Set<int>? _preloadedIds;
   Set<int> get _preloadedIdSet {
     if (_preloadedIds == null && widget.transactionsWithDetails != null) {
-      _preloadedIds = widget.transactionsWithDetails!.map((t) => t.t.id).toSet();
+      _preloadedIds =
+          widget.transactionsWithDetails!.map((t) => t.t.id).toSet();
     }
     return _preloadedIds ?? {};
   }
@@ -162,7 +163,8 @@ class TransactionListState extends ConsumerState<TransactionList> {
     }
 
     final repo = ref.read(repositoryProvider);
-    final countsMap = await repo.getAttachmentCountsForTransactions(transactionIds);
+    final countsMap =
+        await repo.getAttachmentCountsForTransactions(transactionIds);
 
     if (mounted) {
       setState(() {
@@ -207,15 +209,6 @@ class TransactionListState extends ConsumerState<TransactionList> {
     final preloaded = _getPreloadedItem(transactionId);
     if (preloaded != null) {
       return preloaded.accountName;
-    }
-    return null;
-  }
-
-  /// 获取交易的目标账户名称（优先使用预加载数据，用于转账）
-  String? _getToAccountNameForTransaction(int transactionId) {
-    final preloaded = _getPreloadedItem(transactionId);
-    if (preloaded != null) {
-      return preloaded.toAccountName;
     }
     return null;
   }
@@ -333,10 +326,10 @@ class TransactionListState extends ConsumerState<TransactionList> {
     // 无数据时展示空状态
     if (_flatItems.isEmpty) {
       return widget.emptyWidget ??
-        AppEmpty(
-          text: AppLocalizations.of(context).commonEmpty,
-          subtext: AppLocalizations.of(context).homeNoRecords,
-        );
+          AppEmpty(
+            text: AppLocalizations.of(context).commonEmpty,
+            subtext: AppLocalizations.of(context).homeNoRecords,
+          );
     }
 
     // 使用FlutterListView渲染列表
@@ -387,12 +380,14 @@ class TransactionListState extends ConsumerState<TransactionList> {
             );
 
             // 如果启用可见性跟踪，则包装VisibilityDetector
-            if (widget.enableVisibilityTracking && widget.onDateVisibilityChanged != null) {
+            if (widget.enableVisibilityTracking &&
+                widget.onDateVisibilityChanged != null) {
               header = VisibilityDetector(
                 key: Key('header-$dateKey'),
                 onVisibilityChanged: (VisibilityInfo info) {
                   // 当可见比例大于50%时认为可见
-                  widget.onDateVisibilityChanged!(dateKey, info.visibleFraction > 0.5);
+                  widget.onDateVisibilityChanged!(
+                      dateKey, info.visibleFraction > 0.5);
                 },
                 child: header,
               );
@@ -402,11 +397,12 @@ class TransactionListState extends ConsumerState<TransactionList> {
           } else {
             // 渲染交易项
             final it = item.$2 as ({Transaction t, Category? category});
-            final allItemsInDay = item.$3 as List<({Transaction t, Category? category})>;
+            final allItemsInDay =
+                item.$3 as List<({Transaction t, Category? category})>;
             final isTransfer = it.t.type == 'transfer';
             final isExpense = it.t.type == 'expense';
             final isAdjustment = it.t.type == 'adjustment';
-            final showTransferAccounts = ref.watch(showTransferAccountsProvider);
+            final showPaymentMetadata = ref.watch(showTransferAccountsProvider);
 
             // 获取分类显示名称
             final categoryName = isAdjustment
@@ -418,26 +414,22 @@ class TransactionListState extends ConsumerState<TransactionList> {
             // 检查是否是当天最后一项
             final isLastInGroup = allItemsInDay.last.t.id == it.t.id;
 
-            // 获取账户名称（普通收支受账户功能开关影响；转账始终尝试读取账户名）
-            final accountFeatureEnabled = ref.watch(accountFeatureEnabledProvider).valueOrNull ?? true;
+            // 获取账户名称（普通收支受账户功能开关影响）
+            final accountFeatureEnabled =
+                ref.watch(accountFeatureEnabledProvider).valueOrNull ?? true;
             String? accountName;
-            String? toAccountName; // 转账目标账户名称
 
-            if ((accountFeatureEnabled || isTransfer) && it.t.accountId != null) {
+            if (accountFeatureEnabled &&
+                !isTransfer &&
+                it.t.accountId != null) {
               // 优先使用预加载的账户名称
               accountName = _getAccountNameForTransaction(it.t.id);
 
               // 预加载数据中找不到时，通过 Provider 获取（新记录的交易不在预加载缓存中）
               if (accountName == null) {
-                final accountAsync = ref.watch(accountByIdProvider(it.t.accountId!));
+                final accountAsync =
+                    ref.watch(accountByIdProvider(it.t.accountId!));
                 accountName = accountAsync.valueOrNull?.name;
-              }
-            }
-            if (isTransfer && it.t.toAccountId != null) {
-              toAccountName = _getToAccountNameForTransaction(it.t.id);
-              if (isTransfer && toAccountName == null && it.t.toAccountId != null) {
-                final toAccountAsync = ref.watch(accountByIdProvider(it.t.toAccountId!));
-                toAccountName = toAccountAsync.valueOrNull?.name;
               }
             }
 
@@ -454,7 +446,8 @@ class TransactionListState extends ConsumerState<TransactionList> {
                 return await AppDialog.confirm<bool>(
                       context,
                       title: AppLocalizations.of(context).deleteConfirmTitle,
-                      message: AppLocalizations.of(context).deleteConfirmMessage,
+                      message:
+                          AppLocalizations.of(context).deleteConfirmMessage,
                     ) ??
                     false;
               },
@@ -470,7 +463,8 @@ class TransactionListState extends ConsumerState<TransactionList> {
                 PostProcessor.sync(ref, ledgerId: curLedger);
 
                 if (context.mounted) {
-                  showToast(context, AppLocalizations.of(context).ledgersDeleted);
+                  showToast(
+                      context, AppLocalizations.of(context).ledgersDeleted);
                 }
               },
               child: Column(
@@ -483,37 +477,65 @@ class TransactionListState extends ConsumerState<TransactionList> {
                           .map((t) => (id: t.id, name: t.name, color: t.color))
                           .toList();
 
-                      // 转账账户信息
-                      final transferAccountInfo = showTransferAccounts
-                          ? '${AppLocalizations.of(context).transferFromAccount}: ${accountName ?? AppLocalizations.of(context).accountNone} · '
-                              '${AppLocalizations.of(context).transferToAccount}: ${toAccountName ?? AppLocalizations.of(context).accountNone}'
-                          : null;
+                      final l10n = AppLocalizations.of(context);
+
+                      // 兼容旧偏好键：原“显示转账账户”开关现在用于控制支付信息展示。
+                      String? paymentMetadata;
+                      if (showPaymentMetadata) {
+                        final paymentMethod = it.t.paymentMethod?.trim();
+                        final counterparty = it.t.counterparty?.trim();
+                        final paymentParts = <String>[
+                          if (paymentMethod != null && paymentMethod.isNotEmpty)
+                            '${l10n.transactionPaymentMethodShort}: $paymentMethod',
+                          if (counterparty != null && counterparty.isNotEmpty)
+                            '${l10n.transactionCounterpartyShort}: $counterparty',
+                        ];
+                        if (paymentParts.isNotEmpty) {
+                          paymentMetadata = paymentParts.join(' · ');
+                        }
+                      }
+
+                      final secondaryInfoParts = <String>[
+                        if (!isTransfer &&
+                            accountName != null &&
+                            accountName.isNotEmpty)
+                          accountName,
+                        if (paymentMetadata != null) paymentMetadata,
+                      ];
+                      final secondaryInfo = secondaryInfoParts.isEmpty
+                          ? null
+                          : secondaryInfoParts.join(' · ');
 
                       // 获取附件数量（优先使用预加载数据）
-                      final attachmentCount = _getAttachmentCountForTransaction(it.t.id);
+                      final attachmentCount =
+                          _getAttachmentCountForTransaction(it.t.id);
 
                       return TransactionListItem(
                         icon: isAdjustment
-                          ? Icons.tune
-                          : getCategoryIconData(category: it.category, categoryName: categoryName),
+                            ? Icons.tune
+                            : getCategoryIconData(
+                                category: it.category,
+                                categoryName: categoryName),
                         category: isAdjustment ? null : it.category,
                         title: isTransfer
-                          ? (subtitle.isNotEmpty ? subtitle : AppLocalizations.of(context).transferTitle)
-                          : isAdjustment
-                            ? categoryName
-                            : (subtitle.isNotEmpty ? subtitle : categoryName),
+                            ? (subtitle.isNotEmpty
+                                ? subtitle
+                                : AppLocalizations.of(context).transferTitle)
+                            : isAdjustment
+                                ? categoryName
+                                : (subtitle.isNotEmpty
+                                    ? subtitle
+                                    : categoryName),
                         categoryName: (isTransfer || isAdjustment)
-                          ? null
-                          : (subtitle.isNotEmpty ? null : categoryName),
+                            ? null
+                            : (subtitle.isNotEmpty ? null : categoryName),
                         amount: it.t.amount,
                         isExpense: isExpense,
                         isTransfer: isTransfer,
                         isAdjustment: isAdjustment,
                         hide: widget.hideAmounts,
                         happenedAt: it.t.happenedAt,
-                        accountName: isTransfer
-                          ? transferAccountInfo  // 转账始终在第三行显示账户信息
-                          : accountName,
+                        accountName: secondaryInfo,
                         tags: tagsList.isNotEmpty ? tagsList : null,
                         attachmentCount: attachmentCount,
                         onAttachmentTap: attachmentCount > 0
@@ -521,7 +543,8 @@ class TransactionListState extends ConsumerState<TransactionList> {
                                 switchToStreamMode(); // 用户交互，切换到 Stream 模式
                                 await Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (_) => AttachmentPreviewPage.fromTransaction(
+                                    builder: (_) =>
+                                        AttachmentPreviewPage.fromTransaction(
                                       transactionId: it.t.id,
                                     ),
                                   ),

@@ -66,9 +66,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
                     _buildLimitOptions(context),
                     const SizedBox(height: 12),
                     FilledButton.icon(
-                      onPressed: exporting
-                          ? null
-                          : () => _export(repo, ledgerId),
+                      onPressed:
+                          exporting ? null : () => _export(repo, ledgerId),
                       icon: const Icon(Icons.save_alt_outlined),
                       label: Text(
                         Platform.isIOS
@@ -226,9 +225,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
 
   Future<void> _pickDate({required bool isStart}) async {
     final now = DateTime.now();
-    final initialDate = isStart
-        ? (startDate ?? endDate ?? now)
-        : (endDate ?? startDate ?? now);
+    final initialDate =
+        isStart ? (startDate ?? endDate ?? now) : (endDate ?? startDate ?? now);
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -277,9 +275,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
       }
 
       // 获取交易和分类数据
-      var transactionsWithCategory = await repo
-          .transactionsWithCategoryAll(ledgerId: ledgerId)
-          .first;
+      var transactionsWithCategory =
+          await repo.transactionsWithCategoryAll(ledgerId: ledgerId).first;
       if (useDateRange) {
         final rangeStart = startDate == null
             ? null
@@ -310,6 +307,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
         l10n.exportCsvHeaderAccount,
         l10n.exportCsvHeaderFromAccount, // 转出账户
         l10n.exportCsvHeaderToAccount, // 转入账户
+        l10n.exportCsvHeaderPaymentMethod,
+        l10n.exportCsvHeaderCounterparty,
         l10n.exportCsvHeaderNote,
         l10n.exportCsvHeaderTime,
         l10n.exportCsvHeaderTags,
@@ -317,9 +316,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
       ]);
 
       // 批量获取所有交易的标签
-      final transactionIds = transactionsWithCategory
-          .map((tx) => tx.t.id)
-          .toList();
+      final transactionIds =
+          transactionsWithCategory.map((tx) => tx.t.id).toList();
       final tagsMap = await repo.getTagsForTransactions(transactionIds);
 
       // 批量获取所有交易的附件
@@ -410,9 +408,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
 
         // 获取该交易的附件，用逗号分隔文件名
         final transactionAttachments = attachmentsMap[t.id] ?? [];
-        final attachmentsStr = transactionAttachments
-            .map((a) => a.fileName)
-            .join(',');
+        final attachmentsStr =
+            transactionAttachments.map((a) => a.fileName).join(',');
 
         rows.add([
           typeStr,
@@ -422,6 +419,8 @@ class _ExportPageState extends ConsumerState<ExportPage> {
           accountName,
           fromAccountName,
           toAccountName,
+          t.paymentMethod ?? '',
+          t.counterparty ?? '',
           t.note ?? '',
           timeStr,
           tagsStr,

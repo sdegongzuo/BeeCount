@@ -38,6 +38,8 @@ class EntitySerializer {
       'amount': tx.amount,
       'happenedAt': tx.happenedAt.toUtc().toIso8601String(),
       'note': tx.note,
+      'paymentMethod': tx.paymentMethod,
+      'counterparty': tx.counterparty,
       if (ledgerSyncId != null && ledgerSyncId.isNotEmpty)
         'ledgerSyncId': ledgerSyncId,
       'categoryName': categoryName,
@@ -97,8 +99,10 @@ class EntitySerializer {
       'sortOrder': category.sortOrder,
       'icon': category.icon,
       'iconType': category.iconType,
-      if (category.customIconPath != null) 'customIconPath': category.customIconPath,
-      if (category.communityIconId != null) 'communityIconId': category.communityIconId,
+      if (category.customIconPath != null)
+        'customIconPath': category.customIconPath,
+      if (category.communityIconId != null)
+        'communityIconId': category.communityIconId,
       // 自定义图标上传到云后的引用，让 web 端能直接拉到对应文件。
       if (iconCloudFileId != null) 'iconCloudFileId': iconCloudFileId,
       if (iconCloudSha256 != null) 'iconCloudSha256': iconCloudSha256,

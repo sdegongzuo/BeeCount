@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
@@ -62,6 +63,7 @@ class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage> {
   late int _currentIndex;
   List<TransactionAttachment> _savedAttachments = [];
   List<File> _pendingFiles = [];
+  final Map<int, int> _savedFileSizes = {};
   bool _isLoading = true;
 
   /// 总项目数（已保存 + 待上传）
@@ -84,14 +86,18 @@ class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage> {
   Future<void> _loadAttachments() async {
     if (widget.attachments != null) {
       // 直接使用传入的附件列表
+      final attachments = List<TransactionAttachment>.from(widget.attachments!);
+      await _cacheSavedFileSizes(attachments);
+      if (!mounted) return;
       setState(() {
-        _savedAttachments = List.from(widget.attachments!);
+        _savedAttachments = attachments;
         _isLoading = false;
       });
     } else if (widget.transactionId != null) {
       // 从数据库加载附件
       final attachments = await ref
           .read(transactionAttachmentsProvider(widget.transactionId!).future);
+      await _cacheSavedFileSizes(attachments);
       if (mounted) {
         setState(() {
           _savedAttachments = List.from(attachments);
@@ -192,6 +198,7 @@ class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage> {
 
   Widget _buildTopBar(BuildContext context, AppLocalizations l10n) {
     final isSavedAttachment = _currentIndex < _savedAttachments.length;
+    final metaText = _currentImageMetaText();
 
     return Container(
       decoration: BoxDecoration(
@@ -215,13 +222,29 @@ class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage> {
                 icon: const Icon(Icons.close, color: Colors.white),
               ),
               const Spacer(),
-              // 页码
-              Text(
-                '${_currentIndex + 1} / $_totalCount',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                ),
+              // 页码和当前图片信息
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${_currentIndex + 1} / $_totalCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                  if (metaText.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      metaText,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.82),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const Spacer(),
               // 添加按钮
@@ -356,12 +379,82 @@ class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage> {
           decoration: BoxDecoration(
             color: isActive
                 ? Colors.white
-                : (isPending ? Colors.orange.withValues(alpha: 0.7) : Colors.white54),
+                : (isPending
+                    ? Colors.orange.withValues(alpha: 0.7)
+                    : Colors.white54),
             shape: BoxShape.circle,
           ),
         );
       }),
     );
+  }
+
+  Future<void> _cacheSavedFileSizes(
+      List<TransactionAttachment> attachments) async {
+    final service = ref.read(attachmentServiceProvider);
+
+    for (final attachment in attachments) {
+      if (attachment.fileSize != null) {
+        _savedFileSizes[attachment.id] = attachment.fileSize!;
+        continue;
+      }
+
+      try {
+        final filePath = await service.getAttachmentPath(attachment.fileName);
+        final file = File(filePath);
+        if (await file.exists()) {
+          _savedFileSizes[attachment.id] = await file.length();
+        }
+      } catch (_) {
+        // 元信息展示失败不影响图片预览。
+      }
+    }
+  }
+
+  String _currentImageMetaText() {
+    if (_currentIndex < _savedAttachments.length) {
+      final attachment = _savedAttachments[_currentIndex];
+      return _formatImageMeta(
+        attachment.fileName,
+        fileSize: _savedFileSizes[attachment.id] ?? attachment.fileSize,
+      );
+    }
+
+    final pendingIndex = _currentIndex - _savedAttachments.length;
+    if (pendingIndex < 0 || pendingIndex >= _pendingFiles.length) {
+      return '';
+    }
+
+    final file = _pendingFiles[pendingIndex];
+    return _formatImageMeta(
+      file.path,
+      fileSize: file.existsSync() ? file.lengthSync() : null,
+    );
+  }
+
+  String _formatImageMeta(String fileNameOrPath, {int? fileSize}) {
+    final parts = <String>[_formatImageType(fileNameOrPath)];
+    if (fileSize != null) {
+      parts.add(_formatFileSize(fileSize));
+    }
+    return parts.join(' · ');
+  }
+
+  String _formatImageType(String fileNameOrPath) {
+    final ext = p.extension(fileNameOrPath).replaceFirst('.', '').toUpperCase();
+    if (ext.isEmpty) return 'IMAGE';
+    return ext == 'JPG' ? 'JPEG' : ext;
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
   void _handleClose() {

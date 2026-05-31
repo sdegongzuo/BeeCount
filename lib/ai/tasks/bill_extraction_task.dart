@@ -39,6 +39,12 @@ class BillInfo {
   /// 账户名称
   final String? account;
 
+  /// 支付方式/付款方式
+  final String? paymentMethod;
+
+  /// 交易对方/收付款方
+  final String? counterparty;
+
   /// 转账来源账户名称（可选）
   final String? fromAccount;
 
@@ -61,6 +67,8 @@ class BillInfo {
     this.category,
     this.type,
     this.account,
+    this.paymentMethod,
+    this.counterparty,
     this.fromAccount,
     this.toAccount,
     this.tags,
@@ -79,7 +87,21 @@ class BillInfo {
       note: json['note'] ?? json['merchant'], // 兼容旧数据
       category: json['category'],
       type: json['type'] != null ? _parseBillType(json['type']) : null,
-      account: json['account'],
+      account: _parseString(json['account']),
+      paymentMethod: _parseString(
+        json['payment_method'] ??
+            json['paymentMethod'] ??
+            json['pay_method'] ??
+            json['payMethod'],
+      ),
+      counterparty: _parseString(
+            json['counterparty'] ??
+            json['trading_partner'] ??
+            json['tradingPartner'] ??
+            json['merchant_name'] ??
+            json['merchantName'] ??
+            json['merchant'],
+      ),
       fromAccount: json['from_account'] ?? json['fromAccount'],
       toAccount: json['to_account'] ?? json['toAccount'],
       tags: _parseTags(json['tags'] ?? json['tag']),
@@ -96,6 +118,8 @@ class BillInfo {
         'category': category,
         'type': type?.toString().split('.').last,
         'account': account,
+        'payment_method': paymentMethod,
+        'counterparty': counterparty,
         'from_account': fromAccount,
         'to_account': toAccount,
         'tags': tags,
@@ -112,6 +136,14 @@ class BillInfo {
       return BillType.transfer;
     }
     return null;
+  }
+
+  static String? _parseString(dynamic value) {
+    final str = value?.toString().trim();
+    if (str == null || str.isEmpty || str.toLowerCase() == 'null') {
+      return null;
+    }
+    return str;
   }
 
   static List<String>? _parseTags(dynamic value) {
@@ -135,7 +167,7 @@ class BillInfo {
 
   @override
   String toString() {
-    return 'BillInfo(amount: $amount, time: $time, note: $note, category: $category, type: $type, account: $account, fromAccount: $fromAccount, toAccount: $toAccount, tags: $tags)';
+    return 'BillInfo(amount: $amount, time: $time, note: $note, category: $category, type: $type, account: $account, paymentMethod: $paymentMethod, counterparty: $counterparty, fromAccount: $fromAccount, toAccount: $toAccount, tags: $tags)';
   }
 }
 

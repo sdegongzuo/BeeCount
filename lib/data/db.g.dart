@@ -1687,6 +1687,18 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
       'note', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _paymentMethodMeta =
+      const VerificationMeta('paymentMethod');
+  @override
+  late final GeneratedColumn<String> paymentMethod = GeneratedColumn<String>(
+      'payment_method', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _counterpartyMeta =
+      const VerificationMeta('counterparty');
+  @override
+  late final GeneratedColumn<String> counterparty = GeneratedColumn<String>(
+      'counterparty', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _recurringIdMeta =
       const VerificationMeta('recurringId');
   @override
@@ -1709,6 +1721,8 @@ class $TransactionsTable extends Transactions
         toAccountId,
         happenedAt,
         note,
+        paymentMethod,
+        counterparty,
         recurringId,
         syncId
       ];
@@ -1769,6 +1783,18 @@ class $TransactionsTable extends Transactions
       context.handle(
           _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
     }
+    if (data.containsKey('payment_method')) {
+      context.handle(
+          _paymentMethodMeta,
+          paymentMethod.isAcceptableOrUnknown(
+              data['payment_method']!, _paymentMethodMeta));
+    }
+    if (data.containsKey('counterparty')) {
+      context.handle(
+          _counterpartyMeta,
+          counterparty.isAcceptableOrUnknown(
+              data['counterparty']!, _counterpartyMeta));
+    }
     if (data.containsKey('recurring_id')) {
       context.handle(
           _recurringIdMeta,
@@ -1806,6 +1832,10 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.dateTime, data['${effectivePrefix}happened_at'])!,
       note: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      paymentMethod: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}payment_method']),
+      counterparty: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}counterparty']),
       recurringId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}recurring_id']),
       syncId: attachedDatabase.typeMapping
@@ -1829,6 +1859,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final int? toAccountId;
   final DateTime happenedAt;
   final String? note;
+  final String? paymentMethod;
+  final String? counterparty;
   final int? recurringId;
   final String? syncId;
   const Transaction(
@@ -1841,6 +1873,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.toAccountId,
       required this.happenedAt,
       this.note,
+      this.paymentMethod,
+      this.counterparty,
       this.recurringId,
       this.syncId});
   @override
@@ -1862,6 +1896,12 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     map['happened_at'] = Variable<DateTime>(happenedAt);
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || paymentMethod != null) {
+      map['payment_method'] = Variable<String>(paymentMethod);
+    }
+    if (!nullToAbsent || counterparty != null) {
+      map['counterparty'] = Variable<String>(counterparty);
     }
     if (!nullToAbsent || recurringId != null) {
       map['recurring_id'] = Variable<int>(recurringId);
@@ -1889,6 +1929,12 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           : Value(toAccountId),
       happenedAt: Value(happenedAt),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      paymentMethod: paymentMethod == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentMethod),
+      counterparty: counterparty == null && nullToAbsent
+          ? const Value.absent()
+          : Value(counterparty),
       recurringId: recurringId == null && nullToAbsent
           ? const Value.absent()
           : Value(recurringId),
@@ -1910,6 +1956,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       toAccountId: serializer.fromJson<int?>(json['toAccountId']),
       happenedAt: serializer.fromJson<DateTime>(json['happenedAt']),
       note: serializer.fromJson<String?>(json['note']),
+      paymentMethod: serializer.fromJson<String?>(json['paymentMethod']),
+      counterparty: serializer.fromJson<String?>(json['counterparty']),
       recurringId: serializer.fromJson<int?>(json['recurringId']),
       syncId: serializer.fromJson<String?>(json['syncId']),
     );
@@ -1927,6 +1975,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'toAccountId': serializer.toJson<int?>(toAccountId),
       'happenedAt': serializer.toJson<DateTime>(happenedAt),
       'note': serializer.toJson<String?>(note),
+      'paymentMethod': serializer.toJson<String?>(paymentMethod),
+      'counterparty': serializer.toJson<String?>(counterparty),
       'recurringId': serializer.toJson<int?>(recurringId),
       'syncId': serializer.toJson<String?>(syncId),
     };
@@ -1942,6 +1992,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<int?> toAccountId = const Value.absent(),
           DateTime? happenedAt,
           Value<String?> note = const Value.absent(),
+          Value<String?> paymentMethod = const Value.absent(),
+          Value<String?> counterparty = const Value.absent(),
           Value<int?> recurringId = const Value.absent(),
           Value<String?> syncId = const Value.absent()}) =>
       Transaction(
@@ -1954,6 +2006,10 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         toAccountId: toAccountId.present ? toAccountId.value : this.toAccountId,
         happenedAt: happenedAt ?? this.happenedAt,
         note: note.present ? note.value : this.note,
+        paymentMethod:
+            paymentMethod.present ? paymentMethod.value : this.paymentMethod,
+        counterparty:
+            counterparty.present ? counterparty.value : this.counterparty,
         recurringId: recurringId.present ? recurringId.value : this.recurringId,
         syncId: syncId.present ? syncId.value : this.syncId,
       );
@@ -1971,6 +2027,12 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       happenedAt:
           data.happenedAt.present ? data.happenedAt.value : this.happenedAt,
       note: data.note.present ? data.note.value : this.note,
+      paymentMethod: data.paymentMethod.present
+          ? data.paymentMethod.value
+          : this.paymentMethod,
+      counterparty: data.counterparty.present
+          ? data.counterparty.value
+          : this.counterparty,
       recurringId:
           data.recurringId.present ? data.recurringId.value : this.recurringId,
       syncId: data.syncId.present ? data.syncId.value : this.syncId,
@@ -1989,6 +2051,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('toAccountId: $toAccountId, ')
           ..write('happenedAt: $happenedAt, ')
           ..write('note: $note, ')
+          ..write('paymentMethod: $paymentMethod, ')
+          ..write('counterparty: $counterparty, ')
           ..write('recurringId: $recurringId, ')
           ..write('syncId: $syncId')
           ..write(')'))
@@ -1996,8 +2060,20 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   }
 
   @override
-  int get hashCode => Object.hash(id, ledgerId, type, amount, categoryId,
-      accountId, toAccountId, happenedAt, note, recurringId, syncId);
+  int get hashCode => Object.hash(
+      id,
+      ledgerId,
+      type,
+      amount,
+      categoryId,
+      accountId,
+      toAccountId,
+      happenedAt,
+      note,
+      paymentMethod,
+      counterparty,
+      recurringId,
+      syncId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2011,6 +2087,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.toAccountId == this.toAccountId &&
           other.happenedAt == this.happenedAt &&
           other.note == this.note &&
+          other.paymentMethod == this.paymentMethod &&
+          other.counterparty == this.counterparty &&
           other.recurringId == this.recurringId &&
           other.syncId == this.syncId);
 }
@@ -2025,6 +2103,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<int?> toAccountId;
   final Value<DateTime> happenedAt;
   final Value<String?> note;
+  final Value<String?> paymentMethod;
+  final Value<String?> counterparty;
   final Value<int?> recurringId;
   final Value<String?> syncId;
   const TransactionsCompanion({
@@ -2037,6 +2117,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.toAccountId = const Value.absent(),
     this.happenedAt = const Value.absent(),
     this.note = const Value.absent(),
+    this.paymentMethod = const Value.absent(),
+    this.counterparty = const Value.absent(),
     this.recurringId = const Value.absent(),
     this.syncId = const Value.absent(),
   });
@@ -2050,6 +2132,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.toAccountId = const Value.absent(),
     this.happenedAt = const Value.absent(),
     this.note = const Value.absent(),
+    this.paymentMethod = const Value.absent(),
+    this.counterparty = const Value.absent(),
     this.recurringId = const Value.absent(),
     this.syncId = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
@@ -2065,6 +2149,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<int>? toAccountId,
     Expression<DateTime>? happenedAt,
     Expression<String>? note,
+    Expression<String>? paymentMethod,
+    Expression<String>? counterparty,
     Expression<int>? recurringId,
     Expression<String>? syncId,
   }) {
@@ -2078,6 +2164,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (toAccountId != null) 'to_account_id': toAccountId,
       if (happenedAt != null) 'happened_at': happenedAt,
       if (note != null) 'note': note,
+      if (paymentMethod != null) 'payment_method': paymentMethod,
+      if (counterparty != null) 'counterparty': counterparty,
       if (recurringId != null) 'recurring_id': recurringId,
       if (syncId != null) 'sync_id': syncId,
     });
@@ -2093,6 +2181,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<int?>? toAccountId,
       Value<DateTime>? happenedAt,
       Value<String?>? note,
+      Value<String?>? paymentMethod,
+      Value<String?>? counterparty,
       Value<int?>? recurringId,
       Value<String?>? syncId}) {
     return TransactionsCompanion(
@@ -2105,6 +2195,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       toAccountId: toAccountId ?? this.toAccountId,
       happenedAt: happenedAt ?? this.happenedAt,
       note: note ?? this.note,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      counterparty: counterparty ?? this.counterparty,
       recurringId: recurringId ?? this.recurringId,
       syncId: syncId ?? this.syncId,
     );
@@ -2140,6 +2232,12 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
+    if (paymentMethod.present) {
+      map['payment_method'] = Variable<String>(paymentMethod.value);
+    }
+    if (counterparty.present) {
+      map['counterparty'] = Variable<String>(counterparty.value);
+    }
     if (recurringId.present) {
       map['recurring_id'] = Variable<int>(recurringId.value);
     }
@@ -2161,6 +2259,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('toAccountId: $toAccountId, ')
           ..write('happenedAt: $happenedAt, ')
           ..write('note: $note, ')
+          ..write('paymentMethod: $paymentMethod, ')
+          ..write('counterparty: $counterparty, ')
           ..write('recurringId: $recurringId, ')
           ..write('syncId: $syncId')
           ..write(')'))
@@ -7052,6 +7152,8 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<int?> toAccountId,
   Value<DateTime> happenedAt,
   Value<String?> note,
+  Value<String?> paymentMethod,
+  Value<String?> counterparty,
   Value<int?> recurringId,
   Value<String?> syncId,
 });
@@ -7066,6 +7168,8 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<int?> toAccountId,
   Value<DateTime> happenedAt,
   Value<String?> note,
+  Value<String?> paymentMethod,
+  Value<String?> counterparty,
   Value<int?> recurringId,
   Value<String?> syncId,
 });
@@ -7105,6 +7209,12 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get note => $composableBuilder(
       column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get paymentMethod => $composableBuilder(
+      column: $table.paymentMethod, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get counterparty => $composableBuilder(
+      column: $table.counterparty, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get recurringId => $composableBuilder(
       column: $table.recurringId, builder: (column) => ColumnFilters(column));
@@ -7149,6 +7259,14 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<String> get note => $composableBuilder(
       column: $table.note, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get paymentMethod => $composableBuilder(
+      column: $table.paymentMethod,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get counterparty => $composableBuilder(
+      column: $table.counterparty,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get recurringId => $composableBuilder(
       column: $table.recurringId, builder: (column) => ColumnOrderings(column));
 
@@ -7192,6 +7310,12 @@ class $$TransactionsTableAnnotationComposer
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
 
+  GeneratedColumn<String> get paymentMethod => $composableBuilder(
+      column: $table.paymentMethod, builder: (column) => column);
+
+  GeneratedColumn<String> get counterparty => $composableBuilder(
+      column: $table.counterparty, builder: (column) => column);
+
   GeneratedColumn<int> get recurringId => $composableBuilder(
       column: $table.recurringId, builder: (column) => column);
 
@@ -7234,6 +7358,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<int?> toAccountId = const Value.absent(),
             Value<DateTime> happenedAt = const Value.absent(),
             Value<String?> note = const Value.absent(),
+            Value<String?> paymentMethod = const Value.absent(),
+            Value<String?> counterparty = const Value.absent(),
             Value<int?> recurringId = const Value.absent(),
             Value<String?> syncId = const Value.absent(),
           }) =>
@@ -7247,6 +7373,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             toAccountId: toAccountId,
             happenedAt: happenedAt,
             note: note,
+            paymentMethod: paymentMethod,
+            counterparty: counterparty,
             recurringId: recurringId,
             syncId: syncId,
           ),
@@ -7260,6 +7388,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<int?> toAccountId = const Value.absent(),
             Value<DateTime> happenedAt = const Value.absent(),
             Value<String?> note = const Value.absent(),
+            Value<String?> paymentMethod = const Value.absent(),
+            Value<String?> counterparty = const Value.absent(),
             Value<int?> recurringId = const Value.absent(),
             Value<String?> syncId = const Value.absent(),
           }) =>
@@ -7273,6 +7403,8 @@ class $$TransactionsTableTableManager extends RootTableManager<
             toAccountId: toAccountId,
             happenedAt: happenedAt,
             note: note,
+            paymentMethod: paymentMethod,
+            counterparty: counterparty,
             recurringId: recurringId,
             syncId: syncId,
           ),

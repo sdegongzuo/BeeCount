@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' as d;
 
 import '../../data/db.dart';
 import '../../providers.dart';
@@ -32,6 +33,12 @@ class TransferForm extends ConsumerStatefulWidget {
   /// 初始备注（可选）
   final String? initialNote;
 
+  /// 初始支付方式（可选）
+  final String? initialPaymentMethod;
+
+  /// 初始交易对方（可选）
+  final String? initialCounterparty;
+
   /// 初始日期（可选）
   final DateTime? initialDate;
 
@@ -46,6 +53,8 @@ class TransferForm extends ConsumerStatefulWidget {
     this.editingTransactionId,
     this.initialAmount,
     this.initialNote,
+    this.initialPaymentMethod,
+    this.initialCounterparty,
     this.initialDate,
     this.initialTagIds,
   });
@@ -119,6 +128,8 @@ class _TransferFormState extends ConsumerState<TransferForm> {
         initialDate: widget.initialDate ?? DateTime.now(),
         initialAmount: widget.initialAmount,
         initialNote: widget.initialNote,
+        initialPaymentMethod: widget.initialPaymentMethod,
+        initialCounterparty: widget.initialCounterparty,
         initialAccountId: _fromAccountId,
         initialToAccountId: _toAccountId,
         initialTagIds: widget.initialTagIds,
@@ -144,7 +155,8 @@ class _TransferFormState extends ConsumerState<TransferForm> {
           _toAccountId = toAccountId;
 
           // 获取虚拟转账分类ID
-          final transferCategory = await ref.read(transferCategoryProvider.future);
+          final transferCategory =
+              await ref.read(transferCategoryProvider.future);
           final transferCategoryId = transferCategory.id;
 
           try {
@@ -156,6 +168,8 @@ class _TransferFormState extends ConsumerState<TransferForm> {
                 amount: result.amount,
                 categoryId: transferCategoryId, // 使用虚拟转账分类ID
                 note: result.note,
+                paymentMethod: d.Value(result.paymentMethod),
+                counterparty: d.Value(result.counterparty),
                 happenedAt: result.date,
                 accountId: fromAccountId,
               );
@@ -174,7 +188,8 @@ class _TransferFormState extends ConsumerState<TransferForm> {
                 ref.read(tagListRefreshProvider.notifier).state++;
               } else {
                 // 编辑模式：如果没有选择标签，清除原有标签
-                await repo.removeAllTagsFromTransaction(widget.editingTransactionId!);
+                await repo
+                    .removeAllTagsFromTransaction(widget.editingTransactionId!);
                 ref.read(tagListRefreshProvider.notifier).state++;
               }
 
@@ -209,6 +224,8 @@ class _TransferFormState extends ConsumerState<TransferForm> {
                 accountId: fromAccountId,
                 toAccountId: toAccountId,
                 note: result.note,
+                paymentMethod: result.paymentMethod,
+                counterparty: result.counterparty,
                 happenedAt: result.date,
               );
 
@@ -274,7 +291,9 @@ class _TransferFormState extends ConsumerState<TransferForm> {
       data: (allAccounts) {
         // 只显示与当前账本同币种的可交易账户
         final accounts = allAccounts
-            .where((account) => account.currency == currentCurrency && isTradableType(account.type))
+            .where((account) =>
+                account.currency == currentCurrency &&
+                isTradableType(account.type))
             .toList();
 
         if (accounts.isEmpty) {
@@ -292,13 +311,15 @@ class _TransferFormState extends ConsumerState<TransferForm> {
                   ElevatedButton.icon(
                     onPressed: () => _createQuickAccount(isFrom: true),
                     icon: const Icon(Icons.add),
-                    label: Text('${l10n.accountNewTitle} - ${l10n.transferFromAccount}'),
+                    label: Text(
+                        '${l10n.accountNewTitle} - ${l10n.transferFromAccount}'),
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
                     onPressed: () => _createQuickAccount(isFrom: false),
                     icon: const Icon(Icons.add),
-                    label: Text('${l10n.accountNewTitle} - ${l10n.transferToAccount}'),
+                    label: Text(
+                        '${l10n.accountNewTitle} - ${l10n.transferToAccount}'),
                   ),
                 ],
               ),
@@ -384,9 +405,8 @@ class _TransferFormState extends ConsumerState<TransferForm> {
           return _buildCreateAccountCard(isFrom, primary);
         }
         final account = accounts[index];
-        final isSelected = isFrom
-            ? _fromAccountId == account.id
-            : _toAccountId == account.id;
+        final isSelected =
+            isFrom ? _fromAccountId == account.id : _toAccountId == account.id;
 
         return _buildAccountCard(account, isSelected, isFrom, primary);
       },
@@ -472,12 +492,13 @@ class _TransferFormState extends ConsumerState<TransferForm> {
                         if (!formKey.currentState!.validate()) return;
                         setDialogState(() => saving = true);
                         try {
-                          final id = await ref.read(repositoryProvider).createAccount(
-                                ledgerId: ref.read(currentLedgerIdProvider),
-                                name: controller.text.trim(),
-                                type: 'cash',
-                                currency: currency,
-                              );
+                          final id =
+                              await ref.read(repositoryProvider).createAccount(
+                                    ledgerId: ref.read(currentLedgerIdProvider),
+                                    name: controller.text.trim(),
+                                    type: 'cash',
+                                    currency: currency,
+                                  );
                           PostProcessor.sync(
                             ref,
                             ledgerId: ref.read(currentLedgerIdProvider),
@@ -583,5 +604,4 @@ class _TransferFormState extends ConsumerState<TransferForm> {
       ),
     );
   }
-
 }

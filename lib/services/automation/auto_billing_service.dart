@@ -415,6 +415,8 @@ class AutoBillingService {
         rawText: ocrResult.rawText,
         allNumbers: ocrResult.allNumbers,
         suggestedCategoryId: suggestedCategoryId,
+        paymentMethod: ocrResult.paymentMethod,
+        counterparty: ocrResult.counterparty,
       );
 
       // 创建交易记录
@@ -499,7 +501,7 @@ class AutoBillingService {
           print('✅ 从数据库获取默认账本ID: $ledgerId');
           // 保存到SharedPreferences供下次使用
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setInt(_ledgerIdKey, ledgerId!);
+          await prefs.setInt(_ledgerIdKey, ledgerId);
         }
       }
 

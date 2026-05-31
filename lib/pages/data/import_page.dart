@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -59,8 +61,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                       const SizedBox(height: 16),
                       // 账单类型选择器
                       Text(AppLocalizations.of(context)!.importBillType,
-                          style:
-                              TextStyle(fontSize: 14, color: BeeTokens.textSecondary(context))),
+                          style: TextStyle(
+                              fontSize: 14,
+                              color: BeeTokens.textSecondary(context))),
                       const SizedBox(height: 8),
                       CapsuleSwitcher<BillSourceType>(
                         selectedValue: _billType,
@@ -111,7 +114,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                       const Spacer(),
                       if (_picked == null)
                         Text(AppLocalizations.of(context)!.importHint,
-                            style: TextStyle(color: BeeTokens.textTertiary(context))),
+                            style: TextStyle(
+                                color: BeeTokens.textTertiary(context))),
                     ],
                   ),
                 ),
@@ -187,7 +191,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         type: FileType.custom,
         allowedExtensions: ['csv', 'tsv', 'txt', 'xlsx'],
         allowMultiple: false,
-        withData: true, // iOS 模拟器/沙盒下读取 bytes
+        // Android 会先把选择的文件缓存到 app cache。withData=true 会再把整份
+        // CSV 通过 platform channel 传回 Dart，大文件容易在确认页前耗尽内存。
+        withData: Platform.isIOS, // iOS 模拟器/沙盒下读取 bytes
       );
       if (!context.mounted) return;
       if (res != null && res.files.isNotEmpty) {

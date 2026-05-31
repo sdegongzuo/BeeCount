@@ -100,7 +100,9 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         title: l10n.appearanceDarkModePattern,
                         subtitle: patternDisplay,
                         enabled: isDark,
-                        onTap: isDark ? () => _showPatternStyleDialog(context, ref, l10n) : null,
+                        onTap: isDark
+                            ? () => _showPatternStyleDialog(context, ref, l10n)
+                            : null,
                       ),
                       BeeTokens.cardDivider(context),
                       // 金额显示格式
@@ -110,7 +112,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         subtitle: ref.watch(compactAmountProvider)
                             ? l10n.appearanceAmountFormatCompact
                             : l10n.appearanceAmountFormatFull,
-                        onTap: () => _showAmountFormatDialog(context, ref, l10n),
+                        onTap: () =>
+                            _showAmountFormatDialog(context, ref, l10n),
                       ),
                       BeeTokens.cardDivider(context),
                       // 显示交易时间
@@ -121,31 +124,39 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         trailing: Switch.adaptive(
                           value: ref.watch(showTransactionTimeProvider),
                           onChanged: (value) {
-                            ref.read(showTransactionTimeProvider.notifier).state = value;
+                            ref
+                                .read(showTransactionTimeProvider.notifier)
+                                .state = value;
                           },
                           activeColor: ref.watch(primaryColorProvider),
                         ),
                         onTap: () {
                           final current = ref.read(showTransactionTimeProvider);
-                          ref.read(showTransactionTimeProvider.notifier).state = !current;
+                          ref.read(showTransactionTimeProvider.notifier).state =
+                              !current;
                         },
                       ),
                       BeeTokens.cardDivider(context),
-                      // 显示转账账户
+                      // 显示支付方式和交易对方
                       AppListTile(
-                        leading: Icons.swap_horiz_outlined,
+                        leading: Icons.receipt_long_outlined,
                         title: l10n.appearanceShowTransferAccounts,
                         subtitle: l10n.appearanceShowTransferAccountsDesc,
                         trailing: Switch.adaptive(
                           value: ref.watch(showTransferAccountsProvider),
                           onChanged: (value) {
-                            ref.read(showTransferAccountsProvider.notifier).state = value;
+                            ref
+                                .read(showTransferAccountsProvider.notifier)
+                                .state = value;
                           },
                           activeColor: ref.watch(primaryColorProvider),
                         ),
                         onTap: () {
-                          final current = ref.read(showTransferAccountsProvider);
-                          ref.read(showTransferAccountsProvider.notifier).state = !current;
+                          final current =
+                              ref.read(showTransferAccountsProvider);
+                          ref
+                              .read(showTransferAccountsProvider.notifier)
+                              .state = !current;
                         },
                       ),
                       BeeTokens.cardDivider(context),
@@ -173,7 +184,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         subtitle: l10n.widgetManagementDesc,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const WidgetManagementPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const WidgetManagementPage()),
                           );
                         },
                       ),
@@ -184,7 +196,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         title: l10n.minePersonalize,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const PersonalizePage()),
+                            MaterialPageRoute(
+                                builder: (_) => const PersonalizePage()),
                           );
                         },
                       ),
@@ -196,7 +209,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         subtitle: l10n.mineDisplayScaleSubtitle,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const FontSettingsPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const FontSettingsPage()),
                           );
                         },
                       ),
@@ -208,7 +222,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
                         subtitle: languageDisplay,
                         onTap: () async {
                           await Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const LanguageSettingsPage()),
+                            MaterialPageRoute(
+                                builder: (_) => const LanguageSettingsPage()),
                           );
                         },
                       ),
@@ -224,7 +239,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
   }
 
   /// 显示主题模式选择对话框
-  void _showThemeModeDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  void _showThemeModeDialog(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     final currentMode = ref.read(themeModeProvider);
 
     showDialog(
@@ -239,21 +255,24 @@ class AppearanceSettingsPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildModeOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceThemeModeSystem,
               value: ThemeMode.system,
               currentValue: currentMode,
               icon: Icons.settings_suggest_outlined,
             ),
             _buildModeOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceThemeModeLight,
               value: ThemeMode.light,
               currentValue: currentMode,
               icon: Icons.light_mode_outlined,
             ),
             _buildModeOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceThemeModeDark,
               value: ThemeMode.dark,
               currentValue: currentMode,
@@ -288,9 +307,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
-      trailing: isSelected
-          ? Icon(Icons.check, color: primaryColor)
-          : null,
+      trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
       onTap: () {
         ref.read(themeModeProvider.notifier).state = value;
         Navigator.pop(context);
@@ -299,7 +316,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
   }
 
   /// 显示图案样式选择对话框
-  void _showPatternStyleDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  void _showPatternStyleDialog(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     final currentPattern = ref.read(darkModePatternStyleProvider);
 
     showDialog(
@@ -314,28 +332,32 @@ class AppearanceSettingsPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildPatternOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearancePatternNone,
               value: 'none',
               currentValue: currentPattern,
               icon: Icons.block_outlined,
             ),
             _buildPatternOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearancePatternIcons,
               value: 'icons',
               currentValue: currentPattern,
               icon: Icons.grid_view_outlined,
             ),
             _buildPatternOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearancePatternParticles,
               value: 'particles',
               currentValue: currentPattern,
               icon: Icons.auto_awesome_outlined,
             ),
             _buildPatternOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearancePatternHoneycomb,
               value: 'honeycomb',
               currentValue: currentPattern,
@@ -370,9 +392,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
-      trailing: isSelected
-          ? Icon(Icons.check, color: primaryColor)
-          : null,
+      trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
       onTap: () {
         ref.read(darkModePatternStyleProvider.notifier).state = value;
         Navigator.pop(context);
@@ -381,7 +401,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
   }
 
   /// 显示金额显示格式选择对话框
-  void _showAmountFormatDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  void _showAmountFormatDialog(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     final isCompact = ref.read(compactAmountProvider);
 
     showDialog(
@@ -396,7 +417,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildAmountFormatOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceAmountFormatFull,
               subtitle: l10n.appearanceAmountFormatFullDesc,
               value: false,
@@ -404,7 +426,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
               icon: Icons.format_list_numbered_outlined,
             ),
             _buildAmountFormatOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceAmountFormatCompact,
               subtitle: l10n.appearanceAmountFormatCompactDesc,
               value: true,
@@ -448,9 +471,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
           fontSize: 12,
         ),
       ),
-      trailing: isSelected
-          ? Icon(Icons.check, color: primaryColor)
-          : null,
+      trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
       onTap: () {
         ref.read(compactAmountProvider.notifier).state = value;
         Navigator.pop(context);
@@ -459,7 +480,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
   }
 
   /// 显示收支颜色方案选择对话框
-  void _showColorSchemeDialog(BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  void _showColorSchemeDialog(
+      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
     final currentScheme = ref.read(incomeExpenseColorSchemeProvider);
 
     showDialog(
@@ -474,7 +496,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _buildColorSchemeOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceColorSchemeOn,
               subtitle: l10n.appearanceColorSchemeOnDesc,
               value: true,
@@ -482,7 +505,8 @@ class AppearanceSettingsPage extends ConsumerWidget {
               icon: Icons.trending_up,
             ),
             _buildColorSchemeOption(
-              context, ref,
+              context,
+              ref,
               title: l10n.appearanceColorSchemeOff,
               subtitle: l10n.appearanceColorSchemeOffDesc,
               value: false,
@@ -526,9 +550,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
           fontSize: 12,
         ),
       ),
-      trailing: isSelected
-          ? Icon(Icons.check, color: primaryColor)
-          : null,
+      trailing: isSelected ? Icon(Icons.check, color: primaryColor) : null,
       onTap: () {
         ref.read(incomeExpenseColorSchemeProvider.notifier).state = value;
         Navigator.pop(context);

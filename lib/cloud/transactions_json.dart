@@ -140,9 +140,10 @@ Future<String> exportTransactionsJson(BeeDatabase db, int ledgerId) async {
 
     // 记录分类缺失的交易（用于排查数据问题）
     if (t.categoryId != null && catInfo == null) {
-      logger.warning('TransactionsJson',
-        '交易 ${t.id} 引用了不存在的分类 ${t.categoryId}, '
-        'amount=${t.amount}, note=${t.note}, happenedAt=${t.happenedAt}');
+      logger.warning(
+          'TransactionsJson',
+          '交易 ${t.id} 引用了不存在的分类 ${t.categoryId}, '
+              'amount=${t.amount}, note=${t.note}, happenedAt=${t.happenedAt}');
     }
 
     final item = <String, dynamic>{
@@ -152,6 +153,10 @@ Future<String> exportTransactionsJson(BeeDatabase db, int ledgerId) async {
       'categoryKind': catInfo?['kind'],
       'happenedAt': t.happenedAt.toUtc().toIso8601String(),
       'note': _sanitizeString(t.note),
+      if (t.paymentMethod != null && t.paymentMethod!.trim().isNotEmpty)
+        'paymentMethod': _sanitizeString(t.paymentMethod),
+      if (t.counterparty != null && t.counterparty!.trim().isNotEmpty)
+        'counterparty': _sanitizeString(t.counterparty),
       if (t.syncId != null) 'syncId': t.syncId,
     };
 
@@ -181,7 +186,8 @@ Future<String> exportTransactionsJson(BeeDatabase db, int ledgerId) async {
   }).toList();
 
   // v1.20.0: 导出附件元数据
-  final attachmentsMap = <int, List<Map<String, dynamic>>>{}; // transactionId -> attachments
+  final attachmentsMap =
+      <int, List<Map<String, dynamic>>>{}; // transactionId -> attachments
   if (txIds.isNotEmpty) {
     final allAttachments = await (db.select(db.transactionAttachments)
           ..where((a) => a.transactionId.isIn(txIds)))
@@ -292,7 +298,8 @@ Future<String> exportTransactionsJson(BeeDatabase db, int ledgerId) async {
     'items': items,
   };
 
-  logger.debug('TransactionsJson', '导出完成: ${items.length} 条交易, ${categoryItems.length} 个分类');
+  logger.debug('TransactionsJson',
+      '导出完成: ${items.length} 条交易, ${categoryItems.length} 个分类');
   return jsonEncode(payload);
 }
 
@@ -356,7 +363,11 @@ ImportData parseJsonToImportData(String jsonStr) {
       List<String>? tagNames;
       final tagsStr = it['tags'] as String?;
       if (tagsStr != null && tagsStr.trim().isNotEmpty) {
-        tagNames = tagsStr.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+        tagNames = tagsStr
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
       }
 
       // 解析附件元数据
@@ -385,10 +396,14 @@ ImportData parseJsonToImportData(String jsonStr) {
         categoryKind: it['categoryKind'] as String?,
         happenedAt: DateTime.parse(it['happenedAt'] as String).toLocal(),
         note: it['note'] as String?,
+        paymentMethod: it['paymentMethod'] as String?,
+        counterparty: it['counterparty'] as String?,
         // 账户信息：转账用 fromAccountName/toAccountName，其他用 accountName
         accountName: type != 'transfer' ? it['accountName'] as String? : null,
-        fromAccountName: type == 'transfer' ? it['fromAccountName'] as String? : null,
-        toAccountName: type == 'transfer' ? it['toAccountName'] as String? : null,
+        fromAccountName:
+            type == 'transfer' ? it['fromAccountName'] as String? : null,
+        toAccountName:
+            type == 'transfer' ? it['toAccountName'] as String? : null,
         tagNames: tagNames,
         attachments: attachments,
         syncId: it['syncId'] as String?,

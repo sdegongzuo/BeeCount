@@ -137,6 +137,8 @@ class AIChatService {
         category: billInfo.category,
         type: billInfo.type,
         account: billInfo.account,
+        paymentMethod: billInfo.paymentMethod,
+        counterparty: billInfo.counterparty,
         fromAccount: billInfo.fromAccount,
         toAccount: billInfo.toAccount,
         tags: billInfo.tags,
@@ -158,6 +160,8 @@ class AIChatService {
         category: actualCategory ?? billInfo.category,
         type: billInfo.type,
         account: actualAccount ?? billInfo.account,
+        paymentMethod: billInfo.paymentMethod,
+        counterparty: billInfo.counterparty,
         fromAccount: billInfo.fromAccount,
         toAccount: billInfo.toAccount,
         tags: billInfo.tags,
@@ -259,6 +263,8 @@ class AIChatService {
       aiCategoryName: bill.category,
       aiAccountName: aiAccountName,
       aiType: transactionType,
+      paymentMethod: bill.paymentMethod,
+      counterparty: bill.counterparty,
     );
 
     // 读取智能记账设置

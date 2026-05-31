@@ -202,14 +202,17 @@ class BillExtractionService {
 4. category: 从分类列表选择（转账可填"转账"）
 5. type: income、expense 或 transfer
 6. account: 支付账户（收入/支出可用）
-7. from_account: 转出账户（仅转账可用）
-8. to_account: 转入账户（仅转账可用）
-9. tag/tags: 标签（可选，单个字符串或字符串数组）
+7. payment_method: 支付方式/付款方式（可选，如"中国银行信用卡(2853)"、"微信支付"、"支付宝"；只从截图或文本中提取，不要凭空生成）
+8. counterparty: 交易对方/收付款方（可选，如收款方、付款方、商户全称、对方账户；尽量保留完整名称）
+9. from_account: 转出账户（仅转账可用）
+10. to_account: 转入账户（仅转账可用）
+11. tag/tags: 标签（可选，单个字符串或字符串数组）
 
 示例：
 输入"昨天中午吃饭50" → {"amount":-50,"time":"2025-11-24T12:00:00","category":"餐饮","type":"expense"}
 输入"早上在天津海河测试餐厅甲买咖啡30" → {"amount":-30,"time":"{{CURRENT_DATE}}T09:00:00","note":"天津海河测试餐厅甲","category":"咖啡","type":"expense"}
 输入"商品:2025春季新款黑色半身裙 金额:￥299" → {"amount":-299,"note":"黑色半身裙","category":"服装","type":"expense"}
+输入"向天津津门测试餐厅乙付款25.21 支付方式:中国银行信用卡(2853)" → {"amount":-25.21,"note":"天津津门测试餐厅乙","counterparty":"天津津门测试餐厅乙","payment_method":"中国银行信用卡(2853)","category":"餐饮","type":"expense"}
 输入"从建行转800到零钱包" → {"amount":800,"category":"转账","type":"transfer","from_account":"建行","to_account":"零钱包","tag":"自己"}
 
 注意：只返回JSON，尽量推断时间不要返回null，note必须≤15字（长标题要精简）''';
@@ -237,13 +240,28 @@ class BillExtractionService {
         : defaultPromptTemplate;
 
     // 替换变量
-    return template
+    final prompt = template
         .replaceAll('{{INPUT_SOURCE}}', inputSource)
         .replaceAll('{{CURRENT_TIME}}', currentTime)
         .replaceAll('{{CURRENT_DATE}}', currentDate)
         .replaceAll('{{OCR_TEXT}}', ocrText)
         .replaceAll('{{CATEGORIES}}', categoryHint)
         .replaceAll('{{ACCOUNTS}}', accountHint);
+
+    return _ensureMetadataFieldsPrompt(prompt);
+  }
+
+  String _ensureMetadataFieldsPrompt(String prompt) {
+    if (prompt.contains('payment_method') && prompt.contains('counterparty')) {
+      return prompt;
+    }
+
+    return '''$prompt
+
+补充字段要求：
+- payment_method: 支付方式/付款方式（可选，如"中国银行信用卡(2853)"、"微信支付"、"支付宝"；只从截图或文本中提取，不要凭空生成）
+- counterparty: 交易对方/收付款方（可选，如收款方、付款方、商户全称、对方账户；尽量保留完整名称）
+如果能识别，请在JSON中返回 payment_method 和 counterparty；不能确定则省略或返回null。''';
   }
 
   /// 构建分类提示

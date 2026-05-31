@@ -18,6 +18,8 @@ class OcrResult {
   final String? aiCategoryName; // AI识别的分类名称
   final String? aiType; // AI识别的类型 (income/expense/transfer)
   final String? aiAccountName; // AI识别的账户名称
+  final String? paymentMethod; // 支付方式/付款方式
+  final String? counterparty; // 交易对方/收付款方
   final String? aiProvider; // AI提供商（用于日志）
   final bool aiEnhanced; // 是否经过AI增强
 
@@ -31,6 +33,8 @@ class OcrResult {
     this.aiCategoryName,
     this.aiType,
     this.aiAccountName,
+    this.paymentMethod,
+    this.counterparty,
     this.aiProvider,
     this.aiEnhanced = false,
   });
@@ -44,6 +48,8 @@ class OcrResult {
     String? aiCategoryName,
     String? aiType,
     String? aiAccountName,
+    String? paymentMethod,
+    String? counterparty,
     String? aiProvider,
   }) {
     return OcrResult(
@@ -56,6 +62,8 @@ class OcrResult {
       aiCategoryName: aiCategoryName ?? this.aiCategoryName,
       aiType: aiType ?? this.aiType,
       aiAccountName: aiAccountName ?? this.aiAccountName,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      counterparty: counterparty ?? this.counterparty,
       aiProvider: aiProvider,
       aiEnhanced: true,
     );
@@ -242,13 +250,17 @@ class OcrService {
         final mergedAmount = billInfo.amount ?? baseResult.amount;
         final mergedNote = billInfo.note ?? baseResult.note;
         final mergedAccount = billInfo.account;
+        final mergedPaymentMethod =
+            billInfo.paymentMethod ?? baseResult.paymentMethod;
+        final mergedCounterparty =
+            billInfo.counterparty ?? baseResult.counterparty;
 
         final mergedTime = billInfo.time ?? baseResult.time;
 
         final typeText = billInfo.type?.toString().split('.').last ?? '未知';
         final timeStr = mergedTime?.toString().substring(0, 16) ?? '无';
         logger.info(_tag,
-            '[AI增强] ${aiDuration.inMilliseconds}ms | $typeText 金额:$mergedAmount 备注:$mergedNote 分类:${billInfo.category ?? "无"} 账户:${mergedAccount ?? "无"} 时间:$timeStr');
+            '[AI增强] ${aiDuration.inMilliseconds}ms | $typeText 金额:$mergedAmount 备注:$mergedNote 分类:${billInfo.category ?? "无"} 账户:${mergedAccount ?? "无"} 支付方式:${mergedPaymentMethod ?? "无"} 交易对方:${mergedCounterparty ?? "无"} 时间:$timeStr');
 
         return baseResult.copyWithAI(
           amount: mergedAmount,
@@ -257,6 +269,8 @@ class OcrService {
           aiCategoryName: billInfo.category,
           aiType: typeText,
           aiAccountName: mergedAccount,
+          paymentMethod: mergedPaymentMethod,
+          counterparty: mergedCounterparty,
           aiProvider: 'AI',
         );
       } else {

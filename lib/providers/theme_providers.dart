@@ -77,7 +77,10 @@ final primaryColorInitProvider = FutureProvider<void>((ref) async {
     ref.read(primaryColorProvider.notifier).state = Color(saved);
   }
   ref.listen<Color>(primaryColorProvider, (prev, next) async {
-    final colorValue = (next.a * 255).toInt() << 24 | (next.r * 255).toInt() << 16 | (next.g * 255).toInt() << 8 | (next.b * 255).toInt();
+    final colorValue = (next.a * 255).toInt() << 24 |
+        (next.r * 255).toInt() << 16 |
+        (next.g * 255).toInt() << 8 |
+        (next.b * 255).toInt();
     await prefs.setInt('primaryColor', colorValue);
     // Update widget with new theme color
     try {
@@ -104,8 +107,7 @@ final primaryColorInitProvider = FutureProvider<void>((ref) async {
         if (cloudProvider == null) return;
         final hex = _colorToHex(next);
         await cloudProvider.updateMyProfileThemeColor(hex: hex);
-        logger.info(
-            'theme_providers', 'primary color pushed to server: $hex');
+        logger.info('theme_providers', 'primary color pushed to server: $hex');
       } catch (e) {
         logger.warning(
             'theme_providers', 'push primary color failed (non-blocking): $e');
@@ -181,12 +183,13 @@ final showTransactionTimeInitProvider = FutureProvider<void>((ref) async {
   });
 });
 
-// 显示转账账户Provider（默认显示）
-// false = 转账明细不显示转出/转入账户
-// true = 转账明细显示转出/转入账户
+// 显示支付方式和交易对方 Provider（默认显示）
+// 兼容旧偏好键 showTransferAccounts / show_transfer_accounts。
+// false = 账单列表不显示支付方式/交易对方
+// true = 账单列表显示支付方式/交易对方
 final showTransferAccountsProvider = StateProvider<bool>((ref) => true);
 
-// 显示转账账户持久化初始化
+// 显示支付方式和交易对方持久化初始化
 final showTransferAccountsInitProvider = FutureProvider<void>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   final saved = prefs.getBool('showTransferAccounts');
@@ -232,11 +235,11 @@ void _pushAppearanceToCloud(Ref ref) {
         'show_transfer_accounts': ref.read(showTransferAccountsProvider),
       };
       await cloudProvider.updateMyProfileAppearance(appearance: appearance);
-      logger.info('theme_providers',
-          'pushed appearance to server: $appearance');
+      logger.info(
+          'theme_providers', 'pushed appearance to server: $appearance');
     } catch (e, st) {
-      logger.warning('theme_providers',
-          'push appearance failed (non-blocking): $e', st);
+      logger.warning(
+          'theme_providers', 'push appearance failed (non-blocking): $e', st);
     }
   }());
 }

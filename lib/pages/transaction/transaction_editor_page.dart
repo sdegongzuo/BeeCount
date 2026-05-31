@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:drift/drift.dart' as d;
 
 import '../../l10n/app_localizations.dart';
 import '../../providers.dart';
@@ -22,6 +23,8 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
   final bool quickAdd;
   final int? initialCategoryId;
   final String? initialNote; // 用于金额输入弹窗回填备注
+  final String? initialPaymentMethod;
+  final String? initialCounterparty;
   final double? initialAmount;
   final DateTime? initialDate;
   final int? editingTransactionId;
@@ -35,6 +38,8 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
     this.quickAdd = false,
     this.initialCategoryId,
     this.initialNote,
+    this.initialPaymentMethod,
+    this.initialCounterparty,
     this.initialAmount,
     this.initialDate,
     this.editingTransactionId,
@@ -44,7 +49,8 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<TransactionEditorPage> createState() => _TransactionEditorPageState();
+  ConsumerState<TransactionEditorPage> createState() =>
+      _TransactionEditorPageState();
 }
 
 class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
@@ -67,7 +73,9 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
 
     // 若需要自动打开金额输入，则在首帧后查询分类并触发
     // 注意：转账类型不走这个逻辑
-    if (widget.quickAdd && widget.initialCategoryId != null && widget.initialKind != 'transfer') {
+    if (widget.quickAdd &&
+        widget.initialCategoryId != null &&
+        widget.initialKind != 'transfer') {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted || _autoOpened) return;
         final repo = ref.read(repositoryProvider);
@@ -108,16 +116,24 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                             controller: _tab,
                             isScrollable: false,
                             labelColor: BeeTokens.textPrimary(context),
-                            unselectedLabelColor: BeeTokens.textSecondary(context),
+                            unselectedLabelColor:
+                                BeeTokens.textSecondary(context),
                             indicator: UnderlineTabIndicator(
-                              borderSide:
-                                  BorderSide(width: 2, color: BeeTokens.textPrimary(context)),
+                              borderSide: BorderSide(
+                                  width: 2,
+                                  color: BeeTokens.textPrimary(context)),
                               insets: const EdgeInsets.symmetric(horizontal: 0),
                             ),
                             tabs: [
-                              Tab(text: AppLocalizations.of(context)!.categoryExpense),
-                              Tab(text: AppLocalizations.of(context)!.categoryIncome),
-                              Tab(text: AppLocalizations.of(context)!.transferTitle),
+                              Tab(
+                                  text: AppLocalizations.of(context)!
+                                      .categoryExpense),
+                              Tab(
+                                  text: AppLocalizations.of(context)!
+                                      .categoryIncome),
+                              Tab(
+                                  text: AppLocalizations.of(context)!
+                                      .transferTitle),
                             ],
                           ),
                         ),
@@ -125,7 +141,8 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                       TextButton(
                         onPressed: () => Navigator.pop(context),
                         child: Text(AppLocalizations.of(context)!.commonCancel,
-                            style: TextStyle(color: BeeTokens.textPrimary(context))),
+                            style: TextStyle(
+                                color: BeeTokens.textPrimary(context))),
                       )
                     ],
                   ),
@@ -139,12 +156,14 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               children: [
                 CategorySelector(
                   kind: 'expense',
-                  onCategorySelected: (c) => _onCategorySelected(context, c, 'expense'),
+                  onCategorySelected: (c) =>
+                      _onCategorySelected(context, c, 'expense'),
                   initialCategoryId: widget.initialCategoryId,
                 ),
                 CategorySelector(
                   kind: 'income',
-                  onCategorySelected: (c) => _onCategorySelected(context, c, 'income'),
+                  onCategorySelected: (c) =>
+                      _onCategorySelected(context, c, 'income'),
                   initialCategoryId: widget.initialCategoryId,
                 ),
                 TransferForm(
@@ -157,6 +176,8 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   editingTransactionId: widget.editingTransactionId,
                   initialAmount: widget.initialAmount,
                   initialNote: widget.initialNote,
+                  initialPaymentMethod: widget.initialPaymentMethod,
+                  initialCounterparty: widget.initialCounterparty,
                   initialDate: widget.initialDate,
                   initialTagIds: widget.initialTagIds,
                 ),
@@ -183,7 +204,8 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
       if (ledger == null) return null;
 
       // 3. 获取默认账户信息
-      final account = await ref.read(accountByIdProvider(defaultAccountId).future);
+      final account =
+          await ref.read(accountByIdProvider(defaultAccountId).future);
       if (account == null) return null;
 
       // 4. 验证币种匹配
@@ -195,7 +217,8 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
     }
   }
 
-  Future<void> _onCategorySelected(BuildContext context, Category c, String kind) async {
+  Future<void> _onCategorySelected(
+      BuildContext context, Category c, String kind) async {
     if (!widget.quickAdd) {
       Navigator.pop(context, c);
       return;
@@ -204,7 +227,8 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
 
     // 确定初始账户ID（新建时使用默认账户，编辑时保持原值）
     int? initialAccountId = widget.initialAccountId;
-    if (widget.editingTransactionId == null && widget.initialAccountId == null) {
+    if (widget.editingTransactionId == null &&
+        widget.initialAccountId == null) {
       // 新建模式：尝试获取默认账户
       initialAccountId = await _getDefaultAccountId(kind, ledgerId);
     }
@@ -221,6 +245,8 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         initialDate: widget.initialDate ?? DateTime.now(),
         initialAmount: widget.initialAmount,
         initialNote: widget.initialNote,
+        initialPaymentMethod: widget.initialPaymentMethod,
+        initialCounterparty: widget.initialCounterparty,
         initialAccountId: initialAccountId,
         initialTagIds: widget.initialTagIds,
         showAccountPicker: true,
@@ -238,6 +264,8 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               amount: res.amount,
               categoryId: c.id,
               note: res.note,
+              paymentMethod: d.Value(res.paymentMethod),
+              counterparty: d.Value(res.counterparty),
               happenedAt: res.date,
               accountId: res.accountId,
             );
@@ -250,6 +278,8 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               categoryId: c.id,
               happenedAt: res.date,
               note: res.note,
+              paymentMethod: res.paymentMethod,
+              counterparty: res.counterparty,
               accountId: res.accountId,
             );
           }
@@ -289,8 +319,12 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
             updateAppWidget(ref, context);
           }
           // 先关闭页面，再播放反馈
-          if (ctx.mounted && Navigator.of(ctx).canPop()) Navigator.of(ctx).pop();
-          if (context.mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
+          if (ctx.mounted && Navigator.of(ctx).canPop()) {
+            Navigator.of(ctx).pop();
+          }
+          if (context.mounted && Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
           // 反馈：轻微触感 + 系统点击音
           HapticFeedback.lightImpact();
           SystemSound.play(SystemSoundType.click);

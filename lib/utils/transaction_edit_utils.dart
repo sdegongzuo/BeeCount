@@ -28,6 +28,8 @@ class TransactionEditUtils {
           initialAmount: transaction.amount,
           initialDate: transaction.happenedAt,
           initialNote: transaction.note,
+          initialPaymentMethod: transaction.paymentMethod,
+          initialCounterparty: transaction.counterparty,
           editingTransactionId: transaction.id,
           initialAccountId: transaction.accountId,
           // 转账特有的参数

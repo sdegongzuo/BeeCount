@@ -409,6 +409,8 @@ class BillCreationService {
       toAccountId: toAccountId,
       happenedAt: happenedAt,
       note: finalNote,
+      paymentMethod: result.paymentMethod,
+      counterparty: result.counterparty,
     );
 
     // 10. 自动添加标签（记账方式标签 + AI识别标签）
@@ -429,6 +431,8 @@ class BillCreationService {
     final categoryStr = categoryName ?? '未设置';
     final accountStr = accountName ?? '未设置';
     final noteStr = finalNote ?? '无';
+    final paymentMethodStr = result.paymentMethod ?? '无';
+    final counterpartyStr = result.counterparty ?? '无';
     final allTagSources = <String>[
       ...?billingTypes,
       ...?customTagNames,
@@ -436,7 +440,7 @@ class BillCreationService {
     final tagsStr = allTagSources.isNotEmpty ? allTagSources.join(',') : '无';
 
     logger.info(_tag,
-        '[自动记账] 成功 | ID:$transactionId | $finalAmount元 | $typeStr | 分类:$categoryStr | 账户:$accountStr | 时间:$timeStr | 备注:$noteStr | 标签:$tagsStr');
+        '[自动记账] 成功 | ID:$transactionId | $finalAmount元 | $typeStr | 分类:$categoryStr | 账户:$accountStr | 时间:$timeStr | 备注:$noteStr | 支付方式:$paymentMethodStr | 交易对方:$counterpartyStr | 标签:$tagsStr');
 
     return transactionId;
   }

@@ -362,6 +362,8 @@ class _VoiceRecordingDialogState extends ConsumerState<_VoiceRecordingDialog> {
         aiCategoryName: billInfo.category,
         aiType: billInfo.type?.toString().split('.').last,
         aiAccountName: billInfo.account,
+        paymentMethod: billInfo.paymentMethod,
+        counterparty: billInfo.counterparty,
         aiProvider: 'glm',
         aiEnhanced: true,
       );

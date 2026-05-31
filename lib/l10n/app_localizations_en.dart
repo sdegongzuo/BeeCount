@@ -1976,11 +1976,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Display time in transaction list, allow time selection when editing';
 
   @override
-  String get appearanceShowTransferAccounts => 'Show Transfer Accounts';
+  String get appearanceShowTransferAccounts =>
+      'Show Payment Method and Counterparty';
 
   @override
   String get appearanceShowTransferAccountsDesc =>
-      'Display from/to accounts for transfer transactions';
+      'Display payment method and counterparty in the transaction list';
 
   @override
   String get appearanceColorScheme => 'Income/Expense Color Scheme';
@@ -2532,6 +2533,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exportCsvHeaderToAccount => 'To Account';
+
+  @override
+  String get exportCsvHeaderPaymentMethod => 'Payment Method';
+
+  @override
+  String get exportCsvHeaderCounterparty => 'Counterparty';
 
   @override
   String get exportCsvHeaderNote => 'Note';
@@ -4758,6 +4765,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get transferToAccount => 'To Account';
+
+  @override
+  String get transactionPaymentMethod => 'Payment Method';
+
+  @override
+  String get transactionCounterparty => 'Counterparty';
+
+  @override
+  String get transactionPaymentMethodShort => 'Pay';
+
+  @override
+  String get transactionCounterpartyShort => 'With';
 
   @override
   String get transferSelectAccount => 'Select Account';

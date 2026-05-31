@@ -117,6 +117,26 @@ class BillCardWidget extends ConsumerWidget {
                 billInfo.account!,
               ),
             ],
+            if (billInfo.paymentMethod != null &&
+                billInfo.paymentMethod!.isNotEmpty) ...[
+              SizedBox(height: 8.0.scaled(context, ref)),
+              _buildInfoRow(
+                context,
+                ref,
+                AppLocalizations.of(context).transactionPaymentMethod,
+                billInfo.paymentMethod!,
+              ),
+            ],
+            if (billInfo.counterparty != null &&
+                billInfo.counterparty!.isNotEmpty) ...[
+              SizedBox(height: 8.0.scaled(context, ref)),
+              _buildInfoRow(
+                context,
+                ref,
+                AppLocalizations.of(context).transactionCounterparty,
+                billInfo.counterparty!,
+              ),
+            ],
 
             SizedBox(height: 16.0.scaled(context, ref)),
 

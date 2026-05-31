@@ -1914,10 +1914,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceShowTransactionTimeDesc => '在账单列表显示时分，编辑时可选择时间';
 
   @override
-  String get appearanceShowTransferAccounts => '显示转账账户';
+  String get appearanceShowTransferAccounts => '显示支付方式和交易对方';
 
   @override
-  String get appearanceShowTransferAccountsDesc => '在转账明细中显示转出账户和转入账户';
+  String get appearanceShowTransferAccountsDesc => '在账单列表显示支付方式和交易对方';
 
   @override
   String get appearanceColorScheme => '收支颜色方案';
@@ -2449,6 +2449,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get exportCsvHeaderToAccount => '转入账户';
+
+  @override
+  String get exportCsvHeaderPaymentMethod => '支付方式';
+
+  @override
+  String get exportCsvHeaderCounterparty => '交易对方';
 
   @override
   String get exportCsvHeaderNote => '备注';
@@ -4572,6 +4578,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get transferToAccount => '转入账户';
+
+  @override
+  String get transactionPaymentMethod => '支付方式';
+
+  @override
+  String get transactionCounterparty => '交易对方';
+
+  @override
+  String get transactionPaymentMethodShort => '方式';
+
+  @override
+  String get transactionCounterpartyShort => '对方';
 
   @override
   String get transferSelectAccount => '选择账户';
@@ -8133,10 +8151,10 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get appearanceShowTransactionTimeDesc => '在帳單列表顯示時分，編輯時可選擇時間';
 
   @override
-  String get appearanceShowTransferAccounts => '顯示轉帳帳戶';
+  String get appearanceShowTransferAccounts => '顯示支付方式和交易對方';
 
   @override
-  String get appearanceShowTransferAccountsDesc => '在轉帳明細中顯示轉出帳戶和轉入帳戶';
+  String get appearanceShowTransferAccountsDesc => '在帳單列表顯示支付方式和交易對方';
 
   @override
   String get appearanceColorScheme => '收支顏色方案';
@@ -8668,6 +8686,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get exportCsvHeaderToAccount => '轉入帳戶';
+
+  @override
+  String get exportCsvHeaderPaymentMethod => '支付方式';
+
+  @override
+  String get exportCsvHeaderCounterparty => '交易對方';
 
   @override
   String get exportCsvHeaderNote => '備註';
@@ -10791,6 +10815,18 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get transferToAccount => '轉入帳戶';
+
+  @override
+  String get transactionPaymentMethod => '支付方式';
+
+  @override
+  String get transactionCounterparty => '交易對方';
+
+  @override
+  String get transactionPaymentMethodShort => '方式';
+
+  @override
+  String get transactionCounterpartyShort => '對方';
 
   @override
   String get transferSelectAccount => '選擇帳戶';

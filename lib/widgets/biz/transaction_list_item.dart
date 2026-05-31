@@ -39,31 +39,30 @@ class TransactionListItem extends ConsumerWidget {
   final VoidCallback? onAttachmentTap; // 点击附件图标回调
 
   const TransactionListItem({
-      super.key,
-      required this.icon,
-      this.category,
-      required this.title,
-      required this.amount,
-      required this.isExpense,
-      this.isTransfer = false,
-      this.isAdjustment = false,
-      this.hide,
-      this.onTap,
-      this.onCategoryTap,
-      this.categoryName,
-      this.onDelete,
-      this.accountName,
-      this.happenedAt,
-      this.isSelectionMode = false,
-      this.isSelected = false,
-      this.onSelectionChanged,
-      this.showFullDate = false,
-      this.tags,
-      this.onTagTap,
-      this.attachmentCount = 0,
-      this.onAttachmentTap,
+    super.key,
+    required this.icon,
+    this.category,
+    required this.title,
+    required this.amount,
+    required this.isExpense,
+    this.isTransfer = false,
+    this.isAdjustment = false,
+    this.hide,
+    this.onTap,
+    this.onCategoryTap,
+    this.categoryName,
+    this.onDelete,
+    this.accountName,
+    this.happenedAt,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onSelectionChanged,
+    this.showFullDate = false,
+    this.tags,
+    this.onTagTap,
+    this.attachmentCount = 0,
+    this.onAttachmentTap,
   });
-
 
   /// 检查是否有次要信息需要显示（时间、账户或附件）
   bool _hasSecondaryInfo(WidgetRef ref) {
@@ -73,7 +72,9 @@ class TransactionListItem extends ConsumerWidget {
     // 显示时间（设置开启 + 有数据 + 不是00:00:00）
     final showTime = ref.watch(showTransactionTimeProvider) &&
         happenedAt != null &&
-        (happenedAt!.hour != 0 || happenedAt!.minute != 0 || happenedAt!.second != 0);
+        (happenedAt!.hour != 0 ||
+            happenedAt!.minute != 0 ||
+            happenedAt!.second != 0);
 
     return showTime || accountName != null || attachmentCount > 0;
   }
@@ -91,7 +92,9 @@ class TransactionListItem extends ConsumerWidget {
           '${happenedAt!.hour.toString().padLeft(2, '0')}:${happenedAt!.minute.toString().padLeft(2, '0')}',
         );
       } else if (ref.watch(showTransactionTimeProvider) &&
-          (happenedAt!.hour != 0 || happenedAt!.minute != 0 || happenedAt!.second != 0)) {
+          (happenedAt!.hour != 0 ||
+              happenedAt!.minute != 0 ||
+              happenedAt!.second != 0)) {
         // 完整时间模式（HH:mm:ss）
         parts.add(
           '${happenedAt!.hour.toString().padLeft(2, '0')}:${happenedAt!.minute.toString().padLeft(2, '0')}:${happenedAt!.second.toString().padLeft(2, '0')}',
@@ -105,9 +108,9 @@ class TransactionListItem extends ConsumerWidget {
     }
 
     final textStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
-      color: BeeTokens.textTertiary(context),
-      fontSize: 11,
-    );
+          color: BeeTokens.textTertiary(context),
+          fontSize: 11,
+        );
 
     // 构建附件图标部件（可点击）
     Widget buildAttachmentWidget() {
@@ -143,9 +146,15 @@ class TransactionListItem extends ConsumerWidget {
 
     // 有其他信息时
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(parts.join(' · '), style: textStyle),
+        Flexible(
+          child: Text(
+            parts.join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textStyle,
+          ),
+        ),
         if (attachmentCount > 0) ...[
           Text(' · ', style: textStyle),
           buildAttachmentWidget(),
@@ -215,9 +224,10 @@ class TransactionListItem extends ConsumerWidget {
                           title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: BeeTokens.textSecondary(context),
-                          ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: BeeTokens.textSecondary(context),
+                                  ),
                         ),
                       ),
                     // 第三行：时间 · 账户 · 附件
@@ -240,7 +250,9 @@ class TransactionListItem extends ConsumerWidget {
                 AmountText(
                     value: isAdjustment
                         ? amount // adjustment 直接显示原始值（含正负）
-                        : isExpense ? -amount : amount,
+                        : isExpense
+                            ? -amount
+                            : amount,
                     hide: hide,
                     signed: !isTransfer, // 转账不显示正负号
                     decimals: 2,
@@ -292,10 +304,11 @@ class TransactionListItem extends ConsumerWidget {
         confirmDismiss: (direction) async {
           // 显示确认对话框
           return await AppDialog.confirm<bool>(
-            context,
-            title: '确认删除',
-            message: '确定要删除这笔交易吗？此操作无法撤销。',
-          ) ?? false;
+                context,
+                title: '确认删除',
+                message: '确定要删除这笔交易吗？此操作无法撤销。',
+              ) ??
+              false;
         },
         onDismissed: (direction) {
           onDelete!();

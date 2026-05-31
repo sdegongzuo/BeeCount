@@ -846,6 +846,8 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
               initialAmount: transaction.amount,
               initialDate: transaction.happenedAt,
               initialNote: transaction.note,
+              initialPaymentMethod: transaction.paymentMethod,
+              initialCounterparty: transaction.counterparty,
               editingTransactionId: transaction.id,
               initialAccountId: transaction.accountId,
               initialToAccountId: transaction.toAccountId,
@@ -907,6 +909,8 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
                 ? BillType.transfer
                 : BillType.income),
         account: accountName,
+        paymentMethod: transaction.paymentMethod,
+        counterparty: transaction.counterparty,
         ledgerId: transaction.ledgerId,
         confidence: 1.0,
       );
