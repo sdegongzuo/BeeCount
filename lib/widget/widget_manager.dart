@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +11,11 @@ class WidgetManager {
   factory WidgetManager() => _instance;
   WidgetManager._internal();
 
+  static const Duration _minAutomaticUpdateInterval = Duration(minutes: 1);
+
+  DateTime? _lastAutomaticUpdateAt;
+  bool _isUpdating = false;
+
   final NumberFormat _currencyFormat = NumberFormat.currency(
     locale: 'zh_CN',
     symbol: '¥',
@@ -17,7 +23,7 @@ class WidgetManager {
   );
 
   /// Update widget with latest transaction data for a specific ledger
-  Future<void> updateWidget(
+  Future<bool> updateWidget(
     BaseRepository repository,
     int ledgerId,
     Color themeColor, {
@@ -28,9 +34,32 @@ class WidgetManager {
     String todayIncomeLabel = '今日收入',
     String monthExpenseLabel = '本月支出',
     String monthIncomeLabel = '本月收入',
+    bool force = false,
   }) async {
+    if (kDebugMode && Platform.isAndroid && !force) {
+      print('[Widget] Android debug 模式跳过自动小组件渲染');
+      return false;
+    }
+
+    if (_isUpdating) {
+      print('[Widget] 已有更新任务在运行，跳过本次更新');
+      return false;
+    }
+
+    final updateStartedAt = DateTime.now();
+    final lastAutomaticUpdateAt = _lastAutomaticUpdateAt;
+    if (!force &&
+        lastAutomaticUpdateAt != null &&
+        updateStartedAt.difference(lastAutomaticUpdateAt) <
+            _minAutomaticUpdateInterval) {
+      print('[Widget] 自动更新过于频繁，跳过本次更新');
+      return false;
+    }
+
+    _lastAutomaticUpdateAt = updateStartedAt;
+    _isUpdating = true;
     try {
-      final now = DateTime.now();
+      final now = updateStartedAt;
       final today = DateTime(now.year, now.month, now.day);
       final tomorrow = today.add(const Duration(days: 1));
       final monthStart = DateTime(now.year, now.month, 1);
@@ -86,11 +115,13 @@ class WidgetManager {
       // iOS uses 364x169 (2.15:1), Android needs 2:1 ratio
       // For Android, we'll render at 364x169 then add padding to make it 364x182 (2:1)
       final widgetSize = Platform.isIOS
-          ? const Size(364, 169)  // iOS systemMedium
+          ? const Size(364, 169) // iOS systemMedium
           : const Size(364, 182); // Android 2:1 ratio (364/2=182)
 
-      print('📱 Widget rendering - Platform: ${Platform.isIOS ? "iOS" : "Android"}, Size: ${widgetSize.width}x${widgetSize.height}, Ratio: ${(widgetSize.width / widgetSize.height).toStringAsFixed(2)}:1');
+      print(
+          '📱 Widget rendering - Platform: ${Platform.isIOS ? "iOS" : "Android"}, Size: ${widgetSize.width}x${widgetSize.height}, Ratio: ${(widgetSize.width / widgetSize.height).toStringAsFixed(2)}:1');
 
+      final pixelRatio = kDebugMode && Platform.isAndroid ? 2.0 : 4.0;
       print('🎨 开始渲染小组件...');
       await HomeWidget.renderFlutterWidget(
         HomeWidgetView(
@@ -111,7 +142,7 @@ class WidgetManager {
         ),
         key: 'widgetImage',
         logicalSize: widgetSize,
-        pixelRatio: 4.0, // @4x for high resolution
+        pixelRatio: pixelRatio,
       );
       print('✅ 小组件渲染完成');
 
@@ -126,8 +157,12 @@ class WidgetManager {
         iOSName: 'BeeCountWidget',
       );
       print('✅ 小组件更新命令已发送');
+      return true;
     } catch (e) {
       print('[Widget] 更新失败: $e');
+      return false;
+    } finally {
+      _isUpdating = false;
     }
   }
 

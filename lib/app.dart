@@ -55,6 +55,8 @@ class _BeeAppState extends ConsumerState<BeeApp>
   // 双击返回退出：记录最后一次返回键按下时间
   DateTime? _lastBackPressTime;
 
+  Timer? _resumeWidgetUpdateTimer;
+
   // AppLink 监听订阅
   ProviderSubscription<AppLinkAction?>? _appLinkSubscription;
 
@@ -288,6 +290,7 @@ class _BeeAppState extends ConsumerState<BeeApp>
 
   @override
   void dispose() {
+    _resumeWidgetUpdateTimer?.cancel();
     _appLinkSubscription?.close();
     _removeOverlay();
     _expandController.dispose();
@@ -472,9 +475,21 @@ class _BeeAppState extends ConsumerState<BeeApp>
       ref.read(showPrivacyScreenProvider.notifier).state = false;
       // 检查是否需要锁定
       _checkAppLockOnResume();
-      // 当app从后台恢复到前台时，更新小组件数据
-      _updateWidget();
+      // 当app从后台恢复到前台时，延迟更新小组件，避免和首帧/输入法恢复抢主线程。
+      _scheduleWidgetUpdateOnResume();
     }
+  }
+
+  void _scheduleWidgetUpdateOnResume() {
+    _resumeWidgetUpdateTimer?.cancel();
+    _resumeWidgetUpdateTimer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          unawaited(_updateWidget());
+        }
+      });
+    });
   }
 
   Future<void> _checkAppLockOnResume() async {
@@ -492,13 +507,15 @@ class _BeeAppState extends ConsumerState<BeeApp>
       final redForIncome = ref.read(incomeExpenseColorSchemeProvider);
 
       final widgetManager = WidgetManager();
-      await widgetManager.updateWidget(
+      final updated = await widgetManager.updateWidget(
         repository,
         ledgerId,
         primaryColor,
         redForIncome: redForIncome,
       );
-      print('✅ App恢复前台，小组件数据已更新');
+      if (updated) {
+        print('✅ App恢复前台，小组件数据已更新');
+      }
     } catch (e) {
       print('❌ 更新小组件失败: $e');
     }

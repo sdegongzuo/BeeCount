@@ -162,25 +162,29 @@ class _WidgetUpdateObserver extends ProviderObserver {
     }
   }
 
-  void _updateWidgetOnStart(ProviderContainer container) async {
-    try {
-      final repository = container.read(repositoryProvider);
-      final ledgerId = container.read(currentLedgerIdProvider);
-      final primaryColor = container.read(primaryColorProvider);
-      final redForIncome = container.read(incomeExpenseColorSchemeProvider);
+  void _updateWidgetOnStart(ProviderContainer container) {
+    unawaited(Future<void>.delayed(const Duration(seconds: 2), () async {
+      try {
+        final repository = container.read(repositoryProvider);
+        final ledgerId = container.read(currentLedgerIdProvider);
+        final primaryColor = container.read(primaryColorProvider);
+        final redForIncome = container.read(incomeExpenseColorSchemeProvider);
 
-      final widgetManager = WidgetManager();
-      await widgetManager.updateWidget(
-        repository,
-        ledgerId,
-        primaryColor,
-        redForIncome: redForIncome,
-      );
+        final widgetManager = WidgetManager();
+        final updated = await widgetManager.updateWidget(
+          repository,
+          ledgerId,
+          primaryColor,
+          redForIncome: redForIncome,
+        );
 
-      print('✅ 小组件数据已更新');
-    } catch (e) {
-      print('❌ 更新小组件失败（可能在不支持的平台上运行）: $e');
-    }
+        if (updated) {
+          print('✅ 小组件数据已更新');
+        }
+      } catch (e) {
+        print('❌ 更新小组件失败（可能在不支持的平台上运行）: $e');
+      }
+    }));
   }
 }
 

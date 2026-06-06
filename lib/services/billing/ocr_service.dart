@@ -1,11 +1,14 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../ai/ai_bill_service.dart';
 import '../ai/ai_constants.dart';
+import '../ai/bill_extraction_service.dart';
 import '../../data/repositories/base_repository.dart';
 import '../system/logger_service.dart';
+import 'bill_recognition_normalizer.dart';
 
 /// OCR识别结果
 class OcrResult {
@@ -19,7 +22,11 @@ class OcrResult {
   final String? aiType; // AI识别的类型 (income/expense/transfer)
   final String? aiAccountName; // AI识别的账户名称
   final String? paymentMethod; // 支付方式/付款方式
+  final String? paymentChannel; // 支付通道/账单来源
   final String? counterparty; // 交易对方/收付款方
+  final String? merchantFullName; // 商户全称
+  final String? acquirer; // 收单机构/清算机构
+  final Map<String, dynamic>? details; // 补充明细
   final String? aiProvider; // AI提供商（用于日志）
   final bool aiEnhanced; // 是否经过AI增强
 
@@ -34,7 +41,11 @@ class OcrResult {
     this.aiType,
     this.aiAccountName,
     this.paymentMethod,
+    this.paymentChannel,
     this.counterparty,
+    this.merchantFullName,
+    this.acquirer,
+    this.details,
     this.aiProvider,
     this.aiEnhanced = false,
   });
@@ -49,7 +60,11 @@ class OcrResult {
     String? aiType,
     String? aiAccountName,
     String? paymentMethod,
+    String? paymentChannel,
     String? counterparty,
+    String? merchantFullName,
+    String? acquirer,
+    Map<String, dynamic>? details,
     String? aiProvider,
   }) {
     return OcrResult(
@@ -63,11 +78,35 @@ class OcrResult {
       aiType: aiType ?? this.aiType,
       aiAccountName: aiAccountName ?? this.aiAccountName,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentChannel: paymentChannel ?? this.paymentChannel,
       counterparty: counterparty ?? this.counterparty,
+      merchantFullName: merchantFullName ?? this.merchantFullName,
+      acquirer: acquirer ?? this.acquirer,
+      details: details ?? this.details,
       aiProvider: aiProvider,
       aiEnhanced: true,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'amount': amount,
+        'note': note,
+        'time': time?.toIso8601String(),
+        'rawText': rawText,
+        'allNumbers': allNumbers,
+        'suggestedCategoryId': suggestedCategoryId,
+        'aiCategoryName': aiCategoryName,
+        'aiType': aiType,
+        'aiAccountName': aiAccountName,
+        'payment_method': paymentMethod,
+        'payment_channel': paymentChannel,
+        'counterparty': counterparty,
+        'merchant_full_name': merchantFullName,
+        'acquirer': acquirer,
+        'details': details,
+        'aiProvider': aiProvider,
+        'aiEnhanced': aiEnhanced,
+      };
 }
 
 /// OCR服务 - 识别支付截图中的金额等信息
@@ -88,6 +127,7 @@ class OcrService {
   Future<OcrResult> recognizePaymentImage(
     File imageFile, {
     BaseRepository? repo,
+    BillExtractionTraceSink? traceSink,
   }) async {
     final startTime = DateTime.now();
     logger.info(_tag, '========== OCR识别开始 ==========');
@@ -134,6 +174,13 @@ class OcrService {
       final ocrDuration = DateTime.now().difference(ocrStartTime);
       logger.info(_tag, '[文本识别] ${ocrDuration.inMilliseconds}ms');
       logger.debug(_tag, '识别文本: $rawText');
+      traceSink?.call(BillExtractionTraceEvent(
+        stage: 'ocr',
+        data: {
+          'rawText': rawText,
+          'durationMs': ocrDuration.inMilliseconds,
+        },
+      ));
 
       // 2. 规则提取
       final ruleStartTime = DateTime.now();
@@ -153,13 +200,22 @@ class OcrService {
         rawText: rawText,
         allNumbers: allNumbers,
       );
+      traceSink?.call(BillExtractionTraceEvent(
+        stage: 'rule',
+        data: baseResult.toJson(),
+      ));
 
       // 3. AI增强（如果启用）
       final enhancedResult = await _enhanceWithAI(
         baseResult,
         repo: repo,
         imageFile: imageFile,
+        traceSink: traceSink,
       );
+      traceSink?.call(BillExtractionTraceEvent(
+        stage: 'final',
+        data: enhancedResult.toJson(),
+      ));
 
       final totalDuration = DateTime.now().difference(startTime);
       logger.info(_tag, '[总计] 识别完成 ${totalDuration.inMilliseconds}ms');
@@ -180,6 +236,7 @@ class OcrService {
     OcrResult baseResult, {
     BaseRepository? repo,
     File? imageFile,
+    BillExtractionTraceSink? traceSink,
   }) async {
     try {
       // 检查是否启用AI
@@ -234,6 +291,7 @@ class OcrService {
         incomeCategories: incomeCategories,
         accounts: accounts,
         imageFile: imageFile,
+        traceSink: traceSink,
       );
 
       final billInfo = await aiService.extractBillInfo(
@@ -242,6 +300,7 @@ class OcrService {
         incomeCategories: incomeCategories,
         accounts: accounts,
         imageFile: imageFile,
+        traceSink: traceSink,
       );
       final aiDuration = DateTime.now().difference(aiStartTime);
 
@@ -252,25 +311,51 @@ class OcrService {
         final mergedAccount = billInfo.account;
         final mergedPaymentMethod =
             billInfo.paymentMethod ?? baseResult.paymentMethod;
+        final detectedPaymentChannel = await _detectPaymentChannelFromImage(
+          imageFile,
+          baseResult.rawText,
+        );
+        final mergedPaymentChannel =
+            billInfo.paymentChannel ?? baseResult.paymentChannel;
         final mergedCounterparty =
             billInfo.counterparty ?? baseResult.counterparty;
+        final mergedMerchantFullName =
+            billInfo.merchantFullName ?? baseResult.merchantFullName;
+        final mergedAcquirer = billInfo.acquirer ?? baseResult.acquirer;
+        final mergedDetails = billInfo.details ?? baseResult.details;
 
         final mergedTime = billInfo.time ?? baseResult.time;
+        final normalized = const BillRecognitionNormalizer().normalize(
+          BillRecognitionFields(
+            note: mergedNote,
+            category: billInfo.category,
+            paymentMethod: mergedPaymentMethod,
+            paymentChannel: mergedPaymentChannel,
+            counterparty: mergedCounterparty,
+            merchantFullName: mergedMerchantFullName,
+            details: mergedDetails,
+          ),
+          detectedPaymentChannel: detectedPaymentChannel,
+        );
 
         final typeText = billInfo.type?.toString().split('.').last ?? '未知';
         final timeStr = mergedTime?.toString().substring(0, 16) ?? '无';
         logger.info(_tag,
-            '[AI增强] ${aiDuration.inMilliseconds}ms | $typeText 金额:$mergedAmount 备注:$mergedNote 分类:${billInfo.category ?? "无"} 账户:${mergedAccount ?? "无"} 支付方式:${mergedPaymentMethod ?? "无"} 交易对方:${mergedCounterparty ?? "无"} 时间:$timeStr');
+            '[AI增强] ${aiDuration.inMilliseconds}ms | $typeText 金额:$mergedAmount 备注:${normalized.note ?? "无"} 分类:${normalized.category ?? "无"} 账户:${mergedAccount ?? "无"} 支付方式:${normalized.paymentMethod ?? "无"} 交易对方:${normalized.counterparty ?? "无"} 时间:$timeStr');
 
         return baseResult.copyWithAI(
           amount: mergedAmount,
-          note: mergedNote,
+          note: normalized.note,
           time: mergedTime,
-          aiCategoryName: billInfo.category,
+          aiCategoryName: normalized.category,
           aiType: typeText,
           aiAccountName: mergedAccount,
-          paymentMethod: mergedPaymentMethod,
-          counterparty: mergedCounterparty,
+          paymentMethod: normalized.paymentMethod,
+          paymentChannel: normalized.paymentChannel,
+          counterparty: normalized.counterparty,
+          merchantFullName: normalized.merchantFullName,
+          acquirer: mergedAcquirer,
+          details: normalized.details,
           aiProvider: 'AI',
         );
       } else {
@@ -305,6 +390,100 @@ class OcrService {
       rawText: rawText,
       allNumbers: allNumbers,
     );
+  }
+
+  Future<String?> _detectPaymentChannelFromImage(
+    File? imageFile,
+    String rawText,
+  ) async {
+    if (imageFile == null) return null;
+
+    try {
+      if (_hasWechatPaymentDetailText(rawText) &&
+          await _hasWechatPayGreenLogo(imageFile)) {
+        logger.debug(_tag, '[视觉规则] 命中微信支付绿色对勾标识');
+        return '微信支付';
+      }
+    } catch (e) {
+      logger.warning(_tag, '[视觉规则] 支付通道检测失败: $e');
+    }
+
+    return null;
+  }
+
+  bool _hasWechatPaymentDetailText(String rawText) {
+    final text = rawText.replaceAll(RegExp(r'\s+'), '');
+    return text.contains('收单机构') ||
+        text.contains('收單機構') ||
+        text.contains('财付通') ||
+        text.contains('財付通') ||
+        text.contains('富友支付');
+  }
+
+  Future<bool> _hasWechatPayGreenLogo(File imageFile) async {
+    final bytes = await imageFile.readAsBytes();
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+
+    try {
+      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (data == null) return false;
+
+      final width = image.width;
+      final height = image.height;
+
+      // 微信支付交易详情页的绿色对勾标识位于上方 tab 区域。
+      // 限定纵向范围，避免状态栏电池图标和底部优惠文案造成误判。
+      final startY = (height * 0.12).round();
+      final endY = (height * 0.25).round();
+      final startX = (width * 0.45).round();
+      final endX = (width * 0.95).round();
+
+      var greenPixels = 0;
+      var minX = width;
+      var maxX = 0;
+      var minY = height;
+      var maxY = 0;
+
+      for (var y = startY; y < endY; y++) {
+        for (var x = startX; x < endX; x++) {
+          final offset = (y * width + x) * 4;
+          final r = data.getUint8(offset);
+          final g = data.getUint8(offset + 1);
+          final b = data.getUint8(offset + 2);
+
+          if (_isWechatPayGreen(r, g, b)) {
+            greenPixels++;
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (greenPixels < 80) return false;
+
+      final clusterWidth = maxX - minX + 1;
+      final clusterHeight = maxY - minY + 1;
+      return clusterWidth >= 16 &&
+          clusterWidth <= width * 0.18 &&
+          clusterHeight >= 16 &&
+          clusterHeight <= height * 0.08;
+    } finally {
+      image.dispose();
+    }
+  }
+
+  bool _isWechatPayGreen(int r, int g, int b) {
+    return r <= 90 &&
+        g >= 145 &&
+        g <= 230 &&
+        b >= 45 &&
+        b <= 155 &&
+        g - r >= 70 &&
+        g - b >= 35;
   }
 
   /// 提取所有可能的数字（供用户选择）

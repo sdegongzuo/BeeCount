@@ -39,6 +39,7 @@ assets/config.json
 .flutter_sdk/
 .appdata/
 .localappdata/
+.tool-home/
 .pub-cache/
 .pub/
 build/

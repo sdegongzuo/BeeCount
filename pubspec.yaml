@@ -88,6 +88,7 @@ dev_dependencies:
   mocktail: ^1.0.4
   integration_test:
     sdk: flutter
+  patrol: ^4.6.0
 
 dependency_overrides:
   # Fix record_linux compatibility issue (we target iOS/Android only)
@@ -114,6 +115,8 @@ flutter:
     - assets/logo2.png
     - assets/icons/
     - assets/images/
+    - image/单条/
+    - tool/image_billing_golden.json
   # 字体已移动到可选依赖，使用系统字体以减少应用体积
   # fonts:
   #   - family: Inter
@@ -134,3 +137,8 @@ flutter:
   #         weight: 600
   #       - asset: assets/fonts/NotoSansSC-Bold.ttf
   #         weight: 700
+
+patrol:
+  app_name: 蜜蜂记账测试版
+  android:
+    package_name: com.tntlikely.beecount.dev.debug

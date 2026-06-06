@@ -42,8 +42,17 @@ class BillInfo {
   /// 支付方式/付款方式
   final String? paymentMethod;
 
+  /// 支付通道/账单来源（如微信支付、支付宝、云闪付、美团）
+  final String? paymentChannel;
+
   /// 交易对方/收付款方
   final String? counterparty;
+
+  /// 商户全称（截图中有明确字段时填写）
+  final String? merchantFullName;
+
+  /// 收单机构/清算机构（如财付通、富友支付）
+  final String? acquirer;
 
   /// 转账来源账户名称（可选）
   final String? fromAccount;
@@ -53,6 +62,9 @@ class BillInfo {
 
   /// 标签列表（可选）
   final List<String>? tags;
+
+  /// 补充明细（可选，如店名、出发到达、订单号）
+  final Map<String, dynamic>? details;
 
   /// 账本ID
   final int? ledgerId;
@@ -68,10 +80,14 @@ class BillInfo {
     this.type,
     this.account,
     this.paymentMethod,
+    this.paymentChannel,
     this.counterparty,
+    this.merchantFullName,
+    this.acquirer,
     this.fromAccount,
     this.toAccount,
     this.tags,
+    this.details,
     this.ledgerId,
     this.confidence = 0.0,
   });
@@ -94,17 +110,38 @@ class BillInfo {
             json['pay_method'] ??
             json['payMethod'],
       ),
+      paymentChannel: _parseString(
+        json['payment_channel'] ??
+            json['paymentChannel'] ??
+            json['channel'] ??
+            json['source_app'] ??
+            json['sourceApp'],
+      ),
       counterparty: _parseString(
-            json['counterparty'] ??
+        json['counterparty'] ??
             json['trading_partner'] ??
             json['tradingPartner'] ??
             json['merchant_name'] ??
             json['merchantName'] ??
             json['merchant'],
       ),
+      merchantFullName: _parseString(
+        json['merchant_full_name'] ??
+            json['merchantFullName'] ??
+            json['merchant_fullname'] ??
+            json['merchantFullname'],
+      ),
+      acquirer: _parseString(
+        json['acquirer'] ??
+            json['acquiring_institution'] ??
+            json['acquiringInstitution'] ??
+            json['settlement_institution'] ??
+            json['settlementInstitution'],
+      ),
       fromAccount: json['from_account'] ?? json['fromAccount'],
       toAccount: json['to_account'] ?? json['toAccount'],
       tags: _parseTags(json['tags'] ?? json['tag']),
+      details: _parseDetails(json['details'] ?? json['extra']),
       ledgerId: json['ledgerId'],
       confidence: json['confidence']?.toDouble() ?? 0.8,
     );
@@ -119,10 +156,14 @@ class BillInfo {
         'type': type?.toString().split('.').last,
         'account': account,
         'payment_method': paymentMethod,
+        'payment_channel': paymentChannel,
         'counterparty': counterparty,
+        'merchant_full_name': merchantFullName,
+        'acquirer': acquirer,
         'from_account': fromAccount,
         'to_account': toAccount,
         'tags': tags,
+        'details': details,
         'ledgerId': ledgerId,
         'confidence': confidence,
       };
@@ -165,9 +206,31 @@ class BillInfo {
     return tags.isEmpty ? null : tags;
   }
 
+  static Map<String, dynamic>? _parseDetails(dynamic value) {
+    if (value is! Map) return null;
+
+    final details = <String, dynamic>{};
+    for (final entry in value.entries) {
+      final key = entry.key.toString().trim();
+      final rawValue = entry.value;
+      if (key.isEmpty || rawValue == null) continue;
+
+      if (rawValue is String) {
+        final text = rawValue.trim();
+        if (text.isNotEmpty && text.toLowerCase() != 'null') {
+          details[key] = text;
+        }
+      } else {
+        details[key] = rawValue;
+      }
+    }
+
+    return details.isEmpty ? null : details;
+  }
+
   @override
   String toString() {
-    return 'BillInfo(amount: $amount, time: $time, note: $note, category: $category, type: $type, account: $account, paymentMethod: $paymentMethod, counterparty: $counterparty, fromAccount: $fromAccount, toAccount: $toAccount, tags: $tags)';
+    return 'BillInfo(amount: $amount, time: $time, note: $note, category: $category, type: $type, account: $account, paymentMethod: $paymentMethod, paymentChannel: $paymentChannel, counterparty: $counterparty, merchantFullName: $merchantFullName, acquirer: $acquirer, fromAccount: $fromAccount, toAccount: $toAccount, tags: $tags, details: $details)';
   }
 }
 

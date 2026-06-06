@@ -10,6 +10,7 @@ import 'bill_extraction_service.dart';
 class AIBillService {
   BillExtractionService? _service;
   bool _initialized = false;
+  BillExtractionTraceSink? _traceSink;
 
   /// 初始化AI服务
   ///
@@ -22,13 +23,16 @@ class AIBillService {
     List<String>? incomeCategories,
     List<String>? accounts,
     File? imageFile,
+    BillExtractionTraceSink? traceSink,
   }) async {
-    if (_initialized) return;
+    if (_initialized && traceSink == _traceSink) return;
 
+    _traceSink = traceSink;
     _service = BillExtractionService(
       expenseCategories: expenseCategories,
       incomeCategories: incomeCategories,
       accounts: accounts,
+      traceSink: traceSink,
     );
     await _service!.init();
 
@@ -50,24 +54,27 @@ class AIBillService {
     List<String>? incomeCategories,
     List<String>? accounts,
     File? imageFile,
+    BillExtractionTraceSink? traceSink,
   }) async {
     // 如果传入了新的分类/账户，重新初始化
     if (!_initialized ||
         expenseCategories != null ||
         incomeCategories != null ||
-        accounts != null) {
+        accounts != null ||
+        traceSink != _traceSink) {
       _initialized = false;
       await initialize(
         expenseCategories: expenseCategories,
         incomeCategories: incomeCategories,
         accounts: accounts,
         imageFile: imageFile,
+        traceSink: traceSink,
       );
     }
 
     // 如果有图片，使用视觉模型
     if (imageFile != null) {
-      return _service!.extractFromImage(imageFile);
+      return _service!.extractFromImage(imageFile, ocrText: ocrText);
     }
 
     // 否则使用文本模型

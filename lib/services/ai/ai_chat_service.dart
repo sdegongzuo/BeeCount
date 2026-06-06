@@ -5,6 +5,7 @@ import 'ai_provider_config.dart';
 import 'ai_provider_factory.dart';
 import 'ai_provider_manager.dart';
 import '../billing/bill_creation_service.dart';
+import '../billing/bill_recognition_normalizer.dart';
 import '../billing/ocr_service.dart';
 import '../data/tag_seed_service.dart';
 import '../../ai/tasks/bill_extraction_task.dart';
@@ -125,6 +126,7 @@ class AIChatService {
       expenseCategories: expenseCategories,
       incomeCategories: incomeCategories,
     );
+    billInfo = _normalizeBillInfo(billInfo);
 
     if (billInfo != null && billInfo.isComplete) {
       logger.info('AIChat', '账单提取成功: ${billInfo.toJson()}');
@@ -138,10 +140,14 @@ class AIChatService {
         type: billInfo.type,
         account: billInfo.account,
         paymentMethod: billInfo.paymentMethod,
+        paymentChannel: billInfo.paymentChannel,
         counterparty: billInfo.counterparty,
+        merchantFullName: billInfo.merchantFullName,
+        acquirer: billInfo.acquirer,
         fromAccount: billInfo.fromAccount,
         toAccount: billInfo.toAccount,
         tags: billInfo.tags,
+        details: billInfo.details,
         ledgerId: ledgerId,
         confidence: billInfo.confidence,
       );
@@ -161,10 +167,14 @@ class AIChatService {
         type: billInfo.type,
         account: actualAccount ?? billInfo.account,
         paymentMethod: billInfo.paymentMethod,
+        paymentChannel: billInfo.paymentChannel,
         counterparty: billInfo.counterparty,
+        merchantFullName: billInfo.merchantFullName,
+        acquirer: billInfo.acquirer,
         fromAccount: billInfo.fromAccount,
         toAccount: billInfo.toAccount,
         tags: billInfo.tags,
+        details: billInfo.details,
         ledgerId: ledgerId,
         confidence: billInfo.confidence,
       );
@@ -183,6 +193,42 @@ class AIChatService {
         '• 打车回家花了35',
       );
     }
+  }
+
+  BillInfo? _normalizeBillInfo(BillInfo? billInfo) {
+    if (billInfo == null) return null;
+
+    final normalized = const BillRecognitionNormalizer().normalize(
+      BillRecognitionFields(
+        note: billInfo.note,
+        category: billInfo.category,
+        paymentMethod: billInfo.paymentMethod,
+        paymentChannel: billInfo.paymentChannel,
+        counterparty: billInfo.counterparty,
+        merchantFullName: billInfo.merchantFullName,
+        details: billInfo.details,
+      ),
+    );
+
+    return BillInfo(
+      amount: billInfo.amount,
+      time: billInfo.time,
+      note: normalized.note,
+      category: normalized.category,
+      type: billInfo.type,
+      account: billInfo.account,
+      paymentMethod: normalized.paymentMethod,
+      paymentChannel: normalized.paymentChannel,
+      counterparty: normalized.counterparty,
+      merchantFullName: normalized.merchantFullName,
+      acquirer: billInfo.acquirer,
+      fromAccount: billInfo.fromAccount,
+      toAccount: billInfo.toAccount,
+      tags: billInfo.tags,
+      details: normalized.details,
+      ledgerId: billInfo.ledgerId,
+      confidence: billInfo.confidence,
+    );
   }
 
   /// 处理自由对话 - 使用 AIProviderFactory.chat()
@@ -264,7 +310,11 @@ class AIChatService {
       aiAccountName: aiAccountName,
       aiType: transactionType,
       paymentMethod: bill.paymentMethod,
+      paymentChannel: bill.paymentChannel,
       counterparty: bill.counterparty,
+      merchantFullName: bill.merchantFullName,
+      acquirer: bill.acquirer,
+      details: bill.details,
     );
 
     // 读取智能记账设置

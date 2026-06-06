@@ -1,15 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/section_card.dart';
 import '../../styles/tokens.dart';
 import '../../utils/ui_scale_extensions.dart';
-import '../../providers/theme_providers.dart';
 import '../../providers/ai_config_providers.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/ai/ai_provider_config.dart';
 import '../../services/ai/ai_provider_manager.dart';
+import '../../services/dev/image_billing_eval_runner.dart';
 import 'ai_prompt_edit_page.dart';
 import 'ai_provider_manage_page.dart';
 
@@ -23,6 +26,7 @@ class AISettingsPage extends ConsumerStatefulWidget {
 
 class _AISettingsPageState extends ConsumerState<AISettingsPage> {
   bool _advancedExpanded = false;
+  bool _imageEvalRunning = false;
 
   @override
   Widget build(BuildContext context) {
@@ -84,8 +88,8 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
             onChanged: (value) async {
               await notifier.setEnabled(value);
               if (mounted) {
-                showToast(
-                    context, value ? l10n.aiEnableToastOn : l10n.aiEnableToastOff);
+                showToast(context,
+                    value ? l10n.aiEnableToastOn : l10n.aiEnableToastOff);
               }
             },
             title: Text(
@@ -104,7 +108,9 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
                     if (mounted) {
                       showToast(
                         context,
-                        value ? l10n.aiUsingVisionDesc : l10n.aiUnUsingVisionDesc,
+                        value
+                            ? l10n.aiUsingVisionDesc
+                            : l10n.aiUnUsingVisionDesc,
                       );
                     }
                   }
@@ -113,8 +119,9 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
               l10n.aiUploadImage,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-            subtitle: Text(
-                config.useVision ? l10n.aiUseVisionDesc : l10n.aiUnUseVisionDesc),
+            subtitle: Text(config.useVision
+                ? l10n.aiUseVisionDesc
+                : l10n.aiUnUseVisionDesc),
             activeColor: primaryColor,
           ),
         ],
@@ -170,7 +177,8 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
                 const SizedBox(width: 8),
                 Text(
                   l10n.aiCapabilitySelectTitle,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -332,13 +340,18 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
               return ListTile(
                 leading: Icon(
                   isSelected ? Icons.check_circle : Icons.circle_outlined,
-                  color: isSelected ? primaryColor : BeeTokens.textTertiary(context),
+                  color: isSelected
+                      ? primaryColor
+                      : BeeTokens.textTertiary(context),
                 ),
                 title: Text(
                   provider.name,
                   style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected ? primaryColor : BeeTokens.textPrimary(context),
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    color: isSelected
+                        ? primaryColor
+                        : BeeTokens.textPrimary(context),
                   ),
                 ),
                 subtitle: provider.isValid
@@ -546,9 +559,104 @@ class _AISettingsPageState extends ConsumerState<AISettingsPage> {
               },
             ),
 
+            if (kDebugMode) ...[
+              BeeTokens.cardDivider(context),
+              ListTile(
+                dense: true,
+                enabled: !_imageEvalRunning,
+                leading:
+                    Icon(Icons.science_outlined, size: 20, color: primaryColor),
+                title: const Text('图片记账评测导出', style: TextStyle(fontSize: 14)),
+                subtitle: const Text(
+                  '读取模拟器 app 目录中的样本，使用当前 AI 配置导出 OCR / prompt / AI 响应 / final JSON',
+                  style: TextStyle(fontSize: 12),
+                ),
+                trailing: _imageEvalRunning
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.play_arrow_outlined, size: 20),
+                onTap: _runImageBillingEval,
+              ),
+            ],
+
             const SizedBox(height: 8),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _runImageBillingEval() async {
+    if (_imageEvalRunning) return;
+    setState(() => _imageEvalRunning = true);
+
+    try {
+      final repo = ref.read(repositoryProvider);
+      final result = await ImageBillingEvalRunner.run(repo: repo);
+
+      if (!mounted) return;
+      await _showImageEvalResultDialog(result);
+    } catch (e) {
+      if (!mounted) return;
+      showToast(context, '图片记账评测失败: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _imageEvalRunning = false);
+      }
+    }
+  }
+
+  Future<void> _showImageEvalResultDialog(
+    ImageBillingEvalRunResult result,
+  ) async {
+    final text = '''
+样本目录:
+${result.inputDir}
+
+输出文件:
+${result.outputPath}
+
+总数: ${result.total}
+成功: ${result.succeeded}
+失败: ${result.failed}
+
+下一步:
+1. 以 Patrol 测试作为图片记账评测主入口，完成 Android OCR / AI / final JSON 流程
+2. 主要报告位置: build\\image_billing_eval\\patrol_report.md
+3. 调试时可查看 actual JSON: build\\image_billing_eval\\latest_actual.json
+''';
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('图片记账评测完成'),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            text,
+            style: const TextStyle(fontSize: 13, height: 1.4),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: text));
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
+              if (mounted) {
+                showToast(context, '已复制评测路径');
+              }
+            },
+            child: const Text('复制'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('关闭'),
+          ),
+        ],
       ),
     );
   }
