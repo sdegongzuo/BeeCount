@@ -264,6 +264,26 @@ class SyncDiffService {
       diffs.add('标签: $from → $to');
     }
 
+    // 比较支付方式、交易对方、支付通道、商户全称、收单机构、识别明细
+    if ((local.paymentMethod ?? '') != (cloud.paymentMethod ?? '')) {
+      diffs.add('支付方式: "${local.paymentMethod ?? ''}" → "${cloud.paymentMethod ?? ''}"');
+    }
+    if ((local.counterparty ?? '') != (cloud.counterparty ?? '')) {
+      diffs.add('交易对方: "${local.counterparty ?? ''}" → "${cloud.counterparty ?? ''}"');
+    }
+    if ((local.paymentChannel ?? '') != (cloud.paymentChannel ?? '')) {
+      diffs.add('支付通道: "${local.paymentChannel ?? ''}" → "${cloud.paymentChannel ?? ''}"');
+    }
+    if ((local.merchantFullName ?? '') != (cloud.merchantFullName ?? '')) {
+      diffs.add('商户全称: "${local.merchantFullName ?? ''}" → "${cloud.merchantFullName ?? ''}"');
+    }
+    if ((local.acquirer ?? '') != (cloud.acquirer ?? '')) {
+      diffs.add('收单机构: "${local.acquirer ?? ''}" → "${cloud.acquirer ?? ''}"');
+    }
+    if ((local.detailsText ?? '') != (cloud.detailsText ?? '')) {
+      diffs.add('识别明细变更');
+    }
+
     return diffs;
   }
 
@@ -315,6 +335,12 @@ class SyncDiffService {
               toAccountId: toAccountId,
               happenedAt: cloud.happenedAt,
               note: cloud.note,
+              paymentMethod: cloud.paymentMethod,
+              counterparty: cloud.counterparty,
+              paymentChannel: cloud.paymentChannel,
+              merchantFullName: cloud.merchantFullName,
+              acquirer: cloud.acquirer,
+              detailsText: cloud.detailsText,
               syncId: cloud.syncId,
             );
 
@@ -346,6 +372,12 @@ class SyncDiffService {
               toAccountId: toAccountId,
               happenedAt: cloud.happenedAt,
               note: cloud.note,
+              paymentMethod: cloud.paymentMethod,
+              counterparty: cloud.counterparty,
+              paymentChannel: cloud.paymentChannel,
+              merchantFullName: cloud.merchantFullName,
+              acquirer: cloud.acquirer,
+              detailsText: cloud.detailsText,
             );
 
             // 更新标签

@@ -137,6 +137,46 @@ class BillCardWidget extends ConsumerWidget {
                 billInfo.counterparty!,
               ),
             ],
+            if (billInfo.paymentChannel != null &&
+                billInfo.paymentChannel!.isNotEmpty) ...[
+              SizedBox(height: 8.0.scaled(context, ref)),
+              _buildInfoRow(
+                context,
+                ref,
+                AppLocalizations.of(context).transactionPaymentChannel,
+                billInfo.paymentChannel!,
+              ),
+            ],
+            if (billInfo.merchantFullName != null &&
+                billInfo.merchantFullName!.isNotEmpty) ...[
+              SizedBox(height: 8.0.scaled(context, ref)),
+              _buildInfoRow(
+                context,
+                ref,
+                AppLocalizations.of(context).transactionMerchantFullName,
+                billInfo.merchantFullName!,
+              ),
+            ],
+            if (billInfo.acquirer != null &&
+                billInfo.acquirer!.isNotEmpty) ...[
+              SizedBox(height: 8.0.scaled(context, ref)),
+              _buildInfoRow(
+                context,
+                ref,
+                AppLocalizations.of(context).transactionAcquirer,
+                billInfo.acquirer!,
+              ),
+            ],
+            if (billInfo.detailsText != null &&
+                billInfo.detailsText!.isNotEmpty) ...[
+              SizedBox(height: 8.0.scaled(context, ref)),
+              _buildDetailsRow(
+                context,
+                ref,
+                AppLocalizations.of(context).transactionDetailsText,
+                billInfo.detailsText!,
+              ),
+            ],
 
             SizedBox(height: 16.0.scaled(context, ref)),
 
@@ -201,6 +241,43 @@ class BillCardWidget extends ConsumerWidget {
               fontSize: 14.0.scaled(context, ref),
               color: BeeTokens.textPrimary(context),
               fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 识别明细行（支持多行展示，避免 UI 溢出）
+  Widget _buildDetailsRow(
+    BuildContext context,
+    WidgetRef ref,
+    String label,
+    String value,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 80.0.scaled(context, ref),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14.0.scaled(context, ref),
+              color: BeeTokens.textSecondary(context),
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 10,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 14.0.scaled(context, ref),
+              color: BeeTokens.textPrimary(context),
+              fontWeight: FontWeight.w500,
+              height: 1.5,
             ),
           ),
         ),

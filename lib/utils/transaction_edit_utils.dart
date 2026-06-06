@@ -30,6 +30,10 @@ class TransactionEditUtils {
           initialNote: transaction.note,
           initialPaymentMethod: transaction.paymentMethod,
           initialCounterparty: transaction.counterparty,
+          initialPaymentChannel: transaction.paymentChannel,
+          initialMerchantFullName: transaction.merchantFullName,
+          initialAcquirer: transaction.acquirer,
+          initialDetailsText: transaction.detailsText,
           editingTransactionId: transaction.id,
           initialAccountId: transaction.accountId,
           // 转账特有的参数

@@ -182,6 +182,10 @@ class LocalTransactionRepository implements TransactionRepository {
     String? note,
     dynamic paymentMethod,
     dynamic counterparty,
+    dynamic paymentChannel,
+    dynamic merchantFullName,
+    dynamic acquirer,
+    dynamic detailsText,
     String? syncId,
   }) async {
     return db.into(db.transactions).insert(TransactionsCompanion.insert(
@@ -195,6 +199,10 @@ class LocalTransactionRepository implements TransactionRepository {
           note: d.Value(note),
           paymentMethod: d.Value(paymentMethod),
           counterparty: d.Value(counterparty),
+          paymentChannel: d.Value(paymentChannel),
+          merchantFullName: d.Value(merchantFullName),
+          acquirer: d.Value(acquirer),
+          detailsText: d.Value(detailsText),
           syncId: d.Value(syncId ?? _uuid.v4()),
         ));
   }
@@ -224,6 +232,10 @@ class LocalTransactionRepository implements TransactionRepository {
     String? note,
     dynamic paymentMethod,
     dynamic counterparty,
+    dynamic paymentChannel,
+    dynamic merchantFullName,
+    dynamic acquirer,
+    dynamic detailsText,
     DateTime? happenedAt,
     dynamic accountId,
   }) async {
@@ -252,6 +264,38 @@ class LocalTransactionRepository implements TransactionRepository {
     } else {
       counterpartyValue = d.Value(counterparty as String?);
     }
+    final d.Value<String?> paymentChannelValue;
+    if (paymentChannel == null) {
+      paymentChannelValue = const d.Value.absent();
+    } else if (paymentChannel is d.Value<String?>) {
+      paymentChannelValue = paymentChannel;
+    } else {
+      paymentChannelValue = d.Value(paymentChannel as String?);
+    }
+    final d.Value<String?> merchantFullNameValue;
+    if (merchantFullName == null) {
+      merchantFullNameValue = const d.Value.absent();
+    } else if (merchantFullName is d.Value<String?>) {
+      merchantFullNameValue = merchantFullName;
+    } else {
+      merchantFullNameValue = d.Value(merchantFullName as String?);
+    }
+    final d.Value<String?> acquirerValue;
+    if (acquirer == null) {
+      acquirerValue = const d.Value.absent();
+    } else if (acquirer is d.Value<String?>) {
+      acquirerValue = acquirer;
+    } else {
+      acquirerValue = d.Value(acquirer as String?);
+    }
+    final d.Value<String?> detailsTextValue;
+    if (detailsText == null) {
+      detailsTextValue = const d.Value.absent();
+    } else if (detailsText is d.Value<String?>) {
+      detailsTextValue = detailsText;
+    } else {
+      detailsTextValue = d.Value(detailsText as String?);
+    }
 
     await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
       TransactionsCompanion(
@@ -261,6 +305,10 @@ class LocalTransactionRepository implements TransactionRepository {
         note: d.Value(note),
         paymentMethod: paymentMethodValue,
         counterparty: counterpartyValue,
+        paymentChannel: paymentChannelValue,
+        merchantFullName: merchantFullNameValue,
+        acquirer: acquirerValue,
+        detailsText: detailsTextValue,
         happenedAt:
             happenedAt != null ? d.Value(happenedAt) : const d.Value.absent(),
         accountId: accountIdValue,
@@ -814,6 +862,10 @@ class LocalTransactionRepository implements TransactionRepository {
     String? note,
     String? paymentMethod,
     String? counterparty,
+    String? paymentChannel,
+    String? merchantFullName,
+    String? acquirer,
+    String? detailsText,
   }) async {
     await (db.update(db.transactions)..where((t) => t.syncId.equals(syncId)))
         .write(TransactionsCompanion(
@@ -826,6 +878,10 @@ class LocalTransactionRepository implements TransactionRepository {
       note: d.Value(note),
       paymentMethod: d.Value(paymentMethod),
       counterparty: d.Value(counterparty),
+      paymentChannel: d.Value(paymentChannel),
+      merchantFullName: d.Value(merchantFullName),
+      acquirer: d.Value(acquirer),
+      detailsText: d.Value(detailsText),
     ));
   }
 

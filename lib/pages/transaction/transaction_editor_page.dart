@@ -25,6 +25,10 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
   final String? initialNote; // 用于金额输入弹窗回填备注
   final String? initialPaymentMethod;
   final String? initialCounterparty;
+  final String? initialPaymentChannel;
+  final String? initialMerchantFullName;
+  final String? initialAcquirer;
+  final String? initialDetailsText;
   final double? initialAmount;
   final DateTime? initialDate;
   final int? editingTransactionId;
@@ -40,6 +44,10 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
     this.initialNote,
     this.initialPaymentMethod,
     this.initialCounterparty,
+    this.initialPaymentChannel,
+    this.initialMerchantFullName,
+    this.initialAcquirer,
+    this.initialDetailsText,
     this.initialAmount,
     this.initialDate,
     this.editingTransactionId,
@@ -178,6 +186,10 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                   initialNote: widget.initialNote,
                   initialPaymentMethod: widget.initialPaymentMethod,
                   initialCounterparty: widget.initialCounterparty,
+                  initialPaymentChannel: widget.initialPaymentChannel,
+                  initialMerchantFullName: widget.initialMerchantFullName,
+                  initialAcquirer: widget.initialAcquirer,
+                  initialDetailsText: widget.initialDetailsText,
                   initialDate: widget.initialDate,
                   initialTagIds: widget.initialTagIds,
                 ),
@@ -247,6 +259,10 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         initialNote: widget.initialNote,
         initialPaymentMethod: widget.initialPaymentMethod,
         initialCounterparty: widget.initialCounterparty,
+        initialPaymentChannel: widget.initialPaymentChannel,
+        initialMerchantFullName: widget.initialMerchantFullName,
+        initialAcquirer: widget.initialAcquirer,
+        initialDetailsText: widget.initialDetailsText,
         initialAccountId: initialAccountId,
         initialTagIds: widget.initialTagIds,
         showAccountPicker: true,
@@ -266,6 +282,10 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               note: res.note,
               paymentMethod: d.Value(res.paymentMethod),
               counterparty: d.Value(res.counterparty),
+              paymentChannel: d.Value(res.paymentChannel),
+              merchantFullName: d.Value(res.merchantFullName),
+              acquirer: d.Value(res.acquirer),
+              detailsText: d.Value(res.detailsText),
               happenedAt: res.date,
               accountId: res.accountId,
             );
@@ -280,6 +300,10 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               note: res.note,
               paymentMethod: res.paymentMethod,
               counterparty: res.counterparty,
+              paymentChannel: res.paymentChannel,
+              merchantFullName: res.merchantFullName,
+              acquirer: res.acquirer,
+              detailsText: res.detailsText,
               accountId: res.accountId,
             );
           }

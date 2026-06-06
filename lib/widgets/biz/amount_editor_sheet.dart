@@ -22,6 +22,10 @@ typedef AmountEditorResult = ({
   String? note,
   String? paymentMethod,
   String? counterparty,
+  String? paymentChannel,
+  String? merchantFullName,
+  String? acquirer,
+  String? detailsText,
   DateTime date,
   int? accountId,
   int? toAccountId,
@@ -36,6 +40,10 @@ class AmountEditorSheet extends ConsumerStatefulWidget {
   final String? initialNote;
   final String? initialPaymentMethod;
   final String? initialCounterparty;
+  final String? initialPaymentChannel;
+  final String? initialMerchantFullName;
+  final String? initialAcquirer;
+  final String? initialDetailsText;
   final int? initialAccountId;
   final int? initialToAccountId;
   final List<int>? initialTagIds; // 初始标签ID列表
@@ -53,6 +61,10 @@ class AmountEditorSheet extends ConsumerStatefulWidget {
     this.initialNote,
     this.initialPaymentMethod,
     this.initialCounterparty,
+    this.initialPaymentChannel,
+    this.initialMerchantFullName,
+    this.initialAcquirer,
+    this.initialDetailsText,
     this.initialAccountId,
     this.initialToAccountId,
     this.initialTagIds,
@@ -76,6 +88,10 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
   final TextEditingController _noteCtrl = TextEditingController();
   final TextEditingController _paymentMethodCtrl = TextEditingController();
   final TextEditingController _counterpartyCtrl = TextEditingController();
+  final TextEditingController _paymentChannelCtrl = TextEditingController();
+  final TextEditingController _merchantFullNameCtrl = TextEditingController();
+  final TextEditingController _acquirerCtrl = TextEditingController();
+  final TextEditingController _detailsTextCtrl = TextEditingController();
   // 运算缓存：支持简单 + / - 键入累计
   double _acc = 0;
   String? _op; // 最近一次运算符，null 表示尚未进入运算模式
@@ -115,6 +131,10 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
     _noteCtrl.text = widget.initialNote ?? '';
     _paymentMethodCtrl.text = widget.initialPaymentMethod ?? '';
     _counterpartyCtrl.text = widget.initialCounterparty ?? '';
+    _paymentChannelCtrl.text = widget.initialPaymentChannel ?? '';
+    _merchantFullNameCtrl.text = widget.initialMerchantFullName ?? '';
+    _acquirerCtrl.text = widget.initialAcquirer ?? '';
+    _detailsTextCtrl.text = widget.initialDetailsText ?? '';
 
     // 监听焦点变化
     _noteFocusNode.addListener(() {
@@ -133,6 +153,10 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
     _noteCtrl.dispose();
     _paymentMethodCtrl.dispose();
     _counterpartyCtrl.dispose();
+    _paymentChannelCtrl.dispose();
+    _merchantFullNameCtrl.dispose();
+    _acquirerCtrl.dispose();
+    _detailsTextCtrl.dispose();
     super.dispose();
   }
 
@@ -224,8 +248,13 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
       controller: controller,
       style: TextStyle(color: BeeTokens.textPrimary(context)),
       decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: TextStyle(color: BeeTokens.textTertiary(context)),
+        labelText: hintText,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        floatingLabelStyle: TextStyle(
+          color: BeeTokens.textSecondary(context),
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
         isDense: true,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -233,8 +262,7 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
         ),
         filled: true,
         fillColor: BeeTokens.surfaceInput(context),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
         prefixIcon: Icon(
           icon,
           color: BeeTokens.iconSecondary(context),
@@ -504,6 +532,78 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetadataTextField(
+                    controller: _paymentChannelCtrl,
+                    icon: Icons.account_balance_outlined,
+                    hintText:
+                        AppLocalizations.of(context).transactionPaymentChannel,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildMetadataTextField(
+                    controller: _merchantFullNameCtrl,
+                    icon: Icons.store_outlined,
+                    hintText:
+                        AppLocalizations.of(context).transactionMerchantFullName,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetadataTextField(
+                    controller: _acquirerCtrl,
+                    icon: Icons.business_outlined,
+                    hintText:
+                        AppLocalizations.of(context).transactionAcquirer,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _detailsTextCtrl,
+              maxLines: 3,
+              minLines: 1,
+              style: TextStyle(color: BeeTokens.textPrimary(context)),
+              decoration: InputDecoration(
+                labelText:
+                    AppLocalizations.of(context).transactionDetailsText,
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+                floatingLabelStyle: TextStyle(
+                  color: BeeTokens.textSecondary(context),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                alignLabelWithHint: true,
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: BeeTokens.surfaceInput(context),
+                contentPadding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
+                prefixIcon: Icon(
+                  Icons.notes_outlined,
+                  color: BeeTokens.iconSecondary(context),
+                  size: 18,
+                ),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 36,
+                  minHeight: 20,
+                ),
+              ),
+            ),
             // 账户选择（仅在启用时显示）
             if (widget.showAccountPicker) ...[
               const SizedBox(height: 8),
@@ -694,6 +794,22 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
                                     _counterpartyCtrl.text.trim().isEmpty
                                         ? null
                                         : _counterpartyCtrl.text.trim(),
+                                paymentChannel:
+                                    _paymentChannelCtrl.text.trim().isEmpty
+                                        ? null
+                                        : _paymentChannelCtrl.text.trim(),
+                                merchantFullName:
+                                    _merchantFullNameCtrl.text.trim().isEmpty
+                                        ? null
+                                        : _merchantFullNameCtrl.text.trim(),
+                                acquirer:
+                                    _acquirerCtrl.text.trim().isEmpty
+                                        ? null
+                                        : _acquirerCtrl.text.trim(),
+                                detailsText:
+                                    _detailsTextCtrl.text.trim().isEmpty
+                                        ? null
+                                        : _detailsTextCtrl.text.trim(),
                                 date: _date,
                                 accountId: _selectedAccountId,
                                 toAccountId: _selectedToAccountId,

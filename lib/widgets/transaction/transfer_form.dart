@@ -39,6 +39,18 @@ class TransferForm extends ConsumerStatefulWidget {
   /// 初始交易对方（可选）
   final String? initialCounterparty;
 
+  /// 初始支付通道（可选）
+  final String? initialPaymentChannel;
+
+  /// 初始商户全称（可选）
+  final String? initialMerchantFullName;
+
+  /// 初始收单机构（可选）
+  final String? initialAcquirer;
+
+  /// 初始识别明细（可选）
+  final String? initialDetailsText;
+
   /// 初始日期（可选）
   final DateTime? initialDate;
 
@@ -55,6 +67,10 @@ class TransferForm extends ConsumerStatefulWidget {
     this.initialNote,
     this.initialPaymentMethod,
     this.initialCounterparty,
+    this.initialPaymentChannel,
+    this.initialMerchantFullName,
+    this.initialAcquirer,
+    this.initialDetailsText,
     this.initialDate,
     this.initialTagIds,
   });
@@ -130,6 +146,10 @@ class _TransferFormState extends ConsumerState<TransferForm> {
         initialNote: widget.initialNote,
         initialPaymentMethod: widget.initialPaymentMethod,
         initialCounterparty: widget.initialCounterparty,
+        initialPaymentChannel: widget.initialPaymentChannel,
+        initialMerchantFullName: widget.initialMerchantFullName,
+        initialAcquirer: widget.initialAcquirer,
+        initialDetailsText: widget.initialDetailsText,
         initialAccountId: _fromAccountId,
         initialToAccountId: _toAccountId,
         initialTagIds: widget.initialTagIds,
@@ -170,6 +190,10 @@ class _TransferFormState extends ConsumerState<TransferForm> {
                 note: result.note,
                 paymentMethod: d.Value(result.paymentMethod),
                 counterparty: d.Value(result.counterparty),
+                paymentChannel: d.Value(result.paymentChannel),
+                merchantFullName: d.Value(result.merchantFullName),
+                acquirer: d.Value(result.acquirer),
+                detailsText: d.Value(result.detailsText),
                 happenedAt: result.date,
                 accountId: fromAccountId,
               );
@@ -226,6 +250,10 @@ class _TransferFormState extends ConsumerState<TransferForm> {
                 note: result.note,
                 paymentMethod: result.paymentMethod,
                 counterparty: result.counterparty,
+                paymentChannel: result.paymentChannel,
+                merchantFullName: result.merchantFullName,
+                acquirer: result.acquirer,
+                detailsText: result.detailsText,
                 happenedAt: result.date,
               );
 

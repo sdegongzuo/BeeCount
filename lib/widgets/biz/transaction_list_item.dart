@@ -33,6 +33,7 @@ class TransactionListItem extends ConsumerWidget {
   // 标签相关
   final List<({int id, String name, String? color})>? tags; // 关联的标签
   final void Function(int tagId, String tagName)? onTagTap; // 点击标签回调
+  final bool showTags;
 
   // 附件相关
   final int attachmentCount; // 附件数量
@@ -60,11 +61,12 @@ class TransactionListItem extends ConsumerWidget {
     this.showFullDate = false,
     this.tags,
     this.onTagTap,
+    this.showTags = false,
     this.attachmentCount = 0,
     this.onAttachmentTap,
   });
 
-  /// 检查是否有次要信息需要显示（时间、账户或附件）
+  /// 检查是否有次要信息需要显示（时间、账户）
   bool _hasSecondaryInfo(WidgetRef ref) {
     // 显示完整日期模式
     if (showFullDate && happenedAt != null) return true;
@@ -76,10 +78,38 @@ class TransactionListItem extends ConsumerWidget {
             happenedAt!.minute != 0 ||
             happenedAt!.second != 0);
 
-    return showTime || accountName != null || attachmentCount > 0;
+    return showTime || accountName != null;
   }
 
-  /// 构建次要信息小部件（时间 · 账户 + 附件图标）
+  Widget _buildAttachmentBadge(BuildContext context) {
+    final textStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: BeeTokens.textTertiary(context),
+          fontSize: 11,
+        );
+    final badge = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.image_outlined,
+          size: 13,
+          color: BeeTokens.textTertiary(context),
+        ),
+        const SizedBox(width: 2),
+        Text('$attachmentCount', style: textStyle),
+      ],
+    );
+    if (onAttachmentTap == null) return badge;
+    return GestureDetector(
+      onTap: onAttachmentTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 4, left: 8, bottom: 2),
+        child: badge,
+      ),
+    );
+  }
+
+  /// 构建次要信息小部件（时间 · 账户）
   Widget _buildSecondaryInfo(BuildContext context, WidgetRef ref) {
     final parts = <String>[];
 
@@ -112,54 +142,11 @@ class TransactionListItem extends ConsumerWidget {
           fontSize: 11,
         );
 
-    // 构建附件图标部件（可点击）
-    Widget buildAttachmentWidget() {
-      final widget = Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.image_outlined,
-            size: 12,
-            color: BeeTokens.textTertiary(context),
-          ),
-          const SizedBox(width: 2),
-          Text('$attachmentCount', style: textStyle),
-        ],
-      );
-      if (onAttachmentTap != null) {
-        return GestureDetector(
-          onTap: onAttachmentTap,
-          behavior: HitTestBehavior.opaque,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-            child: widget,
-          ),
-        );
-      }
-      return widget;
-    }
-
-    // 如果只有附件，没有其他信息
-    if (parts.isEmpty && attachmentCount > 0) {
-      return buildAttachmentWidget();
-    }
-
-    // 有其他信息时
-    return Row(
-      children: [
-        Flexible(
-          child: Text(
-            parts.join(' · '),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: textStyle,
-          ),
-        ),
-        if (attachmentCount > 0) ...[
-          Text(' · ', style: textStyle),
-          buildAttachmentWidget(),
-        ],
-      ],
+    return Text(
+      parts.join(' · '),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: textStyle,
     );
   }
 
@@ -240,7 +227,7 @@ class TransactionListItem extends ConsumerWidget {
                 ),
               ),
             ),
-            // 右侧：金额 + 标签
+            // 右侧：金额 + 附件入口 + 标签
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -267,8 +254,9 @@ class TransactionListItem extends ConsumerWidget {
                                   ? BeeTokens.expenseColor(context, ref)
                                   : BeeTokens.incomeColor(context, ref),
                     )),
+                if (attachmentCount > 0) _buildAttachmentBadge(context),
                 // 标签（显示在金额下方）
-                if (tags != null && tags!.isNotEmpty)
+                if (showTags && tags != null && tags!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: TagChipList(

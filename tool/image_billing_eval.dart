@@ -110,10 +110,10 @@ String _renderMarkdownReport(
   buffer.writeln();
 
   buffer.writeln(
-    '| Case | Image | Actual | Amount | Type | Time | Note | Category | Counterparty | Payment | Details |',
+    '| Case | Image | Actual | Amount | Type | Time | Note | Category | Counterparty | Payment | Pay Channel | Merchant | Acquirer | Details |',
   );
   buffer.writeln(
-      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
 
   for (final row in rows) {
     final c = row.goldenCase;
@@ -129,6 +129,9 @@ String _renderMarkdownReport(
       _cell(row.checkFor('category')),
       _cell(row.checkFor('counterparty')),
       _cell(row.checkFor('payment_method')),
+      _cell(row.checkFor('payment_channel')),
+      _cell(row.checkFor('merchant_full_name')),
+      _cell(row.checkFor('acquirer')),
       _cell(row.checkFor('details')),
     ].map(_mdCell).join(' | ');
     buffer.writeln('| $cells |');
@@ -138,10 +141,10 @@ String _renderMarkdownReport(
   buffer.writeln('## Actual Fields');
   buffer.writeln();
   buffer.writeln(
-    '| Case | Image | Actual | Amount | Type | Time | Note | Category | Counterparty | Payment | Details |',
+    '| Case | Image | Actual | Amount | Type | Time | Note | Category | Counterparty | Payment | Pay Channel | Merchant | Acquirer | Details |',
   );
   buffer.writeln(
-      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+      '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
 
   for (final row in rows) {
     final c = row.goldenCase;
@@ -157,6 +160,9 @@ String _renderMarkdownReport(
       _actualExpectedCell(row, 'category'),
       _actualExpectedCell(row, 'counterparty'),
       _actualExpectedCell(row, 'payment_method'),
+      _actualExpectedCell(row, 'payment_channel'),
+      _actualExpectedCell(row, 'merchant_full_name'),
+      _actualExpectedCell(row, 'acquirer'),
       _actualExpectedCell(row, 'details'),
     ].map(_mdCell).join(' | ');
     buffer.writeln('| $cells |');

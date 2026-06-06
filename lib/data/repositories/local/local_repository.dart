@@ -311,6 +311,10 @@ class LocalRepository extends BaseRepository {
     String? note,
     dynamic paymentMethod,
     dynamic counterparty,
+    dynamic paymentChannel,
+    dynamic merchantFullName,
+    dynamic acquirer,
+    dynamic detailsText,
     String? syncId,
   }) async {
     final id = await _transactionRepo.addTransaction(
@@ -324,6 +328,10 @@ class LocalRepository extends BaseRepository {
       note: note,
       paymentMethod: paymentMethod,
       counterparty: counterparty,
+      paymentChannel: paymentChannel,
+      merchantFullName: merchantFullName,
+      acquirer: acquirer,
+      detailsText: detailsText,
       syncId: syncId,
     );
     if (changeTracker != null) {
@@ -386,6 +394,10 @@ class LocalRepository extends BaseRepository {
     String? note,
     dynamic paymentMethod,
     dynamic counterparty,
+    dynamic paymentChannel,
+    dynamic merchantFullName,
+    dynamic acquirer,
+    dynamic detailsText,
     DateTime? happenedAt,
     dynamic accountId,
   }) async {
@@ -400,6 +412,10 @@ class LocalRepository extends BaseRepository {
           note: note,
           paymentMethod: paymentMethod,
           counterparty: counterparty,
+          paymentChannel: paymentChannel,
+          merchantFullName: merchantFullName,
+          acquirer: acquirer,
+          detailsText: detailsText,
           happenedAt: happenedAt,
           accountId: accountId,
         );
@@ -421,6 +437,10 @@ class LocalRepository extends BaseRepository {
       note: note,
       paymentMethod: paymentMethod,
       counterparty: counterparty,
+      paymentChannel: paymentChannel,
+      merchantFullName: merchantFullName,
+      acquirer: acquirer,
+      detailsText: detailsText,
       happenedAt: happenedAt,
       accountId: accountId,
     );
@@ -605,6 +625,10 @@ class LocalRepository extends BaseRepository {
     String? note,
     String? paymentMethod,
     String? counterparty,
+    String? paymentChannel,
+    String? merchantFullName,
+    String? acquirer,
+    String? detailsText,
   }) =>
       _transactionRepo.updateTransactionBySyncId(
         syncId: syncId,
@@ -617,6 +641,10 @@ class LocalRepository extends BaseRepository {
         note: note,
         paymentMethod: paymentMethod,
         counterparty: counterparty,
+        paymentChannel: paymentChannel,
+        merchantFullName: merchantFullName,
+        acquirer: acquirer,
+        detailsText: detailsText,
       );
 
   @override

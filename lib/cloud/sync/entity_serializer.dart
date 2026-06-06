@@ -40,6 +40,10 @@ class EntitySerializer {
       'note': tx.note,
       'paymentMethod': tx.paymentMethod,
       'counterparty': tx.counterparty,
+      if (tx.paymentChannel != null) 'paymentChannel': tx.paymentChannel,
+      if (tx.merchantFullName != null) 'merchantFullName': tx.merchantFullName,
+      if (tx.acquirer != null) 'acquirer': tx.acquirer,
+      if (tx.detailsText != null) 'detailsText': tx.detailsText,
       if (ledgerSyncId != null && ledgerSyncId.isNotEmpty)
         'ledgerSyncId': ledgerSyncId,
       'categoryName': categoryName,

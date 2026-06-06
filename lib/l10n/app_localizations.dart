@@ -4639,6 +4639,30 @@ abstract class AppLocalizations {
   /// **'Counterparty'**
   String get exportCsvHeaderCounterparty;
 
+  /// No description provided for @exportCsvHeaderPaymentChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Channel'**
+  String get exportCsvHeaderPaymentChannel;
+
+  /// No description provided for @exportCsvHeaderMerchantFullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Merchant Full Name'**
+  String get exportCsvHeaderMerchantFullName;
+
+  /// No description provided for @exportCsvHeaderAcquirer.
+  ///
+  /// In en, this message translates to:
+  /// **'Acquirer'**
+  String get exportCsvHeaderAcquirer;
+
+  /// No description provided for @exportCsvHeaderDetailsText.
+  ///
+  /// In en, this message translates to:
+  /// **'Details Text'**
+  String get exportCsvHeaderDetailsText;
+
   /// No description provided for @exportCsvHeaderNote.
   ///
   /// In en, this message translates to:
@@ -8677,6 +8701,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'With'**
   String get transactionCounterpartyShort;
+
+  /// No description provided for @transactionPaymentChannelShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Ch'**
+  String get transactionPaymentChannelShort;
+
+  /// No description provided for @transactionMerchantShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Merch'**
+  String get transactionMerchantShort;
+
+  /// No description provided for @transactionAcquirerShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Acq'**
+  String get transactionAcquirerShort;
+
+  /// No description provided for @transactionPaymentChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Channel'**
+  String get transactionPaymentChannel;
+
+  /// No description provided for @transactionMerchantFullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Merchant Full Name'**
+  String get transactionMerchantFullName;
+
+  /// No description provided for @transactionAcquirer.
+  ///
+  /// In en, this message translates to:
+  /// **'Acquirer'**
+  String get transactionAcquirer;
+
+  /// No description provided for @transactionDetailsText.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get transactionDetailsText;
+
+  /// No description provided for @transactionDetailsShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Dtl'**
+  String get transactionDetailsShort;
 
   /// No description provided for @transferSelectAccount.
   ///

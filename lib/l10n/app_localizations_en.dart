@@ -2541,6 +2541,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exportCsvHeaderCounterparty => 'Counterparty';
 
   @override
+  String get exportCsvHeaderPaymentChannel => 'Payment Channel';
+
+  @override
+  String get exportCsvHeaderMerchantFullName => 'Merchant Full Name';
+
+  @override
+  String get exportCsvHeaderAcquirer => 'Acquirer';
+
+  @override
+  String get exportCsvHeaderDetailsText => 'Details Text';
+
+  @override
   String get exportCsvHeaderNote => 'Note';
 
   @override
@@ -4777,6 +4789,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get transactionCounterpartyShort => 'With';
+
+  @override
+  String get transactionPaymentChannelShort => 'Ch';
+
+  @override
+  String get transactionMerchantShort => 'Merch';
+
+  @override
+  String get transactionAcquirerShort => 'Acq';
+
+  @override
+  String get transactionPaymentChannel => 'Payment Channel';
+
+  @override
+  String get transactionMerchantFullName => 'Merchant Full Name';
+
+  @override
+  String get transactionAcquirer => 'Acquirer';
+
+  @override
+  String get transactionDetailsText => 'Details';
+
+  @override
+  String get transactionDetailsShort => 'Dtl';
 
   @override
   String get transferSelectAccount => 'Select Account';

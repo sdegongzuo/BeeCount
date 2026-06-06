@@ -2457,6 +2457,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get exportCsvHeaderCounterparty => '交易对方';
 
   @override
+  String get exportCsvHeaderPaymentChannel => '支付通道';
+
+  @override
+  String get exportCsvHeaderMerchantFullName => '商户全称';
+
+  @override
+  String get exportCsvHeaderAcquirer => '收单机构';
+
+  @override
+  String get exportCsvHeaderDetailsText => '识别明细';
+
+  @override
   String get exportCsvHeaderNote => '备注';
 
   @override
@@ -4590,6 +4602,30 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get transactionCounterpartyShort => '对方';
+
+  @override
+  String get transactionPaymentChannelShort => '通道';
+
+  @override
+  String get transactionMerchantShort => '商户';
+
+  @override
+  String get transactionAcquirerShort => '收单';
+
+  @override
+  String get transactionPaymentChannel => '支付通道';
+
+  @override
+  String get transactionMerchantFullName => '商户全称';
+
+  @override
+  String get transactionAcquirer => '收单机构';
+
+  @override
+  String get transactionDetailsText => '识别明细';
+
+  @override
+  String get transactionDetailsShort => '明细';
 
   @override
   String get transferSelectAccount => '选择账户';
@@ -8694,6 +8730,18 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get exportCsvHeaderCounterparty => '交易對方';
 
   @override
+  String get exportCsvHeaderPaymentChannel => '支付通道';
+
+  @override
+  String get exportCsvHeaderMerchantFullName => '商戶全稱';
+
+  @override
+  String get exportCsvHeaderAcquirer => '收單機構';
+
+  @override
+  String get exportCsvHeaderDetailsText => '識別明細';
+
+  @override
   String get exportCsvHeaderNote => '備註';
 
   @override
@@ -10827,6 +10875,30 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get transactionCounterpartyShort => '對方';
+
+  @override
+  String get transactionPaymentChannelShort => '通道';
+
+  @override
+  String get transactionMerchantShort => '商戶';
+
+  @override
+  String get transactionAcquirerShort => '收單';
+
+  @override
+  String get transactionPaymentChannel => '支付通道';
+
+  @override
+  String get transactionMerchantFullName => '商戶全稱';
+
+  @override
+  String get transactionAcquirer => '收單機構';
+
+  @override
+  String get transactionDetailsText => '識別明細';
+
+  @override
+  String get transactionDetailsShort => '明細';
 
   @override
   String get transferSelectAccount => '選擇帳戶';

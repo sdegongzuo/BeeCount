@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui' as ui;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,6 +8,8 @@ import '../ai/bill_extraction_service.dart';
 import '../../data/repositories/base_repository.dart';
 import '../system/logger_service.dart';
 import 'bill_recognition_normalizer.dart';
+import 'details_text_helper.dart';
+import 'payment_channel_detector.dart';
 
 /// OCR识别结果
 class OcrResult {
@@ -27,6 +28,8 @@ class OcrResult {
   final String? merchantFullName; // 商户全称
   final String? acquirer; // 收单机构/清算机构
   final Map<String, dynamic>? details; // 补充明细
+  final String? detailsText; // 补充明细化文本（优先使用）
+  final PaymentChannelDetection? detectedPaymentChannel; // 规则检测出的支付通道
   final String? aiProvider; // AI提供商（用于日志）
   final bool aiEnhanced; // 是否经过AI增强
 
@@ -46,6 +49,8 @@ class OcrResult {
     this.merchantFullName,
     this.acquirer,
     this.details,
+    this.detailsText,
+    this.detectedPaymentChannel,
     this.aiProvider,
     this.aiEnhanced = false,
   });
@@ -65,6 +70,8 @@ class OcrResult {
     String? merchantFullName,
     String? acquirer,
     Map<String, dynamic>? details,
+    String? detailsText,
+    PaymentChannelDetection? detectedPaymentChannel,
     String? aiProvider,
   }) {
     return OcrResult(
@@ -83,6 +90,9 @@ class OcrResult {
       merchantFullName: merchantFullName ?? this.merchantFullName,
       acquirer: acquirer ?? this.acquirer,
       details: details ?? this.details,
+      detailsText: detailsText ?? this.detailsText,
+      detectedPaymentChannel:
+          detectedPaymentChannel ?? this.detectedPaymentChannel,
       aiProvider: aiProvider,
       aiEnhanced: true,
     );
@@ -104,6 +114,8 @@ class OcrResult {
         'merchant_full_name': merchantFullName,
         'acquirer': acquirer,
         'details': details,
+        'details_text': detailsText,
+        'detected_payment_channel': detectedPaymentChannel?.toJson(),
         'aiProvider': aiProvider,
         'aiEnhanced': aiEnhanced,
       };
@@ -117,6 +129,8 @@ class OcrService {
   final TextRecognizer _textRecognizer = TextRecognizer(
     script: TextRecognitionScript.chinese,
   );
+  final PaymentChannelResolver _paymentChannelResolver =
+      const PaymentChannelResolver();
 
   /// 识别图片中的文本并提取支付信息
   ///
@@ -188,10 +202,14 @@ class OcrService {
       final amount = _extractAmount(rawText);
       final note = _extractNote(rawText);
       final time = _extractTime(rawText);
+      final paymentChannelDetection = await _paymentChannelResolver.resolve(
+        rawText,
+        imageFile: imageFile,
+      );
       final ruleDuration = DateTime.now().difference(ruleStartTime);
 
       logger.info(_tag,
-          '[规则提取] ${ruleDuration.inMilliseconds}ms | 金额:${amount ?? "无"} 备注:${note ?? "无"} 时间:${time ?? "无"} 候选:$allNumbers');
+          '[规则提取] ${ruleDuration.inMilliseconds}ms | 金额:${amount ?? "无"} 备注:${note ?? "无"} 时间:${time ?? "无"} 支付通道:${paymentChannelDetection?.channel ?? "无"} 候选:$allNumbers');
 
       final baseResult = OcrResult(
         amount: amount,
@@ -199,6 +217,8 @@ class OcrService {
         time: time,
         rawText: rawText,
         allNumbers: allNumbers,
+        paymentChannel: paymentChannelDetection?.channel,
+        detectedPaymentChannel: paymentChannelDetection,
       );
       traceSink?.call(BillExtractionTraceEvent(
         stage: 'rule',
@@ -311,10 +331,10 @@ class OcrService {
         final mergedAccount = billInfo.account;
         final mergedPaymentMethod =
             billInfo.paymentMethod ?? baseResult.paymentMethod;
-        final detectedPaymentChannel = await _detectPaymentChannelFromImage(
-          imageFile,
-          baseResult.rawText,
-        );
+        final detectedPaymentChannel =
+            baseResult.detectedPaymentChannel?.isHighConfidence == true
+                ? baseResult.detectedPaymentChannel?.channel
+                : null;
         final mergedPaymentChannel =
             billInfo.paymentChannel ?? baseResult.paymentChannel;
         final mergedCounterparty =
@@ -323,6 +343,10 @@ class OcrService {
             billInfo.merchantFullName ?? baseResult.merchantFullName;
         final mergedAcquirer = billInfo.acquirer ?? baseResult.acquirer;
         final mergedDetails = billInfo.details ?? baseResult.details;
+        // detailsText: 优先使用 detailsMapToText(billInfo.details)，已有文本可保留
+        final mergedDetailsText = billInfo.details != null
+            ? detailsMapToText(billInfo.details)
+            : (baseResult.detailsText);
 
         final mergedTime = billInfo.time ?? baseResult.time;
         final normalized = const BillRecognitionNormalizer().normalize(
@@ -356,6 +380,7 @@ class OcrService {
           merchantFullName: normalized.merchantFullName,
           acquirer: mergedAcquirer,
           details: normalized.details,
+          detailsText: mergedDetailsText,
           aiProvider: 'AI',
         );
       } else {
@@ -390,100 +415,6 @@ class OcrService {
       rawText: rawText,
       allNumbers: allNumbers,
     );
-  }
-
-  Future<String?> _detectPaymentChannelFromImage(
-    File? imageFile,
-    String rawText,
-  ) async {
-    if (imageFile == null) return null;
-
-    try {
-      if (_hasWechatPaymentDetailText(rawText) &&
-          await _hasWechatPayGreenLogo(imageFile)) {
-        logger.debug(_tag, '[视觉规则] 命中微信支付绿色对勾标识');
-        return '微信支付';
-      }
-    } catch (e) {
-      logger.warning(_tag, '[视觉规则] 支付通道检测失败: $e');
-    }
-
-    return null;
-  }
-
-  bool _hasWechatPaymentDetailText(String rawText) {
-    final text = rawText.replaceAll(RegExp(r'\s+'), '');
-    return text.contains('收单机构') ||
-        text.contains('收單機構') ||
-        text.contains('财付通') ||
-        text.contains('財付通') ||
-        text.contains('富友支付');
-  }
-
-  Future<bool> _hasWechatPayGreenLogo(File imageFile) async {
-    final bytes = await imageFile.readAsBytes();
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    final image = frame.image;
-
-    try {
-      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      if (data == null) return false;
-
-      final width = image.width;
-      final height = image.height;
-
-      // 微信支付交易详情页的绿色对勾标识位于上方 tab 区域。
-      // 限定纵向范围，避免状态栏电池图标和底部优惠文案造成误判。
-      final startY = (height * 0.12).round();
-      final endY = (height * 0.25).round();
-      final startX = (width * 0.45).round();
-      final endX = (width * 0.95).round();
-
-      var greenPixels = 0;
-      var minX = width;
-      var maxX = 0;
-      var minY = height;
-      var maxY = 0;
-
-      for (var y = startY; y < endY; y++) {
-        for (var x = startX; x < endX; x++) {
-          final offset = (y * width + x) * 4;
-          final r = data.getUint8(offset);
-          final g = data.getUint8(offset + 1);
-          final b = data.getUint8(offset + 2);
-
-          if (_isWechatPayGreen(r, g, b)) {
-            greenPixels++;
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
-        }
-      }
-
-      if (greenPixels < 80) return false;
-
-      final clusterWidth = maxX - minX + 1;
-      final clusterHeight = maxY - minY + 1;
-      return clusterWidth >= 16 &&
-          clusterWidth <= width * 0.18 &&
-          clusterHeight >= 16 &&
-          clusterHeight <= height * 0.08;
-    } finally {
-      image.dispose();
-    }
-  }
-
-  bool _isWechatPayGreen(int r, int g, int b) {
-    return r <= 90 &&
-        g >= 145 &&
-        g <= 230 &&
-        b >= 45 &&
-        b <= 155 &&
-        g - r >= 70 &&
-        g - b >= 35;
   }
 
   /// 提取所有可能的数字（供用户选择）
@@ -544,6 +475,35 @@ class OcrService {
       }
     }
 
+    // 优先匹配顶部/主金额里的纯负数，避免后续优惠券 ¥0.30 抢先命中。
+    final plainNegativeAmount = _largestPlainNegativeAmount(cleanText);
+    if (plainNegativeAmount != null) {
+      return plainNegativeAmount;
+    }
+
+    // 云闪付等页面可能显示为 -¥23.60，OCR 有时把负号识别成中文“一”。
+    final negativeCurrencyPattern = RegExp(r'[-−一]\s*[¥￥]\s*(\d+\.?\d*)');
+    final negativeCurrencyMatches =
+        negativeCurrencyPattern.allMatches(cleanText);
+    for (final match in negativeCurrencyMatches) {
+      final amountStr = match.group(1);
+      if (amountStr != null) {
+        final amount = double.tryParse(amountStr);
+        if (amount != null && amount > 0) {
+          final priorText = cleanText.substring(0, match.start);
+          final nearbyStart = match.start > 12 ? match.start - 12 : 0;
+          final nearbyText = cleanText.substring(nearbyStart, match.start);
+          final hasEarlierCurrency =
+              RegExp(r'[¥￥]\s*\d+\.?\d*').hasMatch(priorText);
+          final looksLikeDiscount = RegExp(r'优惠|立减|券|减').hasMatch(nearbyText);
+          if (hasEarlierCurrency && looksLikeDiscount) {
+            continue;
+          }
+          return -amount;
+        }
+      }
+    }
+
     // 支付宝特征：付款 ¥123.45 或 实付 ¥123.45
     final alipayPatterns = [
       RegExp(r'[付实付收款]款?[¥￥]\s*(\d+\.?\d*)'),
@@ -557,7 +517,7 @@ class OcrService {
         if (amountStr != null) {
           final amount = double.tryParse(amountStr);
           if (amount != null && amount > 0) {
-            return amount;
+            return _withPaymentSign(amount, cleanText);
           }
         }
       }
@@ -574,7 +534,7 @@ class OcrService {
       if (amountStr != null) {
         final amount = double.tryParse(amountStr);
         if (amount != null && amount > 0) {
-          return amount;
+          return _withPaymentSign(amount, cleanText);
         }
       }
     }
@@ -585,43 +545,60 @@ class OcrService {
     if (generalMatch != null) {
       final amountStr = generalMatch.group(1);
       if (amountStr != null) {
-        return double.tryParse(amountStr);
+        final amount = double.tryParse(amountStr);
+        return amount == null ? null : _withPaymentSign(amount, cleanText);
       }
     }
 
     // 如果前面都没匹配到,尝试匹配负号金额: -14.00 或 -14.93
     // 只匹配带小数点的金额，避免误匹配时间等
-    final negativePattern = RegExp(r'-(\d+\.\d{2})');
-    final negativeMatches = negativePattern.allMatches(cleanText);
-    if (negativeMatches.isNotEmpty) {
-      // 过滤掉小额红包（小于1元的），优先选择最大的负数金额
-      double? maxAmount;
-      for (final match in negativeMatches) {
-        final amountStr = match.group(1);
-        if (amountStr != null) {
-          final amount = double.tryParse(amountStr);
-          if (amount != null &&
-              amount >= 0.01 &&
-              amount < 100000 &&
-              (maxAmount == null || amount > maxAmount)) {
-            maxAmount = amount;
-          }
-        }
-      }
-      if (maxAmount != null && maxAmount >= 1.0) {
-        // 只返回大于等于1元的金额，过滤小额红包
-        // 重要：返回负数以表示支出
-        return -maxAmount;
-      }
+    final fallbackNegativeAmount = _largestPlainNegativeAmount(cleanText);
+    if (fallbackNegativeAmount != null) {
+      return fallbackNegativeAmount;
     }
 
     // 最后尝试: 如果 allNumbers 中有有效金额,使用第一个
     final allNumbers = _extractAllNumbers(text);
     if (allNumbers.isNotEmpty) {
-      return double.tryParse(allNumbers.first);
+      final amount = double.tryParse(allNumbers.first);
+      return amount == null ? null : _withPaymentSign(amount, cleanText);
     }
 
     return null;
+  }
+
+  double? _largestPlainNegativeAmount(String cleanText) {
+    final negativePattern = RegExp(r'[-−](\d+\.\d{2})');
+    final negativeMatches = negativePattern.allMatches(cleanText);
+    if (negativeMatches.isEmpty) return null;
+
+    // 过滤小额优惠/红包，优先选择最大的负数金额。
+    double? maxAmount;
+    for (final match in negativeMatches) {
+      final amountStr = match.group(1);
+      if (amountStr != null) {
+        final amount = double.tryParse(amountStr);
+        if (amount != null &&
+            amount >= 1.0 &&
+            amount < 100000 &&
+            (maxAmount == null || amount > maxAmount)) {
+          maxAmount = amount;
+        }
+      }
+    }
+    return maxAmount == null ? null : -maxAmount;
+  }
+
+  double _withPaymentSign(double amount, String cleanText) {
+    if (amount <= 0) return amount;
+    if (RegExp(r'收款|收入|退款|到账|已退').hasMatch(cleanText)) {
+      return amount;
+    }
+    if (RegExp(r'支付成功|支付咸功|支付成咸功|交易成功|交易成戌功|付款成功|自动扣款成功|消费|付款方式|支付方式')
+        .hasMatch(cleanText)) {
+      return -amount;
+    }
+    return amount;
   }
 
   /// 提取备注信息
@@ -669,6 +646,9 @@ class OcrService {
       RegExp(r'(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})'),
       // 2025-11-06 14:30
       RegExp(r'(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})'),
+      // 2025年11 月06日 14:30:25，OCR 可能在年月日前后插入空格
+      RegExp(
+          r'(\d{4})年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s+(\d{1,2}):(\d{2}):(\d{2})'),
       // 2025年11月06日 14:30:25
       RegExp(r'(\d{4})年(\d{1,2})月(\d{1,2})日\s+(\d{2}):(\d{2}):(\d{2})'),
       // 2025年8月30日 16:06:30

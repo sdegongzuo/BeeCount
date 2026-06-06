@@ -75,6 +75,10 @@ abstract class TransactionRepository {
     String? note,
     dynamic paymentMethod,
     dynamic counterparty,
+    dynamic paymentChannel,
+    dynamic merchantFullName,
+    dynamic acquirer,
+    dynamic detailsText,
     String? syncId,
   });
 
@@ -93,6 +97,10 @@ abstract class TransactionRepository {
     String? note,
     dynamic paymentMethod,
     dynamic counterparty,
+    dynamic paymentChannel,
+    dynamic merchantFullName,
+    dynamic acquirer,
+    dynamic detailsText,
     DateTime? happenedAt,
     dynamic accountId,
   });
@@ -198,6 +206,10 @@ abstract class TransactionRepository {
     String? note,
     String? paymentMethod,
     String? counterparty,
+    String? paymentChannel,
+    String? merchantFullName,
+    String? acquirer,
+    String? detailsText,
   });
 
   /// 根据 syncId 删除交易

@@ -98,6 +98,10 @@ extension _SyncEngineApply on SyncEngine {
     final note = payload['note'] as String?;
     final paymentMethod = payload['paymentMethod'] as String?;
     final counterparty = payload['counterparty'] as String?;
+    final paymentChannel = payload['paymentChannel'] as String?;
+    final merchantFullName = payload['merchantFullName'] as String?;
+    final acquirer = payload['acquirer'] as String?;
+    final detailsText = payload['detailsText'] as String?;
     final categoryName = payload['categoryName'] as String?;
     final categoryKind = payload['categoryKind'] as String?;
     final accountName = payload['accountName'] as String?;
@@ -141,6 +145,10 @@ extension _SyncEngineApply on SyncEngine {
         note: d.Value(note),
         paymentMethod: d.Value(paymentMethod),
         counterparty: d.Value(counterparty),
+        paymentChannel: d.Value(paymentChannel),
+        merchantFullName: d.Value(merchantFullName),
+        acquirer: d.Value(acquirer),
+        detailsText: d.Value(detailsText),
         categoryId: d.Value(categoryId),
         accountId: d.Value(accountId),
         toAccountId: d.Value(toAccountId),
@@ -160,6 +168,10 @@ extension _SyncEngineApply on SyncEngine {
               note: d.Value(note),
               paymentMethod: d.Value(paymentMethod),
               counterparty: d.Value(counterparty),
+              paymentChannel: d.Value(paymentChannel),
+              merchantFullName: d.Value(merchantFullName),
+              acquirer: d.Value(acquirer),
+              detailsText: d.Value(detailsText),
               categoryId: d.Value(categoryId),
               accountId: d.Value(accountId),
               toAccountId: d.Value(toAccountId),

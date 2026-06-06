@@ -23,6 +23,16 @@ String _sanitizeString(String? input) {
       .trim();
 }
 
+/// 清理 detailsText 字段：保留 \n 换行，移除危险控制字符和 \r/\t
+String _sanitizeDetailsText(String? input) {
+  if (input == null) return '';
+  return input
+      .replaceAll(RegExp(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]'), '')
+      .replaceAll('\r', '')
+      .replaceAll('\t', ' ')
+      .trim();
+}
+
 // --- 导出 ---
 
 /// 导出账本交易数据为 JSON 字符串
@@ -157,6 +167,14 @@ Future<String> exportTransactionsJson(BeeDatabase db, int ledgerId) async {
         'paymentMethod': _sanitizeString(t.paymentMethod),
       if (t.counterparty != null && t.counterparty!.trim().isNotEmpty)
         'counterparty': _sanitizeString(t.counterparty),
+      if (t.paymentChannel != null && t.paymentChannel!.trim().isNotEmpty)
+        'paymentChannel': _sanitizeString(t.paymentChannel),
+      if (t.merchantFullName != null && t.merchantFullName!.trim().isNotEmpty)
+        'merchantFullName': _sanitizeString(t.merchantFullName),
+      if (t.acquirer != null && t.acquirer!.trim().isNotEmpty)
+        'acquirer': _sanitizeString(t.acquirer),
+      if (t.detailsText != null && t.detailsText!.trim().isNotEmpty)
+        'detailsText': _sanitizeDetailsText(t.detailsText),
       if (t.syncId != null) 'syncId': t.syncId,
     };
 
@@ -286,7 +304,7 @@ Future<String> exportTransactionsJson(BeeDatabase db, int ledgerId) async {
   }
 
   final payload = {
-    'version': 6, // 版本升级,新增 syncId 用于跨设备同步
+    'version': 7, // 版本升级,新增 paymentChannel/merchantFullName/acquirer/detailsText
     'exportedAt': DateTime.now().toUtc().toIso8601String(),
     'ledgerId': ledgerId,
     'ledgerName': ledger.name,
@@ -398,6 +416,10 @@ ImportData parseJsonToImportData(String jsonStr) {
         note: it['note'] as String?,
         paymentMethod: it['paymentMethod'] as String?,
         counterparty: it['counterparty'] as String?,
+        paymentChannel: (it['paymentChannel'] ?? it['payment_channel']) as String?,
+        merchantFullName: (it['merchantFullName'] ?? it['merchant_full_name']) as String?,
+        acquirer: it['acquirer'] as String?,
+        detailsText: (it['detailsText'] ?? it['details_text']) as String?,
         // 账户信息：转账用 fromAccountName/toAccountName，其他用 accountName
         accountName: type != 'transfer' ? it['accountName'] as String? : null,
         fromAccountName:

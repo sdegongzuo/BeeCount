@@ -34,12 +34,23 @@ $suffix = "-" + $single + ".jpg"
 
 $samples = @(
   @{ Local = $alipay + $suffix; Remote = "alipay_etc_single.jpg" },
+  @{ Local = $alipay + "-" + $single + "2.jpg"; Remote = "alipay_mimo_token_single.jpg" },
+  @{ Local = $alipay + "-" + $single + "3.jpg"; Remote = "alipay_taobao_flash_single.jpg" },
+  @{ Local = $alipay + "-" + $single + "4.jpg"; Remote = "alipay_tmall_single.jpg" },
   @{ Local = $wechat + $suffix; Remote = "wechat_pinduoduo_single.jpg" },
   @{ Local = $wechat + "-" + $single + "2.jpg"; Remote = "wechat_yangguofu_single.jpg" },
   @{ Local = $meituan + $suffix; Remote = "meituan_xiaoxiang_single.jpg" },
+  @{ Local = $meituan + "-" + $single + "2.jpg"; Remote = "meituan_xiaoxiang_digital_single.jpg" },
+  @{ Local = $meituan + "-" + $single + "3.jpg"; Remote = "meituan_xiaoxiang_monthpay_single.jpg" },
   @{ Local = $jd + $suffix; Remote = "jd_platform_single.jpg" },
+  @{ Local = $jd + "-" + $single + "2.jpg"; Remote = "jd_multi_order_single.jpg" },
   @{ Local = $pinduoduo + $suffix; Remote = "pinduoduo_membership_single.jpg" },
-  @{ Local = $unionpay + $suffix; Remote = "unionpay_xicha_single.jpg" }
+  @{ Local = $pinduoduo + "-" + $single + "2.jpg"; Remote = "pinduoduo_hardware_single.jpg" },
+  @{ Local = $pinduoduo + "-" + $single + "3.jpg"; Remote = "pinduoduo_tool_single.jpg" },
+  @{ Local = $unionpay + $suffix; Remote = "unionpay_xicha_single.jpg" },
+  @{ Local = $unionpay + "-" + $single + "2.jpg"; Remote = "unionpay_pinduoduo_single.jpg" },
+  @{ Local = $unionpay + "-" + $single + "3.jpg"; Remote = "unionpay_kfc_single.jpg" },
+  @{ Local = $unionpay + "-" + $single + "4.jpg"; Remote = "unionpay_ele_single.jpg" }
 )
 
 & $Adb -s $Device shell run-as $Package mkdir -p $target

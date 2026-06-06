@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../system/logger_service.dart';
 import '../data/tag_seed_service.dart';
 import 'category_matcher.dart';
+import 'details_text_helper.dart';
 import 'ocr_service.dart';
 
 /// 账单创建服务
@@ -411,6 +412,10 @@ class BillCreationService {
       note: finalNote,
       paymentMethod: result.paymentMethod,
       counterparty: result.counterparty,
+      paymentChannel: result.paymentChannel,
+      merchantFullName: result.merchantFullName,
+      acquirer: result.acquirer,
+      detailsText: result.detailsText ?? detailsMapToText(result.details),
     );
 
     // 10. 自动添加标签（记账方式标签 + AI识别标签）

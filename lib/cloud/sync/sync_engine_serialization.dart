@@ -616,7 +616,7 @@ extension _SyncEngineSerialization on SyncEngine {
     }
 
     return jsonEncode({
-      'version': 6,
+      'version': 7,
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'ledgerId': ledger.id,
       'ledgerName': ledger.name,

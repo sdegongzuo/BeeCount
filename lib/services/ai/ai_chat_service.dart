@@ -148,6 +148,7 @@ class AIChatService {
         toAccount: billInfo.toAccount,
         tags: billInfo.tags,
         details: billInfo.details,
+        detailsText: billInfo.detailsText,
         ledgerId: ledgerId,
         confidence: billInfo.confidence,
       );
@@ -175,6 +176,7 @@ class AIChatService {
         toAccount: billInfo.toAccount,
         tags: billInfo.tags,
         details: billInfo.details,
+        detailsText: billInfo.detailsText,
         ledgerId: ledgerId,
         confidence: billInfo.confidence,
       );
@@ -226,6 +228,7 @@ class AIChatService {
       toAccount: billInfo.toAccount,
       tags: billInfo.tags,
       details: normalized.details,
+      detailsText: billInfo.detailsText,
       ledgerId: billInfo.ledgerId,
       confidence: billInfo.confidence,
     );
@@ -315,6 +318,7 @@ class AIChatService {
       merchantFullName: bill.merchantFullName,
       acquirer: bill.acquirer,
       details: bill.details,
+      detailsText: bill.detailsText,
     );
 
     // 读取智能记账设置

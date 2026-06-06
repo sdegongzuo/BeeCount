@@ -66,6 +66,9 @@ class BillInfo {
   /// 补充明细（可选，如店名、出发到达、订单号）
   final Map<String, dynamic>? details;
 
+  /// 补充明细化文本（优先使用）
+  final String? detailsText;
+
   /// 账本ID
   final int? ledgerId;
 
@@ -88,6 +91,7 @@ class BillInfo {
     this.toAccount,
     this.tags,
     this.details,
+    this.detailsText,
     this.ledgerId,
     this.confidence = 0.0,
   });
@@ -142,6 +146,7 @@ class BillInfo {
       toAccount: json['to_account'] ?? json['toAccount'],
       tags: _parseTags(json['tags'] ?? json['tag']),
       details: _parseDetails(json['details'] ?? json['extra']),
+      detailsText: _parseString(json['details_text'] ?? json['detailsText']),
       ledgerId: json['ledgerId'],
       confidence: json['confidence']?.toDouble() ?? 0.8,
     );
@@ -164,6 +169,7 @@ class BillInfo {
         'to_account': toAccount,
         'tags': tags,
         'details': details,
+        'details_text': detailsText,
         'ledgerId': ledgerId,
         'confidence': confidence,
       };
@@ -230,7 +236,7 @@ class BillInfo {
 
   @override
   String toString() {
-    return 'BillInfo(amount: $amount, time: $time, note: $note, category: $category, type: $type, account: $account, paymentMethod: $paymentMethod, paymentChannel: $paymentChannel, counterparty: $counterparty, merchantFullName: $merchantFullName, acquirer: $acquirer, fromAccount: $fromAccount, toAccount: $toAccount, tags: $tags, details: $details)';
+    return 'BillInfo(amount: $amount, time: $time, note: $note, category: $category, type: $type, account: $account, paymentMethod: $paymentMethod, paymentChannel: $paymentChannel, counterparty: $counterparty, merchantFullName: $merchantFullName, acquirer: $acquirer, fromAccount: $fromAccount, toAccount: $toAccount, tags: $tags, details: $details, detailsText: $detailsText)';
   }
 }
 

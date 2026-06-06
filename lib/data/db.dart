@@ -80,6 +80,10 @@ class Transactions extends Table {
   TextColumn get note => text().nullable()();
   TextColumn get paymentMethod => text().nullable()(); // 支付方式/收付款方式
   TextColumn get counterparty => text().nullable()(); // 交易对方
+  TextColumn get paymentChannel => text().nullable()(); // 支付通道/账单来源（如微信支付、支付宝）
+  TextColumn get merchantFullName => text().nullable()(); // 商户全称
+  TextColumn get acquirer => text().nullable()(); // 收单机构/清算机构
+  TextColumn get detailsText => text().nullable()(); // 补充明细（key:value 行文本）
   IntColumn get recurringId => integer().nullable()(); // 关联到重复交易模板
   TextColumn get syncId => text().nullable()(); // 跨设备同步唯一标识 (UUID)
 }
@@ -252,7 +256,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 24; // v24: 交易保留支付方式和交易对方
+  int get schemaVersion => 25; // v25: 交易增加支付通道/商户全称/收单机构/明细文本
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -847,6 +851,47 @@ class BeeDatabase extends _$BeeDatabase {
             }
 
             print('[DB Migration] v24 迁移完成');
+          }
+          if (from < 25) {
+            // v25: 交易增加支付通道、商户全称、收单机构、补充明细
+            print('[DB Migration] 开始迁移到 v25: transaction extra metadata');
+
+            final tableInfo =
+                await customSelect('PRAGMA table_info(transactions)').get();
+            final hasPaymentChannel =
+                tableInfo.any((row) => row.data['name'] == 'payment_channel');
+            final hasMerchantFullName =
+                tableInfo.any((row) => row.data['name'] == 'merchant_full_name');
+            final hasAcquirer =
+                tableInfo.any((row) => row.data['name'] == 'acquirer');
+            final hasDetailsText =
+                tableInfo.any((row) => row.data['name'] == 'details_text');
+
+            if (!hasPaymentChannel) {
+              await customStatement(
+                  'ALTER TABLE transactions ADD COLUMN payment_channel TEXT;');
+              logger.info('DB', 'v25: payment_channel 字段已添加');
+            }
+
+            if (!hasMerchantFullName) {
+              await customStatement(
+                  'ALTER TABLE transactions ADD COLUMN merchant_full_name TEXT;');
+              logger.info('DB', 'v25: merchant_full_name 字段已添加');
+            }
+
+            if (!hasAcquirer) {
+              await customStatement(
+                  'ALTER TABLE transactions ADD COLUMN acquirer TEXT;');
+              logger.info('DB', 'v25: acquirer 字段已添加');
+            }
+
+            if (!hasDetailsText) {
+              await customStatement(
+                  'ALTER TABLE transactions ADD COLUMN details_text TEXT;');
+              logger.info('DB', 'v25: details_text 字段已添加');
+            }
+
+            print('[DB Migration] v25 迁移完成');
           }
         },
       );

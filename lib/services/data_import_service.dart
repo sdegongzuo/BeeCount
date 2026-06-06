@@ -93,6 +93,10 @@ class ImportTransaction {
   final String? note;
   final String? paymentMethod;
   final String? counterparty;
+  final String? paymentChannel; // 支付通道/账单来源（如微信支付、支付宝）
+  final String? merchantFullName; // 商户全称
+  final String? acquirer; // 收单机构/清算机构
+  final String? detailsText; // 补充明细（key:value 行文本）
   final String? accountName; // 普通账户（收入/支出）
   final String? fromAccountName; // 转出账户（转账）
   final String? toAccountName; // 转入账户（转账）
@@ -110,6 +114,10 @@ class ImportTransaction {
     this.note,
     this.paymentMethod,
     this.counterparty,
+    this.paymentChannel,
+    this.merchantFullName,
+    this.acquirer,
+    this.detailsText,
     this.accountName,
     this.fromAccountName,
     this.toAccountName,
@@ -535,6 +543,10 @@ class DataImportService {
         note: d.Value(tx.note),
         paymentMethod: d.Value(tx.paymentMethod),
         counterparty: d.Value(tx.counterparty),
+        paymentChannel: d.Value(tx.paymentChannel),
+        merchantFullName: d.Value(tx.merchantFullName),
+        acquirer: d.Value(tx.acquirer),
+        detailsText: d.Value(tx.detailsText),
         syncId: d.Value(tx.syncId),
       );
 

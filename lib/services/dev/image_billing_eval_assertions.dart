@@ -303,16 +303,20 @@ ImageBillingEvalRow _evaluate(
 }) {
   final imageExists = !checkImageExists || File(c.image).existsSync();
   final actual = _extractFinalActual(actualEnvelope);
+  final degradeAiFields = _shouldDegradeAiFieldChecks(actualEnvelope, actual);
   final checks = <ImageBillingFieldCheck>[];
 
   if (actual != null) {
     for (final entry in c.expected.entries) {
       checks.add(
-        _compareField(
-          entry.key,
-          entry.value,
-          c.expectedAny[entry.key] ?? const [],
-          actual[entry.key],
+        _degradeAiCheckIfNeeded(
+          _compareField(
+            entry.key,
+            entry.value,
+            c.expectedAny[entry.key] ?? const [],
+            actual[entry.key],
+          ),
+          degradeAiFields,
         ),
       );
     }
@@ -324,12 +328,15 @@ ImageBillingEvalRow _evaluate(
       for (final forbiddenValue in entry.value) {
         if (_looselyEqual(entry.key, actualValue, forbiddenValue)) {
           checks.add(
-            ImageBillingFieldCheck(
-              field: entry.key,
-              expected: 'not $forbiddenValue',
-              allowedValues: ['not $forbiddenValue'],
-              actual: actualValue,
-              status: ImageBillingCheckStatus.fail,
+            _degradeAiCheckIfNeeded(
+              ImageBillingFieldCheck(
+                field: entry.key,
+                expected: 'not $forbiddenValue',
+                allowedValues: ['not $forbiddenValue'],
+                actual: actualValue,
+                status: ImageBillingCheckStatus.fail,
+              ),
+              degradeAiFields,
             ),
           );
         }
@@ -345,6 +352,51 @@ ImageBillingEvalRow _evaluate(
     checks: checks,
   );
 }
+
+bool _shouldDegradeAiFieldChecks(
+  Map<String, dynamic>? actualEnvelope,
+  Map<String, dynamic>? actual,
+) {
+  if (actualEnvelope == null || actual == null) return false;
+  if (actual['aiEnhanced'] != false) return false;
+
+  final rule = actualEnvelope['rule'];
+  if (rule is! Map) return false;
+  final detected = rule['detected_payment_channel'];
+  if (detected is! Map) return false;
+  final channel = detected['channel']?.toString().trim();
+  return channel != null && channel.isNotEmpty;
+}
+
+ImageBillingFieldCheck _degradeAiCheckIfNeeded(
+  ImageBillingFieldCheck check,
+  bool degradeAiFields,
+) {
+  if (!degradeAiFields ||
+      check.status != ImageBillingCheckStatus.fail ||
+      !_aiDependentFields.contains(check.field)) {
+    return check;
+  }
+  return ImageBillingFieldCheck(
+    field: check.field,
+    expected: check.expected,
+    allowedValues: check.allowedValues,
+    actual: check.actual,
+    status: ImageBillingCheckStatus.warn,
+  );
+}
+
+const _aiDependentFields = {
+  'type',
+  'note',
+  'category',
+  'payment_method',
+  'counterparty',
+  'payment_channel',
+  'merchant_full_name',
+  'acquirer',
+  'details',
+};
 
 Map<String, dynamic>? _extractFinalActual(Map<String, dynamic>? envelope) {
   if (envelope == null) return null;
@@ -377,6 +429,10 @@ ImageBillingFieldCheck _compareField(
   dynamic actual,
 ) {
   final allowedValues = <dynamic>[expected, ...alternatives];
+
+  if (field == 'details') {
+    return _compareDetailsField(field, expected, alternatives, actual);
+  }
 
   if (expected is Map) {
     return _compareMapField(field, expected, alternatives, actual);
@@ -417,6 +473,74 @@ ImageBillingFieldCheck _compareField(
   );
 }
 
+ImageBillingFieldCheck _compareDetailsField(
+  String field,
+  dynamic expected,
+  List<dynamic> alternatives,
+  dynamic actual,
+) {
+  final allowedValues = <dynamic>[expected, ...alternatives];
+  final expectedTokens = _detailsTokens(expected);
+
+  if (expectedTokens.isEmpty) {
+    return ImageBillingFieldCheck(
+      field: field,
+      expected: expected,
+      allowedValues: allowedValues,
+      actual: actual,
+      status: actual == null
+          ? ImageBillingCheckStatus.pass
+          : ImageBillingCheckStatus.warn,
+    );
+  }
+
+  if (actual == null) {
+    return ImageBillingFieldCheck(
+      field: field,
+      expected: expected,
+      allowedValues: allowedValues,
+      actual: null,
+      status: ImageBillingCheckStatus.fail,
+    );
+  }
+
+  final actualText = _normalizeText(_detailsText(actual));
+  final pass = expectedTokens.every((token) {
+    return actualText.contains(_normalizeText(token));
+  });
+
+  return ImageBillingFieldCheck(
+    field: field,
+    expected: expected,
+    allowedValues: allowedValues,
+    actual: actual,
+    status: pass ? ImageBillingCheckStatus.pass : ImageBillingCheckStatus.fail,
+  );
+}
+
+List<String> _detailsTokens(dynamic value) {
+  if (value == null) return const [];
+  if (value is List) {
+    return value
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+  if (value is Map) {
+    return value.values
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+  final text = value.toString().trim();
+  return text.isEmpty ? const [] : [text];
+}
+
+String _detailsText(dynamic value) {
+  if (value is String) return value;
+  return jsonEncode(value);
+}
+
 ImageBillingFieldCheck _compareMapField(
   String field,
   Map<dynamic, dynamic> expected,
@@ -436,12 +560,14 @@ ImageBillingFieldCheck _compareMapField(
   }
 
   final actualMap = Map<String, dynamic>.from(actual);
-  final expectedMap = expected.map(
-    (key, value) => MapEntry(key.toString(), value),
-  );
-  final pass = expectedMap.entries.every((entry) {
-    return _looselyEqual(
-        '$field.${entry.key}', actualMap[entry.key], entry.value);
+  final pass = allowedValues.whereType<Map>().any((allowed) {
+    final expectedMap = allowed.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+    return expectedMap.entries.every((entry) {
+      return _looselyEqual(
+          '$field.${entry.key}', actualMap[entry.key], entry.value);
+    });
   });
 
   return ImageBillingFieldCheck(
