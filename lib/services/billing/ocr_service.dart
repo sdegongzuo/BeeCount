@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../ai/ai_bill_service.dart';
@@ -123,6 +124,9 @@ class OcrResult {
 
 /// OCR服务 - 识别支付截图中的金额等信息
 class OcrService {
+  static const MethodChannel _rapidOcrChannel =
+      MethodChannel('com.tntlikely.beecount/rapid_ocr');
+
   // 使用中文识别 - 可以识别中文、数字、符号
   // 需要在 android/app/build.gradle 中添加依赖:
   // implementation 'com.google.mlkit:text-recognition-chinese:16.0.0'
@@ -151,48 +155,18 @@ class OcrService {
       logger.debug(_tag, '开始文本识别...');
       final ocrStartTime = DateTime.now();
 
-      // 尝试不同的InputImage创建方式,解决华为权限问题
-      RecognizedText recognizedText;
-
-      try {
-        // 方式1: 直接从文件路径读取(适用于大多数设备)
-        logger.debug(_tag, '尝试方式1: 从文件路径读取');
-        final inputImage = InputImage.fromFile(imageFile);
-        recognizedText = await _textRecognizer.processImage(inputImage);
-        logger.debug(_tag, '方式1成功');
-      } catch (e) {
-        logger.warning(_tag, '方式1失败: $e');
-        logger.debug(_tag, '尝试方式2: 从文件字节读取(解决华为权限问题)');
-
-        // 方式2: 先复制文件到App私有目录,再读取
-        // 华为系统对Screenshots目录有特殊权限保护
-        final appDir = await getTemporaryDirectory();
-        final tempFile = File(
-            '${appDir.path}/temp_screenshot_${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-        // 复制文件
-        await imageFile.copy(tempFile.path);
-        logger.debug(_tag, '文件已复制到: ${tempFile.path}');
-
-        // 从临时文件读取
-        final inputImage = InputImage.fromFile(tempFile);
-        recognizedText = await _textRecognizer.processImage(inputImage);
-        logger.debug(_tag, '方式2成功');
-
-        // 清理临时文件
-        try {
-          await tempFile.delete();
-        } catch (_) {}
-      }
-      final rawText = recognizedText.text;
+      final textResult = await _recognizeImageText(imageFile);
+      final rawText = textResult.rawText;
       final ocrDuration = DateTime.now().difference(ocrStartTime);
-      logger.info(_tag, '[文本识别] ${ocrDuration.inMilliseconds}ms');
+      logger.info(
+          _tag, '[文本识别:${textResult.engine}] ${ocrDuration.inMilliseconds}ms');
       logger.debug(_tag, '识别文本: $rawText');
       traceSink?.call(BillExtractionTraceEvent(
         stage: 'ocr',
         data: {
           'rawText': rawText,
           'durationMs': ocrDuration.inMilliseconds,
+          'engine': textResult.engine,
         },
       ));
 
@@ -244,6 +218,65 @@ class OcrService {
     } catch (e) {
       logger.error(_tag, '识别失败', e);
       rethrow;
+    }
+  }
+
+  Future<_OcrTextResult> _recognizeImageText(File imageFile) async {
+    if (Platform.isAndroid) {
+      try {
+        final rapidResult =
+            await _rapidOcrChannel.invokeMapMethod<String, dynamic>(
+          'recognizeImage',
+          {
+            'path': imageFile.path,
+            'maxSideLen': 1920,
+          },
+        );
+        final rawText = rapidResult?['rawText']?.toString().trim() ?? '';
+        if (rawText.isNotEmpty) {
+          return _OcrTextResult(rawText: rawText, engine: 'rapidocr');
+        }
+        logger.warning(_tag, 'RapidOCR返回空文本，回退到ML Kit');
+      } catch (e) {
+        logger.warning(_tag, 'RapidOCR失败，回退到ML Kit: $e');
+      }
+    }
+
+    final recognizedText = await _recognizeWithMlKit(imageFile);
+    return _OcrTextResult(rawText: recognizedText.text, engine: 'mlkit');
+  }
+
+  Future<RecognizedText> _recognizeWithMlKit(File imageFile) async {
+    try {
+      // 方式1: 直接从文件路径读取(适用于大多数设备)
+      logger.debug(_tag, 'ML Kit方式1: 从文件路径读取');
+      final inputImage = InputImage.fromFile(imageFile);
+      final recognizedText = await _textRecognizer.processImage(inputImage);
+      logger.debug(_tag, 'ML Kit方式1成功');
+      return recognizedText;
+    } catch (e) {
+      logger.warning(_tag, 'ML Kit方式1失败: $e');
+      logger.debug(_tag, 'ML Kit方式2: 从临时文件读取(解决华为权限问题)');
+
+      // 方式2: 先复制文件到App私有目录,再读取
+      // 华为系统对Screenshots目录有特殊权限保护
+      final appDir = await getTemporaryDirectory();
+      final tempFile = File(
+          '${appDir.path}/temp_screenshot_${DateTime.now().millisecondsSinceEpoch}.jpg');
+
+      await imageFile.copy(tempFile.path);
+      logger.debug(_tag, '文件已复制到: ${tempFile.path}');
+
+      try {
+        final inputImage = InputImage.fromFile(tempFile);
+        final recognizedText = await _textRecognizer.processImage(inputImage);
+        logger.debug(_tag, 'ML Kit方式2成功');
+        return recognizedText;
+      } finally {
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+      }
     }
   }
 
@@ -702,4 +735,14 @@ class OcrService {
   void dispose() {
     _textRecognizer.close();
   }
+}
+
+class _OcrTextResult {
+  final String rawText;
+  final String engine;
+
+  const _OcrTextResult({
+    required this.rawText,
+    required this.engine,
+  });
 }

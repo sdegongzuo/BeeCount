@@ -122,6 +122,10 @@
 -dontwarn com.google.mlkit.vision.text.japanese.**
 -dontwarn com.google.mlkit.vision.text.korean.**
 
+# Keep RapidOCR Android AAR classes and native entry points.
+-keep class com.benjaminwan.ocrlibrary.** { *; }
+-dontwarn com.benjaminwan.ocrlibrary.**
+
 # Keep ML Kit common classes
 -keep class com.google.mlkit.common.** { *; }
 -keep class com.google.android.gms.internal.mlkit_vision_text_common.** { *; }

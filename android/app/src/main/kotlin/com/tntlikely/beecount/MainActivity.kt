@@ -26,6 +26,7 @@ class MainActivity: FlutterFragmentActivity() {
     private val SHARE_CHANNEL = "com.tntlikely.beecount/share"
 
     private var screenshotObserver: ScreenshotObserver? = null
+    private var rapidOcrBridge: RapidOcrBridge? = null
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -145,6 +146,11 @@ class MainActivity: FlutterFragmentActivity() {
 
         // 测试日志
         LoggerPlugin.info("MainActivity", "日志系统已初始化")
+
+        rapidOcrBridge = RapidOcrBridge(applicationContext).also {
+            it.setup(flutterEngine.dartExecutor.binaryMessenger)
+        }
+        LoggerPlugin.info("MainActivity", "RapidOCR 通道已初始化")
 
         // 延迟发送测试日志，确保 Flutter 端已就绪
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
