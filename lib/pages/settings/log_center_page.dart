@@ -25,6 +25,7 @@ class _LogCenterPageState extends ConsumerState<LogCenterPage> {
   final Set<LogLevel> _selectedLevels = LogLevel.values.toSet();
   final Set<LogPlatform> _selectedPlatforms = LogPlatform.values.toSet();
   String _searchKeyword = '';
+  bool _filtersExpanded = false;
 
   // 搜索控制器
   final _searchController = TextEditingController();
@@ -147,77 +148,129 @@ class _LogCenterPageState extends ConsumerState<LogCenterPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 日志级别过滤
-                  Padding(
-                    padding: EdgeInsets.only(bottom: 8.0.scaled(context, ref)),
-                    child: Text(
-                      l10n.logCenterFilterLevel,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  InkWell(
+                    borderRadius:
+                        BorderRadius.circular(8.0.scaled(context, ref)),
+                    onTap: () {
+                      setState(() => _filtersExpanded = !_filtersExpanded);
+                    },
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: 2.0.scaled(context, ref),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.logCenterFilterLevel,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelMedium
+                                      ?.copyWith(
+                                        color: BeeTokens.textSecondary(context),
+                                      ),
+                                ),
+                                SizedBox(height: 2.0.scaled(context, ref)),
+                                Text(
+                                  _filterSummary(context, l10n),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: BeeTokens.textSecondary(context),
+                                      ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            _filtersExpanded
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
                             color: BeeTokens.textSecondary(context),
                           ),
+                        ],
+                      ),
                     ),
                   ),
-                  Wrap(
-                    spacing: 8.0.scaled(context, ref),
-                    runSpacing: 4.0.scaled(context, ref),
-                    children: LogLevel.values.map((level) {
-                      final isSelected = _selectedLevels.contains(level);
-                      return FilterChip(
-                        label: Text(level.displayName),
-                        selected: isSelected,
-                        selectedColor: primaryColor.withOpacity(0.2),
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedLevels.add(level);
-                            } else {
-                              _selectedLevels.remove(level);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  SizedBox(height: 12.0.scaled(context, ref)),
-                  // 平台过滤
-                  Padding(
-                    padding: EdgeInsets.only(bottom: 8.0.scaled(context, ref)),
-                    child: Text(
-                      l10n.logCenterFilterPlatform,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: BeeTokens.textSecondary(context),
+                  AnimatedCrossFade(
+                    firstChild: const SizedBox.shrink(),
+                    secondChild: Padding(
+                      padding: EdgeInsets.only(top: 12.0.scaled(context, ref)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 8.0.scaled(context, ref),
+                            runSpacing: 4.0.scaled(context, ref),
+                            children: LogLevel.values.map((level) {
+                              final isSelected =
+                                  _selectedLevels.contains(level);
+                              return FilterChip(
+                                label: Text(level.displayName),
+                                selected: isSelected,
+                                selectedColor: primaryColor.withOpacity(0.2),
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedLevels.add(level);
+                                    } else {
+                                      _selectedLevels.remove(level);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
                           ),
+                          SizedBox(height: 12.0.scaled(context, ref)),
+                          Padding(
+                            padding: EdgeInsets.only(
+                              bottom: 8.0.scaled(context, ref),
+                            ),
+                            child: Text(
+                              l10n.logCenterFilterPlatform,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(
+                                    color: BeeTokens.textSecondary(context),
+                                  ),
+                            ),
+                          ),
+                          Wrap(
+                            spacing: 8.0.scaled(context, ref),
+                            runSpacing: 4.0.scaled(context, ref),
+                            children: _availablePlatforms().map((platform) {
+                              final isSelected =
+                                  _selectedPlatforms.contains(platform);
+                              return FilterChip(
+                                label: Text(platform.displayName),
+                                selected: isSelected,
+                                selectedColor: primaryColor.withOpacity(0.2),
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      _selectedPlatforms.add(platform);
+                                    } else {
+                                      _selectedPlatforms.remove(platform);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Wrap(
-                    spacing: 8.0.scaled(context, ref),
-                    runSpacing: 4.0.scaled(context, ref),
-                    children: LogPlatform.values.where((platform) {
-                      // 在 Android 上隐藏 iOS，在 iOS 上隐藏 Android
-                      if (Platform.isAndroid && platform == LogPlatform.ios) {
-                        return false;
-                      }
-                      if (Platform.isIOS && platform == LogPlatform.android) {
-                        return false;
-                      }
-                      return true;
-                    }).map((platform) {
-                      final isSelected = _selectedPlatforms.contains(platform);
-                      return FilterChip(
-                        label: Text(platform.displayName),
-                        selected: isSelected,
-                        selectedColor: primaryColor.withOpacity(0.2),
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedPlatforms.add(platform);
-                            } else {
-                              _selectedPlatforms.remove(platform);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
+                    crossFadeState: _filtersExpanded
+                        ? CrossFadeState.showSecond
+                        : CrossFadeState.showFirst,
+                    duration: const Duration(milliseconds: 180),
                   ),
                 ],
               ),
@@ -287,6 +340,36 @@ class _LogCenterPageState extends ConsumerState<LogCenterPage> {
     );
   }
 
+  List<LogPlatform> _availablePlatforms() {
+    return LogPlatform.values.where((platform) {
+      // 在 Android 上隐藏 iOS，在 iOS 上隐藏 Android
+      if (Platform.isAndroid && platform == LogPlatform.ios) {
+        return false;
+      }
+      if (Platform.isIOS && platform == LogPlatform.android) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  String _filterSummary(BuildContext context, AppLocalizations l10n) {
+    final levels = _selectedLevels.length == LogLevel.values.length
+        ? '${l10n.logCenterTotal}${l10n.logCenterFilterLevel}'
+        : _selectedLevels.map((level) => level.displayName).join(', ');
+    final availablePlatforms = _availablePlatforms();
+    final selectedAvailablePlatforms = availablePlatforms
+        .where((platform) => _selectedPlatforms.contains(platform))
+        .toList();
+    final platforms =
+        selectedAvailablePlatforms.length == availablePlatforms.length
+            ? '${l10n.logCenterTotal}${l10n.logCenterFilterPlatform}'
+            : selectedAvailablePlatforms
+                .map((platform) => platform.displayName)
+                .join(', ');
+    return '$levels · $platforms';
+  }
+
   /// 导出日志
   Future<void> _exportLogs() async {
     try {
@@ -340,8 +423,6 @@ class _LogEntryCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context);
-
     // 根据日志级别选择颜色
     final levelColor = switch (log.level) {
       LogLevel.debug => Colors.grey,
