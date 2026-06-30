@@ -7853,8 +7853,20 @@ abstract class AppLocalizations {
   /// No description provided for @smartBillingAttachmentFormatAvifDesc.
   ///
   /// In en, this message translates to:
-  /// **'AVIF encoding is not supported in this build yet; saving falls back to WebP'**
+  /// **'Smaller files for saving space; falls back to JPEG if saving fails'**
   String get smartBillingAttachmentFormatAvifDesc;
+
+  /// No description provided for @smartBillingAttachmentQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Attachment Image Quality'**
+  String get smartBillingAttachmentQuality;
+
+  /// No description provided for @smartBillingAttachmentQualityDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Higher quality keeps more detail and creates larger files'**
+  String get smartBillingAttachmentQualityDesc;
 
   /// No description provided for @autoScreenshotBillingIosDesc.
   ///

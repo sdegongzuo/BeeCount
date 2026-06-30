@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/attachment_service.dart';
+import '../../widgets/biz/adaptive_image.dart';
 import '../../widgets/ui/ui.dart';
 
 /// 附件图片预览页面
@@ -306,8 +307,8 @@ class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage> {
           minScale: 0.5,
           maxScale: 4.0,
           child: Center(
-            child: Image.file(
-              file,
+            child: AdaptiveImageFile(
+              file: file,
               fit: BoxFit.contain,
             ),
           ),
@@ -323,8 +324,8 @@ class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage> {
           minScale: 0.5,
           maxScale: 4.0,
           child: Center(
-            child: Image.file(
-              file,
+            child: AdaptiveImageFile(
+              file: file,
               fit: BoxFit.contain,
             ),
           ),

@@ -4325,7 +4325,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get smartBillingAttachmentFormatAvifDesc =>
-      'AVIF encoding is not supported in this build yet; saving falls back to WebP';
+      'Smaller files for saving space; falls back to JPEG if saving fails';
+
+  @override
+  String get smartBillingAttachmentQuality => 'Attachment Image Quality';
+
+  @override
+  String get smartBillingAttachmentQualityDesc =>
+      'Higher quality keeps more detail and creates larger files';
 
   @override
   String get autoScreenshotBillingIosDesc =>

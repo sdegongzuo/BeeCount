@@ -29,6 +29,9 @@ final smartBillingAttachmentFormatProvider =
     StateProvider<SmartBillingAttachmentFormat>(
         (ref) => SmartBillingAttachmentFormat.jpeg);
 
+/// 智能记账自动附件图片质量（默认 80）
+final smartBillingAttachmentQualityProvider = StateProvider<int>((ref) => 80);
+
 /// 智能记账自动关联标签持久化初始化
 final smartBillingAutoTagsInitProvider = FutureProvider<void>((ref) async {
   final prefs = await SharedPreferences.getInstance();
@@ -64,5 +67,19 @@ final smartBillingAttachmentFormatInitProvider =
   ref.listen<SmartBillingAttachmentFormat>(smartBillingAttachmentFormatProvider,
       (prev, next) async {
     await prefs.setString('smartBillingAttachmentFormat', next.storageKey);
+  });
+});
+
+/// 智能记账自动附件图片质量持久化初始化
+final smartBillingAttachmentQualityInitProvider =
+    FutureProvider<void>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final saved = prefs.getInt('smartBillingAttachmentQuality');
+  if (saved != null) {
+    ref.read(smartBillingAttachmentQualityProvider.notifier).state =
+        saved.clamp(40, 100);
+  }
+  ref.listen<int>(smartBillingAttachmentQualityProvider, (prev, next) async {
+    await prefs.setInt('smartBillingAttachmentQuality', next.clamp(40, 100));
   });
 });

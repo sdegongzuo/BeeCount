@@ -6,6 +6,7 @@ import '../../styles/tokens.dart';
 import '../../l10n/app_localizations.dart';
 import '../../utils/ui_scale_extensions.dart';
 import '../../services/attachment_export_import_service.dart';
+import '../../widgets/biz/adaptive_image.dart';
 import '../../providers.dart';
 
 /// 附件预览页面
@@ -27,7 +28,8 @@ class AttachmentPreviewPage extends ConsumerStatefulWidget {
         );
 
   @override
-  ConsumerState<AttachmentPreviewPage> createState() => _AttachmentPreviewPageState();
+  ConsumerState<AttachmentPreviewPage> createState() =>
+      _AttachmentPreviewPageState();
 }
 
 class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage>
@@ -35,11 +37,13 @@ class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage>
   late TabController _tabController;
   int? _selectedIndex;
 
-  int get attachmentCount => widget.exportData?.attachments.length ??
+  int get attachmentCount =>
+      widget.exportData?.attachments.length ??
       widget.archiveData?.attachments.length ??
       0;
 
-  int get customIconCount => widget.exportData?.customIcons.length ??
+  int get customIconCount =>
+      widget.exportData?.customIcons.length ??
       widget.archiveData?.customIcons.length ??
       0;
 
@@ -171,8 +175,8 @@ class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage>
       final file = isAttachment
           ? widget.exportData!.attachments[index]
           : widget.exportData!.customIcons[index];
-      return Image.file(
-        file,
+      return AdaptiveImageFile(
+        file: file,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
@@ -189,8 +193,9 @@ class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage>
       final item = isAttachment
           ? widget.archiveData!.attachments[index]
           : widget.archiveData!.customIcons[index];
-      return Image.memory(
-        item.bytes,
+      return AdaptiveImageMemory(
+        bytes: item.bytes,
+        fileName: item.fileName,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
@@ -218,13 +223,16 @@ class _AttachmentPreviewPageState extends ConsumerState<AttachmentPreviewPage>
           ? widget.exportData!.attachments[index]
           : widget.exportData!.customIcons[index];
       fileName = file.path.split('/').last;
-      imageWidget = Image.file(file);
+      imageWidget = AdaptiveImageFile(file: file);
     } else {
       final item = isAttachment
           ? widget.archiveData!.attachments[index]
           : widget.archiveData!.customIcons[index];
       fileName = item.fileName;
-      imageWidget = Image.memory(item.bytes);
+      imageWidget = AdaptiveImageMemory(
+        bytes: item.bytes,
+        fileName: item.fileName,
+      );
     }
 
     showDialog(

@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter_avif/flutter_avif.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,7 +19,7 @@ class AttachmentService {
   static const int maxAttachments = 9;
   static const int maxWidth = 1920;
   static const int maxHeight = 1920;
-  static const int quality = 80;
+  static const int defaultQuality = 80;
   static const int thumbnailSize = 200;
 
   final Ref ref;
@@ -52,7 +54,7 @@ class AttachmentService {
       final images = await _picker.pickMultiImage(
         maxWidth: maxWidth.toDouble(),
         maxHeight: maxHeight.toDouble(),
-        imageQuality: quality,
+        imageQuality: _attachmentQuality,
       );
       return images.map((x) => File(x.path)).toList();
     } catch (e) {
@@ -68,7 +70,7 @@ class AttachmentService {
         source: ImageSource.camera,
         maxWidth: maxWidth.toDouble(),
         maxHeight: maxHeight.toDouble(),
-        imageQuality: quality,
+        imageQuality: _attachmentQuality,
       );
       return image != null ? File(image.path) : null;
     } catch (e) {
@@ -87,8 +89,8 @@ class AttachmentService {
     try {
       final dir = await getAttachmentDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      final requestedFormat = ref.read(smartBillingAttachmentFormatProvider);
-      var format = _effectiveFormat(requestedFormat);
+      final quality = _attachmentQuality;
+      var format = ref.read(smartBillingAttachmentFormatProvider);
       var fileName =
           _buildAttachmentFileName(transactionId, timestamp, index, format);
       var destPath = '${dir.path}/$fileName';
@@ -98,6 +100,7 @@ class AttachmentService {
         sourceFile,
         destPath,
         format,
+        quality: quality,
         copyOnFailure: format == SmartBillingAttachmentFormat.jpeg,
       );
       if (compressedFile == null &&
@@ -112,6 +115,7 @@ class AttachmentService {
           sourceFile,
           destPath,
           format,
+          quality: quality,
           copyOnFailure: true,
         );
       }
@@ -125,6 +129,11 @@ class AttachmentService {
 
       // 获取文件大小
       final fileSize = await compressedFile.length();
+
+      // AVIF 缩略图需要从源图生成，避免依赖平台是否能直接解码 AVIF。
+      if (format == SmartBillingAttachmentFormat.avif) {
+        await _generateThumbnailFromSource(sourceFile, fileName);
+      }
 
       // 保存到数据库
       final repo = ref.read(repositoryProvider);
@@ -247,6 +256,10 @@ class AttachmentService {
         return null;
       }
 
+      if (path.extension(fileName).toLowerCase() == '.avif') {
+        return _generateThumbnailFromAvif(sourcePath, fileName);
+      }
+
       final result = await FlutterImageCompress.compressAndGetFile(
         sourcePath,
         thumbPath,
@@ -322,14 +335,23 @@ class AttachmentService {
   // 私有方法
   // ============================================
 
+  int get _attachmentQuality {
+    return ref.read(smartBillingAttachmentQualityProvider).clamp(40, 100);
+  }
+
   /// 压缩图片
   Future<File?> _compressImage(
     File source,
     String targetPath,
     SmartBillingAttachmentFormat format, {
+    required int quality,
     required bool copyOnFailure,
   }) async {
     try {
+      if (format == SmartBillingAttachmentFormat.avif) {
+        return _compressAvifImage(source, targetPath, quality);
+      }
+
       final result = await FlutterImageCompress.compressAndGetFile(
         source.path,
         targetPath,
@@ -367,6 +389,60 @@ class AttachmentService {
     }
   }
 
+  Future<File?> _compressAvifImage(
+    File source,
+    String targetPath,
+    int quality,
+  ) async {
+    final inputBytes = await _prepareAvifInputBytes(source, quality);
+    if (inputBytes == null || inputBytes.isEmpty) {
+      return null;
+    }
+    final quantizers = _avifQuantizersForQuality(quality);
+
+    final avifBytes = await encodeAvif(
+      inputBytes,
+      speed: 8,
+      minQuantizer: quantizers.min,
+      maxQuantizer: quantizers.max,
+      minQuantizerAlpha: quantizers.min,
+      maxQuantizerAlpha: quantizers.max,
+    );
+    if (avifBytes.isEmpty) {
+      return null;
+    }
+
+    final target = File(targetPath);
+    await target.writeAsBytes(avifBytes, flush: true);
+    return target;
+  }
+
+  Future<Uint8List?> _prepareAvifInputBytes(File source, int quality) async {
+    try {
+      final compressed = await FlutterImageCompress.compressWithFile(
+        source.path,
+        minWidth: maxWidth,
+        minHeight: maxHeight,
+        quality: quality,
+        format: CompressFormat.jpeg,
+      );
+      if (compressed != null && compressed.isNotEmpty) {
+        return compressed;
+      }
+    } catch (e) {
+      logger.warning('AttachmentService', 'AVIF 前置压缩失败，尝试使用原图编码: $e');
+    }
+
+    return source.readAsBytes();
+  }
+
+  ({int min, int max}) _avifQuantizersForQuality(int quality) {
+    final normalized = quality.clamp(40, 100);
+    final max = (63 - (normalized * 0.5)).round().clamp(12, 43);
+    final min = (max - 14).clamp(0, max);
+    return (min: min, max: max);
+  }
+
   String _buildAttachmentFileName(
     int transactionId,
     int timestamp,
@@ -374,15 +450,6 @@ class AttachmentService {
     SmartBillingAttachmentFormat format,
   ) {
     return 'tx_${transactionId}_${timestamp}_$index${_extensionForFormat(format)}';
-  }
-
-  SmartBillingAttachmentFormat _effectiveFormat(
-      SmartBillingAttachmentFormat format) {
-    if (format == SmartBillingAttachmentFormat.avif) {
-      logger.warning('AttachmentService', '当前压缩库不支持 AVIF 编码，已回退为 WebP');
-      return SmartBillingAttachmentFormat.webp;
-    }
-    return format;
   }
 
   String _extensionForFormat(SmartBillingAttachmentFormat format) {
@@ -399,10 +466,12 @@ class AttachmentService {
   CompressFormat _compressFormat(SmartBillingAttachmentFormat format) {
     switch (format) {
       case SmartBillingAttachmentFormat.jpeg:
-      case SmartBillingAttachmentFormat.avif:
         return CompressFormat.jpeg;
       case SmartBillingAttachmentFormat.webp:
         return CompressFormat.webp;
+      case SmartBillingAttachmentFormat.avif:
+        throw UnsupportedError(
+            'AVIF uses flutter_avif instead of CompressFormat');
     }
   }
 
@@ -416,7 +485,87 @@ class AttachmentService {
 
       return (width: image.width, height: image.height);
     } catch (e) {
+      if (path.extension(imagePath).toLowerCase() == '.avif') {
+        return _getAvifImageInfo(imagePath);
+      }
       logger.error('AttachmentService', '获取图片尺寸失败', e);
+      return null;
+    }
+  }
+
+  Future<({int width, int height})?> _getAvifImageInfo(String imagePath) async {
+    try {
+      final frames = await decodeAvif(await File(imagePath).readAsBytes());
+      if (frames.isEmpty) return null;
+      final image = frames.first.image;
+      return (width: image.width, height: image.height);
+    } catch (e) {
+      logger.error('AttachmentService', '获取 AVIF 图片尺寸失败', e);
+      return null;
+    }
+  }
+
+  Future<String?> _generateThumbnailFromSource(
+    File source,
+    String fileName,
+  ) async {
+    try {
+      final thumbDir = await getThumbnailDirectory();
+      final thumbName = '${path.basenameWithoutExtension(fileName)}_thumb.jpg';
+      final thumbPath = '${thumbDir.path}/$thumbName';
+
+      if (await File(thumbPath).exists()) {
+        return thumbPath;
+      }
+
+      final result = await FlutterImageCompress.compressAndGetFile(
+        source.path,
+        thumbPath,
+        minWidth: thumbnailSize,
+        minHeight: thumbnailSize,
+        quality: 70,
+        format: CompressFormat.jpeg,
+      );
+
+      if (result != null) {
+        logger.debug('AttachmentService', '生成 AVIF 缩略图: $thumbName');
+        return thumbPath;
+      }
+    } catch (e) {
+      logger.error('AttachmentService', '生成 AVIF 缩略图失败', e);
+    }
+    return null;
+  }
+
+  Future<String?> _generateThumbnailFromAvif(
+    String sourcePath,
+    String fileName,
+  ) async {
+    try {
+      final frames = await decodeAvif(await File(sourcePath).readAsBytes());
+      if (frames.isEmpty) return null;
+
+      final frameBytes =
+          await frames.first.image.toByteData(format: ui.ImageByteFormat.png);
+      if (frameBytes == null) return null;
+
+      final thumbnailBytes = await FlutterImageCompress.compressWithList(
+        frameBytes.buffer.asUint8List(),
+        minWidth: thumbnailSize,
+        minHeight: thumbnailSize,
+        quality: 70,
+        format: CompressFormat.jpeg,
+      );
+      if (thumbnailBytes.isEmpty) return null;
+
+      final thumbDir = await getThumbnailDirectory();
+      final thumbName = '${path.basenameWithoutExtension(fileName)}_thumb.jpg';
+      final thumbPath = '${thumbDir.path}/$thumbName';
+      await File(thumbPath).writeAsBytes(thumbnailBytes, flush: true);
+      logger.debug('AttachmentService', '重新生成 AVIF 缩略图: $thumbName');
+      return thumbPath;
+    } catch (e) {
+      logger.error('AttachmentService', '重新生成 AVIF 缩略图失败', e);
       return null;
     }
   }

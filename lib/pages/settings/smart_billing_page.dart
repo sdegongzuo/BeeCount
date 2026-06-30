@@ -101,6 +101,76 @@ class SmartBillingPage extends ConsumerWidget {
     );
   }
 
+  Future<void> _showAttachmentQualitySheet(
+      BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
+    var current = ref.read(smartBillingAttachmentQualityProvider).toDouble();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.smartBillingAttachmentQuality,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.smartBillingAttachmentQualityDesc,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: BeeTokens.textSecondary(context),
+                          ),
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Text(
+                        '${current.round()}%',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                    ),
+                    Slider(
+                      value: current,
+                      min: 40,
+                      max: 100,
+                      divisions: 12,
+                      label: '${current.round()}%',
+                      activeColor: ref.watch(primaryColorProvider),
+                      onChanged: (value) {
+                        setModalState(() => current = value);
+                        ref
+                            .read(
+                                smartBillingAttachmentQualityProvider.notifier)
+                            .state = value.round();
+                      },
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text('40%'),
+                        Text('100%'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   /// 显示功能引导弹窗
   void _showFeatureGuideDialog(
     BuildContext context,
@@ -391,6 +461,15 @@ class SmartBillingPage extends ConsumerWidget {
                         ),
                         enabled: ref.watch(smartBillingAutoAttachmentProvider),
                         onTap: () => _showAttachmentFormatSheet(context, ref),
+                      ),
+                      BeeTokens.cardDivider(context),
+                      AppListTile(
+                        leading: Icons.tune_outlined,
+                        title: l10n.smartBillingAttachmentQuality,
+                        subtitle:
+                            '${ref.watch(smartBillingAttachmentQualityProvider)}% · ${l10n.smartBillingAttachmentQualityDesc}',
+                        enabled: ref.watch(smartBillingAutoAttachmentProvider),
+                        onTap: () => _showAttachmentQualitySheet(context, ref),
                       ),
                     ],
                   ),

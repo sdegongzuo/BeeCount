@@ -4151,7 +4151,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get smartBillingAttachmentFormatAvifDesc =>
-      '当前版本暂不支持 AVIF 编码，保存时会回退为 WebP';
+      '体积更小，适合节省空间；保存失败时会回退为 JPEG';
+
+  @override
+  String get smartBillingAttachmentQuality => '附件图片质量';
+
+  @override
+  String get smartBillingAttachmentQualityDesc => '质量越高画面越清晰，文件也会更大';
 
   @override
   String get autoScreenshotBillingIosDesc => '通过快捷指令实现截图自动识别记账';
@@ -10424,7 +10430,13 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get smartBillingAttachmentFormatAvifDesc =>
-      '目前版本暫不支援 AVIF 編碼，儲存時會回退為 WebP';
+      '體積更小，適合節省空間；儲存失敗時會回退為 JPEG';
+
+  @override
+  String get smartBillingAttachmentQuality => '附件圖片品質';
+
+  @override
+  String get smartBillingAttachmentQualityDesc => '品質越高畫面越清晰，檔案也會更大';
 
   @override
   String get autoScreenshotBillingIosDesc => '透過快捷指令實現截圖自動識別記帳';
