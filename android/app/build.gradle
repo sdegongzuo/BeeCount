@@ -48,6 +48,9 @@ android {
         testInstrumentationRunnerArguments clearPackageData: "false"
         // 当未在命令行指定 --flavor 时，默认选择 dev 风味，避免 Flutter 调试找不到 APK。
         missingDimensionStrategy "env", "dev"
+        ndk {
+            abiFilters "arm64-v8a"
+        }
     }
 
     testOptions {
@@ -146,6 +149,11 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
+            excludes += [
+                    "lib/armeabi-v7a/**",
+                    "lib/x86/**",
+                    "lib/x86_64/**",
+            ]
         }
     }
 
