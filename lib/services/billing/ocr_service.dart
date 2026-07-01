@@ -7,6 +7,7 @@ import '../ai/ai_bill_service.dart';
 import '../ai/ai_constants.dart';
 import '../ai/bill_extraction_service.dart';
 import '../../data/repositories/base_repository.dart';
+import '../platform/screenshot_source_info.dart';
 import '../system/logger_service.dart';
 import 'bill_recognition_normalizer.dart';
 import 'details_text_helper.dart';
@@ -146,6 +147,7 @@ class OcrService {
     File imageFile, {
     BaseRepository? repo,
     BillExtractionTraceSink? traceSink,
+    ScreenshotSourceInfo? sourceInfo,
   }) async {
     final startTime = DateTime.now();
     logger.info(_tag, '========== OCR识别开始 ==========');
@@ -180,10 +182,17 @@ class OcrService {
         rawText,
         imageFile: imageFile,
       );
+      final sourcePaymentChannel = _sourcePaymentChannel(sourceInfo);
+      final finalPaymentChannel =
+          sourcePaymentChannel ?? paymentChannelDetection?.channel;
+      final sourceDetails = _sourceDetails(
+        sourceInfo,
+        ocrPaymentChannel: paymentChannelDetection?.channel,
+      );
       final ruleDuration = DateTime.now().difference(ruleStartTime);
 
       logger.info(_tag,
-          '[规则提取] ${ruleDuration.inMilliseconds}ms | 金额:${amount ?? "无"} 备注:${note ?? "无"} 时间:${time ?? "无"} 支付通道:${paymentChannelDetection?.channel ?? "无"} 候选:$allNumbers');
+          '[规则提取] ${ruleDuration.inMilliseconds}ms | 金额:${amount ?? "无"} 备注:${note ?? "无"} 时间:${time ?? "无"} 支付通道:${finalPaymentChannel ?? "无"} 来源通道:${sourcePaymentChannel ?? "无"} 规则通道:${paymentChannelDetection?.channel ?? "无"} 候选:$allNumbers');
 
       final baseResult = OcrResult(
         amount: amount,
@@ -191,7 +200,8 @@ class OcrService {
         time: time,
         rawText: rawText,
         allNumbers: allNumbers,
-        paymentChannel: paymentChannelDetection?.channel,
+        paymentChannel: finalPaymentChannel,
+        details: sourceDetails.isEmpty ? null : sourceDetails,
         detectedPaymentChannel: paymentChannelDetection,
       );
       traceSink?.call(BillExtractionTraceEvent(
@@ -204,6 +214,7 @@ class OcrService {
         baseResult,
         repo: repo,
         imageFile: imageFile,
+        sourceInfo: sourceInfo,
         traceSink: traceSink,
       );
       traceSink?.call(BillExtractionTraceEvent(
@@ -212,7 +223,13 @@ class OcrService {
       ));
 
       final totalDuration = DateTime.now().difference(startTime);
-      logger.info(_tag, '[总计] 识别完成 ${totalDuration.inMilliseconds}ms');
+      logger.info(
+        _tag,
+        '[总计] 识别完成 ${totalDuration.inMilliseconds}ms | '
+        '最终支付通道:${enhancedResult.paymentChannel ?? "无"} | '
+        '来源:${sourceInfo?.toJson() ?? "无"} | '
+        'details:${enhancedResult.details ?? "无"}',
+      );
 
       return enhancedResult;
     } catch (e) {
@@ -289,6 +306,7 @@ class OcrService {
     OcrResult baseResult, {
     BaseRepository? repo,
     File? imageFile,
+    ScreenshotSourceInfo? sourceInfo,
     BillExtractionTraceSink? traceSink,
   }) async {
     try {
@@ -364,18 +382,22 @@ class OcrService {
         final mergedAccount = billInfo.account;
         final mergedPaymentMethod =
             billInfo.paymentMethod ?? baseResult.paymentMethod;
-        final detectedPaymentChannel =
-            baseResult.detectedPaymentChannel?.isHighConfidence == true
+        final detectedPaymentChannel = sourceInfo?.hasPaymentChannel == true
+            ? null
+            : baseResult.detectedPaymentChannel?.isHighConfidence == true
                 ? baseResult.detectedPaymentChannel?.channel
                 : null;
-        final mergedPaymentChannel =
-            billInfo.paymentChannel ?? baseResult.paymentChannel;
+        final sourcePaymentChannel = _sourcePaymentChannel(sourceInfo);
+        final mergedPaymentChannel = sourcePaymentChannel ??
+            billInfo.paymentChannel ??
+            baseResult.paymentChannel;
         final mergedCounterparty =
             billInfo.counterparty ?? baseResult.counterparty;
         final mergedMerchantFullName =
             billInfo.merchantFullName ?? baseResult.merchantFullName;
         final mergedAcquirer = billInfo.acquirer ?? baseResult.acquirer;
-        final mergedDetails = billInfo.details ?? baseResult.details;
+        final mergedDetails =
+            _mergeDetails(baseResult.details, billInfo.details);
         // detailsText: 优先使用 detailsMapToText(billInfo.details)，已有文本可保留
         final mergedDetailsText = billInfo.details != null
             ? detailsMapToText(billInfo.details)
@@ -424,6 +446,37 @@ class OcrService {
       logger.error(_tag, '[AI增强] 失败', e);
       return baseResult;
     }
+  }
+
+  String? _sourcePaymentChannel(ScreenshotSourceInfo? sourceInfo) {
+    final channel = sourceInfo?.paymentChannel?.trim();
+    return channel == null || channel.isEmpty ? null : channel;
+  }
+
+  Map<String, dynamic> _sourceDetails(
+    ScreenshotSourceInfo? sourceInfo, {
+    String? ocrPaymentChannel,
+  }) {
+    if (sourceInfo == null) return const {};
+    return {
+      'screenshot_source_app': sourceInfo.appName,
+      'screenshot_source_package': sourceInfo.packageName,
+      'screenshot_source_payment_channel': sourceInfo.paymentChannel,
+      'screenshot_source_confidence': sourceInfo.confidence,
+      'screenshot_source_method': sourceInfo.method,
+      'ocr_payment_channel': ocrPaymentChannel,
+    };
+  }
+
+  Map<String, dynamic>? _mergeDetails(
+    Map<String, dynamic>? base,
+    Map<String, dynamic>? override,
+  ) {
+    final result = <String, dynamic>{
+      if (base != null) ...base,
+      if (override != null) ...override,
+    };
+    return result.isEmpty ? null : result;
   }
 
   /// 直接解析文本并提取支付信息(无需OCR)

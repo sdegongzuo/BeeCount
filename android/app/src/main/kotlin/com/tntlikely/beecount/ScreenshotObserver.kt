@@ -17,7 +17,7 @@ import android.util.Log
  */
 class ScreenshotObserver(
     private val context: Context,
-    private val onScreenshotDetected: (String) -> Unit
+    private val onScreenshotDetected: (Map<String, Any?>) -> Unit
 ) : ContentObserver(Handler(Looper.getMainLooper())) {
 
     companion object {
@@ -48,6 +48,7 @@ class ScreenshotObserver(
     // 防抖：记录最近处理的时间
     private var lastProcessTime = 0L
     private val minProcessInterval = 500L // 最小处理间隔500ms
+    private val sourceResolver = ScreenshotSourceResolver(context)
 
     init {
         // 从SharedPreferences加载已处理的路径
@@ -60,39 +61,48 @@ class ScreenshotObserver(
 
         val startTime = System.currentTimeMillis()
         try {
-            // 防抖：避免短时间内重复触发
+            // 防抖：只拦截刚刚成功处理过截图后的重复触发。
+            // 临时文件、旧图、集合 URI 查询等未处理情况不能消耗防抖窗口，
+            // 否则可能吞掉后续真正写入完成的截图事件。
             if (startTime - lastProcessTime < minProcessInterval) {
                 val interval = startTime - lastProcessTime
                 Log.d(TAG, "⏭️ 防抖跳过：距离上次处理仅 ${interval}ms")
                 LoggerPlugin.debug(TAG, "防抖跳过：距离上次处理仅 ${interval}ms")
                 return
             }
-            lastProcessTime = startTime
 
             Log.d(TAG, "⏱️ [性能] onChange触发: uri=$uri, 时间=${startTime}")
             LoggerPlugin.info(TAG, "ContentObserver检测到媒体库变化: uri=$uri")
 
-            // 直接处理变化的URI，避免查询所有图片
-            if (uri != null) {
-                checkImageUri(uri)
+            val handledScreenshot: Boolean
+            // 直接处理具体图片 URI；集合 URI 需要走最近截图兜底扫描，否则可能查到旧图。
+            if (uri != null && isImageItemUri(uri)) {
+                handledScreenshot = checkImageUri(uri)
             } else {
-                // 兜底方案：如果没有URI，使用旧的查询方式
-                checkForNewScreenshot()
+                LoggerPlugin.debug(TAG, "收到集合URI或空URI，使用最近截图兜底扫描: uri=$uri")
+                handledScreenshot = checkForNewScreenshot()
+            }
+            if (handledScreenshot) {
+                lastProcessTime = startTime
             }
 
             val elapsed = System.currentTimeMillis() - startTime
-            Log.d(TAG, "⏱️ [性能] onChange处理完成, 耗时=${elapsed}ms")
-            LoggerPlugin.debug(TAG, "ContentObserver处理完成, 耗时=${elapsed}ms")
+            Log.d(TAG, "⏱️ [性能] onChange处理完成, 耗时=${elapsed}ms, handled=$handledScreenshot")
+            LoggerPlugin.debug(TAG, "ContentObserver处理完成, 耗时=${elapsed}ms, handled=$handledScreenshot")
         } catch (e: Exception) {
             Log.e(TAG, "处理媒体库变化失败", e)
             LoggerPlugin.error(TAG, "处理媒体库变化失败: ${e.message}")
         }
     }
 
+    private fun isImageItemUri(uri: Uri): Boolean {
+        return uri.lastPathSegment?.toLongOrNull() != null
+    }
+
     /**
      * 直接检查特定URI的图片（新优化方法）
      */
-    private fun checkImageUri(uri: Uri) {
+    private fun checkImageUri(uri: Uri): Boolean {
         val queryStartTime = System.currentTimeMillis()
         try {
             val projection = arrayOf(
@@ -121,7 +131,7 @@ class ScreenshotObserver(
                     val dateIndex = it.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
 
                     if (dataIndex >= 0 && nameIndex >= 0 && dateIndex >= 0) {
-                        val imagePath = it.getString(dataIndex) ?: return
+                        val imagePath = it.getString(dataIndex) ?: return false
                         val imageName = it.getString(nameIndex) ?: ""
                         val dateAdded = it.getLong(dateIndex)
 
@@ -131,7 +141,7 @@ class ScreenshotObserver(
                         if (imageAge > MAX_SCREENSHOT_AGE_SECONDS) {
                             Log.d(TAG, "⏭️ 跳过旧图片: $imageName (年龄=${imageAge}秒)")
                             LoggerPlugin.debug(TAG, "跳过旧图片: $imageName (年龄=${imageAge}秒，超过${MAX_SCREENSHOT_AGE_SECONDS}秒阈值)")
-                            return
+                            return false
                         }
 
                         // 检查是否是截图
@@ -144,7 +154,7 @@ class ScreenshotObserver(
                             saveProcessedPaths() // 持久化保存
 
                             val callbackStartTime = System.currentTimeMillis()
-                            onScreenshotDetected(imagePath)
+                            onScreenshotDetected(buildPayload(imagePath, dateAdded))
                             val callbackElapsed = System.currentTimeMillis() - callbackStartTime
                             Log.d(TAG, "⏱️ [性能] 回调执行完成, 耗时=${callbackElapsed}ms")
                             LoggerPlugin.debug(TAG, "截图回调执行完成, 耗时=${callbackElapsed}ms")
@@ -156,6 +166,7 @@ class ScreenshotObserver(
                                 saveProcessedPaths() // 保存修剪后的列表
                                 LoggerPlugin.info(TAG, "已处理路径缓存已修剪，当前数量: ${processedPaths.size}")
                             }
+                            return true
                         }
                     }
                 }
@@ -165,12 +176,13 @@ class ScreenshotObserver(
         } catch (e: Exception) {
             Log.e(TAG, "检查URI失败: $uri", e)
         }
+        return false
     }
 
     /**
      * 检查是否有新截图（兜底方案）
      */
-    private fun checkForNewScreenshot() {
+    private fun checkForNewScreenshot(): Boolean {
         val currentTime = System.currentTimeMillis()
         val queryStartTime = System.currentTimeMillis()
 
@@ -237,7 +249,7 @@ class ScreenshotObserver(
                             saveProcessedPaths() // 持久化保存
 
                             val callbackStartTime = System.currentTimeMillis()
-                            onScreenshotDetected(imagePath)
+                            onScreenshotDetected(buildPayload(imagePath, dateAdded))
                             val callbackElapsed = System.currentTimeMillis() - callbackStartTime
                             Log.d(TAG, "⏱️ [性能] 回调执行完成, 耗时=${callbackElapsed}ms")
                             LoggerPlugin.debug(TAG, "截图回调执行完成(兜底), 耗时=${callbackElapsed}ms")
@@ -249,6 +261,8 @@ class ScreenshotObserver(
                                 saveProcessedPaths() // 保存修剪后的列表
                                 LoggerPlugin.info(TAG, "已处理路径缓存已修剪(兜底)，当前数量: ${processedPaths.size}")
                             }
+                            lastCheckTime = currentTime
+                            return true
                         }
                     }
                 }
@@ -260,6 +274,7 @@ class ScreenshotObserver(
         } catch (e: Exception) {
             Log.e(TAG, "检查新截图失败", e)
         }
+        return false
     }
 
     /**
@@ -279,6 +294,20 @@ class ScreenshotObserver(
         return SCREENSHOT_KEYWORDS.any { keyword ->
             lowerPath.contains(keyword) || lowerName.contains(keyword)
         }
+    }
+
+    private fun buildPayload(path: String, dateAddedSeconds: Long): Map<String, Any?> {
+        val screenshotTimeMillis = dateAddedSeconds * 1000L
+        val source = sourceResolver.resolve(screenshotTimeMillis)
+        val payload = mutableMapOf<String, Any?>(
+            "path" to path
+        )
+        payload.putAll(source.toPayload())
+        LoggerPlugin.info(
+            TAG,
+            "截图来源: package=${source.packageName ?: "无"}, channel=${source.paymentChannel ?: "无"}, method=${source.method}"
+        )
+        return payload
     }
 
     /**

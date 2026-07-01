@@ -171,6 +171,13 @@ class MainActivity: FlutterFragmentActivity() {
                     stopScreenshotObserver()
                     result.success(true)
                 }
+                "hasUsageStatsPermission" -> {
+                    result.success(ScreenshotSourceResolver(this).hasUsageStatsPermission())
+                }
+                "openUsageAccessSettings" -> {
+                    openUsageAccessSettings()
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -366,6 +373,16 @@ class MainActivity: FlutterFragmentActivity() {
         startActivity(intent)
     }
 
+    private fun openUsageAccessSettings() {
+        try {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            startActivity(intent)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "打开使用情况访问权限设置失败: $e")
+            openAppSettings()
+        }
+    }
+
     private fun getBatteryOptimizationInfo(): Map<String, Any> {
         val isIgnoring = isIgnoringBatteryOptimizations()
         val canRequest = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
@@ -516,13 +533,14 @@ class MainActivity: FlutterFragmentActivity() {
         LoggerPlugin.info("MainActivity", "开始配置 ContentObserver 截图监听")
 
         // 创建ContentObserver
-        screenshotObserver = ScreenshotObserver(this) { screenshotPath ->
+        screenshotObserver = ScreenshotObserver(this) { payload ->
+            val screenshotPath = payload["path"] as? String ?: ""
             android.util.Log.d("MainActivity", "✅ ContentObserver 检测到截图: $screenshotPath")
             LoggerPlugin.info("MainActivity", "ContentObserver 检测到截图，路径: ${screenshotPath.substringAfterLast('/')}")
 
             // 通知 Flutter 端
             MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SCREENSHOT_CHANNEL)
-                .invokeMethod("onScreenshotDetected", screenshotPath)
+                .invokeMethod("onScreenshotDetected", payload)
         }
 
         // 注册ContentObserver

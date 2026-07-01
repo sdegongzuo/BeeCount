@@ -14,6 +14,7 @@ import '../../providers.dart';
 import '../../data/db.dart';
 import '../../data/category_node.dart';
 import '../../l10n/app_localizations.dart';
+import '../platform/screenshot_source_info.dart';
 import '../system/logger_service.dart';
 
 /// 自动记账服务 - 通用核心逻辑
@@ -93,10 +94,18 @@ class AutoBillingService {
   Future<int?> processScreenshot(
     String imagePath, {
     bool showNotification = true,
+    ScreenshotSourceInfo? sourceInfo,
   }) async {
     final totalStartTime = DateTime.now().millisecondsSinceEpoch;
     print('📸 [AutoBilling] 开始处理截图: $imagePath');
     logger.info('AutoBilling', '开始处理截图', imagePath);
+    if (sourceInfo != null) {
+      logger.info('AutoBilling', '截图来源', sourceInfo.toJson().toString());
+      print('📸 [AutoBilling] 截图来源: ${sourceInfo.toJson()}');
+    } else {
+      logger.warning('AutoBilling', '截图来源为空', imagePath);
+      print('⚠️ [AutoBilling] 截图来源为空，后续只能依赖OCR/AI推断');
+    }
 
     // 防重复处理: 已处理过的跳过
     if (_isProcessed(imagePath)) {
@@ -149,7 +158,8 @@ class AutoBillingService {
             logger.info('AutoBilling', '文件就绪', '等待时间=${waitTime}ms');
             break;
           }
-          await Future.delayed(Duration(milliseconds: AutoBillingConfig.fileCheckInterval));
+          await Future.delayed(
+              Duration(milliseconds: AutoBillingConfig.fileCheckInterval));
           waitTime = DateTime.now().millisecondsSinceEpoch - waitStartTime;
         }
 
@@ -187,7 +197,11 @@ class AutoBillingService {
 
       // 获取Repository实例用于账户识别
       final repo = _container.read(repositoryProvider);
-      final result = await _ocrService.recognizePaymentImage(file, repo: repo);
+      final result = await _ocrService.recognizePaymentImage(
+        file,
+        repo: repo,
+        sourceInfo: sourceInfo,
+      );
 
       final ocrElapsed = DateTime.now().millisecondsSinceEpoch - ocrStartTime;
       print('⏱️ [性能] OCR识别完成, 耗时=${ocrElapsed}ms');
@@ -198,14 +212,21 @@ class AutoBillingService {
       print('💰 识别到的金额: ${result.amount}');
       print('📝 识别到的备注: ${result.note}');
       print('⏰ 识别到的时间: ${result.time}');
+      print('💳 识别到的支付通道: ${result.paymentChannel}');
+      print('🧾 OCR details: ${result.details}');
       print('🔢 所有数字: ${result.allNumbers}');
-      logger.info('AutoBilling', 'OCR识别结果', {
-        'rawText': result.rawText,
-        'amount': result.amount,
-        'note': result.note,
-        'time': result.time,
-        'allNumbers': result.allNumbers,
-      }.toString());
+      logger.info(
+          'AutoBilling',
+          'OCR识别结果',
+          {
+            'rawText': result.rawText,
+            'amount': result.amount,
+            'note': result.note,
+            'time': result.time,
+            'paymentChannel': result.paymentChannel,
+            'details': result.details,
+            'allNumbers': result.allNumbers,
+          }.toString());
 
       // 标记为已处理
       await _markAsProcessed(imagePath);
@@ -220,7 +241,8 @@ class AutoBillingService {
           print('⏱️ [性能] 开始创建交易记录');
           // 读取智能记账设置
           final autoAddTags = _container.read(smartBillingAutoTagsProvider);
-          final autoAddAttachment = _container.read(smartBillingAutoAttachmentProvider);
+          final autoAddAttachment =
+              _container.read(smartBillingAutoAttachmentProvider);
 
           // 确定记账方式标签：图片记账 + AI（如果使用了AI增强）
           final billingTypes = <String>[TagSeedService.billingTypeImage];
@@ -240,13 +262,15 @@ class AutoBillingService {
             // 保存图片附件（根据设置开关）
             if (autoAddAttachment) {
               try {
-                final attachmentService = _container.read(attachmentServiceProvider);
+                final attachmentService =
+                    _container.read(attachmentServiceProvider);
                 await attachmentService.saveAttachment(
                   transactionId: transactionId,
                   sourceFile: file,
                   index: 0,
                 );
-                logger.info('AutoBilling', '截图附件保存成功', 'transactionId=$transactionId');
+                logger.info(
+                    'AutoBilling', '截图附件保存成功', 'transactionId=$transactionId');
                 // 刷新附件列表
                 _container.read(attachmentListRefreshProvider.notifier).state++;
               } catch (e, st) {
@@ -261,13 +285,12 @@ class AutoBillingService {
               await _showNotification(
                 id: notificationId,
                 title: '✅ 自动记账成功 ¥${result.amount!.toStringAsFixed(2)}',
-                body: result.note != null
-                    ? '备注: ${result.note}'
-                    : '已自动创建支出记录',
+                body: result.note != null ? '备注: ${result.note}' : '已自动创建支出记录',
               );
             }
             print('✅ 自动记账成功: ID=$transactionId');
-            logger.info('AutoBilling', '自动记账成功', 'ID=$transactionId, 金额=${result.amount}');
+            logger.info('AutoBilling', '自动记账成功',
+                'ID=$transactionId, 金额=${result.amount}');
             return transactionId;
           } else {
             // 记账失败
@@ -284,12 +307,16 @@ class AutoBillingService {
           }
         } catch (e, stackTrace) {
           print('❌ 自动记账失败: $e');
-          logger.error('AutoBilling', '自动记账失败', {
-            'path': imagePath,
-            'amount': result.amount,
-            'note': result.note,
-            'error': e.toString(),
-          }, stackTrace);
+          logger.error(
+              'AutoBilling',
+              '自动记账失败',
+              {
+                'path': imagePath,
+                'amount': result.amount,
+                'note': result.note,
+                'error': e.toString(),
+              },
+              stackTrace);
           if (showNotification) {
             await _showNotification(
               id: notificationId,
@@ -309,7 +336,8 @@ class AutoBillingService {
           );
         }
         print('⚠️ 识别到数字但未确定金额: ${result.allNumbers}');
-        logger.warning('AutoBilling', '识别到数字但未确定金额', result.allNumbers.toString());
+        logger.warning(
+            'AutoBilling', '识别到数字但未确定金额', result.allNumbers.toString());
         return null;
       } else {
         // 完全未识别到
@@ -326,11 +354,15 @@ class AutoBillingService {
       }
     } catch (e, stackTrace) {
       print('❌ 处理截图失败: $e');
-      logger.error('AutoBilling', '处理截图失败', {
-        'path': imagePath,
-        'error': e.toString(),
-        'stage': '未知阶段',
-      }, stackTrace);
+      logger.error(
+          'AutoBilling',
+          '处理截图失败',
+          {
+            'path': imagePath,
+            'error': e.toString(),
+            'stage': '未知阶段',
+          },
+          stackTrace);
       return null;
     } finally {
       final totalElapsed =

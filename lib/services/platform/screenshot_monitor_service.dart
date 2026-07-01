@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../automation/auto_billing_service.dart';
+import 'screenshot_source_info.dart';
 
 /// Google Play 版本(CI 注入)。Photo & Video Permissions 政策禁止记账类 app
 /// 长期持有 READ_MEDIA_IMAGES,所以 Google Play 版本砍掉截屏自动记账功能。
-const _isGooglePlayBuild = bool.fromEnvironment('GOOGLE_PLAY', defaultValue: false);
+const _isGooglePlayBuild =
+    bool.fromEnvironment('GOOGLE_PLAY', defaultValue: false);
 
 /// 截图监听服务（Android专用）
 /// 监听系统截图事件，并调用通用的AutoBillingService进行OCR识别和记账
@@ -39,9 +41,27 @@ class ScreenshotMonitorService {
     _channel.setMethodCallHandler((call) async {
       print('📸 [ScreenshotMonitor] 收到方法调用: ${call.method}');
       if (call.method == 'onScreenshotDetected') {
-        final path = call.arguments as String;
+        print('📸 [ScreenshotMonitor] 原始参数: ${call.arguments}');
+        final payload = _parseScreenshotPayload(call.arguments);
+        final path = payload.path;
+        if (path == null || path.isEmpty) {
+          print('⚠️ [ScreenshotMonitor] 截图路径为空，跳过处理');
+          return;
+        }
         print('📸 [ScreenshotMonitor] 检测到截图，路径: $path');
-        await _handleScreenshot(path);
+        if (payload.sourceInfo != null) {
+          print(
+            '📸 [ScreenshotMonitor] 截图来源: '
+            '${payload.sourceInfo!.appName ?? payload.sourceInfo!.packageName ?? "未知"} '
+            '通道: ${payload.sourceInfo!.paymentChannel ?? "无"} '
+            '置信度: ${payload.sourceInfo!.confidence} '
+            'method: ${payload.sourceInfo!.method} '
+            'events: ${payload.sourceInfo!.eventCount}/'
+            '${payload.sourceInfo!.foregroundEventCount}/'
+            '${payload.sourceInfo!.ignoredEventCount}',
+          );
+        }
+        await _handleScreenshot(path, sourceInfo: payload.sourceInfo);
       }
     });
   }
@@ -54,13 +74,37 @@ class ScreenshotMonitorService {
     return _isEnabled;
   }
 
+  /// 是否已授予使用情况访问权限。该权限用于推断截图发生时的前台App。
+  Future<bool> hasUsageStatsPermission() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('hasUsageStatsPermission') ??
+          false;
+    } catch (e) {
+      print('❌ [ScreenshotMonitor] 检查使用情况访问权限失败: $e');
+      return false;
+    }
+  }
+
+  /// 打开使用情况访问权限设置页。
+  Future<void> openUsageAccessSettings() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('openUsageAccessSettings');
+    } catch (e) {
+      print('❌ [ScreenshotMonitor] 打开使用情况访问权限设置失败: $e');
+      rethrow;
+    }
+  }
+
   /// 启用截图监听
   Future<void> enable() async {
     try {
       print('📸 [ScreenshotMonitor] 开始启用截图监听...');
 
       if (_isGooglePlayBuild) {
-        throw UnsupportedError('Screenshot monitoring is not available in Google Play builds');
+        throw UnsupportedError(
+            'Screenshot monitoring is not available in Google Play builds');
       }
 
       // 只在 Android 平台启用
@@ -76,7 +120,8 @@ class ScreenshotMonitorService {
       _isEnabled = true;
       _isMonitoring = true;
 
-      print('✅ [ScreenshotMonitor] 截图监听已启用，_isEnabled=$_isEnabled, _isMonitoring=$_isMonitoring');
+      print(
+          '✅ [ScreenshotMonitor] 截图监听已启用，_isEnabled=$_isEnabled, _isMonitoring=$_isMonitoring');
     } catch (e) {
       print('❌ [ScreenshotMonitor] 启用截图监听失败: $e');
       rethrow;
@@ -103,9 +148,13 @@ class ScreenshotMonitorService {
   }
 
   /// 处理截图
-  Future<void> _handleScreenshot(String path) async {
+  Future<void> _handleScreenshot(
+    String path, {
+    ScreenshotSourceInfo? sourceInfo,
+  }) async {
     print('📸 [ScreenshotMonitor] _handleScreenshot 被调用，path=$path');
-    print('📸 [ScreenshotMonitor] 当前状态: _isEnabled=$_isEnabled, _isMonitoring=$_isMonitoring');
+    print(
+        '📸 [ScreenshotMonitor] 当前状态: _isEnabled=$_isEnabled, _isMonitoring=$_isMonitoring');
 
     if (!_isEnabled || !_isMonitoring) {
       print('⚠️ [ScreenshotMonitor] 截图监听未启用或未监控，跳过处理');
@@ -113,11 +162,42 @@ class ScreenshotMonitorService {
     }
 
     // 调用通用的AutoBillingService处理截图
-    await _autoBillingService.processScreenshot(path);
+    await _autoBillingService.processScreenshot(
+      path,
+      sourceInfo: sourceInfo,
+    );
+  }
+
+  _ScreenshotPayload _parseScreenshotPayload(Object? arguments) {
+    if (arguments is String) {
+      return _ScreenshotPayload(path: arguments);
+    }
+
+    if (arguments is Map) {
+      final map = Map<String, dynamic>.from(arguments);
+      print('📸 [ScreenshotMonitor] payload map: $map');
+      return _ScreenshotPayload(
+        path: map['path']?.toString(),
+        sourceInfo: ScreenshotSourceInfo.fromMap(map),
+      );
+    }
+
+    print('⚠️ [ScreenshotMonitor] 未知截图payload类型: ${arguments.runtimeType}');
+    return const _ScreenshotPayload();
   }
 
   /// 释放资源
   void dispose() {
     _autoBillingService.dispose();
   }
+}
+
+class _ScreenshotPayload {
+  final String? path;
+  final ScreenshotSourceInfo? sourceInfo;
+
+  const _ScreenshotPayload({
+    this.path,
+    this.sourceInfo,
+  });
 }
