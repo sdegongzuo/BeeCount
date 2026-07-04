@@ -300,7 +300,8 @@ class ScreenshotObserver(
         val screenshotTimeMillis = dateAddedSeconds * 1000L
         val source = sourceResolver.resolve(screenshotTimeMillis)
         val payload = mutableMapOf<String, Any?>(
-            "path" to path
+            "path" to path,
+            "screenshotTimeMillis" to screenshotTimeMillis
         )
         payload.putAll(source.toPayload())
         LoggerPlugin.info(

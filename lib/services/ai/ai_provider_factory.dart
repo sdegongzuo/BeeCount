@@ -490,8 +490,13 @@ class AIProviderFactory {
 
     final imageBytes = await image.readAsBytes();
     final base64Image = base64Encode(imageBytes);
+    final mimeType = imageMimeTypeForPath(image.path);
 
     logger.debug('AIFactory', '请求: ${config.baseUrl}/chat/completions');
+    logger.debug(
+      'AIFactory',
+      '图片请求: mime=$mimeType, bytes=${imageBytes.length}, file=${image.path}',
+    );
 
     try {
       final response = await dio.post(
@@ -506,7 +511,7 @@ class AIProviderFactory {
                 {
                   'type': 'image_url',
                   'image_url': {
-                    'url': 'data:image/jpeg;base64,$base64Image',
+                    'url': 'data:$mimeType;base64,$base64Image',
                   },
                 },
               ],
@@ -594,6 +599,22 @@ class AIProviderFactory {
     }
 
     return '[$statusCode] ${e.message ?? 'API调用失败'}';
+  }
+
+  static String imageMimeTypeForPath(String imagePath) {
+    final extension = imagePath.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'avif':
+        return 'image/avif';
+      case 'jpg':
+      case 'jpeg':
+      default:
+        return 'image/jpeg';
+    }
   }
 }
 

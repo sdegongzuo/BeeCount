@@ -305,7 +305,11 @@ class BillCreationService {
       bool hasStrongExpenseKeyword =
           strongExpenseKeywords.any((k) => rawTextLower.contains(k));
 
-      if (hasPlusSign) {
+      if (result.amount! < 0) {
+        // 已提取到负数金额时，金额符号比全文 OCR 噪声中的加号更可信。
+        transactionType = 'expense';
+        typeSource = '负号(支出)';
+      } else if (hasPlusSign) {
         // 有加号，明确表示收入
         transactionType = 'income';
         typeSource = '加号(收入)';
@@ -321,10 +325,6 @@ class BillCreationService {
         // 同时出现收入和支出关键字，优先判断收入（因为收入关键字通常更明确）
         transactionType = 'income';
         typeSource = '关键字冲突(收入优先)';
-      } else if (result.amount! < 0) {
-        // 负数金额 → 支出
-        transactionType = 'expense';
-        typeSource = '负号(支出)';
       } else if (result.amount! > 0) {
         // 正数金额且无关键字，默认为支出（更安全的假设）
         transactionType = 'expense';

@@ -77,6 +77,7 @@ dependencies:
   table_calendar: ^3.1.0
   local_auth: ^2.3.0
   flutter_avif: 3.1.0
+  toml: ^0.18.0
 
 dev_dependencies:
   flutter_test:
@@ -116,6 +117,7 @@ flutter:
     - assets/logo2.png
     - assets/icons/
     - assets/images/
+    - assets/rules/
     - image/单条/
     - tool/image_billing_golden.json
   # 字体已移动到可选依赖，使用系统字体以减少应用体积

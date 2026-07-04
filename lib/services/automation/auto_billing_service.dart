@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../ai/ai_bill_service.dart';
+import '../ai/ai_constants.dart';
+import '../billing/ai_async_enhance_service.dart';
 import '../billing/ocr_service.dart';
 import '../billing/category_matcher.dart';
 import '../billing/bill_creation_service.dart';
@@ -201,6 +205,7 @@ class AutoBillingService {
         file,
         repo: repo,
         sourceInfo: sourceInfo,
+        enableAiEnhancement: false,
       );
 
       final ocrElapsed = DateTime.now().millisecondsSinceEpoch - ocrStartTime;
@@ -232,7 +237,9 @@ class AutoBillingService {
       await _markAsProcessed(imagePath);
 
       // 根据识别结果处理
-      if (result.amount != null && result.amount!.abs() > 0) {
+      if (result.fastBillingAccepted &&
+          result.amount != null &&
+          result.amount!.abs() > 0) {
         // 识别成功，自动创建记账记录（支持负数金额）
         print('✅ OCR识别成功: 金额=${result.amount}, 备注=${result.note}');
 
@@ -258,6 +265,12 @@ class AutoBillingService {
           print('⏱️ [性能] 交易记录创建完成, 耗时=${dbElapsed}ms');
 
           if (transactionId != null) {
+            _dispatchAiAsyncEnhancement(
+              transactionId: transactionId,
+              result: result,
+              imageFile: file,
+            );
+
             // 记账成功
             // 保存图片附件（根据设置开关）
             if (autoAddAttachment) {
@@ -327,17 +340,44 @@ class AutoBillingService {
           return null;
         }
       } else if (result.allNumbers.isNotEmpty) {
+        final rejectReasonText = result.fastBillingRejectReasons.isEmpty
+            ? null
+            : result.fastBillingRejectReasons.join(', ');
         // 识别到数字但未确定金额
         if (showNotification) {
           await _showNotification(
             id: notificationId,
             title: '⚠️ 识别到金额候选',
-            body: '可能的金额: ${result.allNumbers.join(", ")} | 请手动确认',
+            body:
+                '可能的金额: ${result.allNumbers.join(", ")} | ${rejectReasonText ?? "请手动确认"}',
           );
         }
         print('⚠️ 识别到数字但未确定金额: ${result.allNumbers}');
         logger.warning(
             'AutoBilling', '识别到数字但未确定金额', result.allNumbers.toString());
+        return null;
+      } else if (result.amount != null && result.amount!.abs() > 0) {
+        final rejectReasonText = result.fastBillingRejectReasons.isEmpty
+            ? '规则置信不足'
+            : result.fastBillingRejectReasons.join(', ');
+        if (showNotification) {
+          await _showNotification(
+            id: notificationId,
+            title: '⚠️ 需要手动确认',
+            body:
+                '已识别金额 ¥${result.amount!.abs().toStringAsFixed(2)}，$rejectReasonText',
+          );
+        }
+        print('⚠️ 快速记账未通过: $rejectReasonText');
+        logger.warning(
+            'AutoBilling',
+            '快速记账未通过',
+            {
+              'amount': result.amount,
+              'paymentChannel': result.paymentChannel,
+              'time': result.time?.toIso8601String(),
+              'rejectReasons': result.fastBillingRejectReasons,
+            }.toString());
         return null;
       } else {
         // 完全未识别到
@@ -580,6 +620,93 @@ class AutoBillingService {
       print('❌ 创建交易记录失败: $e');
       print('❌ 错误堆栈: ${StackTrace.current}');
       rethrow;
+    }
+  }
+
+  void _dispatchAiAsyncEnhancement({
+    required int transactionId,
+    required OcrResult result,
+    required File imageFile,
+  }) {
+    unawaited(_enhanceTransactionWithAi(
+      transactionId: transactionId,
+      result: result,
+      imageFile: imageFile,
+    ));
+  }
+
+  Future<void> _enhanceTransactionWithAi({
+    required int transactionId,
+    required OcrResult result,
+    required File imageFile,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final aiEnabled =
+          prefs.getBool(AIConstants.keyAiBillExtractionEnabled) ?? false;
+      if (!aiEnabled) {
+        logger.debug(
+            'AutoBilling', 'AI异步增强未启用，跳过', 'transactionId=$transactionId');
+        return;
+      }
+
+      final repo = _container.read(repositoryProvider);
+      final service = AiAsyncEnhanceService(
+        repo: repo,
+        loadBillInfo: (request) async {
+          final expenseCats = await repo.getUsableCategories('expense');
+          final incomeCats = await repo.getUsableCategories('income');
+          final expenseCategories = expenseCats.map((c) => c.name).toList();
+          final incomeCategories = incomeCats.map((c) => c.name).toList();
+
+          List<String>? accounts;
+          final accountFeatureEnabled =
+              prefs.getBool('account_feature_enabled') ?? true;
+          if (accountFeatureEnabled) {
+            final allAccounts = await repo.getAllAccounts();
+            accounts = allAccounts.map((a) => a.name).toList();
+          }
+
+          final aiService = AIBillService();
+          await aiService.initialize(
+            expenseCategories: expenseCategories,
+            incomeCategories: incomeCategories,
+            accounts: accounts,
+            imageFile: request.imageFile,
+          );
+          return aiService.extractBillInfo(
+            request.rawText,
+            expenseCategories: expenseCategories,
+            incomeCategories: incomeCategories,
+            accounts: accounts,
+            imageFile: request.imageFile,
+          );
+        },
+      );
+
+      final outcome = await service.enhanceTransaction(
+        transactionId: transactionId,
+        rawText: result.rawText,
+        imageFile: imageFile,
+      );
+
+      final tx = await repo.getTransactionById(transactionId);
+      if (tx != null) {
+        await PostProcessor.runC(_container, ledgerId: tx.ledgerId);
+      }
+
+      logger.info(
+        'AutoBilling',
+        'AI异步增强结束',
+        'transactionId=$transactionId, status=${outcome.status.name}',
+      );
+    } catch (e, st) {
+      logger.error(
+        'AutoBilling',
+        'AI异步增强后台任务异常',
+        'transactionId=$transactionId, error=$e',
+        st,
+      );
     }
   }
 

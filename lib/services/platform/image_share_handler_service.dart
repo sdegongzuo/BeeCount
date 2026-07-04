@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../automation/auto_billing_service.dart';
 import '../system/logger_service.dart';
+import 'screenshot_source_info.dart';
 
 /// 图片分享处理服务（Android专用）
 /// 处理从相册或其他应用分享过来的图片，并调用AutoBillingService进行OCR识别和记账
@@ -23,6 +24,7 @@ class ImageShareHandlerService {
   ImageShareHandlerService._internal(this._container) {
     _autoBillingService = AutoBillingService(_container);
     _setupMethodCallHandler();
+    _processPendingSharedImage();
   }
 
   /// 设置方法调用处理器
@@ -31,16 +33,16 @@ class ImageShareHandlerService {
     _channel.setMethodCallHandler((call) async {
       logger.info('ImageShare', '收到方法调用: ${call.method}');
       if (call.method == 'onImageShared') {
-        final path = call.arguments as String;
-        logger.info('ImageShare', '收到分享的图片，路径: $path');
-        await _handleSharedImage(path);
+        final payload = _payloadFromArguments(call.arguments);
+        logger.info('ImageShare', '收到分享的图片，路径: ${payload.path}');
+        await _handleSharedImage(payload);
       }
     });
   }
 
   /// 处理分享的图片
-  Future<void> _handleSharedImage(String path) async {
-    logger.info('ImageShare', '开始处理分享的图片: $path');
+  Future<void> _handleSharedImage(_SharedImagePayload payload) async {
+    logger.info('ImageShare', '开始处理分享的图片: ${payload.path}');
 
     try {
       // 只在 Android 平台处理
@@ -50,13 +52,53 @@ class ImageShareHandlerService {
       }
 
       // 调用AutoBillingService处理图片
-      await _autoBillingService.processScreenshot(
-        path,
+      final transactionId = await _autoBillingService.processScreenshot(
+        payload.path,
         showNotification: true,
+        sourceInfo: payload.sourceInfo,
       );
+      if (transactionId != null) {
+        await _completeShareBilling();
+      } else {
+        await _failShareBilling('transaction_not_created');
+      }
       logger.info('ImageShare', '图片处理完成');
     } catch (e, stackTrace) {
       logger.error('ImageShare', '处理分享图片失败', e, stackTrace);
+      await _failShareBilling(e.toString());
+    }
+  }
+
+  Future<void> _processPendingSharedImage() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final pending = await _channel.invokeMapMethod<String, dynamic>(
+        'getPendingShareBillingPayload',
+      );
+      if (pending == null || pending.isEmpty) return;
+      final payload = _payloadFromArguments(pending);
+      logger.info('ImageShare', '发现待处理分享图片: ${payload.path}');
+      await _handleSharedImage(payload);
+    } catch (e, stackTrace) {
+      logger.error('ImageShare', '读取待处理分享图片失败', e, stackTrace);
+    }
+  }
+
+  Future<void> _completeShareBilling() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('completeShareBilling');
+    } catch (e) {
+      logger.warning('ImageShare', '通知分享前台服务完成失败: $e');
+    }
+  }
+
+  Future<void> _failShareBilling(String reason) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('failShareBilling', {'reason': reason});
+    } catch (e) {
+      logger.warning('ImageShare', '通知分享前台服务失败状态失败: $e');
     }
   }
 
@@ -64,4 +106,38 @@ class ImageShareHandlerService {
   void dispose() {
     _autoBillingService.dispose();
   }
+}
+
+_SharedImagePayload _payloadFromArguments(Object? arguments) {
+  if (arguments is String) {
+    return _SharedImagePayload(path: arguments);
+  }
+  if (arguments is Map) {
+    final map = Map<String, dynamic>.from(arguments);
+    final path =
+        _stringValue(map['cacheImagePath']) ?? _stringValue(map['path']);
+    if (path == null || path.isEmpty) {
+      throw ArgumentError('Shared image payload missing cacheImagePath/path');
+    }
+    return _SharedImagePayload(
+      path: path,
+      sourceInfo: ScreenshotSourceInfo.fromMap(map),
+    );
+  }
+  throw ArgumentError('Unsupported shared image payload: $arguments');
+}
+
+String? _stringValue(Object? value) {
+  final text = value?.toString().trim();
+  return text == null || text.isEmpty ? null : text;
+}
+
+class _SharedImagePayload {
+  final String path;
+  final ScreenshotSourceInfo? sourceInfo;
+
+  const _SharedImagePayload({
+    required this.path,
+    this.sourceInfo,
+  });
 }

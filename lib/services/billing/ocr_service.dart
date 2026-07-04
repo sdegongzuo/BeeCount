@@ -11,6 +11,12 @@ import '../platform/screenshot_source_info.dart';
 import '../system/logger_service.dart';
 import 'bill_recognition_normalizer.dart';
 import 'details_text_helper.dart';
+import 'fast_billing_rule_service.dart';
+import 'ocr_image_preprocessor.dart';
+import 'rules/billing_rule_engine_impl.dart';
+import 'rules/billing_rule_models.dart';
+import 'rules/billing_rule_repository.dart';
+import 'rules/billing_rule_trace.dart';
 import 'payment_channel_detector.dart';
 
 /// OCR识别结果
@@ -32,6 +38,11 @@ class OcrResult {
   final Map<String, dynamic>? details; // 补充明细
   final String? detailsText; // 补充明细化文本（优先使用）
   final PaymentChannelDetection? detectedPaymentChannel; // 规则检测出的支付通道
+  final OcrPreprocessResult? preprocessResult; // OCR 前预处理结果
+  final BillingRuleResult? billingRuleResult; // 快速记账规则结果
+  final BillingRuleTrace? billingRuleTrace; // 快速记账规则 trace
+  final bool fastBillingAccepted; // 是否满足快速记账条件
+  final List<String> fastBillingRejectReasons; // 快速记账拒绝原因
   final String? aiProvider; // AI提供商（用于日志）
   final bool aiEnhanced; // 是否经过AI增强
 
@@ -53,6 +64,11 @@ class OcrResult {
     this.details,
     this.detailsText,
     this.detectedPaymentChannel,
+    this.preprocessResult,
+    this.billingRuleResult,
+    this.billingRuleTrace,
+    this.fastBillingAccepted = false,
+    this.fastBillingRejectReasons = const [],
     this.aiProvider,
     this.aiEnhanced = false,
   });
@@ -95,8 +111,59 @@ class OcrResult {
       detailsText: detailsText ?? this.detailsText,
       detectedPaymentChannel:
           detectedPaymentChannel ?? this.detectedPaymentChannel,
+      preprocessResult: preprocessResult,
+      billingRuleResult: billingRuleResult,
+      billingRuleTrace: billingRuleTrace,
+      fastBillingAccepted: fastBillingAccepted,
+      fastBillingRejectReasons: fastBillingRejectReasons,
       aiProvider: aiProvider,
       aiEnhanced: true,
+    );
+  }
+
+  OcrResult copyWithFastBillingRule({
+    double? amount,
+    String? note,
+    DateTime? time,
+    String? paymentMethod,
+    String? paymentChannel,
+    String? counterparty,
+    String? merchantFullName,
+    String? acquirer,
+    Map<String, dynamic>? details,
+    String? detailsText,
+    OcrPreprocessResult? preprocessResult,
+    BillingRuleResult? billingRuleResult,
+    BillingRuleTrace? billingRuleTrace,
+    bool? fastBillingAccepted,
+    List<String>? fastBillingRejectReasons,
+  }) {
+    return OcrResult(
+      amount: amount ?? this.amount,
+      note: note ?? this.note,
+      time: time ?? this.time,
+      rawText: rawText,
+      allNumbers: allNumbers,
+      suggestedCategoryId: suggestedCategoryId,
+      aiCategoryName: aiCategoryName,
+      aiType: aiType,
+      aiAccountName: aiAccountName,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentChannel: paymentChannel ?? this.paymentChannel,
+      counterparty: counterparty ?? this.counterparty,
+      merchantFullName: merchantFullName ?? this.merchantFullName,
+      acquirer: acquirer ?? this.acquirer,
+      details: details ?? this.details,
+      detailsText: detailsText ?? this.detailsText,
+      detectedPaymentChannel: detectedPaymentChannel,
+      preprocessResult: preprocessResult ?? this.preprocessResult,
+      billingRuleResult: billingRuleResult ?? this.billingRuleResult,
+      billingRuleTrace: billingRuleTrace ?? this.billingRuleTrace,
+      fastBillingAccepted: fastBillingAccepted ?? this.fastBillingAccepted,
+      fastBillingRejectReasons:
+          fastBillingRejectReasons ?? this.fastBillingRejectReasons,
+      aiProvider: aiProvider,
+      aiEnhanced: aiEnhanced,
     );
   }
 
@@ -118,6 +185,11 @@ class OcrResult {
         'details': details,
         'details_text': detailsText,
         'detected_payment_channel': detectedPaymentChannel?.toJson(),
+        'preprocess': preprocessResult?.toJson(),
+        'billing_rule_result': billingRuleResult?.toJson(),
+        'billing_rule_trace': billingRuleTrace?.toDebugJson(),
+        'fast_billing_accepted': fastBillingAccepted,
+        'fast_billing_reject_reasons': fastBillingRejectReasons,
         'aiProvider': aiProvider,
         'aiEnhanced': aiEnhanced,
       };
@@ -136,6 +208,18 @@ class OcrService {
   );
   final PaymentChannelResolver _paymentChannelResolver =
       const PaymentChannelResolver();
+  final OcrImagePreprocessor _imagePreprocessor;
+  final FastBillingRuleService _fastBillingRuleService;
+
+  OcrService({
+    OcrImagePreprocessor? imagePreprocessor,
+    FastBillingRuleService? fastBillingRuleService,
+  })  : _imagePreprocessor = imagePreprocessor ?? const OcrImagePreprocessor(),
+        _fastBillingRuleService = fastBillingRuleService ??
+            FastBillingRuleService(
+              ruleRepository: TomlBillingRuleRepository(),
+              ruleEngine: BillingRuleEngineImpl(),
+            );
 
   /// 识别图片中的文本并提取支付信息
   ///
@@ -148,16 +232,53 @@ class OcrService {
     BaseRepository? repo,
     BillExtractionTraceSink? traceSink,
     ScreenshotSourceInfo? sourceInfo,
+    bool enableAiEnhancement = true,
   }) async {
     final startTime = DateTime.now();
     logger.info(_tag, '========== OCR识别开始 ==========');
 
     try {
-      // 1. OCR文本识别
+      // 1. OCR前预处理
+      final preprocessStartTime = DateTime.now();
+      OcrPreprocessResult? preprocessResult;
+      File ocrImageFile = imageFile;
+      try {
+        preprocessResult = await _imagePreprocessor.preprocess(imageFile);
+        final outputPath = preprocessResult.outputPath;
+        if (outputPath != null && outputPath.isNotEmpty) {
+          ocrImageFile = File(outputPath);
+        }
+        final preprocessDuration =
+            DateTime.now().difference(preprocessStartTime);
+        traceSink?.call(BillExtractionTraceEvent(
+          stage: 'preprocess',
+          data: {
+            ...preprocessResult.toJson(),
+            'durationMs': preprocessDuration.inMilliseconds,
+          },
+        ));
+        logger.info(
+          _tag,
+          '[OCR预处理] ${preprocessDuration.inMilliseconds}ms | '
+          'method=${preprocessResult.method} | output=${preprocessResult.outputPath}',
+        );
+      } catch (e, stackTrace) {
+        logger.error(_tag, '[OCR预处理] 失败，回退原图', e, stackTrace);
+        traceSink?.call(BillExtractionTraceEvent(
+          stage: 'preprocess',
+          data: {
+            'method': 'error_fallback_original',
+            'original_path': imageFile.path,
+            'error': e.toString(),
+          },
+        ));
+      }
+
+      // 2. OCR文本识别
       logger.debug(_tag, '开始文本识别...');
       final ocrStartTime = DateTime.now();
 
-      final textResult = await _recognizeImageText(imageFile);
+      final textResult = await _recognizeImageText(ocrImageFile);
       final rawText = textResult.rawText;
       final ocrDuration = DateTime.now().difference(ocrStartTime);
       logger.info(
@@ -172,7 +293,7 @@ class OcrService {
         },
       ));
 
-      // 2. 规则提取
+      // 3. 旧规则提取
       final ruleStartTime = DateTime.now();
       final allNumbers = _extractAllNumbers(rawText);
       final amount = _extractAmount(rawText);
@@ -209,14 +330,41 @@ class OcrService {
         data: baseResult.toJson(),
       ));
 
-      // 3. AI增强（如果启用）
-      final enhancedResult = await _enhanceWithAI(
-        baseResult,
-        repo: repo,
-        imageFile: imageFile,
+      // 4. 快速记账规则引擎
+      final fastEvaluation = await _fastBillingRuleService.evaluate(
+        baseResult: baseResult,
         sourceInfo: sourceInfo,
+        preprocessResult: preprocessResult,
         traceSink: traceSink,
       );
+      final fastResult = fastEvaluation.result;
+      traceSink?.call(BillExtractionTraceEvent(
+        stage: 'fast_billing_decision',
+        data: {
+          'accepted': fastEvaluation.accepted,
+          'reject_reasons': fastEvaluation.rejectReasons,
+          'result': fastResult.toJson(),
+        },
+      ));
+      logger.info(
+        _tag,
+        '[快速规则] accepted=${fastEvaluation.accepted} | '
+        'reasons=${fastEvaluation.rejectReasons.join(",")} | '
+        'amount=${fastResult.amount ?? "无"} | '
+        'time=${fastResult.time ?? "无"} | '
+        'channel=${fastResult.paymentChannel ?? "无"}',
+      );
+
+      // 5. AI增强（如果启用）
+      final enhancedResult = enableAiEnhancement
+          ? await _enhanceWithAI(
+              fastResult,
+              repo: repo,
+              imageFile: imageFile,
+              sourceInfo: sourceInfo,
+              traceSink: traceSink,
+            )
+          : fastResult;
       traceSink?.call(BillExtractionTraceEvent(
         stage: 'final',
         data: enhancedResult.toJson(),

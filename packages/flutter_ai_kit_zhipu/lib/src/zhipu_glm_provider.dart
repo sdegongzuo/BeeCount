@@ -81,7 +81,8 @@ class ZhipuGLMProvider implements AIProvider<String, String> {
       if (audioFile != null) {
         messages.add({
           'role': 'system',
-          'content': '你是一个专业的账单信息提取助手。用户会提供语音输入和提取要求，你必须严格按照要求返回JSON格式的结果，不要返回其他任何文字或解释。'
+          'content':
+              '你是一个专业的账单信息提取助手。用户会提供语音输入和提取要求，你必须严格按照要求返回JSON格式的结果，不要返回其他任何文字或解释。'
         });
       }
 
@@ -101,7 +102,8 @@ class ZhipuGLMProvider implements AIProvider<String, String> {
         return {'role': m['role'], 'content': contentPreview};
       }).toList();
 
-      print('🔍 [GLM] 请求: model=$model, messages=${simplifiedMessages.length}条, temperature=$temperature');
+      print(
+          '🔍 [GLM] 请求: model=$model, messages=${simplifiedMessages.length}条, temperature=$temperature');
 
       final response = await _dio.post(
         'https://open.bigmodel.cn/api/paas/v4/chat/completions',
@@ -223,6 +225,8 @@ class ZhipuGLMProvider implements AIProvider<String, String> {
           mimeType = 'image/jpeg';
         } else if (extension == 'webp') {
           mimeType = 'image/webp';
+        } else if (extension == 'avif') {
+          mimeType = 'image/avif';
         }
 
         content.add({

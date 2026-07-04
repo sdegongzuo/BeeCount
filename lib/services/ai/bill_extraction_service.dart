@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 import '../../ai/tasks/bill_extraction_task.dart';
 import '../system/logger_service.dart';
@@ -32,6 +35,8 @@ class BillExtractionTraceEvent {
 /// - 语音（语音记账）
 class BillExtractionService {
   static const String _tag = 'BillExtraction';
+  static const CompressFormat visionCompressFormat = CompressFormat.webp;
+  static const String visionCompressExtension = '.webp';
 
   /// 支出分类列表
   final List<String>? expenseCategories;
@@ -124,6 +129,7 @@ class BillExtractionService {
     }
 
     try {
+      final visionImage = await _prepareVisionImage(image);
       final prompt = _buildPrompt(
         inputSource: '分析支付账单截图，从中',
         ocrText: ocrText.trim().isEmpty
@@ -138,7 +144,7 @@ class BillExtractionService {
       });
 
       final response = await AIProviderFactory.vision(
-        image,
+        visionImage,
         prompt,
         logTag: _tag,
       );
@@ -152,11 +158,87 @@ class BillExtractionService {
       return billInfo;
     } on AIException catch (e) {
       logger.warning(_tag, '图片账单提取失败: ${e.message}');
-      return null;
+      return _extractFromImageFallbackText(
+        ocrText: ocrText,
+        reason: e.message,
+      );
     } catch (e, st) {
       logger.error(_tag, '图片账单提取异常', e, st);
+      return _extractFromImageFallbackText(
+        ocrText: ocrText,
+        reason: e.toString(),
+      );
+    }
+  }
+
+  Future<BillInfo?> _extractFromImageFallbackText({
+    required String ocrText,
+    required String reason,
+  }) async {
+    final text = ocrText.trim();
+    if (text.isEmpty) {
+      logger.warning(_tag, '视觉失败且OCR文本为空，无法降级文本提取: $reason');
       return null;
     }
+
+    logger.info(_tag, '视觉失败，降级文本提取 | reason=$reason');
+    final billInfo = await extractFromText(text);
+    logger.info(
+      _tag,
+      '视觉降级文本提取结束 | success=${billInfo != null}',
+    );
+    return billInfo;
+  }
+
+  Future<File> _prepareVisionImage(File image) async {
+    try {
+      final originalSize = await image.length();
+      final compressedBytes = await FlutterImageCompress.compressWithFile(
+        image.path,
+        minWidth: 1280,
+        minHeight: 1280,
+        quality: 65,
+        format: visionCompressFormat,
+      );
+      if (compressedBytes == null || compressedBytes.isEmpty) {
+        logger.warning(_tag, 'AI图片 WebP 压缩失败，使用原图');
+        return image;
+      }
+
+      return _writeVisionTempImage(
+        image,
+        compressedBytes,
+        visionCompressExtension,
+        originalSize,
+      );
+    } catch (e, st) {
+      logger.error(_tag, 'AI图片压缩失败，使用原图', e, st);
+      return image;
+    }
+  }
+
+  Future<File> _writeVisionTempImage(
+    File source,
+    List<int> bytes,
+    String extension,
+    int originalSize,
+  ) async {
+    final cacheDir = await getTemporaryDirectory();
+    final dir = Directory('${cacheDir.path}/beecount_ai_vision');
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    final name = path.basenameWithoutExtension(source.path);
+    final file = File(
+      '${dir.path}/${name}_ai_${DateTime.now().microsecondsSinceEpoch}$extension',
+    );
+    await file.writeAsBytes(bytes, flush: true);
+    logger.info(
+      _tag,
+      'AI图片已压缩 | original=$originalSize bytes | '
+      'compressed=${bytes.length} bytes | format=$extension | path=${file.path}',
+    );
+    return file;
   }
 
   /// 从语音提取账单信息

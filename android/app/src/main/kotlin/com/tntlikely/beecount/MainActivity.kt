@@ -4,8 +4,10 @@ import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
@@ -17,6 +19,7 @@ import java.io.FileInputStream
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import org.json.JSONObject
 
 class MainActivity: FlutterFragmentActivity() {
     private val CHANNEL = "notification_channel"
@@ -27,6 +30,7 @@ class MainActivity: FlutterFragmentActivity() {
 
     private var screenshotObserver: ScreenshotObserver? = null
     private var rapidOcrBridge: RapidOcrBridge? = null
+    private var shareBillingReceiver: BroadcastReceiver? = null
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -152,6 +156,8 @@ class MainActivity: FlutterFragmentActivity() {
         }
         LoggerPlugin.info("MainActivity", "RapidOCR 通道已初始化")
 
+        setupShareChannel(flutterEngine)
+
         // 延迟发送测试日志，确保 Flutter 端已就绪
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
             LoggerPlugin.info("MainActivity", "延迟测试日志 - Flutter 端应该已就绪")
@@ -247,6 +253,102 @@ class MainActivity: FlutterFragmentActivity() {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    private fun setupShareChannel(flutterEngine: FlutterEngine) {
+        val shareChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL)
+        shareChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getPendingShareBillingPayload" -> {
+                    result.success(readPendingShareBillingPayload())
+                }
+                "completeShareBilling" -> {
+                    clearPendingShareBillingPayload()
+                    startShareBillingService(ShareBillingForegroundService.createCompleteIntent(this))
+                    result.success(true)
+                }
+                "failShareBilling" -> {
+                    val reason = call.argument<String>("reason") ?: "unknown"
+                    clearPendingShareBillingPayload()
+                    startShareBillingService(ShareBillingForegroundService.createFailedIntent(this, reason))
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        registerShareBillingReceiver(shareChannel)
+    }
+
+    private fun registerShareBillingReceiver(shareChannel: MethodChannel) {
+        shareBillingReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {
+            }
+        }
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action != ShareBillingForegroundService.ACTION_PAYLOAD_READY) return
+                val payload = bundleToMap(intent.extras ?: android.os.Bundle.EMPTY)
+                shareChannel.invokeMethod("onImageShared", payload)
+                LoggerPlugin.info("MainActivity", "已转发分享账单 payload 到 Flutter")
+            }
+        }
+        shareBillingReceiver = receiver
+        val filter = IntentFilter(ShareBillingForegroundService.ACTION_PAYLOAD_READY)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(receiver, filter)
+        }
+    }
+
+    private fun readPendingShareBillingPayload(): Map<String, Any?>? {
+        val json = getSharedPreferences(SHARE_BILLING_PREFS, Context.MODE_PRIVATE)
+            .getString(SHARE_BILLING_PENDING_PAYLOAD, null)
+            ?: return null
+        return try {
+            jsonToMap(JSONObject(json))
+        } catch (e: Exception) {
+            LoggerPlugin.warning("MainActivity", "读取待处理分享账单 payload 失败: ${e.message}")
+            null
+        }
+    }
+
+    private fun clearPendingShareBillingPayload() {
+        getSharedPreferences(SHARE_BILLING_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .remove(SHARE_BILLING_PENDING_PAYLOAD)
+            .apply()
+    }
+
+    private fun startShareBillingService(intent: Intent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+    }
+
+    private fun bundleToMap(bundle: android.os.Bundle): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        bundle.keySet().forEach { key ->
+            @Suppress("DEPRECATION")
+            map[key] = bundle.get(key)
+        }
+        return map
+    }
+
+    private fun jsonToMap(json: JSONObject): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>()
+        val keys = json.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val value = json.opt(key)
+            map[key] = if (value == JSONObject.NULL) null else value
+        }
+        return map
     }
 
     private fun scheduleNotification(title: String, body: String, scheduledTimeMillis: Long, notificationId: Int) {
@@ -573,7 +675,19 @@ class MainActivity: FlutterFragmentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        shareBillingReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {
+            }
+            shareBillingReceiver = null
+        }
         stopScreenshotObserver()
+    }
+
+    companion object {
+        private const val SHARE_BILLING_PREFS = "share_billing_payloads"
+        private const val SHARE_BILLING_PENDING_PAYLOAD = "pending_payload"
     }
 
     private fun installApkWithIntent(filePath: String): Boolean {
