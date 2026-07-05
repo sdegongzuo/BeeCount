@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:beecount/services/billing/rules/billing_rule_engine_impl.dart';
 import 'package:beecount/services/billing/rules/billing_rule_extractors.dart';
 import 'package:beecount/services/billing/rules/billing_rule_models.dart';
@@ -65,6 +67,86 @@ void main() {
         'wechat_payment_detail_v2',
         'wechat_payment_detail_v1',
       ]);
+    });
+
+    test('matches image-only share rules by extracted source app name',
+        () async {
+      const cases = [
+        _ImageShareRuleCase(
+          imagePath: 'image/单条/支付宝-单条.jpg',
+          sourceAppName: '支付宝',
+          templateId: 'alipay_image_share_v1',
+          paymentChannel: '支付宝',
+        ),
+        _ImageShareRuleCase(
+          imagePath: 'image/单条/微信-单条.jpg',
+          sourceAppName: '微信',
+          templateId: 'wechat_image_share_v1',
+          paymentChannel: '微信支付',
+        ),
+        _ImageShareRuleCase(
+          imagePath: 'image/单条/美团-单条.jpg',
+          sourceAppName: '美团',
+          templateId: 'meituan_image_share_v1',
+          paymentChannel: '美团',
+        ),
+        _ImageShareRuleCase(
+          imagePath: 'image/单条/京东-单条.jpg',
+          sourceAppName: '京东',
+          templateId: 'jd_image_share_v1',
+          paymentChannel: '京东',
+        ),
+        _ImageShareRuleCase(
+          imagePath: 'image/单条/拼多多-单条.jpg',
+          sourceAppName: '拼多多',
+          templateId: 'pinduoduo_image_share_v1',
+          paymentChannel: '拼多多',
+        ),
+        _ImageShareRuleCase(
+          imagePath: 'image/单条/云闪付-单条.jpg',
+          sourceAppName: '云闪付',
+          templateId: 'unionpay_image_share_v1',
+          paymentChannel: '云闪付',
+        ),
+      ];
+
+      final ruleSet = BillingRuleSet(
+        schemaVersion: 1,
+        rulesVersion: '2026.07.05.image-share',
+        paymentChannels: const [],
+        templates: [
+          for (final c in cases)
+            _template(
+              id: c.templateId,
+              match: BillingRuleTemplateMatch(
+                appNameKeywords: [c.sourceAppName],
+              ),
+              extractors: [
+                BillingFieldExtractorRule(
+                  field: 'paymentChannel',
+                  type: BillingRuleExtractorTypes.constant,
+                  value: c.paymentChannel,
+                  confidence: 0.95,
+                ),
+              ],
+            ),
+        ],
+      );
+
+      for (final c in cases) {
+        final sharedImage = File(c.imagePath);
+        expect(await sharedImage.exists(), isTrue, reason: c.imagePath);
+
+        final result = await BillingRuleEngineImpl().evaluate(
+          ruleSet: ruleSet,
+          sourceAppName: c.sourceAppName,
+          ocrText: '',
+        );
+
+        expect(result.matchedTemplateId, c.templateId, reason: c.sourceAppName);
+        expect(result.paymentChannel, c.paymentChannel,
+            reason: c.sourceAppName);
+      }
     });
 
     test('returns an empty traceable result when no template matches',
@@ -276,6 +358,20 @@ void main() {
         '原始 文本',
       );
     });
+  });
+}
+
+class _ImageShareRuleCase {
+  final String imagePath;
+  final String sourceAppName;
+  final String templateId;
+  final String paymentChannel;
+
+  const _ImageShareRuleCase({
+    required this.imagePath,
+    required this.sourceAppName,
+    required this.templateId,
+    required this.paymentChannel,
   });
 }
 

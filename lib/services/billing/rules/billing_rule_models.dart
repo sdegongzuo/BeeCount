@@ -174,17 +174,20 @@ class BillingRuleTemplate {
 
 class BillingRuleTemplateMatch {
   final List<String> sourcePackages;
+  final List<String> appNameKeywords;
   final List<String> keywordsAll;
   final List<String> keywordsAny;
 
   const BillingRuleTemplateMatch({
     this.sourcePackages = const [],
+    this.appNameKeywords = const [],
     this.keywordsAll = const [],
     this.keywordsAny = const [],
   });
 
   Map<String, dynamic> toJson() => {
         'source_packages': sourcePackages,
+        'app_name_keywords': appNameKeywords,
         'keywords_all': keywordsAll,
         'keywords_any': keywordsAny,
       };
@@ -196,6 +199,7 @@ class BillingRuleMatch {
   final List<String> evidence;
   final List<String> matchedKeywords;
   final String? sourcePackage;
+  final String? sourceAppName;
 
   const BillingRuleMatch({
     required this.templateId,
@@ -203,6 +207,7 @@ class BillingRuleMatch {
     this.evidence = const [],
     this.matchedKeywords = const [],
     this.sourcePackage,
+    this.sourceAppName,
   });
 
   Map<String, dynamic> toJson() => {
@@ -211,6 +216,7 @@ class BillingRuleMatch {
         'evidence': evidence,
         'matched_keywords': matchedKeywords,
         'source_package': sourcePackage,
+        'source_app_name': sourceAppName,
       };
 }
 

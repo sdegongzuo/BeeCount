@@ -179,6 +179,7 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
     final map = _asMap(value, 'templates.match');
     return BillingRuleTemplateMatch(
       sourcePackages: _stringList(map['sourcePackages'], 'sourcePackages'),
+      appNameKeywords: _stringList(map['appNameKeywords'], 'appNameKeywords'),
       keywordsAll: _stringList(map['keywordsAll'], 'keywordsAll'),
       keywordsAny: _stringList(map['keywordsAny'], 'keywordsAny'),
     );

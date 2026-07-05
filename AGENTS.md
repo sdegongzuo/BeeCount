@@ -9,3 +9,18 @@
 - 构建依赖当前需要 `android/app/build.gradle` 中 `ndkVersion = "28.2.13676358"`。
 - Windows 下 Pub Cache 在 `C:`、项目在 `D:` 时，Kotlin 可能报 `different roots`；保留 `android/gradle.properties` 中 `kotlin.incremental=false` 和 `kotlin.compiler.execution.strategy=in-process`。
 - Flutter 3.41+ 使用 `CardThemeData`，不要把 `ThemeData.cardTheme` 改回 `CardTheme`。
+- 后续项目文档默认使用中文。
+
+## Agent skills
+
+### Issue tracker
+
+Issues 和 PRD 统一使用 GitHub Issues 追踪；外部 PR 不作为 triage 请求入口。详见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+本仓库使用默认的五类 triage label 词汇。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+本仓库使用单一上下文的领域文档布局。详见 `docs/agents/domain.md`。

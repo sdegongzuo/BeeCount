@@ -4,9 +4,11 @@ import 'dart:ui';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../ai/tasks/bill_extraction_task.dart';
 import '../ai/ai_bill_service.dart';
 import '../ai/ai_constants.dart';
 import '../billing/ai_async_enhance_service.dart';
+import '../ai/bill_extraction_service.dart';
 import '../billing/ocr_service.dart';
 import '../billing/category_matcher.dart';
 import '../billing/bill_creation_service.dart';
@@ -237,7 +239,7 @@ class AutoBillingService {
       await _markAsProcessed(imagePath);
 
       // 根据识别结果处理
-      if (result.fastBillingAccepted &&
+      if ((result.fastBillingAccepted || _canCreateFromRuleCandidate(result)) &&
           result.amount != null &&
           result.amount!.abs() > 0) {
         // 识别成功，自动创建记账记录（支持负数金额）
@@ -409,6 +411,38 @@ class AutoBillingService {
           DateTime.now().millisecondsSinceEpoch - totalStartTime;
       print('⏱️ [性能] 整个流程完成, 总耗时=${totalElapsed}ms');
     }
+  }
+
+  bool _canCreateFromRuleCandidate(OcrResult result) {
+    if (result.fastBillingAccepted) return true;
+    if (result.amount == null || result.amount!.abs() <= 0) return false;
+    if (result.time == null) return false;
+    if (result.paymentChannel == null ||
+        result.paymentChannel!.trim().isEmpty) {
+      return false;
+    }
+    if (result.fastBillingRejectReasons.isEmpty) return false;
+
+    const allowedSoftRejects = {
+      'no_rule_match',
+      'low_confidence',
+    };
+    final onlySoftRejects = result.fastBillingRejectReasons.every(
+      allowedSoftRejects.contains,
+    );
+    if (onlySoftRejects) {
+      logger.info(
+        'AutoBilling',
+        '规则核心字段齐全，低置信结果先创建后AI审计',
+        {
+          'amount': result.amount,
+          'time': result.time?.toIso8601String(),
+          'paymentChannel': result.paymentChannel,
+          'rejectReasons': result.fastBillingRejectReasons,
+        }.toString(),
+      );
+    }
+    return onlySoftRejects;
   }
 
   /// 核心：直接处理文本并自动记账(快捷指令推荐方式)
@@ -651,36 +685,73 @@ class AutoBillingService {
       }
 
       final repo = _container.read(repositoryProvider);
+      List<String>? expenseCategories;
+      List<String>? incomeCategories;
+      List<String>? accounts;
+
+      Future<void> ensureAiContext() async {
+        if (expenseCategories != null && incomeCategories != null) return;
+
+        final expenseCats = await repo.getUsableCategories('expense');
+        final incomeCats = await repo.getUsableCategories('income');
+        expenseCategories = expenseCats.map((c) => c.name).toList();
+        incomeCategories = incomeCats.map((c) => c.name).toList();
+
+        final accountFeatureEnabled =
+            prefs.getBool('account_feature_enabled') ?? true;
+        if (accountFeatureEnabled) {
+          final allAccounts = await repo.getAllAccounts();
+          accounts = allAccounts.map((a) => a.name).toList();
+        }
+      }
+
       final service = AiAsyncEnhanceService(
         repo: repo,
         loadBillInfo: (request) async {
-          final expenseCats = await repo.getUsableCategories('expense');
-          final incomeCats = await repo.getUsableCategories('income');
-          final expenseCategories = expenseCats.map((c) => c.name).toList();
-          final incomeCategories = incomeCats.map((c) => c.name).toList();
-
-          List<String>? accounts;
-          final accountFeatureEnabled =
-              prefs.getBool('account_feature_enabled') ?? true;
-          if (accountFeatureEnabled) {
-            final allAccounts = await repo.getAllAccounts();
-            accounts = allAccounts.map((a) => a.name).toList();
-          }
+          await ensureAiContext();
 
           final aiService = AIBillService();
           await aiService.initialize(
             expenseCategories: expenseCategories,
             incomeCategories: incomeCategories,
             accounts: accounts,
-            imageFile: request.imageFile,
           );
-          return aiService.extractBillInfo(
-            request.rawText,
+          return aiService.extractLightweightEnhancement(
+            ocrText: request.rawText,
+            ruleBillInfo: _billInfoFromTransaction(request.baseTransaction),
             expenseCategories: expenseCategories,
             incomeCategories: incomeCategories,
             accounts: accounts,
-            imageFile: request.imageFile,
           );
+        },
+        auditRuleResult: (request) async {
+          final imageFile = request.imageFile;
+          final ruleResult = result.billingRuleResult;
+          if (imageFile == null || ruleResult == null) {
+            logger.debug(
+              'AutoBilling',
+              '视觉规则审计跳过',
+              'transactionId=${request.transactionId}, hasImage=${imageFile != null}, hasRule=${ruleResult != null}',
+            );
+            return null;
+          }
+
+          await ensureAiContext();
+          final auditService = BillExtractionService(
+            expenseCategories: expenseCategories,
+            incomeCategories: incomeCategories,
+            accounts: accounts,
+          );
+          await auditService.init();
+          final auditJson = await auditService.auditRuleResultWithVision(
+            imageFile,
+            ocrText: request.rawText,
+            ruleResult: ruleResult.toJson(),
+            ruleTrace: result.billingRuleTrace?.toDebugJson(),
+          );
+          return auditJson == null
+              ? null
+              : AiRuleAuditResult.fromJson(auditJson);
         },
       );
 
@@ -708,6 +779,22 @@ class AutoBillingService {
         st,
       );
     }
+  }
+
+  BillInfo _billInfoFromTransaction(Transaction tx) {
+    return BillInfo(
+      amount: tx.type == 'expense' ? -tx.amount.abs() : tx.amount,
+      time: tx.happenedAt,
+      note: tx.note,
+      type: tx.type == 'income' ? BillType.income : BillType.expense,
+      paymentMethod: tx.paymentMethod,
+      paymentChannel: tx.paymentChannel,
+      counterparty: tx.counterparty,
+      merchantFullName: tx.merchantFullName,
+      acquirer: tx.acquirer,
+      detailsText: tx.detailsText,
+      ledgerId: tx.ledgerId,
+    );
   }
 
   /// 显示通知

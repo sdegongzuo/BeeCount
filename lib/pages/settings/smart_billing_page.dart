@@ -141,9 +141,9 @@ class SmartBillingPage extends ConsumerWidget {
                     ),
                     Slider(
                       value: current,
-                      min: 40,
+                      min: 5,
                       max: 100,
-                      divisions: 12,
+                      divisions: 95,
                       label: '${current.round()}%',
                       activeColor: ref.watch(primaryColorProvider),
                       onChanged: (value) {
@@ -157,7 +157,7 @@ class SmartBillingPage extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: const [
-                        Text('40%'),
+                        Text('5%'),
                         Text('100%'),
                       ],
                     ),

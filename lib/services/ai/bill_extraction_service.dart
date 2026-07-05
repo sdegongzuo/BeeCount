@@ -115,6 +115,53 @@ class BillExtractionService {
     }
   }
 
+  /// 对已由规则创建的账单做轻量增强。
+  ///
+  /// 该入口保留规则识别出的核心字段为基准，只让文本模型补充或精简
+  /// note/category/payment_method/counterparty/details 等低风险字段。
+  Future<BillInfo?> extractLightweightEnhancement({
+    required String ocrText,
+    required BillInfo ruleBillInfo,
+  }) async {
+    if (ocrText.trim().isEmpty) {
+      logger.warning(_tag, '轻量文本增强输入为空');
+      return null;
+    }
+
+    try {
+      final prompt = buildLightweightEnhancementPrompt(
+        ocrText: ocrText,
+        ruleBillInfo: ruleBillInfo,
+      );
+
+      logger.debug(_tag, '轻量文本增强，prompt长度: ${prompt.length}');
+      _emitTrace('lightweight_prompt', {
+        'mode': 'lightweight_text',
+        'prompt': prompt,
+      });
+
+      final response = await AIProviderFactory.chat(
+        prompt,
+        temperature: 0.2,
+        logTag: _tag,
+      );
+
+      final billInfo = _parseResponse(response);
+      _emitTrace('ai_response', {
+        'mode': 'lightweight_text',
+        'response': response,
+        'parsed': billInfo?.toJson(),
+      });
+      return billInfo;
+    } on AIException catch (e) {
+      logger.warning(_tag, '轻量文本增强失败: ${e.message}');
+      return null;
+    } catch (e, st) {
+      logger.error(_tag, '轻量文本增强异常', e, st);
+      return null;
+    }
+  }
+
   /// 从图片提取账单信息
   ///
   /// [image] 支付截图文件
@@ -168,6 +215,57 @@ class BillExtractionService {
         ocrText: ocrText,
         reason: e.toString(),
       );
+    }
+  }
+
+  Future<Map<String, dynamic>?> auditRuleResultWithVision(
+    File image, {
+    required String ocrText,
+    required Map<String, dynamic> ruleResult,
+    Map<String, dynamic>? ruleTrace,
+  }) async {
+    if (!await image.exists()) {
+      logger.warning(_tag, '视觉审计图片文件不存在');
+      return null;
+    }
+
+    try {
+      final visionImage = await _prepareVisionImage(image);
+      final prompt = _buildRuleAuditPrompt(
+        ocrText: ocrText,
+        ruleResult: ruleResult,
+        ruleTrace: ruleTrace,
+      );
+      logger.debug(_tag, '视觉审计规则结果，prompt长度: ${prompt.length}');
+      _emitTrace('rule_audit_prompt', {
+        'mode': 'vision_audit',
+        'prompt': prompt,
+      });
+
+      final response = await AIProviderFactory.vision(
+        visionImage,
+        prompt,
+        logTag: _tag,
+      );
+      final jsonStr = _extractJsonObject(response);
+      if (jsonStr == null) {
+        logger.warning(_tag, '视觉审计响应中没有JSON: $response');
+        return null;
+      }
+      final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
+      logger.info(_tag, '视觉审计完成: $decoded');
+      _emitTrace('rule_audit_response', {
+        'mode': 'vision_audit',
+        'response': response,
+        'parsed': decoded,
+      });
+      return decoded;
+    } on AIException catch (e) {
+      logger.warning(_tag, '视觉审计失败: ${e.message}');
+      return null;
+    } catch (e, st) {
+      logger.error(_tag, '视觉审计异常', e, st);
+      return null;
     }
   }
 
@@ -397,6 +495,115 @@ class BillExtractionService {
         .replaceAll('{{ACCOUNTS}}', accountHint);
 
     return _ensureMetadataFieldsPrompt(prompt);
+  }
+
+  String buildTextPromptForDiagnostics(String text) {
+    return _buildPrompt(
+      inputSource: '从以下支付账单文本中',
+      ocrText: text,
+    );
+  }
+
+  String buildLightweightEnhancementPrompt({
+    required String ocrText,
+    required BillInfo ruleBillInfo,
+  }) {
+    final categoryHint = _buildCategoryHint();
+    final accountHint = _buildAccountHint();
+    final ruleJson = const JsonEncoder.withIndent('  ').convert({
+      'amount': ruleBillInfo.amount,
+      'time': ruleBillInfo.time?.toIso8601String(),
+      'type': ruleBillInfo.type?.name,
+      'note': ruleBillInfo.note,
+      'category': ruleBillInfo.category,
+      'payment_method': ruleBillInfo.paymentMethod,
+      'payment_channel': ruleBillInfo.paymentChannel,
+      'counterparty': ruleBillInfo.counterparty,
+      'merchant_full_name': ruleBillInfo.merchantFullName,
+      'acquirer': ruleBillInfo.acquirer,
+      'details': ruleBillInfo.details,
+    }..removeWhere((_, value) => value == null));
+
+    return '''轻量账单增强。规则已完成自动记账，请只补充或修正低风险字段，不要重新识别整张账单。
+
+返回严格 JSON，只包含能确定的字段：
+{
+  "note": "15字以内的真实消费对象或商品服务",
+  "category": "必须从分类列表选择最贴近的一项",
+  "payment_method": "银行卡/余额/钱包等实际付款方式",
+  "counterparty": "交易对方或商户",
+  "merchant_full_name": "商户全称，可省略",
+  "acquirer": "收单/清算机构，可省略",
+  "details": {"key": "value"},
+  "confidence": 0.0到1.0
+}
+
+规则：
+- amount/time/payment_channel/type 已由本地规则确定，默认不要返回这些字段。
+- 只有 OCR 文本明显证明本地规则错了，才可返回更正后的 amount/time/payment_channel/type。
+- note 必须简短，优先店名、商品或服务；去掉"外卖订单"、"账单详情"等冗余词。
+- payment_method 是银行卡、余额、花呗、月付等；不要填支付宝/微信支付这类通道。
+- details 只放订单号、优惠、店名等补充信息，不要拼成长句。
+- 只返回 JSON。
+
+$categoryHint$accountHint
+
+本地规则结果：
+$ruleJson
+
+OCR文本：
+$ocrText''';
+  }
+
+  String _buildRuleAuditPrompt({
+    required String ocrText,
+    required Map<String, dynamic> ruleResult,
+    Map<String, dynamic>? ruleTrace,
+  }) {
+    final ruleJson = const JsonEncoder().convert(ruleResult);
+    final traceJson =
+        ruleTrace == null ? '{}' : const JsonEncoder().convert(ruleTrace);
+    return '''请审计本地规则对支付截图的识别结果，不要重新记账，只评估准确性。
+
+返回严格 JSON：
+{
+  "rule_score": 0.0到1.0,
+  "accepted": true或false,
+  "field_scores": {
+    "amount": 0.0到1.0,
+    "time": 0.0到1.0,
+    "payment_channel": 0.0到1.0,
+    "type": 0.0到1.0,
+    "note": 0.0到1.0
+  },
+  "issues": ["字段名: 问题说明"],
+  "rule_patch_suggestion": {
+    "template_id": "可选",
+    "keywords_all": ["可选"],
+    "keywords_any": ["可选"],
+    "extractors": ["可选，用自然语言描述"]
+  }
+}
+
+审计标准：
+- 主金额必须是顶部实付/已支付金额，不能取优惠、积分、订单号或行程时间数字。
+- 支出/收入方向按截图状态和金额符号判断。
+- 支付通道必须按账单界面/支付入口判断：微信支付/支付宝/抖音/美团/京东/拼多多/云闪付等；不是银行卡。
+- 商户名、交易对象、服务商名称不能单独覆盖支付通道。例如支付宝账单里出现"抖音生活服务商家"、"成都所见所得科技有限公司"时，它们是 counterparty/merchant 证据，不代表 payment_channel 应改成抖音。
+- 如果 OCR/规则结果显示支付宝账单结构（账单详情、支付时间、付款方式、支付宝相关页面字段），payment_channel=支付宝 应视为正确，除非图片明显是其它 App 的账单界面。
+- 时间优先支付时间，不是行程开始结束时间。
+- note 优先真实消费对象或商品服务，且应简短。
+- 如果规则结果可用于自动记账，accepted=true 且 rule_score>=0.82。
+- 只返回 JSON。
+
+OCR文本：
+$ocrText
+
+规则结果：
+$ruleJson
+
+规则trace：
+$traceJson''';
   }
 
   String _ensureMetadataFieldsPrompt(String prompt) {

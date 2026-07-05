@@ -13,6 +13,10 @@ typedef AiBillInfoLoader = Future<BillInfo?> Function(
   AiAsyncEnhanceRequest request,
 );
 
+typedef AiRuleAuditLoader = Future<AiRuleAuditResult?> Function(
+  AiAsyncEnhanceRequest request,
+);
+
 enum AiAsyncEnhanceStatus {
   succeeded,
   failed,
@@ -38,27 +42,63 @@ class AiAsyncEnhanceOutcome {
   final int transactionId;
   final AiAsyncEnhanceStatus status;
   final BillInfo? billInfo;
+  final AiRuleAuditResult? ruleAudit;
   final Object? error;
 
   const AiAsyncEnhanceOutcome({
     required this.transactionId,
     required this.status,
     this.billInfo,
+    this.ruleAudit,
     this.error,
   });
 }
 
+class AiRuleAuditResult {
+  final double ruleScore;
+  final bool accepted;
+  final List<String> issues;
+  final Map<String, dynamic> raw;
+
+  const AiRuleAuditResult({
+    required this.ruleScore,
+    required this.accepted,
+    this.issues = const [],
+    this.raw = const {},
+  });
+
+  factory AiRuleAuditResult.fromJson(Map<String, dynamic> json) {
+    final scoreValue = json['rule_score'] ?? json['score'];
+    final issuesValue = json['issues'];
+    return AiRuleAuditResult(
+      ruleScore: scoreValue is num ? scoreValue.toDouble() : 0,
+      accepted: json['accepted'] == true,
+      issues: issuesValue is List
+          ? issuesValue.map((item) => item.toString()).toList()
+          : const [],
+      raw: json,
+    );
+  }
+}
+
 class AiAsyncEnhanceService {
   static const _tag = 'AiAsyncEnhance';
+  static const double defaultAuditPassScore = 0.82;
 
   final BaseRepository repo;
   final AiBillInfoLoader loadBillInfo;
+  final AiRuleAuditLoader? auditRuleResult;
   final Duration timeout;
+  final Duration auditTimeout;
+  final double auditPassScore;
 
   AiAsyncEnhanceService({
     required this.repo,
     required this.loadBillInfo,
+    this.auditRuleResult,
     this.timeout = const Duration(seconds: 90),
+    this.auditTimeout = const Duration(seconds: 60),
+    this.auditPassScore = defaultAuditPassScore,
   });
 
   Future<AiAsyncEnhanceOutcome> enhanceTransaction({
@@ -101,11 +141,13 @@ class AiAsyncEnhanceService {
         );
       }
 
-      await _applyBillInfo(tx, rawText, billInfo);
+      final updatedTx = await _applyBillInfo(tx, rawText, billInfo);
+      final audit = await _runRuleAudit(updatedTx ?? tx, rawText, imageFile);
       return AiAsyncEnhanceOutcome(
         transactionId: transactionId,
         status: AiAsyncEnhanceStatus.succeeded,
         billInfo: billInfo,
+        ruleAudit: audit,
       );
     } on TimeoutException catch (e) {
       await _writeStatus(tx, AiAsyncEnhanceStatus.timeout);
@@ -126,7 +168,7 @@ class AiAsyncEnhanceService {
     }
   }
 
-  Future<void> _applyBillInfo(
+  Future<Transaction?> _applyBillInfo(
     Transaction tx,
     String rawText,
     BillInfo billInfo,
@@ -164,6 +206,104 @@ class AiAsyncEnhanceService {
       _tag,
       'AI增强已合并',
       'transactionId=${tx.id}, categoryId=$categoryId',
+    );
+
+    return repo.getTransactionById(tx.id);
+  }
+
+  Future<AiRuleAuditResult?> _runRuleAudit(
+    Transaction tx,
+    String rawText,
+    File? imageFile,
+  ) async {
+    final loader = auditRuleResult;
+    if (loader == null || imageFile == null) return null;
+
+    try {
+      logger.info(_tag, '视觉规则审计开始', 'transactionId=${tx.id}');
+      final audit = await loader(
+        AiAsyncEnhanceRequest(
+          transactionId: tx.id,
+          baseTransaction: tx,
+          rawText: rawText,
+          imageFile: imageFile,
+        ),
+      ).timeout(auditTimeout);
+      if (audit == null) {
+        logger.warning(_tag, '视觉规则审计无结果', 'transactionId=${tx.id}');
+        return null;
+      }
+
+      final effectiveAudit = audit.normalized(auditPassScore);
+      await _writeAudit(tx, effectiveAudit);
+      logger.info(
+        _tag,
+        '视觉规则审计结束',
+        'transactionId=${tx.id}, score=${effectiveAudit.ruleScore}, accepted=${effectiveAudit.accepted}',
+      );
+      return effectiveAudit;
+    } on TimeoutException catch (e, st) {
+      logger.warning(
+        _tag,
+        '视觉规则审计超时',
+        'transactionId=${tx.id}, timeout=${auditTimeout.inSeconds}s',
+      );
+      await _writeAuditError(tx, e);
+      return null;
+    } catch (e, st) {
+      logger.error(_tag, '视觉规则审计失败', e, st);
+      await _writeAuditError(tx, e);
+      return null;
+    }
+  }
+
+  Future<void> _writeAudit(Transaction tx, AiRuleAuditResult audit) async {
+    final details = _parseDetailsText(tx.detailsText);
+    details['ai_rule_audit_score'] = audit.ruleScore;
+    details['ai_rule_audit_accepted'] = audit.accepted;
+    if (audit.issues.isNotEmpty) {
+      details['ai_rule_audit_issues'] = audit.issues;
+    }
+    if (!audit.accepted || audit.ruleScore < auditPassScore) {
+      details['ai_rule_review_default_enabled'] = true;
+      details['ai_rule_review_status'] = 'active_suggestion';
+    }
+
+    await repo.updateTransaction(
+      id: tx.id,
+      type: tx.type,
+      amount: tx.amount,
+      categoryId: tx.categoryId,
+      note: tx.note,
+      paymentMethod: tx.paymentMethod,
+      counterparty: tx.counterparty,
+      paymentChannel: tx.paymentChannel,
+      merchantFullName: tx.merchantFullName,
+      acquirer: tx.acquirer,
+      detailsText: detailsMapToText(details),
+      happenedAt: tx.happenedAt,
+      accountId: tx.accountId,
+    );
+  }
+
+  Future<void> _writeAuditError(Transaction tx, Object error) async {
+    final details = _parseDetailsText(tx.detailsText);
+    details['ai_rule_audit_error'] = error.toString();
+
+    await repo.updateTransaction(
+      id: tx.id,
+      type: tx.type,
+      amount: tx.amount,
+      categoryId: tx.categoryId,
+      note: tx.note,
+      paymentMethod: tx.paymentMethod,
+      counterparty: tx.counterparty,
+      paymentChannel: tx.paymentChannel,
+      merchantFullName: tx.merchantFullName,
+      acquirer: tx.acquirer,
+      detailsText: detailsMapToText(details),
+      happenedAt: tx.happenedAt,
+      accountId: tx.accountId,
     );
   }
 
@@ -299,5 +439,17 @@ class AiAsyncEnhanceService {
   String? _nonBlank(String? value) {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+}
+
+extension on AiRuleAuditResult {
+  AiRuleAuditResult normalized(double passScore) {
+    if (accepted || ruleScore < passScore) return this;
+    return AiRuleAuditResult(
+      ruleScore: ruleScore,
+      accepted: true,
+      issues: issues,
+      raw: raw,
+    );
   }
 }

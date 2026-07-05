@@ -1,10 +1,28 @@
+# BeeCount billing rules
+# Keep this file as one downloadable TOML package.
+# Sections are grouped so they can be split into source files later.
+
+# ---------------------------------------------------------------------------
+# Package metadata
+# ---------------------------------------------------------------------------
+
 schemaVersion = 1
 rulesVersion = "2026.07.01.1"
+
+# ---------------------------------------------------------------------------
+# Payment channel registry
+# ---------------------------------------------------------------------------
 
 [[paymentChannels]]
 channel = "微信支付"
 packages = ["com.tencent.mm"]
 appNameKeywords = ["微信"]
+confidence = 0.95
+
+[[paymentChannels]]
+channel = "支付宝"
+packages = ["com.eg.android.AlipayGphone"]
+appNameKeywords = ["支付宝"]
 confidence = 0.95
 
 [[paymentChannels]]
@@ -14,10 +32,20 @@ appNameKeywords = ["抖音"]
 confidence = 0.9
 
 [[paymentChannels]]
-channel = "支付宝"
-packages = ["com.eg.android.AlipayGphone"]
-appNameKeywords = ["支付宝"]
-confidence = 0.95
+channel = "美团"
+packages = ["com.sankuai.meituan"]
+appNameKeywords = ["美团"]
+confidence = 0.9
+
+[[paymentChannels]]
+channel = "京东"
+packages = ["com.jingdong.app.mall"]
+appNameKeywords = ["京东"]
+confidence = 0.9
+
+# ---------------------------------------------------------------------------
+# WeChat payment detail templates
+# ---------------------------------------------------------------------------
 
 [[templates]]
 id = "wechat_payment_detail_v1"
@@ -29,6 +57,8 @@ baseConfidence = 0.88
 sourcePackages = ["com.tencent.mm"]
 keywordsAll = ["当前状态", "支付时间", "交易单号"]
 keywordsAny = ["微信支付", "支付详情", "交易详情", "财付通支付科技有限公司"]
+
+# Basic fields
 
 [[templates.extract]]
 field = "paymentChannel"
@@ -50,6 +80,8 @@ label = "支付时间"
 parser = "zhDatetime"
 confidence = 0.9
 
+# Counterparty and payment method
+
 [[templates.extract]]
 field = "merchantFullName"
 type = "labelNextLine"
@@ -68,6 +100,8 @@ type = "labelNextLine"
 label = "支付方式"
 confidence = 0.85
 
+# Detail fields
+
 [[templates.extract]]
 field = "details.transaction_no"
 type = "labelNextLine"
@@ -81,48 +115,9 @@ type = "labelNextLine"
 label = "商户单号"
 confidence = 0.8
 
-[[templates]]
-id = "douyin_payment_detail_v1"
-enabled = true
-priority = 90
-baseConfidence = 0.86
-
-[templates.match]
-sourcePackages = ["com.ss.android.ugc.aweme"]
-keywordsAll = ["账单详情", "支付成功", "付款方式"]
-keywordsAny = ["抖音支付", "抖音月付", "商品订单"]
-
-[[templates.extract]]
-field = "paymentChannel"
-type = "constant"
-value = "抖音"
-confidence = 0.95
-
-[[templates.extract]]
-field = "amount"
-type = "regex"
-pattern = '^\s*([-−]\s*\d{1,6}\.\d{1,2})\s*$'
-parser = "signedAmount"
-confidence = 0.9
-
-[[templates.extract]]
-field = "note"
-type = "regex"
-pattern = '^([^\n]{2,30}(?:有限公司|责任公司|股份公司|公司|店|商行))$'
-confidence = 0.82
-
-[[templates.extract]]
-field = "paymentMethod"
-type = "labelNextLine"
-label = "付款方式"
-pattern = '([^>]+)'
-confidence = 0.85
-
-[[templates.extract]]
-field = "details.product_summary"
-type = "labelNextLine"
-label = "商品订单"
-confidence = 0.7
+# ---------------------------------------------------------------------------
+# Alipay payment detail templates
+# ---------------------------------------------------------------------------
 
 [[templates]]
 id = "alipay_payment_detail_v1"
@@ -134,6 +129,8 @@ baseConfidence = 0.87
 sourcePackages = ["com.eg.android.AlipayGphone"]
 keywordsAll = ["账单详情", "支付时间", "付款方式"]
 keywordsAny = ["支付宝", "自动扣款成功", "交易详情", "已支付"]
+
+# Basic fields
 
 [[templates.extract]]
 field = "paymentChannel"
@@ -155,6 +152,8 @@ label = "支付时间"
 parser = "isoDatetime"
 confidence = 0.9
 
+# Counterparty, payment method, and note
+
 [[templates.extract]]
 field = "paymentMethod"
 type = "labelNextLine"
@@ -169,6 +168,8 @@ label = "交易详情"
 pattern = '(ETC服务)'
 options = { windowLines = 3 }
 confidence = 0.82
+
+# Detail fields
 
 [[templates.extract]]
 field = "details.route_start"
@@ -187,3 +188,243 @@ field = "details.trip_time_range"
 type = "regex"
 pattern = '(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}至\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})'
 confidence = 0.75
+
+[[templates]]
+id = "alipay_merchant_payment_detail_v1"
+enabled = true
+priority = 94
+baseConfidence = 0.86
+
+[templates.match]
+keywordsAll = ["账单详情", "支付时间"]
+keywordsAny = ["支付成功", "商品说明", "订单详情", "商家订单", "付款方式"]
+
+# Basic fields
+
+[[templates.extract]]
+field = "paymentChannel"
+type = "constant"
+value = "支付宝"
+confidence = 0.93
+
+[[templates.extract]]
+field = "amount"
+type = "regex"
+pattern = '^\s*([-−]\s*\d{1,6}\.\d{1,2})\s*$'
+parser = "signedAmount"
+confidence = 0.9
+
+[[templates.extract]]
+field = "time"
+type = "labelNextLine"
+label = "支付时间"
+parser = "isoDatetime"
+confidence = 0.88
+
+# Counterparty, payment method, and note
+
+[[templates.extract]]
+field = "paymentMethod"
+type = "labelNextLine"
+label = "付款方式"
+pattern = '([^>]+)'
+confidence = 0.82
+
+[[templates.extract]]
+field = "note"
+type = "labelNextLine"
+label = "商品说明"
+confidence = 0.78
+
+[[templates.extract]]
+field = "counterparty"
+type = "regex"
+pattern = '^([^\n]{2,40}(?:有限公司|责任公司|股份公司|公司|店|商行))$'
+confidence = 0.78
+
+# ---------------------------------------------------------------------------
+# Douyin payment detail templates
+# ---------------------------------------------------------------------------
+
+[[templates]]
+id = "douyin_payment_detail_v1"
+enabled = true
+priority = 90
+baseConfidence = 0.86
+
+[templates.match]
+sourcePackages = ["com.ss.android.ugc.aweme"]
+keywordsAll = ["账单详情", "支付成功", "付款方式"]
+keywordsAny = ["抖音支付", "抖音月付", "商品订单"]
+
+# Basic fields
+
+[[templates.extract]]
+field = "paymentChannel"
+type = "constant"
+value = "抖音"
+confidence = 0.95
+
+[[templates.extract]]
+field = "amount"
+type = "regex"
+pattern = '^\s*([-−]\s*\d{1,6}\.\d{1,2})\s*$'
+parser = "signedAmount"
+confidence = 0.9
+
+# Counterparty, payment method, and note
+
+[[templates.extract]]
+field = "note"
+type = "regex"
+pattern = '^([^\n]{2,30}(?:有限公司|责任公司|股份公司|公司|店|商行))$'
+confidence = 0.82
+
+[[templates.extract]]
+field = "paymentMethod"
+type = "labelNextLine"
+label = "付款方式"
+pattern = '([^>]+)'
+confidence = 0.85
+
+# Detail fields
+
+[[templates.extract]]
+field = "details.product_summary"
+type = "labelNextLine"
+label = "商品订单"
+confidence = 0.7
+
+# ---------------------------------------------------------------------------
+# Meituan bill detail templates
+# ---------------------------------------------------------------------------
+
+[[templates]]
+id = "meituan_bill_detail_v1"
+enabled = true
+priority = 88
+baseConfidence = 0.86
+
+[templates.match]
+keywordsAll = ["账单详情", "支付成功", "下单平台"]
+keywordsAny = ["美团App", "外卖", "美团账单", "交易单号", "商家单号"]
+
+# Basic fields
+
+[[templates.extract]]
+field = "paymentChannel"
+type = "constant"
+value = "美团"
+confidence = 0.94
+
+[[templates.extract]]
+field = "amount"
+type = "regex"
+pattern = '^\s*([-−]\s*\d{1,6}\.\d{1,2})\s*$'
+parser = "signedAmount"
+confidence = 0.9
+
+[[templates.extract]]
+field = "time"
+type = "labelNextLine"
+label = "下单时间"
+parser = "isoDatetime"
+confidence = 0.88
+
+# Counterparty and note
+
+[[templates.extract]]
+field = "note"
+type = "regex"
+pattern = '^(.{2,40}(?:店|饭|餐厅|外卖).*)$'
+confidence = 0.8
+
+# Detail fields
+
+[[templates.extract]]
+field = "details.transaction_no"
+type = "labelNextLine"
+label = "交易单号"
+pattern = '\d{20,}'
+confidence = 0.86
+
+[[templates.extract]]
+field = "details.merchant_order_no"
+type = "labelNextLine"
+label = "商家单号"
+confidence = 0.8
+
+# ---------------------------------------------------------------------------
+# JD bill detail templates
+# ---------------------------------------------------------------------------
+
+[[templates]]
+id = "jd_bill_detail_v1"
+enabled = true
+priority = 87
+baseConfidence = 0.86
+
+[templates.match]
+keywordsAll = ["账单详情", "京东平台商户", "交易成功"]
+keywordsAny = ["支付方式", "创建时间", "总订单编号", "京东买药", "账单分类"]
+
+# Basic fields
+
+[[templates.extract]]
+field = "paymentChannel"
+type = "constant"
+value = "京东"
+confidence = 0.93
+
+[[templates.extract]]
+field = "amount"
+type = "regex"
+pattern = '^\s*([-−]\s*\d{1,6}\.\d{1,2})\s*$'
+parser = "signedAmount"
+confidence = 0.9
+
+[[templates.extract]]
+field = "time"
+type = "labelNextLine"
+label = "创建时间"
+parser = "isoDatetime"
+confidence = 0.88
+
+# Counterparty, payment method, and note
+
+[[templates.extract]]
+field = "paymentMethod"
+type = "labelNextLine"
+label = "支付方式"
+confidence = 0.84
+
+[[templates.extract]]
+field = "note"
+type = "labelNextLine"
+label = "服务详情"
+pattern = '[O0]?(.{2,40})'
+confidence = 0.8
+
+# Detail fields
+
+[[templates.extract]]
+field = "details.order_no"
+type = "labelNextLine"
+label = "总订单编号"
+pattern = '\d{10,}'
+confidence = 0.86
+
+[[templates.extract]]
+field = "details.merchant_order_no"
+type = "labelNextLine"
+label = "商户单号"
+pattern = '\d{10,}'
+confidence = 0.82
+
+[[templates.extract]]
+field = "details.discount"
+type = "nearKeyword"
+label = "支付立减"
+pattern = '([-−]\d{1,6}\.\d{1,2})'
+options = { windowLines = 1 }
+confidence = 0.72

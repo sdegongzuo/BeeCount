@@ -19,6 +19,7 @@ abstract class BillingRuleEngine {
     required String ocrText,
     OcrPreprocessResult? preprocessResult,
     String? sourcePackage,
+    String? sourceAppName,
     String? sourcePaymentChannel,
     BillingRuleTraceSink? traceSink,
   });

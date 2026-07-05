@@ -4,6 +4,7 @@ class BillingRuleTrace {
   final String traceId;
   final String rulesVersion;
   final String? sourcePackage;
+  final String? sourceAppName;
   final String? sourcePaymentChannel;
   final String ocrText;
   final OcrPreprocessResult? preprocessResult;
@@ -20,6 +21,7 @@ class BillingRuleTrace {
     required this.rulesVersion,
     required this.ocrText,
     this.sourcePackage,
+    this.sourceAppName,
     this.sourcePaymentChannel,
     this.preprocessResult,
     this.matchedRuleIds = const [],
@@ -35,6 +37,7 @@ class BillingRuleTrace {
         'trace_id': traceId,
         'rules_version': rulesVersion,
         'source_package': sourcePackage,
+        'source_app_name': sourceAppName,
         'source_payment_channel': sourcePaymentChannel,
         'ocr_text': ocrText,
         'preprocess': preprocessResult?.toJson(),

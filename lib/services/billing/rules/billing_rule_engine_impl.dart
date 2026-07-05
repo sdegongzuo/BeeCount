@@ -11,11 +11,17 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
     required String ocrText,
     OcrPreprocessResult? preprocessResult,
     String? sourcePackage,
+    String? sourceAppName,
     String? sourcePaymentChannel,
     BillingRuleTraceSink? traceSink,
   }) async {
     final startedAt = DateTime.now();
-    final matches = _matchTemplates(ruleSet, ocrText, sourcePackage);
+    final matches = _matchTemplates(
+      ruleSet,
+      ocrText,
+      sourcePackage,
+      sourceAppName,
+    );
     BillingRuleResult result;
     final fieldEvidence = <String, List<BillingRuleFieldEvidence>>{};
     final debugMessages = <String>[];
@@ -27,6 +33,7 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
         ruleSet: ruleSet,
         ocrText: ocrText,
         sourcePackage: sourcePackage,
+        sourceAppName: sourceAppName,
         sourcePaymentChannel: sourcePaymentChannel,
         preprocessResult: preprocessResult,
         matches: matches,
@@ -142,6 +149,7 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
       ruleSet: ruleSet,
       ocrText: ocrText,
       sourcePackage: sourcePackage,
+      sourceAppName: sourceAppName,
       sourcePaymentChannel: sourcePaymentChannel,
       preprocessResult: preprocessResult,
       matches: matches,
@@ -157,14 +165,24 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
     BillingRuleSet ruleSet,
     String ocrText,
     String? sourcePackage,
+    String? sourceAppName,
   ) {
     final matches = <_TemplateMatch>[];
+    final normalizedSourceAppName = sourceAppName?.trim();
     for (final template in ruleSet.templates) {
       if (!template.enabled) continue;
       final match = template.match;
       if (match.sourcePackages.isNotEmpty &&
           sourcePackage != null &&
           !match.sourcePackages.contains(sourcePackage)) {
+        continue;
+      }
+      if (match.appNameKeywords.isNotEmpty &&
+          (normalizedSourceAppName == null ||
+              normalizedSourceAppName.isEmpty ||
+              !match.appNameKeywords.any(
+                (keyword) => normalizedSourceAppName.contains(keyword),
+              ))) {
         continue;
       }
       if (match.keywordsAll.any((keyword) => !ocrText.contains(keyword))) {
@@ -183,6 +201,10 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
         if (sourcePackage != null &&
             match.sourcePackages.contains(sourcePackage))
           'sourcePackage:$sourcePackage',
+        if (normalizedSourceAppName != null)
+          ...match.appNameKeywords
+              .where((keyword) => normalizedSourceAppName.contains(keyword))
+              .map((keyword) => 'sourceAppName:$keyword'),
         ...matchedKeywords.map((keyword) => 'keyword:$keyword'),
       ];
       matches.add(
@@ -194,6 +216,7 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
             evidence: evidence,
             matchedKeywords: matchedKeywords,
             sourcePackage: sourcePackage,
+            sourceAppName: normalizedSourceAppName,
           ),
         ),
       );
@@ -224,6 +247,7 @@ void _emitTrace({
   required BillingRuleSet ruleSet,
   required String ocrText,
   required String? sourcePackage,
+  required String? sourceAppName,
   required String? sourcePaymentChannel,
   required OcrPreprocessResult? preprocessResult,
   required List<_TemplateMatch> matches,
@@ -239,6 +263,7 @@ void _emitTrace({
       traceId: 'rule-${startedAt.microsecondsSinceEpoch}',
       rulesVersion: ruleSet.rulesVersion,
       sourcePackage: sourcePackage,
+      sourceAppName: sourceAppName,
       sourcePaymentChannel: sourcePaymentChannel,
       ocrText: ocrText,
       preprocessResult: preprocessResult,

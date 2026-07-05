@@ -81,6 +81,34 @@ class AIBillService {
     return _service!.extractFromText(ocrText);
   }
 
+  Future<BillInfo?> extractLightweightEnhancement({
+    required String ocrText,
+    required BillInfo ruleBillInfo,
+    List<String>? expenseCategories,
+    List<String>? incomeCategories,
+    List<String>? accounts,
+    BillExtractionTraceSink? traceSink,
+  }) async {
+    if (!_initialized ||
+        expenseCategories != null ||
+        incomeCategories != null ||
+        accounts != null ||
+        traceSink != _traceSink) {
+      _initialized = false;
+      await initialize(
+        expenseCategories: expenseCategories,
+        incomeCategories: incomeCategories,
+        accounts: accounts,
+        traceSink: traceSink,
+      );
+    }
+
+    return _service!.extractLightweightEnhancement(
+      ocrText: ocrText,
+      ruleBillInfo: ruleBillInfo,
+    );
+  }
+
   /// 是否已初始化
   bool get isInitialized => _initialized;
 }

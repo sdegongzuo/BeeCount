@@ -77,9 +77,9 @@ final smartBillingAttachmentQualityInitProvider =
   final saved = prefs.getInt('smartBillingAttachmentQuality');
   if (saved != null) {
     ref.read(smartBillingAttachmentQualityProvider.notifier).state =
-        saved.clamp(40, 100);
+        saved.clamp(5, 100);
   }
   ref.listen<int>(smartBillingAttachmentQualityProvider, (prev, next) async {
-    await prefs.setInt('smartBillingAttachmentQuality', next.clamp(40, 100));
+    await prefs.setInt('smartBillingAttachmentQuality', next.clamp(5, 100));
   });
 });

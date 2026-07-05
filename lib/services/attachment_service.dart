@@ -336,7 +336,7 @@ class AttachmentService {
   // ============================================
 
   int get _attachmentQuality {
-    return ref.read(smartBillingAttachmentQualityProvider).clamp(40, 100);
+    return ref.read(smartBillingAttachmentQualityProvider).clamp(5, 100);
   }
 
   /// 压缩图片
@@ -437,7 +437,7 @@ class AttachmentService {
   }
 
   ({int min, int max}) _avifQuantizersForQuality(int quality) {
-    final normalized = quality.clamp(40, 100);
+    final normalized = quality.clamp(5, 100);
     final max = (63 - (normalized * 0.5)).round().clamp(12, 43);
     final min = (max - 14).clamp(0, max);
     return (min: min, max: max);

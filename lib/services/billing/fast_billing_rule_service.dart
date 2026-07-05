@@ -47,6 +47,7 @@ class FastBillingRuleService {
       ocrText: baseResult.rawText,
       preprocessResult: preprocessResult,
       sourcePackage: sourcePackage,
+      sourceAppName: sourceInfo?.appName,
       sourcePaymentChannel: sourceInfo?.paymentChannel,
       traceSink: (trace) {
         ruleTrace = trace;
@@ -97,10 +98,10 @@ class FastBillingRuleService {
     };
     final sourcePaymentChannel = sourceInfo?.paymentChannel?.trim();
     final paymentChannel = ruleResult.paymentChannel ??
+        baseResult.paymentChannel ??
         (sourcePaymentChannel == null || sourcePaymentChannel.isEmpty
             ? null
-            : sourcePaymentChannel) ??
-        baseResult.paymentChannel;
+            : sourcePaymentChannel);
     final detailsText =
         details.isEmpty ? baseResult.detailsText : detailsMapToText(details);
 

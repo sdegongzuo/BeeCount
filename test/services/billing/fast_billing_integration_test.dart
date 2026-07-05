@@ -81,6 +81,34 @@ void main() {
           evaluation.result.fastBillingRejectReasons, contains('missing_time'));
     });
 
+    test('keeps OCR detected payment channel when source channel conflicts',
+        () async {
+      final service = FastBillingRuleService(
+        ruleRepository: _MemoryRuleRepository(_emptyRuleSet()),
+        ruleEngine: BillingRuleEngineImpl(),
+      );
+      final baseResult = OcrResult(
+        rawText: '美团账单\n支付成功\n-20.70\n下单时间\n2026-07-04 21:31:28',
+        amount: -20.70,
+        time: DateTime(2026, 7, 4, 21, 31, 28),
+        paymentChannel: '美团',
+        allNumbers: const ['20.70'],
+      );
+
+      final evaluation = await service.evaluate(
+        baseResult: baseResult,
+        sourceInfo: const ScreenshotSourceInfo(
+          paymentChannel: '支付宝',
+          confidence: 0.9,
+          method: 'test_pending_payload',
+        ),
+      );
+
+      expect(evaluation.accepted, isFalse);
+      expect(evaluation.rejectReasons, contains('no_rule_match'));
+      expect(evaluation.result.paymentChannel, '美团');
+    });
+
     test('accepts strong WeChat OCR text when source app is unavailable',
         () async {
       final service = FastBillingRuleService(
@@ -103,6 +131,90 @@ void main() {
       expect(evaluation.result.acquirer, '财付通支付科技有限公司');
       expect(evaluation.result.billingRuleResult?.matchedTemplateId,
           'wechat_payment_detail_v1');
+    });
+
+    test('accepts Meituan bill detail without source package', () async {
+      final service = FastBillingRuleService(
+        ruleRepository: _MemoryRuleRepository(_meituanRuleSet()),
+        ruleEngine: BillingRuleEngineImpl(),
+      );
+      final baseResult = OcrResult(
+        rawText: _meituanBillText,
+        amount: -20.70,
+        time: DateTime(2026, 7, 4, 21, 31, 28),
+        paymentChannel: '美团',
+        allNumbers: const ['20.70', '20'],
+      );
+
+      final evaluation = await service.evaluate(baseResult: baseResult);
+
+      expect(evaluation.accepted, isTrue);
+      expect(evaluation.rejectReasons, isEmpty);
+      expect(evaluation.result.amount, -20.70);
+      expect(evaluation.result.time, DateTime(2026, 7, 4, 21, 31, 28));
+      expect(evaluation.result.paymentChannel, '美团');
+      expect(evaluation.result.note, '天津海河测试盖饭（和平测试店）');
+      expect(evaluation.result.details?['transaction_no'],
+          '9912501641549198789139965392');
+      expect(evaluation.result.details?['merchant_order_no'],
+          '0_9101216766373434');
+    });
+
+    test('accepts JD bill detail without source package', () async {
+      final service = FastBillingRuleService(
+        ruleRepository: _MemoryRuleRepository(_jdRuleSet()),
+        ruleEngine: BillingRuleEngineImpl(),
+      );
+      final baseResult = OcrResult(
+        rawText: _jdBillText,
+        amount: -45.60,
+        time: DateTime(2026, 7, 3, 21, 4, 50),
+        paymentChannel: '京东',
+        allNumbers: const ['45.60', '45', '0.40'],
+      );
+
+      final evaluation = await service.evaluate(baseResult: baseResult);
+
+      expect(evaluation.accepted, isTrue);
+      expect(evaluation.rejectReasons, isEmpty);
+      expect(evaluation.result.amount, -45.60);
+      expect(evaluation.result.time, DateTime(2026, 7, 3, 21, 4, 50));
+      expect(evaluation.result.paymentChannel, '京东');
+      expect(evaluation.result.note, '京东买药');
+      expect(evaluation.result.paymentMethod, '中国银行信用卡（2853）');
+      expect(evaluation.result.details?['order_no'], '9717542574519413');
+      expect(evaluation.result.details?['merchant_order_no'],
+          '9458313000119266428366399457');
+      expect(evaluation.result.details?['discount'], '-0.40');
+    });
+
+    test('extracts JD product title as note when service detail is not a shop',
+        () async {
+      final service = FastBillingRuleService(
+        ruleRepository: _MemoryRuleRepository(_jdRuleSet()),
+        ruleEngine: BillingRuleEngineImpl(),
+      );
+      final baseResult = OcrResult(
+        rawText: _jdProductBillText,
+        amount: -62.90,
+        time: DateTime(2026, 7, 3, 20, 25, 26),
+        paymentChannel: '京东',
+        allNumbers: const ['62.90', '62', '1.00', '1'],
+      );
+
+      final evaluation = await service.evaluate(baseResult: baseResult);
+
+      expect(evaluation.accepted, isTrue);
+      expect(evaluation.rejectReasons, isEmpty);
+      expect(evaluation.result.amount, -62.90);
+      expect(evaluation.result.time, DateTime(2026, 7, 3, 20, 25, 26));
+      expect(evaluation.result.paymentChannel, '京东');
+      expect(evaluation.result.note, '滨海测试家用木质砧板');
+      expect(evaluation.result.paymentMethod, '中国银行信用卡（2853）');
+      expect(evaluation.result.details?['order_no'], '9393828750240214');
+      expect(evaluation.result.details?['merchant_order_no'],
+          '9356035498922568809136331765');
+      expect(evaluation.result.details?['discount'], '-1.00');
     });
 
     test('accepts Douyin payment detail when gallery is foreground', () async {
@@ -291,6 +403,238 @@ ETC
 +++
 0
 ''';
+
+const _meituanBillText = '''
+账单详情
+全部账单
+6
+天津海河测试盖饭（和平测试店）
+-20.70
+支付成功
+下单时间
+2026-07-04 21:31:28
+美团
+下单平台
+美团App
+外卖
+交易单号
+9912501641549198789139965392
+7610 复制
+商家单号
+0_9101216766373434
+收起^
+常见问题
+''';
+
+const _jdBillText = '''
+账单详情
+京东平台商户
+-45.60
+交易成功
+-0.40
+支付立减
+支付方式
+中国银行信用卡（2853）
+创建时间
+2026-07-03 21:04:50
+总订单编号
+9717542574519413
+商户单号
+9458313000119266428366399457
+共1笔订单
+服务详情
+O京东买药
+阿苯达唑打虫药
+迪泰阿苯达唑胶囊8粒阿苯达唑片人用
+成人儿童皆可用
+可苯达唑胶囊
+共2件丨完成丨订单编号：9717542574519413
+*
+京东笔笔返
+查看更多权益>
+其他服务
+账单分类
+其他网购
+查看常见问题
+对此账单有疑问
+''';
+
+const _jdProductBillText = '''
+账单详情
+京东平台商户
+-62.90
+交易成功
+-1.00
+支付立减
+支付方式
+中国银行信用卡（2853）
+创建时间
+2026-07-03 20:25:26
+总订单编号
+9393828750240214
+商户单号
+9356035498922568809136331765
+共1笔订单
+服务详情
+滨海测试家用木质砧板
+珍稀花梨
+抗菌整切
+全调硬术
+共1件丨等待收货丨订单编号：99982957145287...
+*
+京东笔笔返
+查看更多权益>
+其他服务
+账单分类
+日用百货
+查看常见问题
+对此账单有疑问
+''';
+
+BillingRuleSet _emptyRuleSet() {
+  return const BillingRuleSet(
+    schemaVersion: 1,
+    rulesVersion: 'test.empty',
+    paymentChannels: [],
+    templates: [],
+  );
+}
+
+BillingRuleSet _meituanRuleSet() {
+  return BillingRuleSet(
+    schemaVersion: 1,
+    rulesVersion: '2026.07.01.1',
+    paymentChannels: const [],
+    templates: const [
+      BillingRuleTemplate(
+        id: 'meituan_bill_detail_v1',
+        priority: 88,
+        baseConfidence: 0.86,
+        match: BillingRuleTemplateMatch(
+          keywordsAll: ['账单详情', '支付成功', '下单平台'],
+          keywordsAny: ['美团App', '外卖', '美团账单', '交易单号', '商家单号'],
+        ),
+        extractors: [
+          BillingFieldExtractorRule(
+            field: 'paymentChannel',
+            type: 'constant',
+            value: '美团',
+            confidence: 0.94,
+          ),
+          BillingFieldExtractorRule(
+            field: 'amount',
+            type: 'regex',
+            pattern: r'^\s*([-−]\s*\d{1,6}\.\d{1,2})\s*$',
+            parser: 'signedAmount',
+            confidence: 0.9,
+          ),
+          BillingFieldExtractorRule(
+            field: 'time',
+            type: 'labelNextLine',
+            label: '下单时间',
+            parser: 'isoDatetime',
+            confidence: 0.88,
+          ),
+          BillingFieldExtractorRule(
+            field: 'note',
+            type: 'regex',
+            pattern: r'^(.{2,40}(?:店|饭|餐厅|外卖).*)$',
+            confidence: 0.8,
+          ),
+          BillingFieldExtractorRule(
+            field: 'details.transaction_no',
+            type: 'labelNextLine',
+            label: '交易单号',
+            pattern: r'\d{20,}',
+            confidence: 0.86,
+          ),
+          BillingFieldExtractorRule(
+            field: 'details.merchant_order_no',
+            type: 'labelNextLine',
+            label: '商家单号',
+            confidence: 0.8,
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+BillingRuleSet _jdRuleSet() {
+  return BillingRuleSet(
+    schemaVersion: 1,
+    rulesVersion: '2026.07.01.1',
+    paymentChannels: const [],
+    templates: const [
+      BillingRuleTemplate(
+        id: 'jd_bill_detail_v1',
+        priority: 87,
+        baseConfidence: 0.86,
+        match: BillingRuleTemplateMatch(
+          keywordsAll: ['账单详情', '京东平台商户', '交易成功'],
+          keywordsAny: ['支付方式', '创建时间', '总订单编号', '京东买药', '账单分类'],
+        ),
+        extractors: [
+          BillingFieldExtractorRule(
+            field: 'paymentChannel',
+            type: 'constant',
+            value: '京东',
+            confidence: 0.93,
+          ),
+          BillingFieldExtractorRule(
+            field: 'amount',
+            type: 'regex',
+            pattern: r'^\s*([-−]\s*\d{1,6}\.\d{1,2})\s*$',
+            parser: 'signedAmount',
+            confidence: 0.9,
+          ),
+          BillingFieldExtractorRule(
+            field: 'time',
+            type: 'labelNextLine',
+            label: '创建时间',
+            parser: 'isoDatetime',
+            confidence: 0.88,
+          ),
+          BillingFieldExtractorRule(
+            field: 'paymentMethod',
+            type: 'labelNextLine',
+            label: '支付方式',
+            confidence: 0.84,
+          ),
+          BillingFieldExtractorRule(
+            field: 'note',
+            type: 'labelNextLine',
+            label: '服务详情',
+            pattern: r'[O0]?(.{2,40})',
+            confidence: 0.8,
+          ),
+          BillingFieldExtractorRule(
+            field: 'details.order_no',
+            type: 'labelNextLine',
+            label: '总订单编号',
+            pattern: r'\d{10,}',
+            confidence: 0.86,
+          ),
+          BillingFieldExtractorRule(
+            field: 'details.merchant_order_no',
+            type: 'labelNextLine',
+            label: '商户单号',
+            pattern: r'\d{10,}',
+            confidence: 0.82,
+          ),
+          BillingFieldExtractorRule(
+            field: 'details.discount',
+            type: 'nearKeyword',
+            label: '支付立减',
+            pattern: r'([-−]\d{1,6}\.\d{1,2})',
+            options: {'windowLines': 1},
+            confidence: 0.72,
+          ),
+        ],
+      ),
+    ],
+  );
+}
 
 BillingRuleSet _wechatRuleSet() {
   return BillingRuleSet(

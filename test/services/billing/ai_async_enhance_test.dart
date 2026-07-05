@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:beecount/ai/tasks/bill_extraction_task.dart';
 import 'package:beecount/data/db.dart';
@@ -144,6 +145,83 @@ void main() {
     expect(tx?.amount, 19.5);
     expect(tx?.paymentChannel, '微信支付');
     expect(tx?.detailsText, contains('ai_enhance_status: timeout'));
+  });
+
+  test('records vision rule audit and default-enabled suggestion on low score',
+      () async {
+    final txId = await _insertBaseTransaction(repo, ledgerId);
+    final image = File('${Directory.systemTemp.path}/bee_audit_test.jpg');
+    await image.writeAsBytes(const [1, 2, 3]);
+    addTearDown(() async {
+      if (await image.exists()) {
+        await image.delete();
+      }
+    });
+
+    final service = AiAsyncEnhanceService(
+      repo: repo,
+      loadBillInfo: (_) async => const BillInfo(
+        note: 'ETC服务',
+        category: '交通',
+      ),
+      auditRuleResult: (_) async => const AiRuleAuditResult(
+        ruleScore: 0.61,
+        accepted: false,
+        issues: ['payment_channel: 规则来源与视觉证据不一致'],
+      ),
+    );
+
+    final outcome = await service.enhanceTransaction(
+      transactionId: txId,
+      rawText: '账单详情 ETC服务',
+      imageFile: image,
+    );
+
+    final tx = await repo.getTransactionById(txId);
+    expect(outcome.status, AiAsyncEnhanceStatus.succeeded);
+    expect(outcome.ruleAudit?.ruleScore, 0.61);
+    expect(tx?.detailsText, contains('ai_rule_audit_score: 0.61'));
+    expect(tx?.detailsText, contains('ai_rule_audit_accepted: false'));
+    expect(tx?.detailsText, contains('ai_rule_review_default_enabled: true'));
+    expect(
+        tx?.detailsText, contains('ai_rule_review_status: active_suggestion'));
+  });
+
+  test('marks vision rule audit timeout without failing enhancement', () async {
+    final txId = await _insertBaseTransaction(repo, ledgerId);
+    final image = File('${Directory.systemTemp.path}/bee_audit_timeout.jpg');
+    await image.writeAsBytes(const [1, 2, 3]);
+    addTearDown(() async {
+      if (await image.exists()) {
+        await image.delete();
+      }
+    });
+
+    final service = AiAsyncEnhanceService(
+      repo: repo,
+      loadBillInfo: (_) async => const BillInfo(
+        note: '天津海河测试咖啡馆丑',
+        category: '咖啡',
+      ),
+      auditRuleResult: (_) async {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        return const AiRuleAuditResult(ruleScore: 1, accepted: true);
+      },
+      auditTimeout: const Duration(milliseconds: 10),
+    );
+
+    final outcome = await service.enhanceTransaction(
+      transactionId: txId,
+      rawText: '账单详情 天津海河测试咖啡馆丑',
+      imageFile: image,
+    );
+
+    final tx = await repo.getTransactionById(txId);
+    expect(outcome.status, AiAsyncEnhanceStatus.succeeded);
+    expect(outcome.ruleAudit, isNull);
+    expect(tx?.detailsText, contains('ai_enhance_status: succeeded'));
+    expect(tx?.detailsText, contains('ai_rule_audit_error:'));
+    expect(tx?.detailsText, contains('TimeoutException'));
   });
 }
 

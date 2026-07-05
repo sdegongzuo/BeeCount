@@ -367,6 +367,7 @@ BillingRuleTemplateMatch _parseTemplateMatch(Object? value) {
   final map = _asMap(value);
   return BillingRuleTemplateMatch(
     sourcePackages: _stringList(map['sourcePackages']),
+    appNameKeywords: _stringList(map['appNameKeywords']),
     keywordsAll: _stringList(map['keywordsAll']),
     keywordsAny: _stringList(map['keywordsAny']),
   );

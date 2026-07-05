@@ -305,7 +305,7 @@ class OcrService {
       );
       final sourcePaymentChannel = _sourcePaymentChannel(sourceInfo);
       final finalPaymentChannel =
-          sourcePaymentChannel ?? paymentChannelDetection?.channel;
+          paymentChannelDetection?.channel ?? sourcePaymentChannel;
       final sourceDetails = _sourceDetails(
         sourceInfo,
         ocrPaymentChannel: paymentChannelDetection?.channel,
