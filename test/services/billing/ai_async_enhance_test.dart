@@ -164,6 +164,7 @@ void main() {
         note: 'ETC服务',
         category: '交通',
       ),
+      enableRuleAudit: true,
       auditRuleResult: (_) async => const AiRuleAuditResult(
         ruleScore: 0.61,
         accepted: false,
@@ -187,6 +188,44 @@ void main() {
         tx?.detailsText, contains('ai_rule_review_status: active_suggestion'));
   });
 
+  test('skips vision rule audit by default', () async {
+    final txId = await _insertBaseTransaction(repo, ledgerId);
+    final image = File('${Directory.systemTemp.path}/bee_audit_default_off.jpg');
+    await image.writeAsBytes(const [1, 2, 3]);
+    addTearDown(() async {
+      if (await image.exists()) {
+        await image.delete();
+      }
+    });
+
+    var auditCalled = false;
+    final service = AiAsyncEnhanceService(
+      repo: repo,
+      loadBillInfo: (_) async => const BillInfo(note: 'ETC service'),
+      auditRuleResult: (_) async {
+        auditCalled = true;
+        return const AiRuleAuditResult(
+          ruleScore: 0.61,
+          accepted: false,
+        );
+      },
+    );
+
+    final outcome = await service.enhanceTransaction(
+      transactionId: txId,
+      rawText: 'bill detail ETC service',
+      imageFile: image,
+    );
+
+    final tx = await repo.getTransactionById(txId);
+    expect(outcome.status, AiAsyncEnhanceStatus.succeeded);
+    expect(outcome.ruleAudit, isNull);
+    expect(auditCalled, isFalse);
+    expect(tx?.detailsText, contains('ai_enhance_status: succeeded'));
+    expect(tx?.detailsText, isNot(contains('ai_rule_audit_score')));
+    expect(tx?.detailsText, isNot(contains('ai_rule_review_default_enabled')));
+  });
+
   test('marks vision rule audit timeout without failing enhancement', () async {
     final txId = await _insertBaseTransaction(repo, ledgerId);
     final image = File('${Directory.systemTemp.path}/bee_audit_timeout.jpg');
@@ -203,6 +242,7 @@ void main() {
         note: '天津海河测试咖啡馆丑',
         category: '咖啡',
       ),
+      enableRuleAudit: true,
       auditRuleResult: (_) async {
         await Future<void>.delayed(const Duration(milliseconds: 50));
         return const AiRuleAuditResult(ruleScore: 1, accepted: true);

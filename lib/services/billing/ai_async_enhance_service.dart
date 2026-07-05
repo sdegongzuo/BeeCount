@@ -88,6 +88,7 @@ class AiAsyncEnhanceService {
   final BaseRepository repo;
   final AiBillInfoLoader loadBillInfo;
   final AiRuleAuditLoader? auditRuleResult;
+  final bool enableRuleAudit;
   final Duration timeout;
   final Duration auditTimeout;
   final double auditPassScore;
@@ -96,6 +97,7 @@ class AiAsyncEnhanceService {
     required this.repo,
     required this.loadBillInfo,
     this.auditRuleResult,
+    this.enableRuleAudit = false,
     this.timeout = const Duration(seconds: 90),
     this.auditTimeout = const Duration(seconds: 60),
     this.auditPassScore = defaultAuditPassScore,
@@ -217,7 +219,7 @@ class AiAsyncEnhanceService {
     File? imageFile,
   ) async {
     final loader = auditRuleResult;
-    if (loader == null || imageFile == null) return null;
+    if (!enableRuleAudit || loader == null || imageFile == null) return null;
 
     try {
       logger.info(_tag, '视觉规则审计开始', 'transactionId=${tx.id}');
@@ -242,7 +244,7 @@ class AiAsyncEnhanceService {
         'transactionId=${tx.id}, score=${effectiveAudit.ruleScore}, accepted=${effectiveAudit.accepted}',
       );
       return effectiveAudit;
-    } on TimeoutException catch (e, st) {
+    } on TimeoutException catch (e) {
       logger.warning(
         _tag,
         '视觉规则审计超时',
