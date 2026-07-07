@@ -68,9 +68,9 @@ void main() {
     expect(tx?.categoryId, shoppingCategoryId);
     expect(tx?.paymentMethod, '平安银行信用卡(2299)');
     expect(tx?.counterparty, '拼多多');
-    expect(tx?.detailsText, contains('ai_enhance_status: succeeded'));
-    expect(tx?.detailsText, contains('ai_conflict_amount: -99.99'));
-    expect(tx?.detailsText, contains('merchant_order_no: XP123'));
+    expect(tx?.detailsText, contains('商户单号: XP123'));
+    expect(tx?.detailsText, isNot(contains('ai_enhance_status')));
+    expect(tx?.detailsText, isNot(contains('ai_conflict_amount')));
   });
 
   test('fills allowed AI fields after the base transaction exists', () async {
@@ -103,7 +103,7 @@ void main() {
     expect(tx?.counterparty, '天津津门测试餐厅乙');
     expect(tx?.merchantFullName, '天津滨海测试信息技术有限公司丁');
     expect(tx?.acquirer, '上海富友支付服务股份有限公司');
-    expect(tx?.detailsText, contains('store_name: 南开测试店'));
+    expect(tx?.detailsText, contains('门店: 南开测试店'));
   });
 
   test('marks AI failures without rolling back the base transaction', () async {
@@ -122,9 +122,9 @@ void main() {
     expect(outcome.status, AiAsyncEnhanceStatus.failed);
     expect(tx?.amount, 19.5);
     expect(tx?.note, '财付通支付科技有限公司');
-    expect(tx?.detailsText, contains('ai_enhance_status: failed'));
-    expect(tx?.detailsText,
-        contains('ai_enhance_error: Bad state: provider failed'));
+    expect(tx?.detailsText, contains('交易单号: 9223292424251435949411772872'));
+    expect(tx?.detailsText, isNot(contains('ai_enhance_status')));
+    expect(tx?.detailsText, isNot(contains('ai_enhance_error')));
   });
 
   test('marks AI timeout without rolling back the base transaction', () async {
@@ -144,7 +144,8 @@ void main() {
     expect(outcome.status, AiAsyncEnhanceStatus.timeout);
     expect(tx?.amount, 19.5);
     expect(tx?.paymentChannel, '微信支付');
-    expect(tx?.detailsText, contains('ai_enhance_status: timeout'));
+    expect(tx?.detailsText, contains('交易单号: 9223292424251435949411772872'));
+    expect(tx?.detailsText, isNot(contains('ai_enhance_status')));
   });
 
   test('records vision rule audit and default-enabled suggestion on low score',
@@ -181,11 +182,10 @@ void main() {
     final tx = await repo.getTransactionById(txId);
     expect(outcome.status, AiAsyncEnhanceStatus.succeeded);
     expect(outcome.ruleAudit?.ruleScore, 0.61);
-    expect(tx?.detailsText, contains('ai_rule_audit_score: 0.61'));
-    expect(tx?.detailsText, contains('ai_rule_audit_accepted: false'));
-    expect(tx?.detailsText, contains('ai_rule_review_default_enabled: true'));
-    expect(
-        tx?.detailsText, contains('ai_rule_review_status: active_suggestion'));
+    expect(tx?.detailsText, isNot(contains('ai_rule_audit_score')));
+    expect(tx?.detailsText, isNot(contains('ai_rule_audit_accepted')));
+    expect(tx?.detailsText, isNot(contains('ai_rule_review_default_enabled')));
+    expect(tx?.detailsText, isNot(contains('ai_rule_review_status')));
   });
 
   test('skips vision rule audit by default', () async {
@@ -221,7 +221,7 @@ void main() {
     expect(outcome.status, AiAsyncEnhanceStatus.succeeded);
     expect(outcome.ruleAudit, isNull);
     expect(auditCalled, isFalse);
-    expect(tx?.detailsText, contains('ai_enhance_status: succeeded'));
+    expect(tx?.detailsText, isNot(contains('ai_enhance_status')));
     expect(tx?.detailsText, isNot(contains('ai_rule_audit_score')));
     expect(tx?.detailsText, isNot(contains('ai_rule_review_default_enabled')));
   });
@@ -259,9 +259,9 @@ void main() {
     final tx = await repo.getTransactionById(txId);
     expect(outcome.status, AiAsyncEnhanceStatus.succeeded);
     expect(outcome.ruleAudit, isNull);
-    expect(tx?.detailsText, contains('ai_enhance_status: succeeded'));
-    expect(tx?.detailsText, contains('ai_rule_audit_error:'));
-    expect(tx?.detailsText, contains('TimeoutException'));
+    expect(tx?.detailsText, isNot(contains('ai_enhance_status')));
+    expect(tx?.detailsText, isNot(contains('ai_rule_audit_error')));
+    expect(tx?.detailsText, isNot(contains('TimeoutException')));
   });
 }
 

@@ -95,6 +95,12 @@ class AttachmentService {
           _buildAttachmentFileName(transactionId, timestamp, index, format);
       var destPath = '${dir.path}/$fileName';
 
+      final saveStart = DateTime.now();
+      logger.info(
+        'AttachmentService',
+        '附件保存开始: format=${format.storageKey}, quality=$quality',
+      );
+
       // 压缩图片并保存
       var compressedFile = await _compressImage(
         sourceFile,
@@ -147,7 +153,8 @@ class AttachmentService {
         sortOrder: index,
       );
 
-      logger.info('AttachmentService', '附件保存成功: $fileName');
+      final elapsed = DateTime.now().difference(saveStart).inMilliseconds;
+      logger.info('AttachmentService', '附件保存成功: $fileName, elapsedMs=$elapsed');
       return repo.getAttachmentById(id);
     } catch (e, stackTrace) {
       logger.error('AttachmentService', '保存附件失败', e, stackTrace);
@@ -349,7 +356,11 @@ class AttachmentService {
   }) async {
     try {
       if (format == SmartBillingAttachmentFormat.avif) {
-        return _compressAvifImage(source, targetPath, quality);
+        final start = DateTime.now();
+        final result = await _compressAvifImage(source, targetPath, quality);
+        final elapsed = DateTime.now().difference(start).inMilliseconds;
+        logger.info('AttachmentService', 'AVIF 编码结束: elapsedMs=$elapsed');
+        return result;
       }
 
       final result = await FlutterImageCompress.compressAndGetFile(
@@ -418,7 +429,22 @@ class AttachmentService {
   }
 
   Future<Uint8List?> _prepareAvifInputBytes(File source, int quality) async {
+    final sourceInfo = await _getImageInfo(source.path);
+    if (sourceInfo != null &&
+        sourceInfo.width <= maxWidth &&
+        sourceInfo.height <= maxHeight) {
+      logger.info(
+        'AttachmentService',
+        'AVIF 跳过 JPEG 预处理: ${sourceInfo.width}x${sourceInfo.height}',
+      );
+      return source.readAsBytes();
+    }
+
     try {
+      logger.info(
+        'AttachmentService',
+        'AVIF JPEG 预处理开始: source=${sourceInfo == null ? "unknown" : "${sourceInfo.width}x${sourceInfo.height}"}',
+      );
       final compressed = await FlutterImageCompress.compressWithFile(
         source.path,
         minWidth: maxWidth,
@@ -427,6 +453,8 @@ class AttachmentService {
         format: CompressFormat.jpeg,
       );
       if (compressed != null && compressed.isNotEmpty) {
+        logger.info(
+            'AttachmentService', 'AVIF JPEG 预处理完成: bytes=${compressed.length}');
         return compressed;
       }
     } catch (e) {

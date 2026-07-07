@@ -43,6 +43,7 @@ class OcrResult {
   final BillingRuleTrace? billingRuleTrace; // 快速记账规则 trace
   final bool fastBillingAccepted; // 是否满足快速记账条件
   final List<String> fastBillingRejectReasons; // 快速记账拒绝原因
+  final String? ocrEngine; // OCR 引擎 rapidocr / mlkit / manual
   final String? aiProvider; // AI提供商（用于日志）
   final bool aiEnhanced; // 是否经过AI增强
 
@@ -69,6 +70,7 @@ class OcrResult {
     this.billingRuleTrace,
     this.fastBillingAccepted = false,
     this.fastBillingRejectReasons = const [],
+    this.ocrEngine,
     this.aiProvider,
     this.aiEnhanced = false,
   });
@@ -116,6 +118,7 @@ class OcrResult {
       billingRuleTrace: billingRuleTrace,
       fastBillingAccepted: fastBillingAccepted,
       fastBillingRejectReasons: fastBillingRejectReasons,
+      ocrEngine: ocrEngine,
       aiProvider: aiProvider,
       aiEnhanced: true,
     );
@@ -162,6 +165,7 @@ class OcrResult {
       fastBillingAccepted: fastBillingAccepted ?? this.fastBillingAccepted,
       fastBillingRejectReasons:
           fastBillingRejectReasons ?? this.fastBillingRejectReasons,
+      ocrEngine: ocrEngine,
       aiProvider: aiProvider,
       aiEnhanced: aiEnhanced,
     );
@@ -190,6 +194,7 @@ class OcrResult {
         'billing_rule_trace': billingRuleTrace?.toDebugJson(),
         'fast_billing_accepted': fastBillingAccepted,
         'fast_billing_reject_reasons': fastBillingRejectReasons,
+        'ocr_engine': ocrEngine,
         'aiProvider': aiProvider,
         'aiEnhanced': aiEnhanced,
       };
@@ -324,6 +329,7 @@ class OcrService {
         paymentChannel: finalPaymentChannel,
         details: sourceDetails.isEmpty ? null : sourceDetails,
         detectedPaymentChannel: paymentChannelDetection,
+        ocrEngine: textResult.engine,
       );
       traceSink?.call(BillExtractionTraceEvent(
         stage: 'rule',

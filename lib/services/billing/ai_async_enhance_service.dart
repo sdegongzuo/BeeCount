@@ -424,7 +424,6 @@ class AiAsyncEnhanceService {
 
       final separator = trimmed.indexOf(':');
       if (separator <= 0) {
-        details[trimmed] = true;
         continue;
       }
 

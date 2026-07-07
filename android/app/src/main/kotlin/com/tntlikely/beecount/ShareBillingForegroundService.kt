@@ -178,7 +178,7 @@ class ShareBillingForegroundService : Service() {
         private const val TAG = "ShareBillingService"
         private const val CHANNEL_ID = "share_billing_processing"
         private const val NOTIFICATION_ID = 2404
-        private const val PROCESSING_TIMEOUT_MS = 15_000L
+        private const val PROCESSING_TIMEOUT_MS = 45_000L
         private const val PREFS_NAME = "share_billing_payloads"
         private const val PREF_PENDING_PAYLOAD = "pending_payload"
 

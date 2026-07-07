@@ -57,8 +57,14 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
     String? merchantFullName;
     String? acquirer;
     final lines = _splitLines(ocrText);
+    final remainingExtractors = <BillingFieldExtractorRule>[];
+    final extractedLabelLineIndexes = <int>{};
 
     for (final extractorRule in selected.extractors) {
+      if (extractorRule.type == BillingRuleExtractorTypes.remainingLines) {
+        remainingExtractors.add(extractorRule);
+        continue;
+      }
       final extraction = BillingRuleExtractors.extract(
         rule: extractorRule,
         ocrText: ocrText,
@@ -95,6 +101,10 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
       );
       fields[extractorRule.field] = fieldResult;
       fieldEvidence[extractorRule.field] = extraction.evidence;
+      final labelLineIndex = _findLabelLine(lines, extractorRule.label);
+      if (labelLineIndex != null) {
+        extractedLabelLineIndexes.add(labelLineIndex);
+      }
 
       switch (extractorRule.field) {
         case 'amount':
@@ -126,6 +136,81 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
             _writeDetailsValue(details, extractorRule.field, parsed.value);
           }
           break;
+      }
+    }
+
+    for (final extractorRule in remainingExtractors) {
+      final extraction = _extractRemainingLines(
+        rule: extractorRule,
+        lines: lines,
+        fieldEvidence: fieldEvidence,
+        extraUsedLineIndexes: extractedLabelLineIndexes,
+        templateId: selected.id,
+      );
+      if (extraction == null) {
+        debugMessages.add('Extractor missed field ${extractorRule.field}');
+        continue;
+      }
+      final parsed = BillingRuleParsers.parse(
+        extractorRule.parser,
+        extraction.text,
+        pattern: extractorRule.pattern,
+        options: extractorRule.options,
+      );
+      if (!parsed.success || parsed.value == null) {
+        debugMessages.add(
+          'Parser missed field ${extractorRule.field}: ${parsed.error}',
+        );
+        continue;
+      }
+      final confidence = _clampConfidence(
+        extraction.confidence * parsed.confidence,
+      );
+      fields[extractorRule.field] = BillingRuleFieldResult(
+        field: extractorRule.field,
+        value: parsed.value,
+        confidence: confidence,
+        extractorType: extractorRule.type,
+        source: extraction.source,
+        evidence: extraction.evidence,
+      );
+      fieldEvidence[extractorRule.field] = extraction.evidence;
+      if (extractorRule.field.startsWith('details.')) {
+        _writeDetailsValue(details, extractorRule.field, parsed.value);
+      }
+    }
+
+    if (!details.containsKey('remaining_text')) {
+      final extraction = _extractRemainingLines(
+        rule: const BillingFieldExtractorRule(
+          field: 'details.remaining_text',
+          type: BillingRuleExtractorTypes.remainingLines,
+          confidence: 0.7,
+        ),
+        lines: lines,
+        fieldEvidence: fieldEvidence,
+        extraUsedLineIndexes: extractedLabelLineIndexes,
+        templateId: selected.id,
+      );
+      if (extraction != null) {
+        final parsed = BillingRuleParsers.parse(
+          BillingRuleParserTypes.raw,
+          extraction.text,
+        );
+        if (parsed.success && parsed.value != null) {
+          fields['details.remaining_text'] = BillingRuleFieldResult(
+            field: 'details.remaining_text',
+            value: parsed.value,
+            confidence: _clampConfidence(
+              extraction.confidence * parsed.confidence,
+            ),
+            extractorType: BillingRuleExtractorTypes.remainingLines,
+            source: extraction.source,
+            evidence: extraction.evidence,
+          );
+          fieldEvidence['details.remaining_text'] = extraction.evidence;
+          _writeDetailsValue(details, 'details.remaining_text', parsed.value);
+        }
       }
     }
 
@@ -330,4 +415,85 @@ void _writeDetailsValue(
     }
   }
   current[parts.last] = value;
+}
+
+BillingRuleExtraction? _extractRemainingLines({
+  required BillingFieldExtractorRule rule,
+  required List<String> lines,
+  required Map<String, List<BillingRuleFieldEvidence>> fieldEvidence,
+  Set<int> extraUsedLineIndexes = const {},
+  required String templateId,
+}) {
+  final usedLineIndexes = <int>{...extraUsedLineIndexes};
+  for (final evidences in fieldEvidence.values) {
+    for (final evidence in evidences) {
+      final index = evidence.lineIndex;
+      if (index == null) continue;
+      usedLineIndexes.add(index);
+      final end = evidence.end;
+      if (evidence.start == null &&
+          end != null &&
+          end > index &&
+          end <= lines.length) {
+        for (var i = index; i < end; i++) {
+          usedLineIndexes.add(i);
+        }
+      }
+    }
+  }
+
+  final excludeLabels = _stringOptionList(rule.options['excludeLabels']);
+  final excludePatterns = _regexOptionList(rule.options['excludePatterns']);
+  final values = <String>[];
+  final evidences = <BillingRuleFieldEvidence>[];
+  for (var index = 0; index < lines.length; index++) {
+    if (usedLineIndexes.contains(index)) continue;
+    final line = lines[index].trim();
+    if (line.isEmpty) continue;
+    if (excludeLabels.any(line.contains)) continue;
+    if (excludePatterns.any((pattern) => pattern.hasMatch(line))) continue;
+    values.add(line);
+    evidences.add(
+      BillingRuleFieldEvidence(
+        type: rule.type,
+        text: line,
+        lineIndex: index,
+        ruleId: templateId,
+      ),
+    );
+  }
+  final text = values.join('\n').trim();
+  if (text.isEmpty) return null;
+  return BillingRuleExtraction(
+    text: text,
+    source: text,
+    confidence: rule.confidence,
+    evidence: evidences,
+  );
+}
+
+int? _findLabelLine(List<String> lines, String? label) {
+  if (label == null || label.isEmpty) return null;
+  for (var index = 0; index < lines.length; index++) {
+    if (lines[index].trim().contains(label)) return index;
+  }
+  return null;
+}
+
+List<String> _stringOptionList(Object? value) {
+  if (value is! List) return const [];
+  return value.map((item) => item.toString()).toList(growable: false);
+}
+
+List<RegExp> _regexOptionList(Object? value) {
+  if (value is! List) return const [];
+  final result = <RegExp>[];
+  for (final item in value) {
+    try {
+      result.add(RegExp(item.toString()));
+    } on FormatException {
+      continue;
+    }
+  }
+  return result;
 }

@@ -13,16 +13,18 @@ void main() {
         ruleFile: File('assets/rules/billing_rules.toml'),
       );
 
-      expect(report.totalSamples, 1);
-      expect(report.passedSamples, 1);
+      expect(report.totalSamples, greaterThanOrEqualTo(3));
+      expect(report.passedSamples, report.totalSamples);
       expect(report.templateHitRate, 1);
       expect(report.fieldAccuracy, 1);
       expect(report.falsePositiveCount, 0);
 
       final markdown = renderRuleEvalMarkdown(report);
-      expect(markdown, contains('Template hit rate: 1/1'));
-      expect(markdown, contains('Field accuracy: 6/6'));
+      expect(markdown, contains('Template hit rate:'));
+      expect(markdown, contains('Field accuracy:'));
       expect(markdown, contains('wechat_payment_detail_001'));
+      expect(markdown, contains('alipay_etc_single'));
+      expect(markdown, contains('alipay_mimo_token_single'));
       expect(markdown, contains('PASS'));
     });
 
@@ -39,8 +41,11 @@ void main() {
         },
       );
 
-      expect(report.passedSamples, 0);
-      expect(report.samples.single.fieldDiffs, hasLength(2));
+      expect(report.passedSamples, report.totalSamples - 1);
+      final wechat = report.samples.singleWhere(
+        (sample) => sample.id == 'wechat_payment_detail_001',
+      );
+      expect(wechat.fieldDiffs, hasLength(2));
 
       final markdown = renderRuleEvalMarkdown(report);
       expect(markdown, contains('FAIL'));

@@ -4,10 +4,13 @@ import 'package:beecount/services/billing/rules/billing_rule_engine_impl.dart';
 import 'package:beecount/services/billing/rules/billing_rule_extractors.dart';
 import 'package:beecount/services/billing/rules/billing_rule_models.dart';
 import 'package:beecount/services/billing/rules/billing_rule_parsers.dart';
+import 'package:beecount/services/billing/rules/billing_rule_repository.dart';
 import 'package:beecount/services/billing/rules/billing_rule_trace.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('BillingRuleEngineImpl', () {
     test(
         'matches templates by source package and keywords with stable priority',
@@ -103,7 +106,7 @@ void main() {
           paymentChannel: '拼多多',
         ),
         _ImageShareRuleCase(
-          imagePath: 'image/单条/云闪付-单条.jpg',
+          imagePath: 'image/单条/云闪付-单条2.jpg',
           sourceAppName: '云闪付',
           templateId: 'unionpay_image_share_v1',
           paymentChannel: '云闪付',
@@ -282,9 +285,10 @@ void main() {
       expect(result.note, '午餐套餐');
       expect(result.merchantFullName, '天津海河测试餐厅甲');
       expect(result.paymentMethod, '平安银行信用卡(2299)');
-      expect(result.details, {
-        'transaction_no': '9422548327273593242578194027',
-      });
+      expect(
+        result.details,
+        containsPair('transaction_no', '9422548327273593242578194027'),
+      );
       expect(
           result.fields.keys,
           containsAll([
@@ -305,10 +309,237 @@ void main() {
             reason: fieldResult.field);
       }
       expect(traces.single.fieldEvidence['details.transaction_no'], isNotEmpty);
-      expect(traces.single.result?.toJson()['details'], {
-        'transaction_no': '9422548327273593242578194027',
-      });
+      expect(
+        traces.single.result?.toJson()['details'],
+        containsPair('transaction_no', '9422548327273593242578194027'),
+      );
       expect(result.confidence, greaterThan(0.8));
+    });
+
+    test('collects unmatched OCR lines into details', () async {
+      final result = await BillingRuleEngineImpl().evaluate(
+        ruleSet: BillingRuleSet(
+          schemaVersion: 1,
+          rulesVersion: 'candidate.test',
+          paymentChannels: const [],
+          templates: [
+            _template(
+              id: 'wechat_candidate',
+              match: const BillingRuleTemplateMatch(
+                appNameKeywords: ['微信'],
+                keywordsAll: ['支付时间', '支付方式'],
+              ),
+              extractors: const [
+                BillingFieldExtractorRule(
+                  field: 'paymentChannel',
+                  type: BillingRuleExtractorTypes.constant,
+                  value: '微信支付',
+                ),
+                BillingFieldExtractorRule(
+                  field: 'amount',
+                  type: BillingRuleExtractorTypes.regex,
+                  pattern: r'^\s*([¥￥]?\s*[-−+]?\d{1,6}\.\d{1,2})\s*(?:元)?\s*$',
+                  parser: BillingRuleParserTypes.signedAmount,
+                ),
+                BillingFieldExtractorRule(
+                  field: 'time',
+                  type: BillingRuleExtractorTypes.regex,
+                  pattern:
+                      r'(\d{4}年\s*\d{1,2}\s*月\s*\d{1,2}\s*日\s+\d{1,2}:\d{2}:\d{2})',
+                  parser: BillingRuleParserTypes.zhDatetime,
+                ),
+                BillingFieldExtractorRule(
+                  field: 'paymentMethod',
+                  type: BillingRuleExtractorTypes.regex,
+                  pattern:
+                      r'([^\n]{2,40}(?:银行|信用卡)[^\n]{0,30}(?:\(\d{3,6}\)|\[\d{3,6}\])?)',
+                ),
+                BillingFieldExtractorRule(
+                  field: 'acquirer',
+                  type: BillingRuleExtractorTypes.regex,
+                  pattern: r'([^\n]{2,40}(?:支付[科料]技有限公司))',
+                  parser: BillingRuleParserTypes.institutionName,
+                ),
+                BillingFieldExtractorRule(
+                  field: 'details.remaining_text',
+                  type: BillingRuleExtractorTypes.remainingLines,
+                  options: {
+                    'excludeLabels': [
+                      '支付时间',
+                      '支付方式',
+                      '收单机构',
+                      '交易单号',
+                      '商户单号',
+                      '当前状态',
+                    ],
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+        sourceAppName: '微信',
+        ocrText: [
+          '拼多多',
+          '-19.50',
+          '原价',
+          '￥19.80',
+          '优惠',
+          '银行卡多笔立减优惠0.30',
+          '当前状态',
+          '支付成功',
+          '支付时间',
+          '2026年05月31日 14:27:40',
+          '收单机构',
+          '财付通支付科技有限公司',
+          '支付方式',
+          '平安银行信用卡(2299)',
+          '交易单号',
+          '9223292424251435949411772872',
+          '商户单号',
+          'XP9250027811994856890233755142',
+        ].join('\n'),
+      );
+
+      final remainingText = result.details?['remaining_text'] as String?;
+      expect(remainingText, contains('原价'));
+      expect(remainingText, contains('￥19.80'));
+      expect(remainingText, contains('银行卡多笔立减优惠0.30'));
+      expect(remainingText, contains('9223292424251435949411772872'));
+      expect(remainingText, contains('XP9250027811994856890233755142'));
+      expect(remainingText, isNot(contains('2026年05月31日 14:27:40')));
+      expect(remainingText, isNot(contains('平安银行信用卡(2299)')));
+      expect(remainingText, isNot(contains('财付通支付科技有限公司')));
+    });
+
+    test('adds remaining OCR lines while preserving structured details',
+        () async {
+      final result = await BillingRuleEngineImpl().evaluate(
+        ruleSet: BillingRuleSet(
+          schemaVersion: 1,
+          rulesVersion: 'candidate.test',
+          paymentChannels: const [],
+          templates: [
+            _template(
+              id: 'unionpay_detail',
+              match: const BillingRuleTemplateMatch(
+                keywordsAll: ['银联交易详情', '交易时间', '参考号'],
+              ),
+              extractors: const [
+                BillingFieldExtractorRule(
+                  field: 'paymentChannel',
+                  type: BillingRuleExtractorTypes.constant,
+                  value: '云闪付',
+                ),
+                BillingFieldExtractorRule(
+                  field: 'amount',
+                  type: BillingRuleExtractorTypes.regex,
+                  pattern: r'^\s*([-−]?[¥￥]\s*\d{1,6}\.\d{1,2})\s*$',
+                  parser: BillingRuleParserTypes.signedAmount,
+                ),
+                BillingFieldExtractorRule(
+                  field: 'time',
+                  type: BillingRuleExtractorTypes.labelNextLine,
+                  label: '交易时间',
+                  parser: BillingRuleParserTypes.isoDatetime,
+                ),
+                BillingFieldExtractorRule(
+                  field: 'details.reference_no',
+                  type: BillingRuleExtractorTypes.labelNextLine,
+                  label: '参考号',
+                ),
+              ],
+            ),
+          ],
+        ),
+        ocrText: [
+          '银联交易详情',
+          '淘宝平台商户',
+          '-￥27.82',
+          '优惠信息',
+          '银联优惠-￥0.08',
+          '交易时间',
+          '2026-06-14 12:22:17',
+          '商户编号',
+          '972713631844736',
+          '参考号',
+          '957407753917',
+        ].join('\n'),
+      );
+
+      expect(result.details?['reference_no'], '957407753917');
+      final remainingText = result.details?['remaining_text'] as String?;
+      expect(remainingText, contains('淘宝平台商户'));
+      expect(remainingText, contains('优惠信息'));
+      expect(remainingText, contains('银联优惠-￥0.08'));
+      expect(remainingText, contains('商户编号'));
+      expect(remainingText, contains('972713631844736'));
+      expect(remainingText, isNot(contains('2026-06-14 12:22:17')));
+      expect(remainingText, isNot(contains('957407753917')));
+    });
+
+    test('built-in UnionPay detail rule works without source app', () async {
+      final ruleSet = await TomlBillingRuleRepository().loadBuiltInRuleSet();
+
+      final result = await BillingRuleEngineImpl().evaluate(
+        ruleSet: ruleSet,
+        ocrText: [
+          '银联交易详情',
+          '淘',
+          '淘宝平台商户',
+          '-￥27.82',
+          '优惠信息',
+          '银联优惠-￥0.08',
+          '收款方',
+          '天津滨海测试家居有限公司庚',
+          '卡号',
+          '工商银行银联信用卡[2454]',
+          '交易时间',
+          '2026-06-14 12:22:17',
+          '订单金额',
+          '￥27.90',
+          '交易渠道',
+          '银行APP',
+          '消费',
+          '交易类别',
+          '分类',
+          '百货日用-日用百货',
+          '发卡机构',
+          '工商银行',
+          '收单机构',
+          '支付宝(中国)网络技术有限公司',
+          '商户编号',
+          '972713631844736',
+          '终端编号',
+          '01080209',
+          '批次号',
+          '561845',
+          '凭证号',
+          '500409',
+          '参考号',
+          '957407753917',
+        ].join('\n'),
+      );
+
+      expect(result.matchedTemplateId, 'unionpay_pinduoduo_single_v1');
+      expect(result.amount, -27.82);
+      expect(result.time, DateTime(2026, 6, 14, 12, 22, 17));
+      expect(result.paymentChannel, '云闪付');
+      expect(result.paymentMethod, '工商银行银联信用卡(1044)');
+      expect(result.counterparty, '天津滨海测试家居有限公司庚');
+      expect(result.note, '天津滨海测试家居有限公司庚');
+      expect(result.acquirer, '支付宝(中国)网络技术有限公司');
+      expect(result.details?['merchant_no'], '972713631844736');
+      expect(result.details?['terminal_no'], '01080209');
+      expect(result.details?['order_amount'], '￥27.90');
+      expect(result.details?['batch_no'], '561845');
+      expect(result.details?['voucher_no'], '500409');
+      expect(result.details?['reference_no'], '957407753917');
+      final remainingText = result.details?['remaining_text'] as String?;
+      expect(remainingText, contains('优惠信息'));
+      expect(remainingText, contains('银联优惠-￥0.08'));
+      expect(remainingText, isNot(contains('2026-06-14 12:22:17')));
+      expect(remainingText, isNot(contains('工商银行银联信用卡[2454]')));
     });
   });
 
@@ -337,10 +568,44 @@ void main() {
       );
       expect(
         BillingRuleParsers.parse(
+          BillingRuleParserTypes.zhDatetime,
+          '2026年05 月31日 14:27:40',
+        ).value,
+        DateTime(2026, 5, 31, 14, 27, 40),
+      );
+      expect(
+        BillingRuleParsers.parse(
           BillingRuleParserTypes.isoDatetime,
           '2026-06-30T12:51:18',
         ).value,
         DateTime(2026, 6, 30, 12, 51, 18),
+      );
+    });
+
+    test('normalizes common OCR mistakes in institution names', () {
+      expect(
+        BillingRuleParsers.parse(
+          BillingRuleParserTypes.institutionName,
+          '财付通支付科技有限公司',
+        ).value,
+        '财付通支付科技有限公司',
+      );
+    });
+
+    test('normalizes payment method OCR variants', () {
+      expect(
+        BillingRuleParsers.parse(
+          BillingRuleParserTypes.paymentMethod,
+          '中国银行银联信用卡[2853]',
+        ).value,
+        '中国银行银联信用卡(3610)',
+      );
+      expect(
+        BillingRuleParsers.parse(
+          BillingRuleParserTypes.paymentMethod,
+          '平安银行信用卡(2299)>',
+        ).value,
+        '平安银行信用卡(2299)',
       );
     });
 

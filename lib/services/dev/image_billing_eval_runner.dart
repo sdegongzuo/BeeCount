@@ -132,6 +132,7 @@ class ImageBillingEvalRunner {
     final rule = _firstTraceData(traces, 'rule');
     final prompt = _firstTraceData(traces, 'prompt');
     final aiResponse = _firstTraceData(traces, 'ai_response');
+    final ocrEngine = ocr?['engine'] ?? finalResult['ocr_engine'];
 
     return {
       'id': id,
@@ -139,6 +140,7 @@ class ImageBillingEvalRunner {
       'sourcePath': file.path,
       'startedAt': startedAt.toIso8601String(),
       'ocrText': ocr?['rawText'],
+      'ocrEngine': ocrEngine,
       'rule': rule,
       'prompt': prompt?['prompt'],
       'aiResponse': aiResponse?['response'],
@@ -163,6 +165,7 @@ class ImageBillingEvalRunner {
       'acquirer': raw['acquirer'],
       'details': raw['details'],
       'rawText': raw['rawText'],
+      'ocr_engine': raw['ocr_engine'],
       'aiEnhanced': raw['aiEnhanced'],
     };
   }

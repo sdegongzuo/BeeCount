@@ -8,6 +8,7 @@ class BillingRuleExtractorTypes {
   static const labelPreviousLine = 'labelPreviousLine';
   static const betweenLabels = 'betweenLabels';
   static const nearKeyword = 'nearKeyword';
+  static const remainingLines = 'remainingLines';
 }
 
 class BillingRuleExtraction {
@@ -228,7 +229,9 @@ class BillingRuleExtractors {
     String templateId,
   ) {
     final source = line.trim();
-    final text = _applyPattern(rule, source) ?? source;
+    final matched = _applyPattern(rule, source);
+    if (rule.pattern != null && matched == null) return null;
+    final text = matched ?? source;
     if (text.isEmpty) return null;
     return BillingRuleExtraction(
       text: text,

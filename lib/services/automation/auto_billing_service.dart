@@ -267,7 +267,7 @@ class AutoBillingService {
           print('⏱️ [性能] 交易记录创建完成, 耗时=${dbElapsed}ms');
 
           if (transactionId != null) {
-            _dispatchAiAsyncEnhancement(
+            await _enhanceTransactionWithAi(
               transactionId: transactionId,
               result: result,
               imageFile: file,
@@ -276,22 +276,10 @@ class AutoBillingService {
             // 记账成功
             // 保存图片附件（根据设置开关）
             if (autoAddAttachment) {
-              try {
-                final attachmentService =
-                    _container.read(attachmentServiceProvider);
-                await attachmentService.saveAttachment(
-                  transactionId: transactionId,
-                  sourceFile: file,
-                  index: 0,
-                );
-                logger.info(
-                    'AutoBilling', '截图附件保存成功', 'transactionId=$transactionId');
-                // 刷新附件列表
-                _container.read(attachmentListRefreshProvider.notifier).state++;
-              } catch (e, st) {
-                logger.error('AutoBilling', '保存截图附件失败', e, st);
-                // 附件保存失败不影响交易记录
-              }
+              _dispatchScreenshotAttachmentSave(
+                transactionId: transactionId,
+                sourceFile: file,
+              );
             }
 
             // 刷新统计信息
@@ -657,16 +645,43 @@ class AutoBillingService {
     }
   }
 
-  void _dispatchAiAsyncEnhancement({
+  void _dispatchScreenshotAttachmentSave({
     required int transactionId,
-    required OcrResult result,
-    required File imageFile,
+    required File sourceFile,
   }) {
-    unawaited(_enhanceTransactionWithAi(
+    unawaited(_saveScreenshotAttachment(
       transactionId: transactionId,
-      result: result,
-      imageFile: imageFile,
+      sourceFile: sourceFile,
     ));
+  }
+
+  Future<void> _saveScreenshotAttachment({
+    required int transactionId,
+    required File sourceFile,
+  }) async {
+    try {
+      final start = DateTime.now();
+      logger.info(
+        'AutoBilling',
+        '截图附件后台保存开始',
+        'transactionId=$transactionId',
+      );
+      final attachmentService = _container.read(attachmentServiceProvider);
+      await attachmentService.saveAttachment(
+        transactionId: transactionId,
+        sourceFile: sourceFile,
+        index: 0,
+      );
+      final elapsed = DateTime.now().difference(start).inMilliseconds;
+      logger.info(
+        'AutoBilling',
+        '截图附件保存成功',
+        'transactionId=$transactionId, elapsedMs=$elapsed',
+      );
+      _container.read(attachmentListRefreshProvider.notifier).state++;
+    } catch (e, st) {
+      logger.error('AutoBilling', '保存截图附件失败', e, st);
+    }
   }
 
   Future<void> _enhanceTransactionWithAi({

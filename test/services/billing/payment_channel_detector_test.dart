@@ -159,6 +159,17 @@ void main() {
   });
 
   group('OcrService amount extraction', () {
+    test('preserves OCR engine in serialized result', () {
+      final result = OcrResult(
+        rawText: '拼多多\n-19.50',
+        allNumbers: const ['19.50'],
+        ocrEngine: 'rapidocr',
+      );
+
+      expect(result.toJson()['ocr_engine'], 'rapidocr');
+      expect(result.copyWithAI(note: '拼多多').toJson()['ocr_engine'], 'rapidocr');
+    });
+
     test('does not use discount line as the primary amount', () {
       final result = OcrService().parsePaymentText('''
 原价

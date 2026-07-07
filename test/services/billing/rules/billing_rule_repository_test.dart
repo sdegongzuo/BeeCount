@@ -15,7 +15,7 @@ void main() {
       final ruleSet = await repository.loadBuiltInRuleSet();
 
       expect(ruleSet.schemaVersion, 1);
-      expect(ruleSet.rulesVersion, '2026.07.01.1');
+      expect(ruleSet.rulesVersion, '2026.07.06.2');
       expect(ruleSet.source, 'asset:assets/rules/billing_rules.toml');
       expect(ruleSet.paymentChannels.map((channel) => channel.channel),
           containsAll(['微信支付', '抖音', '支付宝']));

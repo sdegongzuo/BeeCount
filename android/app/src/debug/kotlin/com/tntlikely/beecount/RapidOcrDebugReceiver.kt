@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
 import com.benjaminwan.ocrlibrary.OcrEngine
+import java.io.File
 import java.util.concurrent.Executors
 
 class RapidOcrDebugReceiver : BroadcastReceiver() {
@@ -28,6 +29,20 @@ class RapidOcrDebugReceiver : BroadcastReceiver() {
 
                 Log.i(TAG, "RapidOCR debug path=$imagePath durationMs=$elapsedMs textLength=${text.length}")
                 Log.i(TAG, "RapidOCR debug text begin\n$text\nRapidOCR debug text end")
+
+                // Write OCR result to file for easy retrieval
+                val outPath = intent.getStringExtra("outPath")
+                if (outPath != null) {
+                    try {
+                        File(outPath).apply {
+                            parentFile?.mkdirs()
+                            writeText(text, Charsets.UTF_8)
+                        }
+                        Log.i(TAG, "RapidOCR debug result written to $outPath")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "RapidOCR debug failed to write $outPath", e)
+                    }
+                }
 
                 output.recycle()
                 input.recycle()

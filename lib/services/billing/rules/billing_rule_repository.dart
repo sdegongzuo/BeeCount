@@ -34,6 +34,7 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
     'labelPreviousLine',
     'betweenLabels',
     'nearKeyword',
+    'remainingLines',
   };
 
   static const allowedParsers = {
@@ -42,6 +43,8 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
     'amount',
     'zhDatetime',
     'isoDatetime',
+    'institutionName',
+    'paymentMethod',
     'regexGroup',
     'raw',
   };

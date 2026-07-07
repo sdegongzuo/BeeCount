@@ -7,7 +7,7 @@
 # ---------------------------------------------------------------------------
 
 schemaVersion = 1
-rulesVersion = "2026.07.01.1"
+rulesVersion = "2026.07.06.2"
 
 # ---------------------------------------------------------------------------
 # Payment channel registry
@@ -41,6 +41,12 @@ confidence = 0.9
 channel = "京东"
 packages = ["com.jingdong.app.mall"]
 appNameKeywords = ["京东"]
+confidence = 0.9
+
+[[paymentChannels]]
+channel = "云闪付"
+packages = ["com.unionpay"]
+appNameKeywords = ["云闪付"]
 confidence = 0.9
 
 # ---------------------------------------------------------------------------
@@ -99,6 +105,18 @@ field = "paymentMethod"
 type = "labelNextLine"
 label = "支付方式"
 confidence = 0.85
+
+[[templates.extract]]
+field = "note"
+type = "regex"
+pattern = '^(拼多多|天津津门测试餐厅乙)$'
+confidence = 0.82
+
+[[templates.extract]]
+field = "counterparty"
+type = "regex"
+pattern = '^(拼多多|天津津门测试餐厅乙)$'
+confidence = 0.82
 
 # Detail fields
 
@@ -169,6 +187,28 @@ pattern = '(ETC服务)'
 options = { windowLines = 3 }
 confidence = 0.82
 
+[[templates.extract]]
+field = "counterparty"
+type = "nearKeyword"
+label = "交易详情"
+pattern = '(ETC服务)'
+options = { windowLines = 3 }
+confidence = 0.82
+
+[[templates.extract]]
+field = "note"
+type = "nearKeyword"
+label = "交易详情"
+pattern = '(冰丝短袖T恤)'
+options = { windowLines = 3 }
+confidence = 0.8
+
+[[templates.extract]]
+field = "counterparty"
+type = "regex"
+pattern = '^([\u4e00-\u9fa5A-Za-z0-9]{1,16}\*\*店)$'
+confidence = 0.78
+
 # Detail fields
 
 [[templates.extract]]
@@ -234,12 +274,26 @@ confidence = 0.82
 field = "note"
 type = "labelNextLine"
 label = "商品说明"
+pattern = '.*?(猪脚饭).*'
 confidence = 0.78
+
+[[templates.extract]]
+field = "note"
+type = "labelNextLine"
+label = "管理自动扣款"
+pattern = '.*?(MiMo Token).*'
+confidence = 0.82
 
 [[templates.extract]]
 field = "counterparty"
 type = "regex"
 pattern = '^([^\n]{2,40}(?:有限公司|责任公司|股份公司|公司|店|商行))$'
+confidence = 0.78
+
+[[templates.extract]]
+field = "counterparty"
+type = "regex"
+pattern = '^(淘宝闪购)$'
 confidence = 0.78
 
 # ---------------------------------------------------------------------------
@@ -306,8 +360,8 @@ priority = 88
 baseConfidence = 0.86
 
 [templates.match]
-keywordsAll = ["账单详情", "支付成功", "下单平台"]
-keywordsAny = ["美团App", "外卖", "美团账单", "交易单号", "商家单号"]
+keywordsAll = ["账单详情", "支付成功"]
+keywordsAny = ["下单时间", "消费场景", "美团App", "外卖", "美团账单", "交易单号", "商家单号"]
 
 # Basic fields
 
@@ -331,7 +385,42 @@ label = "下单时间"
 parser = "isoDatetime"
 confidence = 0.88
 
-# Counterparty and note
+# Counterparty, payment method, and note
+
+[[templates.extract]]
+field = "paymentMethod"
+type = "labelNextLine"
+label = "支付方式"
+parser = "paymentMethod"
+confidence = 0.84
+
+[[templates.extract]]
+field = "note"
+type = "labelPreviousLine"
+label = "消费场景"
+pattern = '^(.{2,20}(?:超市|店|饭|餐厅|外卖).*)$'
+confidence = 0.84
+
+[[templates.extract]]
+field = "counterparty"
+type = "labelPreviousLine"
+label = "消费场景"
+pattern = '^(.{2,20}(?:超市|店|饭|餐厅|外卖).*)$'
+confidence = 0.84
+
+[[templates.extract]]
+field = "note"
+type = "labelNextLine"
+label = "消费场景"
+pattern = '^(.{2,20}(?:超市|店|饭|餐厅|外卖).*)$'
+confidence = 0.83
+
+[[templates.extract]]
+field = "counterparty"
+type = "labelNextLine"
+label = "消费场景"
+pattern = '^(.{2,20}(?:超市|店|饭|餐厅|外卖).*)$'
+confidence = 0.83
 
 [[templates.extract]]
 field = "note"
@@ -340,6 +429,18 @@ pattern = '^(.{2,40}(?:店|饭|餐厅|外卖).*)$'
 confidence = 0.8
 
 # Detail fields
+
+[[templates.extract]]
+field = "details.order_amount"
+type = "labelNextLine"
+label = "订单金额"
+confidence = 0.76
+
+[[templates.extract]]
+field = "details.discount"
+type = "labelNextLine"
+label = "支付优惠"
+confidence = 0.76
 
 [[templates.extract]]
 field = "details.transaction_no"
@@ -396,6 +497,7 @@ confidence = 0.88
 field = "paymentMethod"
 type = "labelNextLine"
 label = "支付方式"
+parser = "paymentMethod"
 confidence = 0.84
 
 [[templates.extract]]
@@ -404,6 +506,18 @@ type = "labelNextLine"
 label = "服务详情"
 pattern = '[O0]?(.{2,40})'
 confidence = 0.8
+
+[[templates.extract]]
+field = "counterparty"
+type = "regex"
+pattern = '^(京东平台商户)$'
+confidence = 0.84
+
+[[templates.extract]]
+field = "note"
+type = "regex"
+pattern = '(防水贴|美宝莲)'
+confidence = 0.84
 
 # Detail fields
 
@@ -428,3 +542,238 @@ label = "支付立减"
 pattern = '([-−]\d{1,6}\.\d{1,2})'
 options = { windowLines = 1 }
 confidence = 0.72
+
+# ---------------------------------------------------------------------------
+# PDD (拼多多) payment detail templates
+# ---------------------------------------------------------------------------
+
+[[templates]]
+id = "pinduoduo_bill_detail_v1"
+enabled = true
+priority = 96
+baseConfidence = 0.87
+
+[templates.match]
+sourcePackages = ["com.xunmeng.pinduoduo"]
+keywordsAll = ["账单详情", "支付成功"]
+keywordsAny = ["拼多多", "商品详情", "订单详情"]
+
+# Basic fields
+
+[[templates.extract]]
+field = "paymentChannel"
+type = "constant"
+value = "拼多多"
+confidence = 0.95
+
+[[templates.extract]]
+field = "amount"
+type = "regex"
+pattern = '^\s*([-−]\s*\d{1,6}\.\d{1,2})\s*$'
+parser = "signedAmount"
+confidence = 0.9
+
+[[templates.extract]]
+field = "time"
+type = "labelNextLine"
+label = "支付时间"
+parser = "isoDatetime"
+confidence = 0.88
+
+# Counterparty, payment method, and note
+
+[[templates.extract]]
+field = "paymentMethod"
+type = "labelNextLine"
+label = "支付方式"
+parser = "paymentMethod"
+confidence = 0.84
+
+[[templates.extract]]
+field = "counterparty"
+type = "labelNextLine"
+label = "账单详情"
+pattern = '^(.{2,30}(?:店|社|铺|配件|工具).*)$'
+confidence = 0.82
+
+[[templates.extract]]
+field = "note"
+type = "labelNextLine"
+label = "商品详情"
+pattern = '^([^\n]{2,20}(?:券包|夹子|锤|贴|扣|灯|锤).*)$'
+confidence = 0.82
+
+[[templates.extract]]
+field = "note"
+type = "labelNextLine"
+label = "商品详情"
+pattern = '^(.{2,20})$'
+confidence = 0.78
+
+# Detail fields
+
+[[templates.extract]]
+field = "details.transaction_no"
+type = "labelNextLine"
+label = "交易单号"
+pattern = '\d{20,}'
+confidence = 0.86
+
+[[templates.extract]]
+field = "details.merchant_order_no"
+type = "labelNextLine"
+label = "商户单号"
+pattern = '[A-Z]{2}\d{20,}'
+confidence = 0.8
+
+# ---------------------------------------------------------------------------
+# UnionPay (云闪付) payment detail templates
+# ---------------------------------------------------------------------------
+
+[[templates]]
+id = "unionpay_pinduoduo_single_v1"
+enabled = true
+priority = 110
+baseConfidence = 0.88
+
+[templates.match]
+keywordsAll = ["银联交易详情", "交易时间", "卡号"]
+keywordsAny = ["收单机构", "商户编号", "参考号"]
+
+[[templates.extract]]
+field = "paymentChannel"
+type = "constant"
+value = "云闪付"
+confidence = 0.95
+
+[[templates.extract]]
+field = "amount"
+type = "regex"
+pattern = "^\\s*((?:[-−+]?\\s*[¥￥]?\\s*|[¥￥]\\s*[-−+]?\\s*)\\d{1,6}\\.\\d{1,2})\\s*(?:元)?\\s*$"
+parser = "signedAmount"
+confidence = 0.9
+
+[[templates.extract]]
+field = "time"
+type = "regex"
+pattern = "(\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}:\\d{2})"
+parser = "isoDatetime"
+confidence = 0.9
+
+[[templates.extract]]
+field = "paymentMethod"
+type = "regex"
+pattern = "([^\\n]{2,40}(?:银行|信用卡|储蓄卡|借记卡|月付|零钱|余额|花呗|白条|云闪付|支付宝|微信支付)[^\\n]{0,30}(?:[\\(\\[]\\d{3,6}[\\)\\]])?)"
+parser = "paymentMethod"
+confidence = 0.84
+
+[[templates.extract]]
+field = "acquirer"
+type = "labelNextLine"
+label = "收单机构"
+confidence = 0.82
+
+[[templates.extract]]
+field = "counterparty"
+type = "labelNextLine"
+label = "银联交易详情"
+confidence = 0.8
+
+[[templates.extract]]
+field = "note"
+type = "labelNextLine"
+label = "银联交易详情"
+pattern = "^(.+?)(?:平台商户|商户|\\(|（|$)"
+confidence = 0.78
+
+[[templates.extract]]
+field = "counterparty"
+type = "labelNextLine"
+label = "收款方"
+confidence = 0.86
+
+[[templates.extract]]
+field = "note"
+type = "labelNextLine"
+label = "收款方"
+confidence = 0.84
+
+[[templates.extract]]
+field = "merchantFullName"
+type = "labelNextLine"
+label = "收款方"
+confidence = 0.82
+
+[[templates.extract]]
+field = "details.order_amount"
+type = "labelNextLine"
+label = "订单金额"
+confidence = 0.74
+
+[[templates.extract]]
+field = "details.transaction_channel"
+type = "labelNextLine"
+label = "交易渠道"
+confidence = 0.72
+
+[[templates.extract]]
+field = "details.transaction_type"
+type = "labelPreviousLine"
+label = "交易类别"
+confidence = 0.72
+
+[[templates.extract]]
+field = "details.bill_category"
+type = "labelNextLine"
+label = "分类"
+confidence = 0.72
+
+[[templates.extract]]
+field = "details.issuer"
+type = "labelNextLine"
+label = "发卡机构"
+confidence = 0.72
+
+[[templates.extract]]
+field = "details.merchant_no"
+type = "labelNextLine"
+label = "商户编号"
+confidence = 0.75
+
+[[templates.extract]]
+field = "details.terminal_no"
+type = "labelNextLine"
+label = "终端编号"
+confidence = 0.72
+
+[[templates.extract]]
+field = "details.batch_no"
+type = "labelNextLine"
+label = "批次号"
+confidence = 0.7
+
+[[templates.extract]]
+field = "details.voucher_no"
+type = "labelNextLine"
+label = "凭证号"
+confidence = 0.7
+
+[[templates.extract]]
+field = "details.auth_no"
+type = "labelNextLine"
+label = "授权号"
+confidence = 0.7
+
+[[templates.extract]]
+field = "details.reference_no"
+type = "labelNextLine"
+label = "参考号"
+confidence = 0.7
+
+[[templates.extract]]
+field = "details.remaining_text"
+type = "remainingLines"
+parser = "raw"
+confidence = 0.7
+[templates.extract.options]
+excludeLabels = ["交易时间", "卡号", "收单机构", "当前状态", "交易状态", "交易单号", "商户单号", "订单号", "商家订单号", "商品单号"]

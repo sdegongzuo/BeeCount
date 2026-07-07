@@ -416,6 +416,7 @@ Map<String, Object?> _actualFields(BillingRuleResult result) {
   return {
     'matchedTemplateId': result.matchedTemplateId,
     'amount': result.amount,
+    'note': result.note,
     'time': result.time?.toIso8601String(),
     'paymentChannel': result.paymentChannel,
     'paymentMethod': result.paymentMethod,

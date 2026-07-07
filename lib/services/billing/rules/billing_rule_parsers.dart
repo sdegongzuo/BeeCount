@@ -3,6 +3,8 @@ class BillingRuleParserTypes {
   static const signedAmount = 'signedAmount';
   static const zhDatetime = 'zhDatetime';
   static const isoDatetime = 'isoDatetime';
+  static const institutionName = 'institutionName';
+  static const paymentMethod = 'paymentMethod';
   static const regexGroup = 'regexGroup';
   static const raw = 'raw';
   static const string = 'string';
@@ -38,6 +40,10 @@ class BillingRuleParsers {
         return _parseZhDatetime(input);
       case BillingRuleParserTypes.isoDatetime:
         return _parseIsoDatetime(input);
+      case BillingRuleParserTypes.institutionName:
+        return BillingRuleParseResult(value: _normalizeInstitutionName(input));
+      case BillingRuleParserTypes.paymentMethod:
+        return BillingRuleParseResult(value: _normalizePaymentMethod(input));
       case BillingRuleParserTypes.regexGroup:
         return _parseRegexGroup(input, pattern: pattern, options: options);
       case BillingRuleParserTypes.raw:
@@ -78,7 +84,7 @@ class BillingRuleParsers {
 
   static BillingRuleParseResult _parseZhDatetime(String input) {
     final match = RegExp(
-      r'(\d{4})年(\d{1,2})月(\d{1,2})日\s+'
+      r'(\d{4})年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s+'
       r'(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?',
     ).firstMatch(input.trim());
     if (match == null) {
@@ -136,6 +142,20 @@ class BillingRuleParsers {
     }
     return BillingRuleParseResult(value: match.group(groupIndex)?.trim());
   }
+}
+
+String _normalizeInstitutionName(String input) {
+  return input.trim().replaceAll('料技', '科技').replaceAll('適', '通');
+}
+
+String _normalizePaymentMethod(String input) {
+  return input
+      .trim()
+      .replaceAll(RegExp(r'[>〉]+$'), '')
+      .trim()
+      .replaceAllMapped(RegExp(r'\[(\d{3,6})\]'), (match) {
+    return '(${match.group(1)})';
+  });
 }
 
 int? _intOption(Object? value) {
