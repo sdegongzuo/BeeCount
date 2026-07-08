@@ -6520,6 +6520,858 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
   }
 }
 
+class $BillingJobsTable extends BillingJobs
+    with TableInfo<$BillingJobsTable, BillingJob> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BillingJobsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('image_share'));
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
+  static const VerificationMeta _stageMeta = const VerificationMeta('stage');
+  @override
+  late final GeneratedColumn<String> stage = GeneratedColumn<String>(
+      'stage', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('received'));
+  static const VerificationMeta _transactionIdMeta =
+      const VerificationMeta('transactionId');
+  @override
+  late final GeneratedColumn<int> transactionId = GeneratedColumn<int>(
+      'transaction_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _imagePathMeta =
+      const VerificationMeta('imagePath');
+  @override
+  late final GeneratedColumn<String> imagePath = GeneratedColumn<String>(
+      'image_path', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _rawTextMeta =
+      const VerificationMeta('rawText');
+  @override
+  late final GeneratedColumn<String> rawText = GeneratedColumn<String>(
+      'raw_text', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _ocrEngineMeta =
+      const VerificationMeta('ocrEngine');
+  @override
+  late final GeneratedColumn<String> ocrEngine = GeneratedColumn<String>(
+      'ocr_engine', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sourceInfoJsonMeta =
+      const VerificationMeta('sourceInfoJson');
+  @override
+  late final GeneratedColumn<String> sourceInfoJson = GeneratedColumn<String>(
+      'source_info_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _ruleResultJsonMeta =
+      const VerificationMeta('ruleResultJson');
+  @override
+  late final GeneratedColumn<String> ruleResultJson = GeneratedColumn<String>(
+      'rule_result_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _finalResultJsonMeta =
+      const VerificationMeta('finalResultJson');
+  @override
+  late final GeneratedColumn<String> finalResultJson = GeneratedColumn<String>(
+      'final_result_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _attemptCountMeta =
+      const VerificationMeta('attemptCount');
+  @override
+  late final GeneratedColumn<int> attemptCount = GeneratedColumn<int>(
+      'attempt_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastErrorMeta =
+      const VerificationMeta('lastError');
+  @override
+  late final GeneratedColumn<String> lastError = GeneratedColumn<String>(
+      'last_error', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _leaseUntilMeta =
+      const VerificationMeta('leaseUntil');
+  @override
+  late final GeneratedColumn<DateTime> leaseUntil = GeneratedColumn<DateTime>(
+      'lease_until', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _attachmentDoneMeta =
+      const VerificationMeta('attachmentDone');
+  @override
+  late final GeneratedColumn<bool> attachmentDone = GeneratedColumn<bool>(
+      'attachment_done', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("attachment_done" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _completedAtMeta =
+      const VerificationMeta('completedAt');
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+      'completed_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        kind,
+        status,
+        stage,
+        transactionId,
+        imagePath,
+        rawText,
+        ocrEngine,
+        sourceInfoJson,
+        ruleResultJson,
+        finalResultJson,
+        attemptCount,
+        lastError,
+        leaseUntil,
+        attachmentDone,
+        createdAt,
+        updatedAt,
+        completedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'billing_jobs';
+  @override
+  VerificationContext validateIntegrity(Insertable<BillingJob> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('stage')) {
+      context.handle(
+          _stageMeta, stage.isAcceptableOrUnknown(data['stage']!, _stageMeta));
+    }
+    if (data.containsKey('transaction_id')) {
+      context.handle(
+          _transactionIdMeta,
+          transactionId.isAcceptableOrUnknown(
+              data['transaction_id']!, _transactionIdMeta));
+    }
+    if (data.containsKey('image_path')) {
+      context.handle(_imagePathMeta,
+          imagePath.isAcceptableOrUnknown(data['image_path']!, _imagePathMeta));
+    } else if (isInserting) {
+      context.missing(_imagePathMeta);
+    }
+    if (data.containsKey('raw_text')) {
+      context.handle(_rawTextMeta,
+          rawText.isAcceptableOrUnknown(data['raw_text']!, _rawTextMeta));
+    }
+    if (data.containsKey('ocr_engine')) {
+      context.handle(_ocrEngineMeta,
+          ocrEngine.isAcceptableOrUnknown(data['ocr_engine']!, _ocrEngineMeta));
+    }
+    if (data.containsKey('source_info_json')) {
+      context.handle(
+          _sourceInfoJsonMeta,
+          sourceInfoJson.isAcceptableOrUnknown(
+              data['source_info_json']!, _sourceInfoJsonMeta));
+    }
+    if (data.containsKey('rule_result_json')) {
+      context.handle(
+          _ruleResultJsonMeta,
+          ruleResultJson.isAcceptableOrUnknown(
+              data['rule_result_json']!, _ruleResultJsonMeta));
+    }
+    if (data.containsKey('final_result_json')) {
+      context.handle(
+          _finalResultJsonMeta,
+          finalResultJson.isAcceptableOrUnknown(
+              data['final_result_json']!, _finalResultJsonMeta));
+    }
+    if (data.containsKey('attempt_count')) {
+      context.handle(
+          _attemptCountMeta,
+          attemptCount.isAcceptableOrUnknown(
+              data['attempt_count']!, _attemptCountMeta));
+    }
+    if (data.containsKey('last_error')) {
+      context.handle(_lastErrorMeta,
+          lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta));
+    }
+    if (data.containsKey('lease_until')) {
+      context.handle(
+          _leaseUntilMeta,
+          leaseUntil.isAcceptableOrUnknown(
+              data['lease_until']!, _leaseUntilMeta));
+    }
+    if (data.containsKey('attachment_done')) {
+      context.handle(
+          _attachmentDoneMeta,
+          attachmentDone.isAcceptableOrUnknown(
+              data['attachment_done']!, _attachmentDoneMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+          _completedAtMeta,
+          completedAt.isAcceptableOrUnknown(
+              data['completed_at']!, _completedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BillingJob map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BillingJob(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      stage: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}stage'])!,
+      transactionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}transaction_id']),
+      imagePath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}image_path'])!,
+      rawText: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}raw_text']),
+      ocrEngine: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}ocr_engine']),
+      sourceInfoJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}source_info_json']),
+      ruleResultJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}rule_result_json']),
+      finalResultJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}final_result_json']),
+      attemptCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}attempt_count'])!,
+      lastError: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error']),
+      leaseUntil: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}lease_until']),
+      attachmentDone: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}attachment_done'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      completedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}completed_at']),
+    );
+  }
+
+  @override
+  $BillingJobsTable createAlias(String alias) {
+    return $BillingJobsTable(attachedDatabase, alias);
+  }
+}
+
+class BillingJob extends DataClass implements Insertable<BillingJob> {
+  final int id;
+  final String kind;
+  final String status;
+  final String stage;
+  final int? transactionId;
+  final String imagePath;
+  final String? rawText;
+  final String? ocrEngine;
+  final String? sourceInfoJson;
+  final String? ruleResultJson;
+  final String? finalResultJson;
+  final int attemptCount;
+  final String? lastError;
+  final DateTime? leaseUntil;
+  final bool attachmentDone;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? completedAt;
+  const BillingJob(
+      {required this.id,
+      required this.kind,
+      required this.status,
+      required this.stage,
+      this.transactionId,
+      required this.imagePath,
+      this.rawText,
+      this.ocrEngine,
+      this.sourceInfoJson,
+      this.ruleResultJson,
+      this.finalResultJson,
+      required this.attemptCount,
+      this.lastError,
+      this.leaseUntil,
+      required this.attachmentDone,
+      required this.createdAt,
+      required this.updatedAt,
+      this.completedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['kind'] = Variable<String>(kind);
+    map['status'] = Variable<String>(status);
+    map['stage'] = Variable<String>(stage);
+    if (!nullToAbsent || transactionId != null) {
+      map['transaction_id'] = Variable<int>(transactionId);
+    }
+    map['image_path'] = Variable<String>(imagePath);
+    if (!nullToAbsent || rawText != null) {
+      map['raw_text'] = Variable<String>(rawText);
+    }
+    if (!nullToAbsent || ocrEngine != null) {
+      map['ocr_engine'] = Variable<String>(ocrEngine);
+    }
+    if (!nullToAbsent || sourceInfoJson != null) {
+      map['source_info_json'] = Variable<String>(sourceInfoJson);
+    }
+    if (!nullToAbsent || ruleResultJson != null) {
+      map['rule_result_json'] = Variable<String>(ruleResultJson);
+    }
+    if (!nullToAbsent || finalResultJson != null) {
+      map['final_result_json'] = Variable<String>(finalResultJson);
+    }
+    map['attempt_count'] = Variable<int>(attemptCount);
+    if (!nullToAbsent || lastError != null) {
+      map['last_error'] = Variable<String>(lastError);
+    }
+    if (!nullToAbsent || leaseUntil != null) {
+      map['lease_until'] = Variable<DateTime>(leaseUntil);
+    }
+    map['attachment_done'] = Variable<bool>(attachmentDone);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    return map;
+  }
+
+  BillingJobsCompanion toCompanion(bool nullToAbsent) {
+    return BillingJobsCompanion(
+      id: Value(id),
+      kind: Value(kind),
+      status: Value(status),
+      stage: Value(stage),
+      transactionId: transactionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transactionId),
+      imagePath: Value(imagePath),
+      rawText: rawText == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rawText),
+      ocrEngine: ocrEngine == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ocrEngine),
+      sourceInfoJson: sourceInfoJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceInfoJson),
+      ruleResultJson: ruleResultJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ruleResultJson),
+      finalResultJson: finalResultJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(finalResultJson),
+      attemptCount: Value(attemptCount),
+      lastError: lastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastError),
+      leaseUntil: leaseUntil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(leaseUntil),
+      attachmentDone: Value(attachmentDone),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+    );
+  }
+
+  factory BillingJob.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BillingJob(
+      id: serializer.fromJson<int>(json['id']),
+      kind: serializer.fromJson<String>(json['kind']),
+      status: serializer.fromJson<String>(json['status']),
+      stage: serializer.fromJson<String>(json['stage']),
+      transactionId: serializer.fromJson<int?>(json['transactionId']),
+      imagePath: serializer.fromJson<String>(json['imagePath']),
+      rawText: serializer.fromJson<String?>(json['rawText']),
+      ocrEngine: serializer.fromJson<String?>(json['ocrEngine']),
+      sourceInfoJson: serializer.fromJson<String?>(json['sourceInfoJson']),
+      ruleResultJson: serializer.fromJson<String?>(json['ruleResultJson']),
+      finalResultJson: serializer.fromJson<String?>(json['finalResultJson']),
+      attemptCount: serializer.fromJson<int>(json['attemptCount']),
+      lastError: serializer.fromJson<String?>(json['lastError']),
+      leaseUntil: serializer.fromJson<DateTime?>(json['leaseUntil']),
+      attachmentDone: serializer.fromJson<bool>(json['attachmentDone']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'kind': serializer.toJson<String>(kind),
+      'status': serializer.toJson<String>(status),
+      'stage': serializer.toJson<String>(stage),
+      'transactionId': serializer.toJson<int?>(transactionId),
+      'imagePath': serializer.toJson<String>(imagePath),
+      'rawText': serializer.toJson<String?>(rawText),
+      'ocrEngine': serializer.toJson<String?>(ocrEngine),
+      'sourceInfoJson': serializer.toJson<String?>(sourceInfoJson),
+      'ruleResultJson': serializer.toJson<String?>(ruleResultJson),
+      'finalResultJson': serializer.toJson<String?>(finalResultJson),
+      'attemptCount': serializer.toJson<int>(attemptCount),
+      'lastError': serializer.toJson<String?>(lastError),
+      'leaseUntil': serializer.toJson<DateTime?>(leaseUntil),
+      'attachmentDone': serializer.toJson<bool>(attachmentDone),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+    };
+  }
+
+  BillingJob copyWith(
+          {int? id,
+          String? kind,
+          String? status,
+          String? stage,
+          Value<int?> transactionId = const Value.absent(),
+          String? imagePath,
+          Value<String?> rawText = const Value.absent(),
+          Value<String?> ocrEngine = const Value.absent(),
+          Value<String?> sourceInfoJson = const Value.absent(),
+          Value<String?> ruleResultJson = const Value.absent(),
+          Value<String?> finalResultJson = const Value.absent(),
+          int? attemptCount,
+          Value<String?> lastError = const Value.absent(),
+          Value<DateTime?> leaseUntil = const Value.absent(),
+          bool? attachmentDone,
+          DateTime? createdAt,
+          DateTime? updatedAt,
+          Value<DateTime?> completedAt = const Value.absent()}) =>
+      BillingJob(
+        id: id ?? this.id,
+        kind: kind ?? this.kind,
+        status: status ?? this.status,
+        stage: stage ?? this.stage,
+        transactionId:
+            transactionId.present ? transactionId.value : this.transactionId,
+        imagePath: imagePath ?? this.imagePath,
+        rawText: rawText.present ? rawText.value : this.rawText,
+        ocrEngine: ocrEngine.present ? ocrEngine.value : this.ocrEngine,
+        sourceInfoJson:
+            sourceInfoJson.present ? sourceInfoJson.value : this.sourceInfoJson,
+        ruleResultJson:
+            ruleResultJson.present ? ruleResultJson.value : this.ruleResultJson,
+        finalResultJson: finalResultJson.present
+            ? finalResultJson.value
+            : this.finalResultJson,
+        attemptCount: attemptCount ?? this.attemptCount,
+        lastError: lastError.present ? lastError.value : this.lastError,
+        leaseUntil: leaseUntil.present ? leaseUntil.value : this.leaseUntil,
+        attachmentDone: attachmentDone ?? this.attachmentDone,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        completedAt: completedAt.present ? completedAt.value : this.completedAt,
+      );
+  BillingJob copyWithCompanion(BillingJobsCompanion data) {
+    return BillingJob(
+      id: data.id.present ? data.id.value : this.id,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      status: data.status.present ? data.status.value : this.status,
+      stage: data.stage.present ? data.stage.value : this.stage,
+      transactionId: data.transactionId.present
+          ? data.transactionId.value
+          : this.transactionId,
+      imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
+      rawText: data.rawText.present ? data.rawText.value : this.rawText,
+      ocrEngine: data.ocrEngine.present ? data.ocrEngine.value : this.ocrEngine,
+      sourceInfoJson: data.sourceInfoJson.present
+          ? data.sourceInfoJson.value
+          : this.sourceInfoJson,
+      ruleResultJson: data.ruleResultJson.present
+          ? data.ruleResultJson.value
+          : this.ruleResultJson,
+      finalResultJson: data.finalResultJson.present
+          ? data.finalResultJson.value
+          : this.finalResultJson,
+      attemptCount: data.attemptCount.present
+          ? data.attemptCount.value
+          : this.attemptCount,
+      lastError: data.lastError.present ? data.lastError.value : this.lastError,
+      leaseUntil:
+          data.leaseUntil.present ? data.leaseUntil.value : this.leaseUntil,
+      attachmentDone: data.attachmentDone.present
+          ? data.attachmentDone.value
+          : this.attachmentDone,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      completedAt:
+          data.completedAt.present ? data.completedAt.value : this.completedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingJob(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('status: $status, ')
+          ..write('stage: $stage, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('imagePath: $imagePath, ')
+          ..write('rawText: $rawText, ')
+          ..write('ocrEngine: $ocrEngine, ')
+          ..write('sourceInfoJson: $sourceInfoJson, ')
+          ..write('ruleResultJson: $ruleResultJson, ')
+          ..write('finalResultJson: $finalResultJson, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('lastError: $lastError, ')
+          ..write('leaseUntil: $leaseUntil, ')
+          ..write('attachmentDone: $attachmentDone, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('completedAt: $completedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      kind,
+      status,
+      stage,
+      transactionId,
+      imagePath,
+      rawText,
+      ocrEngine,
+      sourceInfoJson,
+      ruleResultJson,
+      finalResultJson,
+      attemptCount,
+      lastError,
+      leaseUntil,
+      attachmentDone,
+      createdAt,
+      updatedAt,
+      completedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BillingJob &&
+          other.id == this.id &&
+          other.kind == this.kind &&
+          other.status == this.status &&
+          other.stage == this.stage &&
+          other.transactionId == this.transactionId &&
+          other.imagePath == this.imagePath &&
+          other.rawText == this.rawText &&
+          other.ocrEngine == this.ocrEngine &&
+          other.sourceInfoJson == this.sourceInfoJson &&
+          other.ruleResultJson == this.ruleResultJson &&
+          other.finalResultJson == this.finalResultJson &&
+          other.attemptCount == this.attemptCount &&
+          other.lastError == this.lastError &&
+          other.leaseUntil == this.leaseUntil &&
+          other.attachmentDone == this.attachmentDone &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.completedAt == this.completedAt);
+}
+
+class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
+  final Value<int> id;
+  final Value<String> kind;
+  final Value<String> status;
+  final Value<String> stage;
+  final Value<int?> transactionId;
+  final Value<String> imagePath;
+  final Value<String?> rawText;
+  final Value<String?> ocrEngine;
+  final Value<String?> sourceInfoJson;
+  final Value<String?> ruleResultJson;
+  final Value<String?> finalResultJson;
+  final Value<int> attemptCount;
+  final Value<String?> lastError;
+  final Value<DateTime?> leaseUntil;
+  final Value<bool> attachmentDone;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> completedAt;
+  const BillingJobsCompanion({
+    this.id = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.status = const Value.absent(),
+    this.stage = const Value.absent(),
+    this.transactionId = const Value.absent(),
+    this.imagePath = const Value.absent(),
+    this.rawText = const Value.absent(),
+    this.ocrEngine = const Value.absent(),
+    this.sourceInfoJson = const Value.absent(),
+    this.ruleResultJson = const Value.absent(),
+    this.finalResultJson = const Value.absent(),
+    this.attemptCount = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.leaseUntil = const Value.absent(),
+    this.attachmentDone = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.completedAt = const Value.absent(),
+  });
+  BillingJobsCompanion.insert({
+    this.id = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.status = const Value.absent(),
+    this.stage = const Value.absent(),
+    this.transactionId = const Value.absent(),
+    required String imagePath,
+    this.rawText = const Value.absent(),
+    this.ocrEngine = const Value.absent(),
+    this.sourceInfoJson = const Value.absent(),
+    this.ruleResultJson = const Value.absent(),
+    this.finalResultJson = const Value.absent(),
+    this.attemptCount = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.leaseUntil = const Value.absent(),
+    this.attachmentDone = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.completedAt = const Value.absent(),
+  }) : imagePath = Value(imagePath);
+  static Insertable<BillingJob> custom({
+    Expression<int>? id,
+    Expression<String>? kind,
+    Expression<String>? status,
+    Expression<String>? stage,
+    Expression<int>? transactionId,
+    Expression<String>? imagePath,
+    Expression<String>? rawText,
+    Expression<String>? ocrEngine,
+    Expression<String>? sourceInfoJson,
+    Expression<String>? ruleResultJson,
+    Expression<String>? finalResultJson,
+    Expression<int>? attemptCount,
+    Expression<String>? lastError,
+    Expression<DateTime>? leaseUntil,
+    Expression<bool>? attachmentDone,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? completedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (kind != null) 'kind': kind,
+      if (status != null) 'status': status,
+      if (stage != null) 'stage': stage,
+      if (transactionId != null) 'transaction_id': transactionId,
+      if (imagePath != null) 'image_path': imagePath,
+      if (rawText != null) 'raw_text': rawText,
+      if (ocrEngine != null) 'ocr_engine': ocrEngine,
+      if (sourceInfoJson != null) 'source_info_json': sourceInfoJson,
+      if (ruleResultJson != null) 'rule_result_json': ruleResultJson,
+      if (finalResultJson != null) 'final_result_json': finalResultJson,
+      if (attemptCount != null) 'attempt_count': attemptCount,
+      if (lastError != null) 'last_error': lastError,
+      if (leaseUntil != null) 'lease_until': leaseUntil,
+      if (attachmentDone != null) 'attachment_done': attachmentDone,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (completedAt != null) 'completed_at': completedAt,
+    });
+  }
+
+  BillingJobsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? kind,
+      Value<String>? status,
+      Value<String>? stage,
+      Value<int?>? transactionId,
+      Value<String>? imagePath,
+      Value<String?>? rawText,
+      Value<String?>? ocrEngine,
+      Value<String?>? sourceInfoJson,
+      Value<String?>? ruleResultJson,
+      Value<String?>? finalResultJson,
+      Value<int>? attemptCount,
+      Value<String?>? lastError,
+      Value<DateTime?>? leaseUntil,
+      Value<bool>? attachmentDone,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<DateTime?>? completedAt}) {
+    return BillingJobsCompanion(
+      id: id ?? this.id,
+      kind: kind ?? this.kind,
+      status: status ?? this.status,
+      stage: stage ?? this.stage,
+      transactionId: transactionId ?? this.transactionId,
+      imagePath: imagePath ?? this.imagePath,
+      rawText: rawText ?? this.rawText,
+      ocrEngine: ocrEngine ?? this.ocrEngine,
+      sourceInfoJson: sourceInfoJson ?? this.sourceInfoJson,
+      ruleResultJson: ruleResultJson ?? this.ruleResultJson,
+      finalResultJson: finalResultJson ?? this.finalResultJson,
+      attemptCount: attemptCount ?? this.attemptCount,
+      lastError: lastError ?? this.lastError,
+      leaseUntil: leaseUntil ?? this.leaseUntil,
+      attachmentDone: attachmentDone ?? this.attachmentDone,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      completedAt: completedAt ?? this.completedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (stage.present) {
+      map['stage'] = Variable<String>(stage.value);
+    }
+    if (transactionId.present) {
+      map['transaction_id'] = Variable<int>(transactionId.value);
+    }
+    if (imagePath.present) {
+      map['image_path'] = Variable<String>(imagePath.value);
+    }
+    if (rawText.present) {
+      map['raw_text'] = Variable<String>(rawText.value);
+    }
+    if (ocrEngine.present) {
+      map['ocr_engine'] = Variable<String>(ocrEngine.value);
+    }
+    if (sourceInfoJson.present) {
+      map['source_info_json'] = Variable<String>(sourceInfoJson.value);
+    }
+    if (ruleResultJson.present) {
+      map['rule_result_json'] = Variable<String>(ruleResultJson.value);
+    }
+    if (finalResultJson.present) {
+      map['final_result_json'] = Variable<String>(finalResultJson.value);
+    }
+    if (attemptCount.present) {
+      map['attempt_count'] = Variable<int>(attemptCount.value);
+    }
+    if (lastError.present) {
+      map['last_error'] = Variable<String>(lastError.value);
+    }
+    if (leaseUntil.present) {
+      map['lease_until'] = Variable<DateTime>(leaseUntil.value);
+    }
+    if (attachmentDone.present) {
+      map['attachment_done'] = Variable<bool>(attachmentDone.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingJobsCompanion(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('status: $status, ')
+          ..write('stage: $stage, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('imagePath: $imagePath, ')
+          ..write('rawText: $rawText, ')
+          ..write('ocrEngine: $ocrEngine, ')
+          ..write('sourceInfoJson: $sourceInfoJson, ')
+          ..write('ruleResultJson: $ruleResultJson, ')
+          ..write('finalResultJson: $finalResultJson, ')
+          ..write('attemptCount: $attemptCount, ')
+          ..write('lastError: $lastError, ')
+          ..write('leaseUntil: $leaseUntil, ')
+          ..write('attachmentDone: $attachmentDone, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('completedAt: $completedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$BeeDatabase extends GeneratedDatabase {
   _$BeeDatabase(QueryExecutor e) : super(e);
   $BeeDatabaseManager get managers => $BeeDatabaseManager(this);
@@ -6539,6 +7391,7 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
       $TransactionAttachmentsTable(this);
   late final $LocalChangesTable localChanges = $LocalChangesTable(this);
   late final $SyncStateTable syncState = $SyncStateTable(this);
+  late final $BillingJobsTable billingJobs = $BillingJobsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6556,7 +7409,8 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
         budgets,
         transactionAttachments,
         localChanges,
-        syncState
+        syncState,
+        billingJobs
       ];
 }
 
@@ -9664,6 +10518,372 @@ typedef $$SyncStateTableProcessedTableManager = ProcessedTableManager<
     ),
     SyncStateData,
     PrefetchHooks Function()>;
+typedef $$BillingJobsTableCreateCompanionBuilder = BillingJobsCompanion
+    Function({
+  Value<int> id,
+  Value<String> kind,
+  Value<String> status,
+  Value<String> stage,
+  Value<int?> transactionId,
+  required String imagePath,
+  Value<String?> rawText,
+  Value<String?> ocrEngine,
+  Value<String?> sourceInfoJson,
+  Value<String?> ruleResultJson,
+  Value<String?> finalResultJson,
+  Value<int> attemptCount,
+  Value<String?> lastError,
+  Value<DateTime?> leaseUntil,
+  Value<bool> attachmentDone,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<DateTime?> completedAt,
+});
+typedef $$BillingJobsTableUpdateCompanionBuilder = BillingJobsCompanion
+    Function({
+  Value<int> id,
+  Value<String> kind,
+  Value<String> status,
+  Value<String> stage,
+  Value<int?> transactionId,
+  Value<String> imagePath,
+  Value<String?> rawText,
+  Value<String?> ocrEngine,
+  Value<String?> sourceInfoJson,
+  Value<String?> ruleResultJson,
+  Value<String?> finalResultJson,
+  Value<int> attemptCount,
+  Value<String?> lastError,
+  Value<DateTime?> leaseUntil,
+  Value<bool> attachmentDone,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<DateTime?> completedAt,
+});
+
+class $$BillingJobsTableFilterComposer
+    extends Composer<_$BeeDatabase, $BillingJobsTable> {
+  $$BillingJobsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get stage => $composableBuilder(
+      column: $table.stage, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get transactionId => $composableBuilder(
+      column: $table.transactionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get imagePath => $composableBuilder(
+      column: $table.imagePath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rawText => $composableBuilder(
+      column: $table.rawText, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ocrEngine => $composableBuilder(
+      column: $table.ocrEngine, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceInfoJson => $composableBuilder(
+      column: $table.sourceInfoJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ruleResultJson => $composableBuilder(
+      column: $table.ruleResultJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get finalResultJson => $composableBuilder(
+      column: $table.finalResultJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastError => $composableBuilder(
+      column: $table.lastError, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get leaseUntil => $composableBuilder(
+      column: $table.leaseUntil, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get attachmentDone => $composableBuilder(
+      column: $table.attachmentDone,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$BillingJobsTableOrderingComposer
+    extends Composer<_$BeeDatabase, $BillingJobsTable> {
+  $$BillingJobsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get stage => $composableBuilder(
+      column: $table.stage, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get transactionId => $composableBuilder(
+      column: $table.transactionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get imagePath => $composableBuilder(
+      column: $table.imagePath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rawText => $composableBuilder(
+      column: $table.rawText, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ocrEngine => $composableBuilder(
+      column: $table.ocrEngine, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceInfoJson => $composableBuilder(
+      column: $table.sourceInfoJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ruleResultJson => $composableBuilder(
+      column: $table.ruleResultJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get finalResultJson => $composableBuilder(
+      column: $table.finalResultJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastError => $composableBuilder(
+      column: $table.lastError, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get leaseUntil => $composableBuilder(
+      column: $table.leaseUntil, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get attachmentDone => $composableBuilder(
+      column: $table.attachmentDone,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$BillingJobsTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $BillingJobsTable> {
+  $$BillingJobsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get stage =>
+      $composableBuilder(column: $table.stage, builder: (column) => column);
+
+  GeneratedColumn<int> get transactionId => $composableBuilder(
+      column: $table.transactionId, builder: (column) => column);
+
+  GeneratedColumn<String> get imagePath =>
+      $composableBuilder(column: $table.imagePath, builder: (column) => column);
+
+  GeneratedColumn<String> get rawText =>
+      $composableBuilder(column: $table.rawText, builder: (column) => column);
+
+  GeneratedColumn<String> get ocrEngine =>
+      $composableBuilder(column: $table.ocrEngine, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceInfoJson => $composableBuilder(
+      column: $table.sourceInfoJson, builder: (column) => column);
+
+  GeneratedColumn<String> get ruleResultJson => $composableBuilder(
+      column: $table.ruleResultJson, builder: (column) => column);
+
+  GeneratedColumn<String> get finalResultJson => $composableBuilder(
+      column: $table.finalResultJson, builder: (column) => column);
+
+  GeneratedColumn<int> get attemptCount => $composableBuilder(
+      column: $table.attemptCount, builder: (column) => column);
+
+  GeneratedColumn<String> get lastError =>
+      $composableBuilder(column: $table.lastError, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get leaseUntil => $composableBuilder(
+      column: $table.leaseUntil, builder: (column) => column);
+
+  GeneratedColumn<bool> get attachmentDone => $composableBuilder(
+      column: $table.attachmentDone, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => column);
+}
+
+class $$BillingJobsTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $BillingJobsTable,
+    BillingJob,
+    $$BillingJobsTableFilterComposer,
+    $$BillingJobsTableOrderingComposer,
+    $$BillingJobsTableAnnotationComposer,
+    $$BillingJobsTableCreateCompanionBuilder,
+    $$BillingJobsTableUpdateCompanionBuilder,
+    (BillingJob, BaseReferences<_$BeeDatabase, $BillingJobsTable, BillingJob>),
+    BillingJob,
+    PrefetchHooks Function()> {
+  $$BillingJobsTableTableManager(_$BeeDatabase db, $BillingJobsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BillingJobsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BillingJobsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BillingJobsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String> stage = const Value.absent(),
+            Value<int?> transactionId = const Value.absent(),
+            Value<String> imagePath = const Value.absent(),
+            Value<String?> rawText = const Value.absent(),
+            Value<String?> ocrEngine = const Value.absent(),
+            Value<String?> sourceInfoJson = const Value.absent(),
+            Value<String?> ruleResultJson = const Value.absent(),
+            Value<String?> finalResultJson = const Value.absent(),
+            Value<int> attemptCount = const Value.absent(),
+            Value<String?> lastError = const Value.absent(),
+            Value<DateTime?> leaseUntil = const Value.absent(),
+            Value<bool> attachmentDone = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> completedAt = const Value.absent(),
+          }) =>
+              BillingJobsCompanion(
+            id: id,
+            kind: kind,
+            status: status,
+            stage: stage,
+            transactionId: transactionId,
+            imagePath: imagePath,
+            rawText: rawText,
+            ocrEngine: ocrEngine,
+            sourceInfoJson: sourceInfoJson,
+            ruleResultJson: ruleResultJson,
+            finalResultJson: finalResultJson,
+            attemptCount: attemptCount,
+            lastError: lastError,
+            leaseUntil: leaseUntil,
+            attachmentDone: attachmentDone,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            completedAt: completedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<String> stage = const Value.absent(),
+            Value<int?> transactionId = const Value.absent(),
+            required String imagePath,
+            Value<String?> rawText = const Value.absent(),
+            Value<String?> ocrEngine = const Value.absent(),
+            Value<String?> sourceInfoJson = const Value.absent(),
+            Value<String?> ruleResultJson = const Value.absent(),
+            Value<String?> finalResultJson = const Value.absent(),
+            Value<int> attemptCount = const Value.absent(),
+            Value<String?> lastError = const Value.absent(),
+            Value<DateTime?> leaseUntil = const Value.absent(),
+            Value<bool> attachmentDone = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> completedAt = const Value.absent(),
+          }) =>
+              BillingJobsCompanion.insert(
+            id: id,
+            kind: kind,
+            status: status,
+            stage: stage,
+            transactionId: transactionId,
+            imagePath: imagePath,
+            rawText: rawText,
+            ocrEngine: ocrEngine,
+            sourceInfoJson: sourceInfoJson,
+            ruleResultJson: ruleResultJson,
+            finalResultJson: finalResultJson,
+            attemptCount: attemptCount,
+            lastError: lastError,
+            leaseUntil: leaseUntil,
+            attachmentDone: attachmentDone,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            completedAt: completedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$BillingJobsTableProcessedTableManager = ProcessedTableManager<
+    _$BeeDatabase,
+    $BillingJobsTable,
+    BillingJob,
+    $$BillingJobsTableFilterComposer,
+    $$BillingJobsTableOrderingComposer,
+    $$BillingJobsTableAnnotationComposer,
+    $$BillingJobsTableCreateCompanionBuilder,
+    $$BillingJobsTableUpdateCompanionBuilder,
+    (BillingJob, BaseReferences<_$BeeDatabase, $BillingJobsTable, BillingJob>),
+    BillingJob,
+    PrefetchHooks Function()>;
 
 class $BeeDatabaseManager {
   final _$BeeDatabase _db;
@@ -9694,4 +10914,6 @@ class $BeeDatabaseManager {
       $$LocalChangesTableTableManager(_db, _db.localChanges);
   $$SyncStateTableTableManager get syncState =>
       $$SyncStateTableTableManager(_db, _db.syncState);
+  $$BillingJobsTableTableManager get billingJobs =>
+      $$BillingJobsTableTableManager(_db, _db.billingJobs);
 }

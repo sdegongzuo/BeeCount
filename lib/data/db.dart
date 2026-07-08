@@ -232,6 +232,27 @@ class Budgets extends Table {
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+class BillingJobs extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get kind => text().withDefault(const Constant('image_share'))();
+  TextColumn get status => text().withDefault(const Constant('pending'))();
+  TextColumn get stage => text().withDefault(const Constant('received'))();
+  IntColumn get transactionId => integer().nullable()();
+  TextColumn get imagePath => text()();
+  TextColumn get rawText => text().nullable()();
+  TextColumn get ocrEngine => text().nullable()();
+  TextColumn get sourceInfoJson => text().nullable()();
+  TextColumn get ruleResultJson => text().nullable()();
+  TextColumn get finalResultJson => text().nullable()();
+  IntColumn get attemptCount => integer().withDefault(const Constant(0))();
+  TextColumn get lastError => text().nullable()();
+  DateTimeColumn get leaseUntil => dateTime().nullable()();
+  BoolColumn get attachmentDone => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+}
+
 @DriftDatabase(tables: [
   Ledgers,
   Accounts,
@@ -246,6 +267,7 @@ class Budgets extends Table {
   TransactionAttachments,
   LocalChanges,
   SyncState,
+  BillingJobs,
 ])
 class BeeDatabase extends _$BeeDatabase {
   BeeDatabase() : super(_openConnection());
@@ -256,7 +278,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 25; // v25: 交易增加支付通道/商户全称/收单机构/明细文本
+  int get schemaVersion => 26; // v26: 添加 billing_jobs 表
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -892,6 +914,10 @@ class BeeDatabase extends _$BeeDatabase {
             }
 
             print('[DB Migration] v25 迁移完成');
+          }
+          if (from < 26) {
+            await migrator.createTable(billingJobs);
+            print('[DB Migration] v26 迁移完成');
           }
         },
       );

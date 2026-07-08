@@ -171,6 +171,33 @@ class OcrResult {
     );
   }
 
+  /// 从 JSON 反序列化（仅恢复 createBillTransaction 所需的字段）。
+  factory OcrResult.fromJson(Map<String, dynamic> json) {
+    return OcrResult(
+      amount: (json['amount'] as num?)?.toDouble(),
+      note: json['note'] as String?,
+      time: json['time'] != null ? DateTime.tryParse(json['time'] as String) : null,
+      rawText: json['rawText'] as String? ?? '',
+      allNumbers: (json['allNumbers'] as List<dynamic>?)?.cast<String>() ?? [],
+      suggestedCategoryId: json['suggestedCategoryId'] as int?,
+      aiCategoryName: json['aiCategoryName'] as String?,
+      aiType: json['aiType'] as String?,
+      aiAccountName: json['aiAccountName'] as String?,
+      paymentMethod: json['payment_method'] as String?,
+      paymentChannel: json['payment_channel'] as String?,
+      counterparty: json['counterparty'] as String?,
+      merchantFullName: json['merchant_full_name'] as String?,
+      acquirer: json['acquirer'] as String?,
+      details: json['details'] as Map<String, dynamic>?,
+      detailsText: json['details_text'] as String?,
+      fastBillingAccepted: json['fast_billing_accepted'] as bool? ?? false,
+      fastBillingRejectReasons: (json['fast_billing_reject_reasons'] as List<dynamic>?)?.cast<String>() ?? [],
+      ocrEngine: json['ocr_engine'] as String?,
+      aiProvider: json['aiProvider'] as String?,
+      aiEnhanced: json['aiEnhanced'] as bool? ?? false,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'amount': amount,
         'note': note,

@@ -62,3 +62,9 @@ android/app/*.keystore
 .docs
 .tmp
 tmp
+
+# Local diagnostics and transient build artifacts
+.codex_tmp_*.txt
+.gradle-prod-build/
+*.hprof
+temp*.db

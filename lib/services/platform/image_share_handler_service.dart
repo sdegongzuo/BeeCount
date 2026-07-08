@@ -1,17 +1,18 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../automation/auto_billing_service.dart';
+import '../../providers/database_providers.dart';
+import '../billing/billing_job_service.dart';
 import '../system/logger_service.dart';
 import 'screenshot_source_info.dart';
 
 /// 图片分享处理服务（Android专用）
-/// 处理从相册或其他应用分享过来的图片，并调用AutoBillingService进行OCR识别和记账
+/// 处理从相册或其他应用分享过来的图片，通过 BillingJobService 进行 OCR 识别和记账
 class ImageShareHandlerService {
   static const _channel = MethodChannel('com.tntlikely.beecount/share');
 
   final ProviderContainer _container;
-  late final AutoBillingService _autoBillingService;
+  late final BillingJobService _billingJobService;
 
   // 单例模式
   static ImageShareHandlerService? _instance;
@@ -22,9 +23,14 @@ class ImageShareHandlerService {
   }
 
   ImageShareHandlerService._internal(this._container) {
-    _autoBillingService = AutoBillingService(_container);
+    final repo = _container.read(billingJobRepositoryProvider);
+    _billingJobService = BillingJobService.create(
+      repo: repo,
+      container: _container,
+    );
     _setupMethodCallHandler();
     _processPendingSharedImage();
+    _resumePendingJobs();
   }
 
   /// 设置方法调用处理器
@@ -45,16 +51,13 @@ class ImageShareHandlerService {
     logger.info('ImageShare', '开始处理分享的图片: ${payload.path}');
 
     try {
-      // 只在 Android 平台处理
       if (!Platform.isAndroid) {
         logger.warning('ImageShare', '图片分享仅支持 Android 平台');
         return;
       }
 
-      // 调用AutoBillingService处理图片
-      final transactionId = await _autoBillingService.processScreenshot(
+      final transactionId = await _billingJobService.processImage(
         payload.path,
-        showNotification: true,
         sourceInfo: payload.sourceInfo,
       );
       if (transactionId != null) {
@@ -84,6 +87,15 @@ class ImageShareHandlerService {
     }
   }
 
+  /// 恢复未完成的 billing jobs
+  Future<void> _resumePendingJobs() async {
+    try {
+      await _billingJobService.resumePendingJobs();
+    } catch (e, stackTrace) {
+      logger.error('ImageShare', '恢复待处理任务失败', e, stackTrace);
+    }
+  }
+
   Future<void> _completeShareBilling() async {
     if (!Platform.isAndroid) return;
     try {
@@ -104,7 +116,7 @@ class ImageShareHandlerService {
 
   /// 释放资源
   void dispose() {
-    _autoBillingService.dispose();
+    _billingJobService.dispose();
   }
 }
 
