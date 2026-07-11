@@ -42,6 +42,7 @@ class BillingJobService {
   factory BillingJobService.create({
     required BillingJobRepository repo,
     required ProviderContainer container,
+    BillingJobStatusReporter? statusReporter,
   }) {
     final ocrService = OcrService();
     final ocrProcessor = OcrStageProcessor(
@@ -83,6 +84,7 @@ class BillingJobService {
       txProcessor: txProcessor,
       aiProcessor: aiProcessor,
       attachmentProcessor: attachmentProc,
+      statusReporter: statusReporter,
     );
 
     return BillingJobService._(
@@ -339,12 +341,11 @@ class _RealAttachmentService implements AttachmentSaveServiceInterface {
   _RealAttachmentService(this._container);
 
   @override
-  Future<void> saveAttachment(String imagePath, int? transactionId) async {
-    if (transactionId == null) return;
-
+  Future<void> saveAttachment(
+      String imagePath, Future<int> transactionId) async {
     // AttachmentService 需要 Ref，通过 container 获取 provider 值
     final attachmentService = _container.read(attachmentServiceProvider);
-    await attachmentService.saveAttachment(
+    await attachmentService.saveAttachmentWhenTransactionReady(
       transactionId: transactionId,
       sourceFile: File(imagePath),
       index: 0,

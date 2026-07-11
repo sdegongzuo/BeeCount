@@ -9,10 +9,11 @@ import 'package:flutter_test/flutter_test.dart';
 class FakeAttachmentSaveService implements AttachmentSaveServiceInterface {
   bool called = false;
   String? lastImagePath;
-  int? lastTransactionId;
+  Future<int>? lastTransactionId;
 
   @override
-  Future<void> saveAttachment(String imagePath, int? transactionId) async {
+  Future<void> saveAttachment(
+      String imagePath, Future<int> transactionId) async {
     called = true;
     lastImagePath = imagePath;
     lastTransactionId = transactionId;
@@ -29,7 +30,8 @@ void main() {
     db = BeeDatabase.forTesting(NativeDatabase.memory());
     repo = LocalBillingJobRepository(db);
     attachmentService = FakeAttachmentSaveService();
-    processor = AttachmentStageProcessor(attachmentService: attachmentService, repo: repo);
+    processor = AttachmentStageProcessor(
+        attachmentService: attachmentService, repo: repo);
   });
 
   tearDown(() async {
@@ -53,7 +55,8 @@ void main() {
     final updatedJob = await repo.findById(job.id);
     final deadline = DateTime.now().add(const Duration(seconds: 30));
 
-    final result = await processor.process(updatedJob!, deadline, PipelineContext());
+    final result =
+        await processor.process(updatedJob!, deadline, PipelineContext());
 
     expect(result.success, isTrue);
     expect(attachmentService.called, isFalse);

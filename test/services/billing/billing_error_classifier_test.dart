@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:beecount/services/ai/ai_provider_factory.dart';
 import 'package:beecount/services/billing/billing_error_classifier.dart';
 
 void main() {
@@ -26,19 +27,38 @@ void main() {
     });
 
     test('5xx server error is retryable', () {
-      final result = classifier.classify(HttpException('500 Internal Server Error'));
+      final result =
+          classifier.classify(HttpException('500 Internal Server Error'));
       expect(result.retryable, isTrue);
       expect(result.errorCode, 'server_error');
     });
 
     test('429 rate limit is retryable', () {
-      final result = classifier.classify(HttpException('429 Too Many Requests'));
+      final result =
+          classifier.classify(HttpException('429 Too Many Requests'));
       expect(result.retryable, isTrue);
       expect(result.errorCode, 'rate_limited');
     });
 
     test('network unavailable is retryable', () {
-      final result = classifier.classify(SocketException('Network unreachable'));
+      final result =
+          classifier.classify(SocketException('Network unreachable'));
+      expect(result.retryable, isTrue);
+      expect(result.errorCode, 'network_unavailable');
+    });
+
+    test('wrapped connection abort is retryable', () {
+      final result = classifier.classify(
+        AIException(
+          '[null] API调用失败: HttpException: Software caused connection abort',
+        ),
+      );
+      expect(result.retryable, isTrue);
+      expect(result.errorCode, 'network_unavailable');
+    });
+
+    test('wrapped null HTTP failure is retryable', () {
+      final result = classifier.classify(AIException('[null] API调用失败'));
       expect(result.retryable, isTrue);
       expect(result.errorCode, 'network_unavailable');
     });

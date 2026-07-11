@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import '../../data/db.dart';
 import '../../data/repositories/billing_job_repository.dart';
 import '../platform/screenshot_source_info.dart';
+
+typedef BillingJobStatusReporter = FutureOr<void> Function(String status);
 
 /// 阶段间传递的上下文，用于在 stage 之间共享数据。
 /// 避免重复调用 OCR 等昂贵操作，并解决 job 快照过期问题。
@@ -14,11 +18,33 @@ class PipelineContext {
   /// 交易创建阶段写入的交易 ID。
   /// AI 和附件阶段可从此处获取，无需等待 job 刷新。
   int? transactionId;
+  final Completer<int> _transactionIdCompleter = Completer<int>();
+  bool _transactionIdFutureRequested = false;
 
   /// 分享来源信息，供 OCR/规则阶段保留 app 来源和支付通道证据。
   ScreenshotSourceInfo? sourceInfo;
 
   PipelineContext();
+
+  Future<int> get transactionIdFuture {
+    _transactionIdFutureRequested = true;
+    return _transactionIdCompleter.future;
+  }
+
+  void completeTransactionId(int id) {
+    transactionId = id;
+    if (!_transactionIdCompleter.isCompleted) {
+      _transactionIdCompleter.complete(id);
+    }
+  }
+
+  void failTransactionId(Object? error) {
+    if (_transactionIdFutureRequested && !_transactionIdCompleter.isCompleted) {
+      _transactionIdCompleter.completeError(
+        error ?? StateError('transaction_not_created'),
+      );
+    }
+  }
 }
 
 abstract class StageProcessor {
@@ -47,6 +73,7 @@ class BillingJobRunner {
   final StageProcessor txProcessor;
   final StageProcessor aiProcessor;
   final StageProcessor? attachmentProcessor;
+  final BillingJobStatusReporter? statusReporter;
 
   BillingJobRunner({
     required this.repo,
@@ -55,6 +82,7 @@ class BillingJobRunner {
     required this.txProcessor,
     required this.aiProcessor,
     this.attachmentProcessor,
+    this.statusReporter,
   });
 
   Future<void> runJob(
@@ -67,21 +95,17 @@ class BillingJobRunner {
     if (!claimed) return;
 
     final ctx = initialContext ?? PipelineContext();
-    final processors = [ocrProcessor, ruleProcessor, txProcessor, aiProcessor];
-    await _runProcessors(job, deadline, processors, ctx);
+    await _reportStatus('已接收图片，准备识别账单');
+    await _dispatchAttachment(job, deadline, ctx);
+    await _runProcessors(job, deadline,
+        [ocrProcessor, ruleProcessor, txProcessor, aiProcessor], ctx);
 
     // 附件在主流程完成后启动（此时 transactionId 已在 ctx 中）
-    if (attachmentProcessor != null) {
-      final freshJob = await repo.findById(job.id);
-      if (freshJob != null) {
-        await attachmentProcessor!.process(freshJob, deadline, ctx);
-      }
-    }
-
     final current = await repo.findById(job.id);
     if (current == null) return;
     if (current.status != BillingJobStatus.failed &&
         current.status != BillingJobStatus.retryableFailed) {
+      await _reportStatus('账单识别完成，正在收尾');
       await repo.markSucceeded(job.id);
     }
   }
@@ -96,9 +120,14 @@ class BillingJobRunner {
     if (!claimed) return;
 
     final ctx = initialContext ?? PipelineContext();
+    await _reportStatus('正在恢复未完成的账单识别');
     // 恢复时，从已有 stage 之前的数据重建 ctx
     ctx.rawText = job.rawText;
     ctx.transactionId = job.transactionId;
+    if (job.transactionId != null) {
+      ctx.completeTransactionId(job.transactionId!);
+    }
+    await _dispatchAttachment(job, deadline, ctx);
 
     final allProcessors = [
       ocrProcessor,
@@ -111,13 +140,6 @@ class BillingJobRunner {
     await _runProcessors(job, deadline, processors, ctx);
 
     // 附件在主流程完成后启动
-    if (attachmentProcessor != null) {
-      final freshJob = await repo.findById(job.id);
-      if (freshJob != null) {
-        await attachmentProcessor!.process(freshJob, deadline, ctx);
-      }
-    }
-
     final current = await repo.findById(job.id);
     if (current == null) return;
 
@@ -125,13 +147,27 @@ class BillingJobRunner {
       await repo.updateStatus(current.id, BillingJobStatus.pending);
       final refreshed = await repo.findById(job.id);
       if (refreshed == null) return;
+      await _reportStatus('账单识别完成，正在收尾');
       await repo.markSucceeded(job.id);
       return;
     }
 
     if (current.status != BillingJobStatus.failed) {
+      await _reportStatus('账单识别完成，正在收尾');
       await repo.markSucceeded(job.id);
     }
+  }
+
+  Future<void> _dispatchAttachment(
+    BillingJob job,
+    DateTime deadline,
+    PipelineContext ctx,
+  ) async {
+    if (attachmentProcessor == null) return;
+    final freshJob = await repo.findById(job.id);
+    if (freshJob == null || freshJob.attachmentDone) return;
+    await _reportStatus('正在保存账单图片');
+    await attachmentProcessor!.process(freshJob, deadline, ctx);
   }
 
   int _startIndexForStage(String stage) {
@@ -161,10 +197,13 @@ class BillingJobRunner {
     var currentJob = job;
     for (final processor in processors) {
       if (DateTime.now().isAfter(deadline)) {
+        ctx.failTransactionId('foreground_timeout');
+        await _reportStatus('账单识别超时，等待重试');
         await repo.updateStatus(job.id, BillingJobStatus.retryableFailed,
             lastError: 'foreground_timeout');
         return;
       }
+      await _reportStatus(_statusForProcessor(processor));
       final result = await processor.process(currentJob, deadline, ctx);
       if (result.success) {
         await repo.updateStage(job.id, processor.stageName);
@@ -172,6 +211,12 @@ class BillingJobRunner {
         final refreshed = await repo.findById(job.id);
         if (refreshed != null) currentJob = refreshed;
       } else {
+        if (ctx.transactionId == null) {
+          ctx.failTransactionId(result.error);
+        }
+        await _reportStatus(
+          result.retryable ? '账单识别暂时失败，等待重试' : '账单识别失败',
+        );
         await repo.updateStatus(
           job.id,
           result.retryable
@@ -182,5 +227,26 @@ class BillingJobRunner {
         return;
       }
     }
+  }
+
+  String _statusForProcessor(StageProcessor processor) {
+    switch (processor.stageName) {
+      case BillingJobStage.ocrDone:
+        return '正在识别账单文字';
+      case BillingJobStage.ruleDone:
+        return '正在提取账单字段';
+      case BillingJobStage.transactionCreated:
+        return '正在创建账单';
+      case BillingJobStage.aiDone:
+        return '正在完善账单信息';
+      default:
+        return '正在处理账单';
+    }
+  }
+
+  Future<void> _reportStatus(String status) async {
+    final reporter = statusReporter;
+    if (reporter == null) return;
+    await reporter(status);
   }
 }

@@ -162,6 +162,91 @@ class AttachmentService {
     }
   }
 
+  Future<TransactionAttachment?> saveAttachmentWhenTransactionReady({
+    required Future<int> transactionId,
+    required File sourceFile,
+    required int index,
+  }) async {
+    try {
+      final dir = await getAttachmentDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final quality = _attachmentQuality;
+      var format = ref.read(smartBillingAttachmentFormatProvider);
+      var tempFileName = _buildPendingAttachmentFileName(
+        timestamp,
+        index,
+        format,
+      );
+      var tempPath = '${dir.path}/$tempFileName';
+
+      final saveStart = DateTime.now();
+      logger.info(
+        'AttachmentService',
+        '附件预处理开始: format=${format.storageKey}, quality=$quality',
+      );
+
+      var compressedFile = await _compressImage(
+        sourceFile,
+        tempPath,
+        format,
+        quality: quality,
+        copyOnFailure: format == SmartBillingAttachmentFormat.jpeg,
+      );
+      if (compressedFile == null &&
+          format != SmartBillingAttachmentFormat.jpeg) {
+        logger.warning(
+            'AttachmentService', '${format.storageKey} 压缩失败，已回退为 JPEG');
+        format = SmartBillingAttachmentFormat.jpeg;
+        tempFileName = _buildPendingAttachmentFileName(
+          timestamp,
+          index,
+          format,
+        );
+        tempPath = '${dir.path}/$tempFileName';
+        compressedFile = await _compressImage(
+          sourceFile,
+          tempPath,
+          format,
+          quality: quality,
+          copyOnFailure: true,
+        );
+      }
+      if (compressedFile == null) {
+        logger.error('AttachmentService', '附件预处理失败');
+        return null;
+      }
+
+      final txId = await transactionId;
+      final fileName = _buildAttachmentFileName(txId, timestamp, index, format);
+      final destPath = '${dir.path}/$fileName';
+      final finalFile = await _moveFile(compressedFile, destPath);
+      final imageInfo = await _getImageInfo(finalFile.path);
+      final fileSize = await finalFile.length();
+
+      if (format == SmartBillingAttachmentFormat.avif) {
+        await _generateThumbnailFromSource(sourceFile, fileName);
+      }
+
+      final repo = ref.read(repositoryProvider);
+      final id = await repo.createAttachment(
+        transactionId: txId,
+        fileName: fileName,
+        originalName: path.basename(sourceFile.path),
+        fileSize: fileSize,
+        width: imageInfo?.width,
+        height: imageInfo?.height,
+        sortOrder: index,
+      );
+
+      final elapsed = DateTime.now().difference(saveStart).inMilliseconds;
+      logger.info('AttachmentService', '附件保存成功: $fileName, elapsedMs=$elapsed');
+      return repo.getAttachmentById(id);
+    } catch (e, stackTrace) {
+      logger.error('AttachmentService', '保存附件失败', e, stackTrace);
+      return null;
+    }
+  }
+
   /// 批量保存附件
   Future<List<TransactionAttachment>> saveAttachments({
     required int transactionId,
@@ -478,6 +563,24 @@ class AttachmentService {
     SmartBillingAttachmentFormat format,
   ) {
     return 'tx_${transactionId}_${timestamp}_$index${_extensionForFormat(format)}';
+  }
+
+  String _buildPendingAttachmentFileName(
+    int timestamp,
+    int index,
+    SmartBillingAttachmentFormat format,
+  ) {
+    return 'pending_${timestamp}_$index${_extensionForFormat(format)}';
+  }
+
+  Future<File> _moveFile(File source, String targetPath) async {
+    try {
+      return await source.rename(targetPath);
+    } on FileSystemException {
+      final target = await source.copy(targetPath);
+      await source.delete();
+      return target;
+    }
   }
 
   String _extensionForFormat(SmartBillingAttachmentFormat format) {

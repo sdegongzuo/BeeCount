@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -232,6 +233,10 @@ class MainActivity: FlutterFragmentActivity() {
                     openAppSettings()
                     result.success(true)
                 }
+                "openBackgroundRunSettings" -> {
+                    openBackgroundRunSettings()
+                    result.success(true)
+                }
                 "getBatteryOptimizationInfo" -> {
                     result.success(getBatteryOptimizationInfo())
                 }
@@ -257,20 +262,48 @@ class MainActivity: FlutterFragmentActivity() {
 
     private fun setupShareChannel(flutterEngine: FlutterEngine) {
         val shareChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL)
+        ShareBillingMainEngineBridge.attach(shareChannel)
         shareChannel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "getPendingShareBillingPayload" -> {
                     result.success(readPendingShareBillingPayload())
                 }
                 "completeShareBilling" -> {
+                    val amount = call.argument<Number>("amount")?.toDouble()
+                    val note = call.argument<String>("note")
                     clearPendingShareBillingPayload()
-                    startShareBillingService(ShareBillingForegroundService.createCompleteIntent(this))
+                    startShareBillingService(
+                        ShareBillingForegroundService.createCompleteIntent(
+                            this,
+                            amount = amount,
+                            note = note
+                        )
+                    )
+                    result.success(true)
+                }
+                "updateShareBillingStatus" -> {
+                    val statusText = call.argument<String>("statusText") ?: "正在处理账单"
+                    startShareBillingService(
+                        ShareBillingForegroundService.createUpdateIntent(this, statusText)
+                    )
                     result.success(true)
                 }
                 "failShareBilling" -> {
                     val reason = call.argument<String>("reason") ?: "unknown"
                     clearPendingShareBillingPayload()
                     startShareBillingService(ShareBillingForegroundService.createFailedIntent(this, reason))
+                    result.success(true)
+                }
+                "shareBillingCreated" -> {
+                    val amount = call.argument<Number>("amount")?.toDouble()
+                    val note = call.argument<String>("note")
+                    startShareBillingService(
+                        ShareBillingForegroundService.createCreatedIntent(
+                            this,
+                            amount = amount,
+                            note = note
+                        )
+                    )
                     result.success(true)
                 }
                 else -> result.notImplemented()
@@ -473,6 +506,46 @@ class MainActivity: FlutterFragmentActivity() {
             data = Uri.parse("package:$packageName")
         }
         startActivity(intent)
+    }
+
+    private fun openBackgroundRunSettings() {
+        val candidates = listOf(
+            Intent().setComponent(
+                ComponentName(
+                    "com.oplus.athena",
+                    "com.oplus.athena.autostart.view.AutoStartMainActivity"
+                )
+            ),
+            Intent().setComponent(
+                ComponentName(
+                    "com.coloros.safecenter",
+                    "com.coloros.safecenter.permission.startup.StartupAppListActivity"
+                )
+            ),
+            Intent().setComponent(
+                ComponentName(
+                    "com.coloros.oppoguardelf",
+                    "com.coloros.powermanager.fuelgaue.PowerUsageModelActivity"
+                )
+            ),
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            },
+            Intent(Settings.ACTION_SETTINGS)
+        )
+
+        for (intent in candidates) {
+            try {
+                startActivity(intent)
+                LoggerPlugin.info("MainActivity", "Opened background run settings: $intent")
+                return
+            } catch (e: Exception) {
+                LoggerPlugin.warning(
+                    "MainActivity",
+                    "Failed to open background run settings candidate: ${e.message}"
+                )
+            }
+        }
     }
 
     private fun openUsageAccessSettings() {
@@ -682,6 +755,7 @@ class MainActivity: FlutterFragmentActivity() {
             }
             shareBillingReceiver = null
         }
+        ShareBillingMainEngineBridge.detach()
         stopScreenshotObserver()
     }
 

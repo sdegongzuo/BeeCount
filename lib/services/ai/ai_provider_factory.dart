@@ -598,6 +598,10 @@ class AIProviderFactory {
       return '[$statusCode] $responseData';
     }
 
+    final underlyingError = e.error;
+    if (underlyingError != null) {
+      return '[$statusCode] ${e.message ?? 'API调用失败'}: $underlyingError';
+    }
     return '[$statusCode] ${e.message ?? 'API调用失败'}';
   }
 

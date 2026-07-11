@@ -96,15 +96,51 @@ void main() {
     expect(ai.called, isTrue);
   });
 
-  test('runJob dispatches attachment after main pipeline', () async {
-    final attachment = FakeStageProcessor('attachment');
-    final runnerWithAttachment = BillingJobRunner(
+  test('runJob reports progress status from the beginning', () async {
+    final statuses = <String>[];
+    final reportingRunner = BillingJobRunner(
       repo: repo,
       ocrProcessor: ocr,
       ruleProcessor: rule,
       txProcessor: tx,
       aiProcessor: ai,
-      attachmentProcessor: attachment,
+      statusReporter: statuses.add,
+    );
+
+    final job = await repo.createJob(imagePath: '/tmp/test.png');
+    final deadline = DateTime.now().add(const Duration(seconds: 90));
+    await reportingRunner.runJob(job, deadline);
+
+    expect(
+      statuses,
+      containsAllInOrder([
+        '已接收图片，准备识别账单',
+        '正在识别账单文字',
+        '正在提取账单字段',
+        '正在创建账单',
+        '正在完善账单信息',
+        '账单识别完成，正在收尾',
+      ]),
+    );
+  });
+
+  test('runJob dispatches attachment before OCR finishes', () async {
+    DateTime? attachmentCalledAt;
+    DateTime? ocrFinishedAt;
+    final slowOcr = _SlowStageProcessor(
+      BillingJobStage.ocrDone,
+      delay: const Duration(milliseconds: 50),
+      onFinished: () => ocrFinishedAt = DateTime.now(),
+    );
+    final runnerWithAttachment = BillingJobRunner(
+      repo: repo,
+      ocrProcessor: slowOcr,
+      ruleProcessor: rule,
+      txProcessor: tx,
+      aiProcessor: ai,
+      attachmentProcessor: _TimedStageProcessor(
+        onCalled: () => attachmentCalledAt = DateTime.now(),
+      ),
     );
 
     final job = await repo.createJob(imagePath: '/tmp/test.png');
@@ -114,7 +150,9 @@ void main() {
     await runnerWithAttachment.runJob(job, deadline);
 
     final updated = await repo.findById(job.id);
-    expect(attachment.called, isTrue);
+    expect(attachmentCalledAt, isNotNull);
+    expect(ocrFinishedAt, isNotNull);
+    expect(attachmentCalledAt!.isBefore(ocrFinishedAt!), isTrue);
     expect(updated!.attachmentDone, isFalse);
     expect(updated.stage, BillingJobStage.aiDone);
   });
@@ -354,15 +392,16 @@ void main() {
     expect(updated.stage, BillingJobStage.aiDone);
   });
 
-  test('runJob launches attachment after main pipeline (has transactionId)',
+  test(
+      'runJob launches attachment after transaction creation but before AI done',
       () async {
     DateTime? attachmentCalledAt;
-    DateTime? mainPipelineDoneAt;
+    DateTime? aiFinishedAt;
 
     final slowAi = _SlowStageProcessor(
       BillingJobStage.aiDone,
       delay: const Duration(milliseconds: 50),
-      onFinished: () => mainPipelineDoneAt = DateTime.now(),
+      onFinished: () => aiFinishedAt = DateTime.now(),
     );
     final timedAttachment = _TimedStageProcessor(
       onCalled: () => attachmentCalledAt = DateTime.now(),
@@ -382,10 +421,8 @@ void main() {
     await runnerWithTiming.runJob(job, deadline);
 
     expect(attachmentCalledAt, isNotNull);
-    expect(mainPipelineDoneAt, isNotNull);
-    // Attachment is called AFTER main pipeline completes,
-    // so it has access to transactionId.
-    expect(attachmentCalledAt!.isAfter(mainPipelineDoneAt!), isTrue);
+    expect(aiFinishedAt, isNotNull);
+    expect(attachmentCalledAt!.isBefore(aiFinishedAt!), isTrue);
   });
 
   test('runJob attachment failure does not block main pipeline', () async {

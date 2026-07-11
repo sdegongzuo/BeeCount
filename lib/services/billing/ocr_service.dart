@@ -18,6 +18,7 @@ import 'rules/billing_rule_models.dart';
 import 'rules/billing_rule_repository.dart';
 import 'rules/billing_rule_trace.dart';
 import 'payment_channel_detector.dart';
+import 'ocr_text_quality.dart';
 
 /// OCR识别结果
 class OcrResult {
@@ -176,7 +177,9 @@ class OcrResult {
     return OcrResult(
       amount: (json['amount'] as num?)?.toDouble(),
       note: json['note'] as String?,
-      time: json['time'] != null ? DateTime.tryParse(json['time'] as String) : null,
+      time: json['time'] != null
+          ? DateTime.tryParse(json['time'] as String)
+          : null,
       rawText: json['rawText'] as String? ?? '',
       allNumbers: (json['allNumbers'] as List<dynamic>?)?.cast<String>() ?? [],
       suggestedCategoryId: json['suggestedCategoryId'] as int?,
@@ -191,7 +194,10 @@ class OcrResult {
       details: json['details'] as Map<String, dynamic>?,
       detailsText: json['details_text'] as String?,
       fastBillingAccepted: json['fast_billing_accepted'] as bool? ?? false,
-      fastBillingRejectReasons: (json['fast_billing_reject_reasons'] as List<dynamic>?)?.cast<String>() ?? [],
+      fastBillingRejectReasons:
+          (json['fast_billing_reject_reasons'] as List<dynamic>?)
+                  ?.cast<String>() ??
+              [],
       ocrEngine: json['ocr_engine'] as String?,
       aiProvider: json['aiProvider'] as String?,
       aiEnhanced: json['aiEnhanced'] as bool? ?? false,
@@ -431,10 +437,15 @@ class OcrService {
           },
         );
         final rawText = rapidResult?['rawText']?.toString().trim() ?? '';
-        if (rawText.isNotEmpty) {
+        if (isUsableRapidOcrText(rawText)) {
           return _OcrTextResult(rawText: rawText, engine: 'rapidocr');
         }
-        logger.warning(_tag, 'RapidOCR返回空文本，回退到ML Kit');
+        logger.warning(
+          _tag,
+          rawText.isEmpty
+              ? 'RapidOCR返回空文本，回退到ML Kit'
+              : 'RapidOCR返回不可用文本，回退到ML Kit',
+        );
       } catch (e) {
         logger.warning(_tag, 'RapidOCR失败，回退到ML Kit: $e');
       }

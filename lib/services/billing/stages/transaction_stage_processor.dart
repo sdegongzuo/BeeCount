@@ -23,8 +23,10 @@ class TransactionStageProcessor implements StageProcessor {
   String get stageName => BillingJobStage.transactionCreated;
 
   @override
-  Future<StageResult> process(BillingJob job, DateTime deadline, PipelineContext ctx) async {
+  Future<StageResult> process(
+      BillingJob job, DateTime deadline, PipelineContext ctx) async {
     if (job.transactionId != null) {
+      ctx.completeTransactionId(job.transactionId!);
       return const StageResult.success();
     }
 
@@ -42,7 +44,7 @@ class TransactionStageProcessor implements StageProcessor {
 
       final txId = await txService.createTransaction(ocrResult);
       await repo.updateTransactionId(job.id, txId);
-      ctx.transactionId = txId; // 写入 PipelineContext，供后续阶段使用
+      ctx.completeTransactionId(txId); // 写入 PipelineContext，供后续阶段使用
       return const StageResult.success();
     } catch (e) {
       return StageResult.failure(e.toString());

@@ -27,6 +27,7 @@ class ImageShareHandlerService {
     _billingJobService = BillingJobService.create(
       repo: repo,
       container: _container,
+      statusReporter: _updateShareBillingStatus,
     );
     _setupMethodCallHandler();
     _processPendingSharedImage();
@@ -56,12 +57,16 @@ class ImageShareHandlerService {
         return;
       }
 
-      final transactionId = await _billingJobService.processImage(
+      await _updateShareBillingStatus('正在准备识别账单');
+      final processing = _billingJobService.processImage(
         payload.path,
         sourceInfo: payload.sourceInfo,
       );
+      final transactionCreated = _notifyWhenTransactionCreated(payload.path);
+      final transactionId = await processing;
+      await transactionCreated;
       if (transactionId != null) {
-        await _completeShareBilling();
+        await _completeShareBilling(transactionId);
       } else {
         await _failShareBilling('transaction_not_created');
       }
@@ -96,12 +101,61 @@ class ImageShareHandlerService {
     }
   }
 
-  Future<void> _completeShareBilling() async {
+  Future<void> _completeShareBilling(int transactionId) async {
     if (!Platform.isAndroid) return;
     try {
-      await _channel.invokeMethod('completeShareBilling');
+      final repo = _container.read(repositoryProvider);
+      final transaction = await repo.getTransactionById(transactionId);
+      await _channel.invokeMethod('completeShareBilling', {
+        'amount': transaction?.amount,
+        'note': transaction?.note,
+      });
     } catch (e) {
       logger.warning('ImageShare', '通知分享前台服务完成失败: $e');
+    }
+  }
+
+  Future<void> _notifyWhenTransactionCreated(String imagePath) async {
+    try {
+      for (var i = 0; i < 180; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        final job = await _container
+            .read(billingJobRepositoryProvider)
+            .findByImagePath(imagePath);
+        final transactionId = job?.transactionId;
+        if (transactionId == null) continue;
+
+        final transaction = await _container
+            .read(repositoryProvider)
+            .getTransactionById(transactionId);
+        await _channel.invokeMethod('shareBillingCreated', {
+          'amount': transaction?.amount,
+          'note': transaction?.note,
+        });
+        logger.info(
+          'ImageShare',
+          '分享图片交易已创建',
+          'txId=$transactionId',
+        );
+        return;
+      }
+    } catch (e, stackTrace) {
+      logger.warning(
+        'ImageShare',
+        '更新交易已创建通知失败: $e',
+        stackTrace,
+      );
+    }
+  }
+
+  Future<void> _updateShareBillingStatus(String statusText) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('updateShareBillingStatus', {
+        'statusText': statusText,
+      });
+    } catch (e) {
+      logger.warning('ImageShare', '更新分享记账通知状态失败: $e');
     }
   }
 

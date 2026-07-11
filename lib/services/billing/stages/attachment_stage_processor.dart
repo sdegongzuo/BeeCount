@@ -7,7 +7,7 @@ import '../billing_job_runner.dart';
 
 /// 附件保存服务抽象。
 abstract class AttachmentSaveServiceInterface {
-  Future<void> saveAttachment(String imagePath, int? transactionId);
+  Future<void> saveAttachment(String imagePath, Future<int> transactionId);
 }
 
 /// 附件保存阶段处理器。
@@ -30,9 +30,11 @@ class AttachmentStageProcessor implements StageProcessor {
     }
 
     try {
-      final txId = ctx.transactionId ?? job.transactionId;
+      final txFuture = job.transactionId != null
+          ? Future<int>.value(job.transactionId)
+          : ctx.transactionIdFuture;
       unawaited(
-        attachmentService.saveAttachment(job.imagePath, txId).then((_) {
+        attachmentService.saveAttachment(job.imagePath, txFuture).then((_) {
           return repo.markAttachmentDone(job.id);
         }).catchError((Object e, StackTrace st) {
           logger.error('AttachmentStage', '附件后台保存失败', e, st);

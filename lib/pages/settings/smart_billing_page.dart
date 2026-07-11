@@ -7,6 +7,8 @@ import '../../widgets/biz/biz.dart';
 import '../../styles/tokens.dart';
 import '../../providers/smart_billing_providers.dart';
 import '../../providers/theme_providers.dart';
+import '../../utils/notification_android.dart';
+import '../../utils/notification_factory.dart';
 import '../ai/ai_settings_page.dart';
 import '../automation/auto_billing_settings_page.dart';
 import 'shortcuts_guide_page.dart';
@@ -177,9 +179,12 @@ class SmartBillingPage extends ConsumerWidget {
     String title,
     String description,
     String aiRequirement,
-    bool requiresAI,
-  ) {
+    bool requiresAI, {
+    bool showBackgroundRunGuide = false,
+  }) {
     final l10n = AppLocalizations.of(context);
+    final shouldShowBackgroundRunGuide =
+        Platform.isAndroid && showBackgroundRunGuide;
 
     showDialog(
       context: context,
@@ -200,6 +205,34 @@ class SmartBillingPage extends ConsumerWidget {
               description,
               style: const TextStyle(fontSize: 15),
             ),
+            if (shouldShowBackgroundRunGuide) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange, width: 1),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.power_settings_new,
+                      color: Colors.orange,
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '分享图片记账需要允许蜜蜂记账在后台短时运行。ColorOS/OPlus 可能会冻结刚分享唤起的后台进程，请在系统设置中允许自启动、后台运行，并关闭电池优化。',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -265,6 +298,24 @@ class SmartBillingPage extends ConsumerWidget {
           ],
         ),
         actions: [
+          if (shouldShowBackgroundRunGuide)
+            TextButton(
+              onPressed: () async {
+                final androidUtil = NotificationFactory.getInstance()
+                    as AndroidNotificationUtil;
+                await androidUtil.requestIgnoreBatteryOptimizations();
+              },
+              child: const Text('关闭电池优化'),
+            ),
+          if (shouldShowBackgroundRunGuide)
+            TextButton(
+              onPressed: () async {
+                final androidUtil = NotificationFactory.getInstance()
+                    as AndroidNotificationUtil;
+                await androidUtil.openBackgroundRunSettings();
+              },
+              child: const Text('后台运行设置'),
+            ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: Text(l10n.commonKnow),
@@ -331,6 +382,7 @@ class SmartBillingPage extends ConsumerWidget {
                             l10n.smartBillingImageBillingGuide,
                             l10n.smartBillingAIOptional,
                             false,
+                            showBackgroundRunGuide: true,
                           );
                         },
                       ),
