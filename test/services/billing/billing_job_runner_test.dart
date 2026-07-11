@@ -89,7 +89,7 @@ void main() {
     await runner.runJob(job, deadline);
 
     final updated = await repo.findById(job.id);
-    expect(updated!.stage, BillingJobStage.aiDone);
+    expect(updated!.stage, BillingJobStage.completed);
     expect(ocr.called, isTrue);
     expect(rule.called, isTrue);
     expect(tx.called, isTrue);
@@ -154,7 +154,7 @@ void main() {
     expect(ocrFinishedAt, isNotNull);
     expect(attachmentCalledAt!.isBefore(ocrFinishedAt!), isTrue);
     expect(updated!.attachmentDone, isFalse);
-    expect(updated.stage, BillingJobStage.aiDone);
+    expect(updated.stage, BillingJobStage.completed);
   });
 
   test('runJob marks succeeded when ai_done without waiting for attachment',
@@ -207,7 +207,7 @@ void main() {
     expect(ai.called, isTrue);
 
     final updated = await repo.findById(job.id);
-    expect(updated!.stage, BillingJobStage.aiDone);
+    expect(updated!.stage, BillingJobStage.completed);
   });
 
   test('resumeJob skips already-completed stages', () async {
@@ -224,7 +224,27 @@ void main() {
     expect(ai.called, isTrue);
 
     final updated = await repo.findById(job.id);
-    expect(updated!.stage, BillingJobStage.aiDone);
+    expect(updated!.stage, BillingJobStage.completed);
+  });
+
+  test('resumeJob upgrades legacy ai_done without replaying processors',
+      () async {
+    final job = await repo.createJob(imagePath: '/tmp/legacy-ai-done.png');
+    await repo.updateStage(job.id, BillingJobStage.aiDone);
+    final legacyJob = (await repo.findById(job.id))!;
+
+    await runner.resumeJob(
+      legacyJob,
+      DateTime.now().add(const Duration(seconds: 90)),
+    );
+
+    expect(ocr.called, isFalse);
+    expect(rule.called, isFalse);
+    expect(tx.called, isFalse);
+    expect(ai.called, isFalse);
+    final updated = await repo.findById(job.id);
+    expect(updated!.stage, BillingJobStage.completed);
+    expect(updated.status, BillingJobStatus.succeeded);
   });
 
   test('resumeJob re-runs failed stage', () async {
@@ -247,7 +267,7 @@ void main() {
     expect(ai.called, isTrue);
 
     final updated = await repo.findById(job.id);
-    expect(updated!.stage, BillingJobStage.aiDone);
+    expect(updated!.stage, BillingJobStage.completed);
   });
 
   test('runJob respects lease_until concurrency control', () async {
@@ -389,7 +409,7 @@ void main() {
     final updated = await repo.findById(job.id);
     expect(updated!.status, BillingJobStatus.succeeded);
     expect(fastAttachment.called, isTrue);
-    expect(updated.stage, BillingJobStage.aiDone);
+    expect(updated.stage, BillingJobStage.completed);
   });
 
   test(
@@ -442,7 +462,7 @@ void main() {
 
     final updated = await repo.findById(job.id);
     // Main pipeline completed.
-    expect(updated!.stage, BillingJobStage.aiDone);
+    expect(updated!.stage, BillingJobStage.completed);
     // Attachment failed — not marked done.
     expect(updated.attachmentDone, isFalse);
     // Attachment failure must not block the critical transaction job.

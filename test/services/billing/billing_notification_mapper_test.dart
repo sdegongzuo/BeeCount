@@ -57,6 +57,20 @@ void main() {
       expect(result.body, '账单已成功记录');
     });
 
+    test('completed uses independent attachment state for completion', () {
+      final completed = mapper.map(_fakeJob(
+        stage: BillingJobStage.completed,
+        attachmentDone: true,
+      ));
+      final attachmentPending = mapper.map(_fakeJob(
+        stage: BillingJobStage.completed,
+        attachmentDone: false,
+      ));
+
+      expect(completed.title, '记账完成');
+      expect(attachmentPending.body, '附件稍后保存');
+    });
+
     test('TC-66: ai_done + attachment_pending shows 记账已创建附件稍后保存', () {
       final job = _fakeJob(
         stage: BillingJobStage.aiDone,

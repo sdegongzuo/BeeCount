@@ -6,6 +6,9 @@ abstract final class BillingJobStage {
   static const ocrDone = 'ocr_done';
   static const ruleDone = 'rule_done';
   static const transactionCreated = 'transaction_created';
+  static const completed = 'completed';
+
+  /// Legacy terminal stage retained only for upgrading existing jobs.
   static const aiDone = 'ai_done';
 }
 

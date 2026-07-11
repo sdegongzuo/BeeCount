@@ -18,7 +18,8 @@ class Ledgers extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text()();
   TextColumn get currency => text().withDefault(const Constant('CNY'))();
-  TextColumn get type => text().withDefault(const Constant('personal'))();  // personal / shared
+  TextColumn get type =>
+      text().withDefault(const Constant('personal'))(); // personal / shared
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   // 跨设备同步唯一标识：跟 accounts/categories/tags 的 syncId 同语义，
   // 对齐 BeeCount Cloud server 的 ledger.external_id。device B 首次登录
@@ -61,8 +62,8 @@ class Categories extends Table {
   IntColumn get level =>
       integer().withDefault(const Constant(1))(); // 层级：1=一级，2=二级
   // v13: 自定义图标支持
-  TextColumn get iconType =>
-      text().withDefault(const Constant('material'))(); // material / custom / community
+  TextColumn get iconType => text().withDefault(
+      const Constant('material'))(); // material / custom / community
   TextColumn get customIconPath => text().nullable()(); // 自定义图标本地路径
   TextColumn get communityIconId => text().nullable()(); // 社区图标ID（预留）
   TextColumn get syncId => text().nullable()(); // 跨设备同步唯一标识 (UUID)
@@ -144,9 +145,9 @@ class Messages extends Table {
 // 标签表
 class Tags extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get name => text()();                    // 标签名称
-  TextColumn get color => text().nullable()();        // 颜色值（如 #FF5722）
-  IntColumn get sortOrder => integer().withDefault(const Constant(0))();  // 排序
+  TextColumn get name => text()(); // 标签名称
+  TextColumn get color => text().nullable()(); // 颜色值（如 #FF5722）
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))(); // 排序
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get syncId => text().nullable()(); // 跨设备同步唯一标识 (UUID)
 }
@@ -154,11 +155,11 @@ class Tags extends Table {
 // 本地变更追踪表（用于增量同步）
 class LocalChanges extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get entityType => text()();       // transaction/account/category/tag
-  IntColumn get entityId => integer()();       // 本地实体ID
-  TextColumn get entitySyncId => text()();     // 实体的 syncId (UUID)
-  IntColumn get ledgerId => integer()();       // 关联账本ID
-  TextColumn get action => text()();           // create/update/delete
+  TextColumn get entityType => text()(); // transaction/account/category/tag
+  IntColumn get entityId => integer()(); // 本地实体ID
+  TextColumn get entitySyncId => text()(); // 实体的 syncId (UUID)
+  IntColumn get ledgerId => integer()(); // 关联账本ID
+  TextColumn get action => text()(); // create/update/delete
   TextColumn get payloadJson => text().nullable()(); // 变更后的完整 JSON
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get pushedAt => dateTime().nullable()(); // 非null表示已推送
@@ -167,9 +168,11 @@ class LocalChanges extends Table {
 // 同步状态表
 class SyncState extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get deviceId => text()();         // 设备唯一标识
-  TextColumn get providerType => text().withDefault(const Constant('beecount_cloud'))(); // 防止不同 provider 的 cursor 冲突
-  IntColumn get serverCursor => integer().withDefault(const Constant(0))(); // 服务端变更游标
+  TextColumn get deviceId => text()(); // 设备唯一标识
+  TextColumn get providerType => text().withDefault(
+      const Constant('beecount_cloud'))(); // 防止不同 provider 的 cursor 冲突
+  IntColumn get serverCursor =>
+      integer().withDefault(const Constant(0))(); // 服务端变更游标
   DateTimeColumn get lastPushAt => dateTime().nullable()();
   DateTimeColumn get lastPullAt => dateTime().nullable()();
 }
@@ -177,22 +180,22 @@ class SyncState extends Table {
 // 交易-标签关联表
 class TransactionTags extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get transactionId => integer()();         // 交易ID
-  IntColumn get tagId => integer()();                 // 标签ID
+  IntColumn get transactionId => integer()(); // 交易ID
+  IntColumn get tagId => integer()(); // 标签ID
 }
 
 // 交易附件表
 class TransactionAttachments extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get transactionId => integer()(); // 关联的交易ID
-  TextColumn get fileName => text()();        // 文件名（不含路径）
+  TextColumn get fileName => text()(); // 文件名（不含路径）
   TextColumn get originalName => text().nullable()(); // 原始文件名
-  IntColumn get fileSize => integer().nullable()();   // 文件大小（bytes）
-  IntColumn get width => integer().nullable()();      // 图片宽度
-  IntColumn get height => integer().nullable()();     // 图片高度
+  IntColumn get fileSize => integer().nullable()(); // 文件大小（bytes）
+  IntColumn get width => integer().nullable()(); // 图片宽度
+  IntColumn get height => integer().nullable()(); // 图片高度
   IntColumn get sortOrder => integer().withDefault(const Constant(0))(); // 排序序号
-  TextColumn get cloudFileId => text().nullable()();   // 云端文件ID
-  TextColumn get cloudSha256 => text().nullable()();   // 云端文件SHA256
+  TextColumn get cloudFileId => text().nullable()(); // 云端文件ID
+  TextColumn get cloudSha256 => text().nullable()(); // 云端文件SHA256
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
@@ -247,7 +250,8 @@ class BillingJobs extends Table {
   IntColumn get attemptCount => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
   DateTimeColumn get leaseUntil => dateTime().nullable()();
-  BoolColumn get attachmentDone => boolean().withDefault(const Constant(false))();
+  BoolColumn get attachmentDone =>
+      boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get completedAt => dateTime().nullable()();
@@ -278,7 +282,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 26; // v26: 添加 billing_jobs 表
+  int get schemaVersion => 27; // v27: Billing Job completed 终态
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -423,7 +427,8 @@ class BeeDatabase extends _$BeeDatabase {
 
             // 4. 重命名新表
             print('[DB Migration] 步骤4: 重命名新表');
-            await customStatement('ALTER TABLE recurring_transactions_new RENAME TO recurring_transactions;');
+            await customStatement(
+                'ALTER TABLE recurring_transactions_new RENAME TO recurring_transactions;');
             print('[DB Migration] v7 迁移完成');
           }
           if (from < 8) {
@@ -441,8 +446,7 @@ class BeeDatabase extends _$BeeDatabase {
             // 检查字段是否已存在，避免重复添加
             final tableInfo =
                 await customSelect('PRAGMA table_info(ledgers)').get();
-            final hasType =
-                tableInfo.any((row) => row.data['name'] == 'type');
+            final hasType = tableInfo.any((row) => row.data['name'] == 'type');
 
             if (!hasType) {
               await customStatement(
@@ -648,8 +652,7 @@ class BeeDatabase extends _$BeeDatabase {
                 tableInfo.any((row) => row.data['name'] == 'bank_name');
             final hasCardLastFour =
                 tableInfo.any((row) => row.data['name'] == 'card_last_four');
-            final hasNote =
-                tableInfo.any((row) => row.data['name'] == 'note');
+            final hasNote = tableInfo.any((row) => row.data['name'] == 'note');
 
             if (!hasBankName) {
               await customStatement(
@@ -719,8 +722,7 @@ class BeeDatabase extends _$BeeDatabase {
             }
 
             // 3. 为 tags 添加 sync_id
-            final tagInfo =
-                await customSelect('PRAGMA table_info(tags)').get();
+            final tagInfo = await customSelect('PRAGMA table_info(tags)').get();
             if (!tagInfo.any((row) => row.data['name'] == 'sync_id')) {
               await customStatement(
                   'ALTER TABLE tags ADD COLUMN sync_id TEXT;');
@@ -754,7 +756,8 @@ class BeeDatabase extends _$BeeDatabase {
             print('[DB Migration] 开始迁移到 v20: 附件云端同步字段');
 
             final tableInfo =
-                await customSelect('PRAGMA table_info(transaction_attachments)').get();
+                await customSelect('PRAGMA table_info(transaction_attachments)')
+                    .get();
             final hasCloudFileId =
                 tableInfo.any((row) => row.data['name'] == 'cloud_file_id');
             final hasCloudSha256 =
@@ -827,7 +830,8 @@ class BeeDatabase extends _$BeeDatabase {
             // 之后渲染层 getCategoryIconData 只认 icon 字段、不再 byName 推导。
             // 结合服务端 alembic 0002 的同名 backfill,两端同步"迁 read-time 到
             // write-time"。
-            print('[DB Migration] 开始迁移到 v23: backfill category icons via byName');
+            print(
+                '[DB Migration] 开始迁移到 v23: backfill category icons via byName');
 
             // 取所有 icon 空的分类,按 name 推导图标字符串回填
             final rows = await customSelect(
@@ -882,8 +886,8 @@ class BeeDatabase extends _$BeeDatabase {
                 await customSelect('PRAGMA table_info(transactions)').get();
             final hasPaymentChannel =
                 tableInfo.any((row) => row.data['name'] == 'payment_channel');
-            final hasMerchantFullName =
-                tableInfo.any((row) => row.data['name'] == 'merchant_full_name');
+            final hasMerchantFullName = tableInfo
+                .any((row) => row.data['name'] == 'merchant_full_name');
             final hasAcquirer =
                 tableInfo.any((row) => row.data['name'] == 'acquirer');
             final hasDetailsText =
@@ -918,6 +922,12 @@ class BeeDatabase extends _$BeeDatabase {
           if (from < 26) {
             await migrator.createTable(billingJobs);
             print('[DB Migration] v26 迁移完成');
+          }
+          if (from < 27) {
+            await customStatement(
+              "UPDATE billing_jobs SET stage = 'completed' WHERE stage = 'ai_done'",
+            );
+            print('[DB Migration] v27: ai_done 已迁移为 completed');
           }
         },
       );

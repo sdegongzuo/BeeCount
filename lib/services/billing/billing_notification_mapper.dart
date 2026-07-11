@@ -28,6 +28,7 @@ class BillingNotificationMapper {
       case BillingJobStage.transactionCreated:
         return const NotificationContent(title: '正在补全账单信息', body: '请稍候...');
       case BillingJobStage.aiDone:
+      case BillingJobStage.completed:
         if (!job.attachmentDone) {
           return const NotificationContent(title: '记账已创建', body: '附件稍后保存');
         }

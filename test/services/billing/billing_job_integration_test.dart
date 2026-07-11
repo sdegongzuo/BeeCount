@@ -105,7 +105,7 @@ void main() {
 
     final updated = await repo.findById(job.id);
     expect(updated!.status, BillingJobStatus.succeeded);
-    expect(updated.stage, BillingJobStage.aiDone);
+    expect(updated.stage, BillingJobStage.completed);
     expect(attachment.called, isTrue);
     expect(updated.attachmentDone, isFalse);
   });
@@ -145,7 +145,7 @@ void main() {
 
     final final_ = await repo.findById(job2.id);
     // Stage advances to aiDone after successful retry.
-    expect(final_!.stage, BillingJobStage.aiDone);
+    expect(final_!.stage, BillingJobStage.completed);
     // Status resets from retryable_failed to succeeded after recovery.
     expect(final_.status, BillingJobStatus.succeeded);
   });
@@ -183,7 +183,7 @@ void main() {
     expect(ocr.callCount, 0);
 
     final updated = await repo.findById(job.id);
-    expect(updated!.stage, BillingJobStage.aiDone);
+    expect(updated!.stage, BillingJobStage.completed);
     expect(updated.status, BillingJobStatus.succeeded);
   });
 
@@ -267,7 +267,7 @@ void main() {
     expect(updated!.status, BillingJobStatus.succeeded);
     expect(fastAttachment.called, isTrue);
     expect(updated.attachmentDone, isFalse);
-    expect(updated.stage, BillingJobStage.aiDone);
+    expect(updated.stage, BillingJobStage.completed);
   });
 
   // TC-78
@@ -291,7 +291,7 @@ void main() {
     expect(updated!.status, BillingJobStatus.succeeded);
     expect(slowAttachment.called, isTrue);
     expect(updated.attachmentDone, isFalse);
-    expect(updated.stage, BillingJobStage.aiDone);
+    expect(updated.stage, BillingJobStage.completed);
   });
 
   // TC-79

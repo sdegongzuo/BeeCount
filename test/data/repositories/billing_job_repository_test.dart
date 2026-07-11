@@ -3,6 +3,7 @@ import 'package:beecount/data/repositories/billing_job_repository.dart';
 import 'package:beecount/data/repositories/local/local_billing_job_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 void main() {
   late BeeDatabase db;
@@ -32,9 +33,40 @@ void main() {
     expect(updated!.stage, BillingJobStage.ocrDone);
   });
 
+  test('completed terminal stage can be persisted and restored', () async {
+    final job = await repo.createJob(imagePath: '/tmp/completed.png');
+
+    await repo.updateStage(job.id, BillingJobStage.completed);
+
+    final restored = await repo.findById(job.id);
+    expect(restored!.stage, BillingJobStage.completed);
+  });
+
+  test('schema 27 migration upgrades legacy ai_done to completed', () async {
+    final underlying = sqlite.sqlite3.openInMemory();
+    final oldDb = BeeDatabase.forTesting(NativeDatabase.opened(
+      underlying,
+      closeUnderlyingOnClose: false,
+    ));
+    final oldRepo = LocalBillingJobRepository(oldDb);
+    final job = await oldRepo.createJob(imagePath: '/tmp/legacy.png');
+    await oldRepo.updateStage(job.id, BillingJobStage.aiDone);
+    await oldDb.customStatement('PRAGMA user_version = 26');
+    await oldDb.close();
+
+    final upgradedDb =
+        BeeDatabase.forTesting(NativeDatabase.opened(underlying));
+    final upgraded =
+        await LocalBillingJobRepository(upgradedDb).findById(job.id);
+
+    expect(upgraded!.stage, BillingJobStage.completed);
+    await upgradedDb.close();
+  });
+
   test('update status to retryable_failed records last_error', () async {
     final job = await repo.createJob(imagePath: '/tmp/test.png');
-    await repo.updateStatus(job.id, BillingJobStatus.retryableFailed, lastError: 'network timeout');
+    await repo.updateStatus(job.id, BillingJobStatus.retryableFailed,
+        lastError: 'network timeout');
     final updated = await repo.findById(job.id);
     expect(updated!.status, BillingJobStatus.retryableFailed);
     expect(updated.lastError, 'network timeout');
@@ -44,7 +76,8 @@ void main() {
   test('findPendingJobs returns pending and retryable_failed', () async {
     final pending = await repo.createJob(imagePath: '/tmp/pending.png');
     final retryable = await repo.createJob(imagePath: '/tmp/retryable.png');
-    await repo.updateStatus(retryable.id, BillingJobStatus.retryableFailed, lastError: 'timeout');
+    await repo.updateStatus(retryable.id, BillingJobStatus.retryableFailed,
+        lastError: 'timeout');
     final succeeded = await repo.createJob(imagePath: '/tmp/succeeded.png');
     await repo.markSucceeded(succeeded.id);
 
@@ -58,11 +91,13 @@ void main() {
   test('findPendingJobs excludes succeeded and failed', () async {
     final pending = await repo.createJob(imagePath: '/tmp/pending.png');
     final retryable = await repo.createJob(imagePath: '/tmp/retryable.png');
-    await repo.updateStatus(retryable.id, BillingJobStatus.retryableFailed, lastError: 'timeout');
+    await repo.updateStatus(retryable.id, BillingJobStatus.retryableFailed,
+        lastError: 'timeout');
     final succeeded = await repo.createJob(imagePath: '/tmp/succeeded.png');
     await repo.markSucceeded(succeeded.id);
     final failed = await repo.createJob(imagePath: '/tmp/failed.png');
-    await repo.updateStatus(failed.id, BillingJobStatus.failed, lastError: 'auth error');
+    await repo.updateStatus(failed.id, BillingJobStatus.failed,
+        lastError: 'auth error');
 
     final result = await repo.findPendingJobs();
 

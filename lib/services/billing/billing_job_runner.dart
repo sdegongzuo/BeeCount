@@ -105,8 +105,7 @@ class BillingJobRunner {
     if (current == null) return;
     if (current.status != BillingJobStatus.failed &&
         current.status != BillingJobStatus.retryableFailed) {
-      await _reportStatus('账单识别完成，正在收尾');
-      await repo.markSucceeded(job.id);
+      await _completeJob(job.id);
     }
   }
 
@@ -147,15 +146,19 @@ class BillingJobRunner {
       await repo.updateStatus(current.id, BillingJobStatus.pending);
       final refreshed = await repo.findById(job.id);
       if (refreshed == null) return;
-      await _reportStatus('账单识别完成，正在收尾');
-      await repo.markSucceeded(job.id);
+      await _completeJob(job.id);
       return;
     }
 
     if (current.status != BillingJobStatus.failed) {
-      await _reportStatus('账单识别完成，正在收尾');
-      await repo.markSucceeded(job.id);
+      await _completeJob(job.id);
     }
+  }
+
+  Future<void> _completeJob(int jobId) async {
+    await repo.updateStage(jobId, BillingJobStage.completed);
+    await _reportStatus('账单识别完成，正在收尾');
+    await repo.markSucceeded(jobId);
   }
 
   Future<void> _dispatchAttachment(
@@ -181,6 +184,7 @@ class BillingJobRunner {
       case BillingJobStage.transactionCreated:
         return 3;
       case BillingJobStage.aiDone:
+      case BillingJobStage.completed:
         return 4;
       default:
         return 0;
