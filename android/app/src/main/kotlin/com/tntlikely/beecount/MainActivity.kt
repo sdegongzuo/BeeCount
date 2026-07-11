@@ -20,9 +20,11 @@ import java.io.FileInputStream
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import com.tntlikely.beecount.regression.RegressionSampleChannel
 import org.json.JSONObject
 
 class MainActivity: FlutterFragmentActivity() {
+    private var regressionSampleChannel: RegressionSampleChannel? = null
     private val CHANNEL = "notification_channel"
     private val INSTALL_CHANNEL = "com.tntlikely.beecount/install"
     private val SCREENSHOT_CHANNEL = "com.tntlikely.beecount/screenshot"
@@ -138,6 +140,11 @@ class MainActivity: FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        regressionSampleChannel?.close()
+        regressionSampleChannel = RegressionSampleChannel(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
 
         android.util.Log.e("MainActivity", "==========================================")
         android.util.Log.e("MainActivity", "configureFlutterEngine 被调用！！！")
@@ -747,6 +754,8 @@ class MainActivity: FlutterFragmentActivity() {
     }
 
     override fun onDestroy() {
+        regressionSampleChannel?.close()
+        regressionSampleChannel = null
         super.onDestroy()
         shareBillingReceiver?.let {
             try {

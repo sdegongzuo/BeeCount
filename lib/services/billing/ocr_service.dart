@@ -321,11 +321,10 @@ class OcrService {
       final ocrDuration = DateTime.now().difference(ocrStartTime);
       logger.info(
           _tag, '[文本识别:${textResult.engine}] ${ocrDuration.inMilliseconds}ms');
-      logger.debug(_tag, '识别文本: $rawText');
       traceSink?.call(BillExtractionTraceEvent(
         stage: 'ocr',
         data: {
-          'rawText': rawText,
+          'textLength': rawText.length,
           'durationMs': ocrDuration.inMilliseconds,
           'engine': textResult.engine,
         },

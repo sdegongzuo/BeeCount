@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../ai/tasks/bill_extraction_task.dart';
+import '../../data/db.dart';
 import '../../data/repositories/billing_job_repository.dart';
 import '../../providers/database_providers.dart';
 import '../ai/ai_bill_service.dart';
@@ -15,6 +16,8 @@ import 'ai_async_enhance_service.dart';
 import 'billing_error_classifier.dart';
 import 'billing_job_runner.dart';
 import 'ocr_service.dart';
+import 'regression_sample_store.dart';
+import 'successful_regression_sample_recorder.dart';
 import 'stages/ai_stage_processor.dart';
 import 'stages/attachment_stage_processor.dart';
 import 'stages/ocr_stage_processor.dart';
@@ -29,14 +32,17 @@ class BillingJobService {
   final BillingJobRepository _repo;
   final BillingJobRunner _runner;
   final OcrService _ocrService;
+  final SuccessfulRegressionSampleRecorder _regressionSampleRecorder;
 
   BillingJobService._({
     required BillingJobRepository repo,
     required BillingJobRunner runner,
     required OcrService ocrService,
+    required SuccessfulRegressionSampleRecorder regressionSampleRecorder,
   })  : _repo = repo,
         _runner = runner,
-        _ocrService = ocrService;
+        _ocrService = ocrService,
+        _regressionSampleRecorder = regressionSampleRecorder;
 
   /// 创建 BillingJobService，接入真实生产依赖。
   factory BillingJobService.create({
@@ -91,6 +97,28 @@ class BillingJobService {
       repo: repo,
       runner: runner,
       ocrService: ocrService,
+      regressionSampleRecorder: SuccessfulRegressionSampleRecorder(
+        saveSample: const RegressionSampleStore().save,
+        loadExpectedFields: (transactionId) async {
+          final transaction = await baseRepo.getTransactionById(transactionId);
+          if (transaction == null) return const {};
+          return {
+            'type': transaction.type,
+            'amount': transaction.amount,
+            'categoryId': transaction.categoryId,
+            'accountId': transaction.accountId,
+            'toAccountId': transaction.toAccountId,
+            'happenedAt': transaction.happenedAt.toIso8601String(),
+            'note': transaction.note,
+            'paymentMethod': transaction.paymentMethod,
+            'counterparty': transaction.counterparty,
+            'paymentChannel': transaction.paymentChannel,
+            'merchantFullName': transaction.merchantFullName,
+            'acquirer': transaction.acquirer,
+            'detailsText': transaction.detailsText,
+          };
+        },
+      ),
     );
   }
 
@@ -122,6 +150,9 @@ class BillingJobService {
     );
 
     final updated = await _repo.findById(job.id);
+    if (updated != null) {
+      await _captureRegressionSample(updated);
+    }
     logger.info(
         'BillingJobService',
         '处理完成',
@@ -144,6 +175,10 @@ class BillingJobService {
           initialContext: PipelineContext()
             ..sourceInfo = _sourceInfoFromJob(job.sourceInfoJson),
         );
+        final updated = await _repo.findById(job.id);
+        if (updated != null) {
+          await _captureRegressionSample(updated);
+        }
       } catch (e, st) {
         logger.error('BillingJobService', '恢复任务失败', e, st);
       }
@@ -153,6 +188,14 @@ class BillingJobService {
   /// 释放资源
   void dispose() {
     _ocrService.dispose();
+  }
+
+  Future<void> _captureRegressionSample(BillingJob job) async {
+    try {
+      await _regressionSampleRecorder.capture(job);
+    } catch (error, stackTrace) {
+      logger.error('BillingJobService', '保存个人规则回归样本失败', error, stackTrace);
+    }
   }
 
   static int _resolveLedgerId(ProviderContainer container) {
