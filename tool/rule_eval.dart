@@ -351,13 +351,21 @@ List<BillingRuleTemplate> _parseTemplates(Object? value) {
   final items = _requiredList(value, 'templates');
   return items.map((item) {
     final map = _asMap(item);
+    final id = _requiredString(map, 'id');
     return BillingRuleTemplate(
-      id: _requiredString(map, 'id'),
+      id: id,
       enabled: _optionalBool(map['enabled'], true),
       priority: _optionalInt(map['priority'], 0),
       baseConfidence: _optionalDouble(map['baseConfidence'], 0.8),
+      origin: BillingRuleOrigin.values.byName(
+        _optionalString(map['origin']) ?? 'public',
+      ),
+      revision: _optionalInt(map['revision'], 1),
+      extractorSelection: BillingExtractorSelection.values.byName(
+        _optionalString(map['extractorSelection']) ?? 'firstSuccessful',
+      ),
       match: _parseTemplateMatch(map['match']),
-      extractors: _parseExtractors(map['extract']),
+      extractors: _parseExtractors(id, map['extract']),
     );
   }).toList(growable: false);
 }
@@ -367,17 +375,22 @@ BillingRuleTemplateMatch _parseTemplateMatch(Object? value) {
   final map = _asMap(value);
   return BillingRuleTemplateMatch(
     sourcePackages: _stringList(map['sourcePackages']),
+    requiredSource: _optionalBool(map['requiredSource'], false),
     appNameKeywords: _stringList(map['appNameKeywords']),
     keywordsAll: _stringList(map['keywordsAll']),
     keywordsAny: _stringList(map['keywordsAny']),
   );
 }
 
-List<BillingFieldExtractorRule> _parseExtractors(Object? value) {
+List<BillingFieldExtractorRule> _parseExtractors(
+  String templateId,
+  Object? value,
+) {
   final items = _requiredList(value, 'templates.extract');
   return items.map((item) {
     final map = _asMap(item);
     return BillingFieldExtractorRule(
+      id: _optionalString(map['id']),
       field: _requiredString(map, 'field'),
       type: _requiredString(map, 'type'),
       value: _optionalString(map['value']),
@@ -386,7 +399,7 @@ List<BillingFieldExtractorRule> _parseExtractors(Object? value) {
       pattern: _optionalString(map['pattern']),
       confidence: _optionalDouble(map['confidence'], 0.8),
       options: _optionsMap(map['options']),
-    );
+    ).withResolvedId(templateId);
   }).toList(growable: false);
 }
 

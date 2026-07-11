@@ -96,9 +96,22 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
         value: parsed.value,
         confidence: confidence,
         extractorType: extractorRule.type,
+        extractorId: extractorRule.resolvedId(selected.id),
         source: extraction.source,
         evidence: extraction.evidence,
       );
+      final previous = fields[extractorRule.field];
+      final shouldSelect = previous == null ||
+          (selected.extractorSelection ==
+                  BillingExtractorSelection.highestConfidence &&
+              fieldResult.confidence > previous.confidence);
+      if (!shouldSelect) {
+        debugMessages.add(
+          'Extractor ${extractorRule.id ?? extractorRule.type} skipped for '
+          '${extractorRule.field} by ${selected.extractorSelection.name}',
+        );
+        continue;
+      }
       fields[extractorRule.field] = fieldResult;
       fieldEvidence[extractorRule.field] = extraction.evidence;
       final labelLineIndex = _findLabelLine(lines, extractorRule.label);
@@ -166,14 +179,22 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
       final confidence = _clampConfidence(
         extraction.confidence * parsed.confidence,
       );
-      fields[extractorRule.field] = BillingRuleFieldResult(
+      final fieldResult = BillingRuleFieldResult(
         field: extractorRule.field,
         value: parsed.value,
         confidence: confidence,
         extractorType: extractorRule.type,
+        extractorId: extractorRule.resolvedId(selected.id),
         source: extraction.source,
         evidence: extraction.evidence,
       );
+      final previous = fields[extractorRule.field];
+      final shouldSelect = previous == null ||
+          (selected.extractorSelection ==
+                  BillingExtractorSelection.highestConfidence &&
+              fieldResult.confidence > previous.confidence);
+      if (!shouldSelect) continue;
+      fields[extractorRule.field] = fieldResult;
       fieldEvidence[extractorRule.field] = extraction.evidence;
       if (extractorRule.field.startsWith('details.')) {
         _writeDetailsValue(details, extractorRule.field, parsed.value);
@@ -258,8 +279,9 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
       if (!template.enabled) continue;
       final match = template.match;
       if (match.sourcePackages.isNotEmpty &&
-          sourcePackage != null &&
-          !match.sourcePackages.contains(sourcePackage)) {
+          ((sourcePackage == null && match.requiredSource) ||
+              (sourcePackage != null &&
+                  !match.sourcePackages.contains(sourcePackage)))) {
         continue;
       }
       if (match.appNameKeywords.isNotEmpty &&
@@ -302,11 +324,24 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
             matchedKeywords: matchedKeywords,
             sourcePackage: sourcePackage,
             sourceAppName: normalizedSourceAppName,
+            specificity: _matchedSpecificity(
+              template,
+              sourcePackage,
+              normalizedSourceAppName,
+            ),
           ),
         ),
       );
     }
     matches.sort((left, right) {
+      final specificityCompare = right.match.specificity.compareTo(
+        left.match.specificity,
+      );
+      if (specificityCompare != 0) return specificityCompare;
+      final originCompare = right.template.origin.index.compareTo(
+        left.template.origin.index,
+      );
+      if (originCompare != 0) return originCompare;
       final priorityCompare = right.template.priority.compareTo(
         left.template.priority,
       );
@@ -353,6 +388,17 @@ void _emitTrace({
       ocrText: ocrText,
       preprocessResult: preprocessResult,
       matchedRuleIds: matches.map((match) => match.template.id).toList(),
+      matchedRules: matches
+          .map(
+            (match) => <String, dynamic>{
+              'id': match.template.id,
+              'origin': match.template.origin.name,
+              'revision': match.template.revision,
+              'specificity': match.match.specificity,
+              'evidence': match.match.evidence,
+            },
+          )
+          .toList(growable: false),
       fieldEvidence: fieldEvidence,
       result: result,
       durationMs: completedAt.difference(startedAt).inMilliseconds,
@@ -372,6 +418,23 @@ double _templateConfidence(
   List<String> evidence,
 ) {
   return _clampConfidence(template.baseConfidence + evidence.length * 0.01);
+}
+
+int _matchedSpecificity(
+  BillingRuleTemplate template,
+  String? sourcePackage,
+  String? sourceAppName,
+) {
+  final match = template.match;
+  final matchedSource =
+      sourcePackage != null && match.sourcePackages.contains(sourcePackage);
+  final matchedAppKeywords = sourceAppName == null
+      ? 0
+      : match.appNameKeywords.where(sourceAppName.contains).length;
+  return (matchedSource ? match.sourcePackages.length * 100 : 0) +
+      matchedAppKeywords * 50 +
+      match.keywordsAll.length * 10 +
+      match.keywordsAny.length;
 }
 
 double _resultConfidence(

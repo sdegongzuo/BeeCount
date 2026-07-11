@@ -161,9 +161,10 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
     return items.map((item) {
       final map = _asMap(item, 'templates item');
       final match = _parseMatch(map['match']);
-      final extractors = _parseExtractors(map['extract']);
+      final id = _requiredString(map, 'id');
+      final extractors = _parseExtractors(id, map['extract']);
       return BillingRuleTemplate(
-        id: _requiredString(map, 'id'),
+        id: id,
         enabled: _optionalBool(map['enabled'], true, 'enabled'),
         priority: _optionalInt(map['priority'], 0, 'priority'),
         match: match,
@@ -172,6 +173,11 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
           map['baseConfidence'],
           0.8,
           'baseConfidence',
+        ),
+        origin: _parseOrigin(map['origin']),
+        revision: _optionalInt(map['revision'], 1, 'revision'),
+        extractorSelection: _parseExtractorSelection(
+          map['extractorSelection'],
         ),
       );
     }).toList(growable: false);
@@ -182,17 +188,26 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
     final map = _asMap(value, 'templates.match');
     return BillingRuleTemplateMatch(
       sourcePackages: _stringList(map['sourcePackages'], 'sourcePackages'),
+      requiredSource: _optionalBool(
+        map['requiredSource'],
+        false,
+        'requiredSource',
+      ),
       appNameKeywords: _stringList(map['appNameKeywords'], 'appNameKeywords'),
       keywordsAll: _stringList(map['keywordsAll'], 'keywordsAll'),
       keywordsAny: _stringList(map['keywordsAny'], 'keywordsAny'),
     );
   }
 
-  List<BillingFieldExtractorRule> _parseExtractors(Object? value) {
+  List<BillingFieldExtractorRule> _parseExtractors(
+    String templateId,
+    Object? value,
+  ) {
     final items = _requiredList(value, 'templates.extract');
     return items.map((item) {
       final map = _asMap(item, 'templates.extract item');
       return BillingFieldExtractorRule(
+        id: _optionalString(map['id'], 'id'),
         field: _requiredString(map, 'field'),
         type: _requiredString(map, 'type'),
         value: _optionalString(map['value'], 'value'),
@@ -201,8 +216,29 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
         pattern: _optionalString(map['pattern'], 'pattern'),
         confidence: _optionalDouble(map['confidence'], 0.8, 'confidence'),
         options: _optionsMap(map['options']),
-      );
+      ).withResolvedId(templateId);
     }).toList(growable: false);
+  }
+
+  BillingRuleOrigin _parseOrigin(Object? value) {
+    final name = _optionalString(value, 'origin') ?? 'public';
+    return BillingRuleOrigin.values.firstWhere(
+      (origin) => origin.name == name,
+      orElse: () => throw BillingRuleRepositoryException(
+        'Unknown rule origin: $name',
+      ),
+    );
+  }
+
+  BillingExtractorSelection _parseExtractorSelection(Object? value) {
+    final name =
+        _optionalString(value, 'extractorSelection') ?? 'firstSuccessful';
+    return BillingExtractorSelection.values.firstWhere(
+      (selection) => selection.name == name,
+      orElse: () => throw BillingRuleRepositoryException(
+        'Unknown extractor selection: $name',
+      ),
+    );
   }
 
   void _validateRuleSet(BillingRuleSet ruleSet) {

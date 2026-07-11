@@ -12,6 +12,203 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('BillingRuleEngineImpl', () {
+    test('merges public and personal rules into one active snapshot', () {
+      final snapshot = BillingRuleSet.activeSnapshot(
+        publicRules: BillingRuleSet(
+          schemaVersion: 1,
+          rulesVersion: 'public-1',
+          paymentChannels: const [],
+          templates: [_template(id: 'public')],
+        ),
+        personalRules: BillingRuleSet(
+          schemaVersion: 1,
+          rulesVersion: 'personal-3',
+          paymentChannels: const [],
+          templates: [_template(id: 'personal')],
+        ),
+      );
+
+      expect(snapshot.rulesVersion, 'public-1+personal-3');
+      expect(snapshot.templates.map((rule) => rule.origin), [
+        BillingRuleOrigin.public,
+        BillingRuleOrigin.personal,
+      ]);
+    });
+
+    test('requires source package when a rule declares source packages',
+        () async {
+      final result = await BillingRuleEngineImpl().evaluate(
+        ruleSet: BillingRuleSet(
+          schemaVersion: 1,
+          rulesVersion: 'source-required',
+          paymentChannels: const [],
+          templates: [
+            _template(
+              id: 'wechat-only',
+              match: const BillingRuleTemplateMatch(
+                sourcePackages: ['com.tencent.mm'],
+                requiredSource: true,
+                keywordsAll: ['支付时间'],
+              ),
+              extractors: const [
+                BillingFieldExtractorRule(
+                  id: 'channel',
+                  field: 'paymentChannel',
+                  type: BillingRuleExtractorTypes.constant,
+                  value: '微信支付',
+                ),
+              ],
+            ),
+          ],
+        ),
+        ocrText: '支付时间',
+      );
+
+      expect(result.matchedTemplateId, isNull);
+    });
+
+    test('orders by specificity then prefers personal rules on a tie',
+        () async {
+      final traces = <BillingRuleTrace>[];
+      final result = await BillingRuleEngineImpl().evaluate(
+        ruleSet: BillingRuleSet(
+          schemaVersion: 1,
+          rulesVersion: 'layered',
+          paymentChannels: const [],
+          templates: [
+            _template(
+              id: 'broad-personal',
+              origin: BillingRuleOrigin.personal,
+              priority: 999,
+              match: const BillingRuleTemplateMatch(
+                keywordsAll: ['支付时间'],
+              ),
+              extractors: const [
+                BillingFieldExtractorRule(
+                  id: 'personal-channel',
+                  field: 'paymentChannel',
+                  type: BillingRuleExtractorTypes.constant,
+                  value: 'broad',
+                ),
+              ],
+            ),
+            _template(
+              id: 'specific-public',
+              match: const BillingRuleTemplateMatch(
+                keywordsAll: ['支付时间', '交易单号'],
+              ),
+              extractors: const [
+                BillingFieldExtractorRule(
+                  id: 'public-channel',
+                  field: 'paymentChannel',
+                  type: BillingRuleExtractorTypes.constant,
+                  value: 'specific',
+                ),
+              ],
+            ),
+            _template(
+              id: 'specific-personal',
+              origin: BillingRuleOrigin.personal,
+              revision: 7,
+              match: const BillingRuleTemplateMatch(
+                keywordsAll: ['支付时间', '交易单号'],
+              ),
+              extractors: const [
+                BillingFieldExtractorRule(
+                  id: 'winning-channel',
+                  field: 'paymentChannel',
+                  type: BillingRuleExtractorTypes.constant,
+                  value: 'personal-specific',
+                ),
+              ],
+            ),
+          ],
+        ),
+        ocrText: '支付时间\n交易单号',
+        traceSink: traces.add,
+      );
+
+      expect(result.matchedTemplateId, 'specific-personal');
+      expect(result.paymentChannel, 'personal-specific');
+      expect(
+          traces.single.matchedRules.first, containsPair('origin', 'personal'));
+      expect(traces.single.matchedRules.first, containsPair('revision', 7));
+      expect(traces.single.matchedRules.first['specificity'], greaterThan(0));
+    });
+
+    test('first-successful keeps the first successful extractor per field',
+        () async {
+      final result = await BillingRuleEngineImpl().evaluate(
+        ruleSet: BillingRuleSet(
+          schemaVersion: 1,
+          rulesVersion: 'extractor-policy',
+          paymentChannels: const [],
+          templates: [
+            _template(
+              id: 'first-successful',
+              extractors: const [
+                BillingFieldExtractorRule(
+                  id: 'first-note',
+                  field: 'note',
+                  type: BillingRuleExtractorTypes.constant,
+                  value: 'first',
+                  confidence: 0.6,
+                ),
+                BillingFieldExtractorRule(
+                  id: 'second-note',
+                  field: 'note',
+                  type: BillingRuleExtractorTypes.constant,
+                  value: 'second',
+                  confidence: 0.9,
+                ),
+              ],
+            ),
+          ],
+        ),
+        ocrText: '',
+      );
+
+      expect(result.note, 'first');
+      expect(result.fields['note']?.extractorId, 'first-note');
+    });
+
+    test('highest-confidence chooses the strongest successful extractor',
+        () async {
+      final result = await BillingRuleEngineImpl().evaluate(
+        ruleSet: BillingRuleSet(
+          schemaVersion: 1,
+          rulesVersion: 'extractor-policy',
+          paymentChannels: const [],
+          templates: [
+            _template(
+              id: 'highest-confidence',
+              extractorSelection: BillingExtractorSelection.highestConfidence,
+              extractors: const [
+                BillingFieldExtractorRule(
+                  id: 'weak-note',
+                  field: 'note',
+                  type: BillingRuleExtractorTypes.constant,
+                  value: 'weak',
+                  confidence: 0.5,
+                ),
+                BillingFieldExtractorRule(
+                  id: 'strong-note',
+                  field: 'note',
+                  type: BillingRuleExtractorTypes.constant,
+                  value: 'strong',
+                  confidence: 0.95,
+                ),
+              ],
+            ),
+          ],
+        ),
+        ocrText: '',
+      );
+
+      expect(result.note, 'strong');
+      expect(result.fields['note']?.extractorId, 'strong-note');
+    });
+
     test(
         'matches templates by source package and keywords with stable priority',
         () async {
@@ -645,10 +842,17 @@ BillingRuleTemplate _template({
   BillingRuleTemplateMatch match = const BillingRuleTemplateMatch(),
   List<BillingFieldExtractorRule> extractors = const [],
   int priority = 0,
+  BillingRuleOrigin origin = BillingRuleOrigin.public,
+  int revision = 1,
+  BillingExtractorSelection extractorSelection =
+      BillingExtractorSelection.firstSuccessful,
 }) {
   return BillingRuleTemplate(
     id: id,
     priority: priority,
+    origin: origin,
+    revision: revision,
+    extractorSelection: extractorSelection,
     baseConfidence: 0.88,
     match: match,
     extractors: extractors,

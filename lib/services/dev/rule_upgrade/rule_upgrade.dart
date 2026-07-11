@@ -529,14 +529,23 @@ List<BillingRuleTemplate> _parseTemplates(Object? value) {
   }
   return value.map((item) {
     final map = _asMap(item, 'templates item');
+    final id = _requiredString(map, 'id');
     return BillingRuleTemplate(
-      id: _requiredString(map, 'id'),
+      id: id,
       enabled: _optionalBool(map['enabled'], true, 'enabled'),
       priority: _optionalInt(map['priority'], 0, 'priority'),
       baseConfidence:
           _optionalDouble(map['baseConfidence'], 0.8, 'baseConfidence'),
+      origin: BillingRuleOrigin.values.byName(
+        _optionalString(map['origin'], 'origin') ?? 'public',
+      ),
+      revision: _optionalInt(map['revision'], 1, 'revision'),
+      extractorSelection: BillingExtractorSelection.values.byName(
+        _optionalString(map['extractorSelection'], 'extractorSelection') ??
+            'firstSuccessful',
+      ),
       match: _parseMatch(map['match']),
-      extractors: _parseExtractors(map['extract']),
+      extractors: _parseExtractors(id, map['extract']),
     );
   }).toList(growable: false);
 }
@@ -546,19 +555,25 @@ BillingRuleTemplateMatch _parseMatch(Object? value) {
   final map = _asMap(value, 'templates.match');
   return BillingRuleTemplateMatch(
     sourcePackages: _stringList(map['sourcePackages']),
+    requiredSource:
+        _optionalBool(map['requiredSource'], false, 'requiredSource'),
     appNameKeywords: _stringList(map['appNameKeywords']),
     keywordsAll: _stringList(map['keywordsAll']),
     keywordsAny: _stringList(map['keywordsAny']),
   );
 }
 
-List<BillingFieldExtractorRule> _parseExtractors(Object? value) {
+List<BillingFieldExtractorRule> _parseExtractors(
+  String templateId,
+  Object? value,
+) {
   if (value is! List) {
     throw const FormatException('templates.extract must be an array');
   }
   return value.map((item) {
     final map = _asMap(item, 'templates.extract item');
     return BillingFieldExtractorRule(
+      id: _optionalString(map['id'], 'id'),
       field: _requiredString(map, 'field'),
       type: _requiredString(map, 'type'),
       value: _optionalString(map['value'], 'value'),
@@ -567,7 +582,7 @@ List<BillingFieldExtractorRule> _parseExtractors(Object? value) {
       pattern: _optionalString(map['pattern'], 'pattern'),
       confidence: _optionalDouble(map['confidence'], 0.8, 'confidence'),
       options: _optionsMap(map['options']),
-    );
+    ).withResolvedId(templateId);
   }).toList(growable: false);
 }
 

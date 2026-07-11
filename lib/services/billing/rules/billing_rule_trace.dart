@@ -9,6 +9,7 @@ class BillingRuleTrace {
   final String ocrText;
   final OcrPreprocessResult? preprocessResult;
   final List<String> matchedRuleIds;
+  final List<Map<String, dynamic>> matchedRules;
   final Map<String, List<BillingRuleFieldEvidence>> fieldEvidence;
   final BillingRuleResult? result;
   final int? durationMs;
@@ -25,6 +26,7 @@ class BillingRuleTrace {
     this.sourcePaymentChannel,
     this.preprocessResult,
     this.matchedRuleIds = const [],
+    this.matchedRules = const [],
     this.fieldEvidence = const {},
     this.result,
     this.durationMs,
@@ -42,6 +44,7 @@ class BillingRuleTrace {
         'ocr_text': ocrText,
         'preprocess': preprocessResult?.toJson(),
         'matched_rule_ids': matchedRuleIds,
+        'matched_rules': matchedRules,
         'field_evidence': fieldEvidence.map(
           (field, evidence) => MapEntry(
             field,

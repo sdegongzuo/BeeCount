@@ -95,6 +95,10 @@ class OcrPreprocessResult {
       };
 }
 
+enum BillingRuleOrigin { public, personal }
+
+enum BillingExtractorSelection { firstSuccessful, highestConfidence }
+
 class BillingRuleSet {
   final int schemaVersion;
   final String rulesVersion;
@@ -111,6 +115,33 @@ class BillingRuleSet {
     this.source,
     this.loadedAt,
   });
+
+  factory BillingRuleSet.activeSnapshot({
+    required BillingRuleSet publicRules,
+    required BillingRuleSet personalRules,
+  }) {
+    if (publicRules.schemaVersion != personalRules.schemaVersion) {
+      throw ArgumentError('Rule sets must use the same schema version');
+    }
+    return BillingRuleSet(
+      schemaVersion: publicRules.schemaVersion,
+      rulesVersion: '${publicRules.rulesVersion}+${personalRules.rulesVersion}',
+      paymentChannels: [
+        ...publicRules.paymentChannels,
+        ...personalRules.paymentChannels,
+      ],
+      templates: [
+        ...publicRules.templates.map(
+          (template) => template.copyWith(origin: BillingRuleOrigin.public),
+        ),
+        ...personalRules.templates.map(
+          (template) => template.copyWith(origin: BillingRuleOrigin.personal),
+        ),
+      ],
+      source: 'active-snapshot',
+      loadedAt: DateTime.now(),
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'schema_version': schemaVersion,
@@ -151,6 +182,9 @@ class BillingRuleTemplate {
   final BillingRuleTemplateMatch match;
   final List<BillingFieldExtractorRule> extractors;
   final double baseConfidence;
+  final BillingRuleOrigin origin;
+  final int revision;
+  final BillingExtractorSelection extractorSelection;
 
   const BillingRuleTemplate({
     required this.id,
@@ -159,7 +193,25 @@ class BillingRuleTemplate {
     this.enabled = true,
     this.priority = 0,
     this.baseConfidence = 0.8,
+    this.origin = BillingRuleOrigin.public,
+    this.revision = 1,
+    this.extractorSelection = BillingExtractorSelection.firstSuccessful,
   });
+
+  int get specificity => match.specificity;
+
+  BillingRuleTemplate copyWith({BillingRuleOrigin? origin}) =>
+      BillingRuleTemplate(
+        id: id,
+        match: match,
+        extractors: extractors,
+        enabled: enabled,
+        priority: priority,
+        baseConfidence: baseConfidence,
+        origin: origin ?? this.origin,
+        revision: revision,
+        extractorSelection: extractorSelection,
+      );
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -169,24 +221,36 @@ class BillingRuleTemplate {
         'extractors':
             extractors.map((extractor) => extractor.toJson()).toList(),
         'base_confidence': baseConfidence,
+        'origin': origin.name,
+        'revision': revision,
+        'extractor_selection': extractorSelection.name,
       };
 }
 
 class BillingRuleTemplateMatch {
   final List<String> sourcePackages;
+  final bool requiredSource;
   final List<String> appNameKeywords;
   final List<String> keywordsAll;
   final List<String> keywordsAny;
 
   const BillingRuleTemplateMatch({
     this.sourcePackages = const [],
+    this.requiredSource = false,
     this.appNameKeywords = const [],
     this.keywordsAll = const [],
     this.keywordsAny = const [],
   });
 
+  int get specificity =>
+      sourcePackages.length * 100 +
+      appNameKeywords.length * 50 +
+      keywordsAll.length * 10 +
+      keywordsAny.length;
+
   Map<String, dynamic> toJson() => {
         'source_packages': sourcePackages,
+        'required_source': requiredSource,
         'app_name_keywords': appNameKeywords,
         'keywords_all': keywordsAll,
         'keywords_any': keywordsAny,
@@ -200,6 +264,7 @@ class BillingRuleMatch {
   final List<String> matchedKeywords;
   final String? sourcePackage;
   final String? sourceAppName;
+  final int specificity;
 
   const BillingRuleMatch({
     required this.templateId,
@@ -208,6 +273,7 @@ class BillingRuleMatch {
     this.matchedKeywords = const [],
     this.sourcePackage,
     this.sourceAppName,
+    this.specificity = 0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -217,10 +283,12 @@ class BillingRuleMatch {
         'matched_keywords': matchedKeywords,
         'source_package': sourcePackage,
         'source_app_name': sourceAppName,
+        'specificity': specificity,
       };
 }
 
 class BillingFieldExtractorRule {
+  final String? id;
   final String field;
   final String type;
   final String? value;
@@ -231,6 +299,7 @@ class BillingFieldExtractorRule {
   final Map<String, dynamic> options;
 
   const BillingFieldExtractorRule({
+    this.id,
     required this.field,
     required this.type,
     this.value,
@@ -241,7 +310,31 @@ class BillingFieldExtractorRule {
     this.options = const {},
   });
 
+  String resolvedId(String templateId) {
+    if (id != null && id!.trim().isNotEmpty) return id!;
+    final identity = [field, type, value, label, parser, pattern].join('|');
+    var hash = 0x811c9dc5;
+    for (final unit in identity.codeUnits) {
+      hash = ((hash ^ unit) * 0x01000193) & 0xffffffff;
+    }
+    return '$templateId:extract:${hash.toRadixString(16).padLeft(8, '0')}';
+  }
+
+  BillingFieldExtractorRule withResolvedId(String templateId) =>
+      BillingFieldExtractorRule(
+        id: resolvedId(templateId),
+        field: field,
+        type: type,
+        value: value,
+        label: label,
+        parser: parser,
+        pattern: pattern,
+        confidence: confidence,
+        options: options,
+      );
+
   Map<String, dynamic> toJson() => {
+        'id': id,
         'field': field,
         'type': type,
         'value': value,
@@ -310,6 +403,7 @@ class BillingRuleFieldResult {
   final Object? value;
   final double confidence;
   final String extractorType;
+  final String? extractorId;
   final String? source;
   final List<BillingRuleFieldEvidence> evidence;
 
@@ -318,6 +412,7 @@ class BillingRuleFieldResult {
     required this.value,
     required this.confidence,
     required this.extractorType,
+    this.extractorId,
     this.source,
     this.evidence = const [],
   });
@@ -327,6 +422,7 @@ class BillingRuleFieldResult {
         'value': _jsonValue(value),
         'confidence': confidence,
         'extractor_type': extractorType,
+        if (extractorId != null) 'extractor_id': extractorId,
         'source': source,
         'evidence': evidence.map((item) => item.toJson()).toList(),
       };

@@ -464,6 +464,7 @@ id = "jd_bill_detail_v1"
 enabled = true
 priority = 87
 baseConfidence = 0.86
+extractorSelection = "highestConfidence"
 
 [templates.match]
 keywordsAll = ["账单详情", "京东平台商户", "交易成功"]
@@ -635,6 +636,7 @@ id = "unionpay_pinduoduo_single_v1"
 enabled = true
 priority = 110
 baseConfidence = 0.88
+extractorSelection = "highestConfidence"
 
 [templates.match]
 keywordsAll = ["银联交易详情", "交易时间", "卡号"]
