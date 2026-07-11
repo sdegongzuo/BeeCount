@@ -6536,4 +6536,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get twofaStatusOpenWeb => 'Enable on the Web app →';
+
+  @override
+  String get pendingBillTitle => 'Confirm bill';
+
+  @override
+  String get pendingBillEvidenceSection => 'Fields supported by image evidence';
+
+  @override
+  String get pendingBillAmount => 'Amount';
+
+  @override
+  String get pendingBillTime => 'Transaction time';
+
+  @override
+  String get pendingBillSupplementSection => 'Bill details (this bill only)';
+
+  @override
+  String get pendingBillSupplementHint =>
+      'Personal context not shown in the image is not extraction evidence';
+
+  @override
+  String get pendingBillCurrentOnly => 'This bill only';
+
+  @override
+  String get pendingBillRemember => 'Remember for similar bills';
+
+  @override
+  String get pendingBillConfirm => 'Confirm and create bill';
+
+  @override
+  String get pendingBillInvalid => 'Enter a valid amount and time';
+
+  @override
+  String get pendingBillCreated => 'Bill created';
+
+  @override
+  String pendingBillRuleEnabled(int count) {
+    return 'Bill created; $count personal rules enabled';
+  }
+
+  @override
+  String get pendingBillRulePending =>
+      'Bill created; the correction applies once while the rule awaits evidence';
+
+  @override
+  String get pendingBillRuleRejected =>
+      'Bill created; the personal rule failed regression checks';
+
+  @override
+  String get pendingBillRuleConflict =>
+      'Bill created; a similar personal rule conflicts';
 }

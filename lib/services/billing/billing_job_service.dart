@@ -133,6 +133,7 @@ class BillingJobService {
     final existing = await _repo.findByImagePath(imagePath);
     if (existing != null &&
         (existing.status == BillingJobStatus.pending ||
+            existing.status == BillingJobStatus.awaitingConfirmation ||
             existing.status == BillingJobStatus.succeeded)) {
       logger.warning('BillingJobService', '图片已处理过，跳过', imagePath);
       return existing.transactionId;

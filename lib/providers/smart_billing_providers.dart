@@ -1,6 +1,47 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/billing/bill_creation_service.dart';
+import '../services/billing/pending_bill_confirmation_service.dart';
+import '../services/billing/regression_sample_store.dart';
+import '../services/billing/rules/billing_rule_engine_impl.dart';
+import '../services/billing/rules/billing_rule_repository.dart';
+import '../services/billing/rules/personal_rule_lifecycle_service.dart';
+import 'database_providers.dart';
+
+/// Android 分享入口发现待确认账单后设置；根页面消费并打开校正界面。
+final pendingBillConfirmationJobIdProvider = StateProvider<int?>((ref) => null);
+
+final pendingBillConfirmationServiceProvider =
+    FutureProvider<PendingBillConfirmationService>((ref) async {
+  final repo = ref.watch(billingJobRepositoryProvider);
+  final database = ref.watch(databaseProvider);
+  final baseRepository = ref.watch(repositoryProvider);
+  final publicRules = await TomlBillingRuleRepository().loadActiveRuleSet();
+  final lifecycle = PersonalRuleLifecycleService(
+    engine: BillingRuleEngineImpl(),
+    revisionStore: SqlitePersonalRuleRevisionStore(database),
+    regressionSamples: const PlatformPersonalRuleRegressionSampleSource(
+      RegressionSampleStore(),
+    ),
+    publicRules: publicRules,
+  );
+  return PendingBillConfirmationService(
+    repo: repo,
+    createTransaction: (result) async {
+      final id =
+          await BillCreationService(baseRepository).createBillTransaction(
+        result: result,
+        ledgerId: ref.read(currentLedgerIdProvider),
+        billingTypes: const ['image'],
+      );
+      if (id == null) throw StateError('confirmed_bill_not_created');
+      return id;
+    },
+    applyCorrection: lifecycle.applyCorrection,
+  );
+});
+
 enum SmartBillingAttachmentFormat {
   jpeg('jpeg'),
   webp('webp'),

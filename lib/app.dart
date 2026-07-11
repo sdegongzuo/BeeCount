@@ -31,6 +31,7 @@ import 'services/security/app_lock_service.dart';
 import 'providers/security_providers.dart';
 import 'styles/tokens.dart';
 import 'providers/avatar_providers.dart';
+import 'pages/billing/pending_bill_confirmation_page.dart';
 
 class BeeApp extends ConsumerStatefulWidget {
   const BeeApp({super.key});
@@ -59,6 +60,7 @@ class _BeeAppState extends ConsumerState<BeeApp>
 
   // AppLink 监听订阅
   ProviderSubscription<AppLinkAction?>? _appLinkSubscription;
+  ProviderSubscription<int?>? _pendingBillSubscription;
 
   // 快捷操作服务
   final QuickActionsService _quickActionsService = QuickActionsService();
@@ -95,7 +97,32 @@ class _BeeAppState extends ConsumerState<BeeApp>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupAppLinkListener();
       _setupQuickActions();
+      _setupPendingBillListener();
     });
+  }
+
+  void _setupPendingBillListener() {
+    _pendingBillSubscription = ref.listenManual<int?>(
+      pendingBillConfirmationJobIdProvider,
+      (previous, jobId) async {
+        if (jobId == null || !mounted) return;
+        ref.read(pendingBillConfirmationJobIdProvider.notifier).state = null;
+        try {
+          final service =
+              await ref.read(pendingBillConfirmationServiceProvider.future);
+          if (!mounted) return;
+          await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => PendingBillConfirmationPage(
+              jobId: jobId,
+              service: service,
+            ),
+          ));
+        } catch (error, stackTrace) {
+          logger.error('PendingBill', '打开待确认账单失败', error, stackTrace);
+        }
+      },
+      fireImmediately: true,
+    );
   }
 
   /// 设置快捷操作
@@ -191,7 +218,8 @@ class _BeeAppState extends ConsumerState<BeeApp>
           logger.info('AppStart', '本地无账本，跳过首次同步');
           return;
         }
-        logger.info('AppStart', '触发 BeeCount Cloud 首次同步，本地账本数=${ledgers.length}');
+        logger.info(
+            'AppStart', '触发 BeeCount Cloud 首次同步，本地账本数=${ledgers.length}');
         int totalPushed = 0;
         int totalPulled = 0;
         for (final ledger in ledgers) {
@@ -207,8 +235,8 @@ class _BeeAppState extends ConsumerState<BeeApp>
                   '账本 ${ledger.name}(${ledger.id}) 同步完成: pushed=${result.pushed}, pulled=${result.pulled}');
             }
           } catch (e, st) {
-            logger.error('AppStart',
-                '账本 ${ledger.name}(${ledger.id}) 同步异常', e, st);
+            logger.error(
+                'AppStart', '账本 ${ledger.name}(${ledger.id}) 同步异常', e, st);
           }
         }
         logger.info('AppStart',
@@ -290,6 +318,7 @@ class _BeeAppState extends ConsumerState<BeeApp>
 
   @override
   void dispose() {
+    _pendingBillSubscription?.close();
     _resumeWidgetUpdateTimer?.cancel();
     _appLinkSubscription?.close();
     _removeOverlay();
@@ -682,14 +711,18 @@ class _BeeBottomBar extends StatelessWidget {
             borderRadius: BorderRadius.circular(28),
             child: Row(
               children: [
-                _buildTabItem(
-                    0, Icons.receipt_long_outlined, Icons.receipt_long, l10n.tabHome, inactiveColor),
+                _buildTabItem(0, Icons.receipt_long_outlined,
+                    Icons.receipt_long, l10n.tabHome, inactiveColor),
                 _buildTabItem(1, Icons.pie_chart_outline_rounded,
                     Icons.pie_chart_rounded, l10n.tabInsights, inactiveColor),
                 // 中间记账按钮（作为 Tab 样式）
                 _buildCenterTabItem(inactiveColor),
-                _buildTabItem(2, Icons.account_balance_wallet_outlined,
-                    Icons.account_balance_wallet, l10n.tabAssets, inactiveColor),
+                _buildTabItem(
+                    2,
+                    Icons.account_balance_wallet_outlined,
+                    Icons.account_balance_wallet,
+                    l10n.tabAssets,
+                    inactiveColor),
                 _buildAvatarTabItem(3, l10n.tabMine, inactiveColor),
               ],
             ),
@@ -699,8 +732,8 @@ class _BeeBottomBar extends StatelessWidget {
     );
   }
 
-  Widget _buildTabItem(
-      int index, IconData icon, IconData activeIcon, String label, Color inactiveColor) {
+  Widget _buildTabItem(int index, IconData icon, IconData activeIcon,
+      String label, Color inactiveColor) {
     final isActive = index == currentIndex;
     final iconColor = isActive ? primaryColor : inactiveColor;
 
@@ -798,8 +831,10 @@ class _BeeBottomBar extends StatelessWidget {
         ),
       );
     } else {
-      iconWidget = Icon(isActive ? Icons.person_rounded : Icons.person_outline_rounded,
-          color: isActive ? primaryColor : inactiveColor, size: 24);
+      iconWidget = Icon(
+          isActive ? Icons.person_rounded : Icons.person_outline_rounded,
+          color: isActive ? primaryColor : inactiveColor,
+          size: 24);
     }
 
     return Expanded(

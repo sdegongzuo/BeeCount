@@ -2917,5 +2917,21 @@
     }
   },
   "twofaStatusManageHint": "Manage from the Web app (enable / disable / regenerate recovery codes)",
-  "twofaStatusOpenWeb": "Enable on the Web app →"
+  "twofaStatusOpenWeb": "Enable on the Web app →",
+  "pendingBillTitle": "Confirm bill",
+  "pendingBillEvidenceSection": "Fields supported by image evidence",
+  "pendingBillAmount": "Amount",
+  "pendingBillTime": "Transaction time",
+  "pendingBillSupplementSection": "Bill details (this bill only)",
+  "pendingBillSupplementHint": "Personal context not shown in the image is not extraction evidence",
+  "pendingBillCurrentOnly": "This bill only",
+  "pendingBillRemember": "Remember for similar bills",
+  "pendingBillConfirm": "Confirm and create bill",
+  "pendingBillInvalid": "Enter a valid amount and time",
+  "pendingBillCreated": "Bill created",
+  "pendingBillRuleEnabled": "Bill created; {count} personal rules enabled",
+  "@pendingBillRuleEnabled": {"placeholders": {"count": {"type": "int"}}},
+  "pendingBillRulePending": "Bill created; the correction applies once while the rule awaits evidence",
+  "pendingBillRuleRejected": "Bill created; the personal rule failed regression checks",
+  "pendingBillRuleConflict": "Bill created; a similar personal rule conflicts"
 }

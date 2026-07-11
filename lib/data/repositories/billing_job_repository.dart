@@ -17,6 +17,7 @@ abstract final class BillingJobStatus {
   static const pending = 'pending';
   static const succeeded = 'succeeded';
   static const retryableFailed = 'retryable_failed';
+  static const awaitingConfirmation = 'awaiting_confirmation';
   static const failed = 'failed';
 }
 
@@ -25,6 +26,7 @@ abstract class BillingJobRepository {
       {required String imagePath, String kind = 'image_share'});
   Future<BillingJob?> findById(int id);
   Future<List<BillingJob>> findPendingJobs();
+  Future<List<BillingJob>> findAwaitingConfirmationJobs();
   Future<void> updateStage(int id, String stage);
   Future<void> updateStatus(int id, String status, {String? lastError});
   Future<bool> claimJob(int id, Duration leaseDuration);

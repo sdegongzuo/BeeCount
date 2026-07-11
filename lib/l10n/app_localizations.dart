@@ -11853,6 +11853,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enable on the Web app →'**
   String get twofaStatusOpenWeb;
+
+  /// No description provided for @pendingBillTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm bill'**
+  String get pendingBillTitle;
+
+  /// No description provided for @pendingBillEvidenceSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Fields supported by image evidence'**
+  String get pendingBillEvidenceSection;
+
+  /// No description provided for @pendingBillAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount'**
+  String get pendingBillAmount;
+
+  /// No description provided for @pendingBillTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction time'**
+  String get pendingBillTime;
+
+  /// No description provided for @pendingBillSupplementSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill details (this bill only)'**
+  String get pendingBillSupplementSection;
+
+  /// No description provided for @pendingBillSupplementHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal context not shown in the image is not extraction evidence'**
+  String get pendingBillSupplementHint;
+
+  /// No description provided for @pendingBillCurrentOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This bill only'**
+  String get pendingBillCurrentOnly;
+
+  /// No description provided for @pendingBillRemember.
+  ///
+  /// In en, this message translates to:
+  /// **'Remember for similar bills'**
+  String get pendingBillRemember;
+
+  /// No description provided for @pendingBillConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm and create bill'**
+  String get pendingBillConfirm;
+
+  /// No description provided for @pendingBillInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid amount and time'**
+  String get pendingBillInvalid;
+
+  /// No description provided for @pendingBillCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill created'**
+  String get pendingBillCreated;
+
+  /// No description provided for @pendingBillRuleEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill created; {count} personal rules enabled'**
+  String pendingBillRuleEnabled(int count);
+
+  /// No description provided for @pendingBillRulePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill created; the correction applies once while the rule awaits evidence'**
+  String get pendingBillRulePending;
+
+  /// No description provided for @pendingBillRuleRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill created; the personal rule failed regression checks'**
+  String get pendingBillRuleRejected;
+
+  /// No description provided for @pendingBillRuleConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Bill created; a similar personal rule conflicts'**
+  String get pendingBillRuleConflict;
 }
 
 class _AppLocalizationsDelegate

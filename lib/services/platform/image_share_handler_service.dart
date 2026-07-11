@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/database_providers.dart';
+import '../../providers/smart_billing_providers.dart';
+import '../../data/repositories/billing_job_repository.dart';
 import '../billing/billing_job_service.dart';
 import '../system/logger_service.dart';
 import 'screenshot_source_info.dart';
@@ -68,7 +70,16 @@ class ImageShareHandlerService {
       if (transactionId != null) {
         await _completeShareBilling(transactionId);
       } else {
-        await _failShareBilling('transaction_not_created');
+        final job = await _container
+            .read(billingJobRepositoryProvider)
+            .findByImagePath(payload.path);
+        if (job?.status == BillingJobStatus.awaitingConfirmation) {
+          _container.read(pendingBillConfirmationJobIdProvider.notifier).state =
+              job!.id;
+          await _updateShareBillingStatus('账单需要确认，请检查金额和时间');
+        } else {
+          await _failShareBilling('transaction_not_created');
+        }
       }
       logger.info('ImageShare', '图片处理完成');
     } catch (e, stackTrace) {
@@ -96,6 +107,13 @@ class ImageShareHandlerService {
   Future<void> _resumePendingJobs() async {
     try {
       await _billingJobService.resumePendingJobs();
+      final awaiting = await _container
+          .read(billingJobRepositoryProvider)
+          .findAwaitingConfirmationJobs();
+      if (awaiting.isNotEmpty) {
+        _container.read(pendingBillConfirmationJobIdProvider.notifier).state =
+            awaiting.first.id;
+      }
     } catch (e, stackTrace) {
       logger.error('ImageShare', '恢复待处理任务失败', e, stackTrace);
     }
@@ -122,6 +140,7 @@ class ImageShareHandlerService {
         final job = await _container
             .read(billingJobRepositoryProvider)
             .findByImagePath(imagePath);
+        if (job?.status == BillingJobStatus.awaitingConfirmation) return;
         final transactionId = job?.transactionId;
         if (transactionId == null) continue;
 

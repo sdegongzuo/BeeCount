@@ -42,6 +42,18 @@ class TransactionStageProcessor implements StageProcessor {
         return const StageResult.failure('no_ocr_result');
       }
 
+      if (!ocrResult.fastBillingAccepted ||
+          ocrResult.amount == null ||
+          ocrResult.time == null) {
+        await repo.updateFinalResultJson(
+            job.id, jsonEncode(ocrResult.toJson()));
+        await repo.updateStatus(
+          job.id,
+          BillingJobStatus.awaitingConfirmation,
+        );
+        return const StageResult.awaitingConfirmation();
+      }
+
       final txId = await txService.createTransaction(ocrResult);
       await repo.updateTransactionId(job.id, txId);
       ctx.completeTransactionId(txId); // 写入 PipelineContext，供后续阶段使用

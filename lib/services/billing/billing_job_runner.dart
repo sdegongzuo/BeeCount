@@ -56,14 +56,22 @@ abstract class StageProcessor {
 class StageResult {
   final bool success;
   final bool retryable;
+  final bool awaitingConfirmation;
   final String? error;
 
   const StageResult.success()
       : success = true,
         retryable = false,
+        awaitingConfirmation = false,
+        error = null;
+  const StageResult.awaitingConfirmation()
+      : success = false,
+        retryable = false,
+        awaitingConfirmation = true,
         error = null;
   const StageResult.failure(this.error, {this.retryable = false})
-      : success = false;
+      : success = false,
+        awaitingConfirmation = false;
 }
 
 class BillingJobRunner {
@@ -104,7 +112,8 @@ class BillingJobRunner {
     final current = await repo.findById(job.id);
     if (current == null) return;
     if (current.status != BillingJobStatus.failed &&
-        current.status != BillingJobStatus.retryableFailed) {
+        current.status != BillingJobStatus.retryableFailed &&
+        current.status != BillingJobStatus.awaitingConfirmation) {
       await _completeJob(job.id);
     }
   }
@@ -150,7 +159,8 @@ class BillingJobRunner {
       return;
     }
 
-    if (current.status != BillingJobStatus.failed) {
+    if (current.status != BillingJobStatus.failed &&
+        current.status != BillingJobStatus.awaitingConfirmation) {
       await _completeJob(job.id);
     }
   }
@@ -215,6 +225,11 @@ class BillingJobRunner {
         final refreshed = await repo.findById(job.id);
         if (refreshed != null) currentJob = refreshed;
       } else {
+        if (result.awaitingConfirmation) {
+          ctx.failTransactionId('awaiting_confirmation');
+          await _reportStatus('账单需要确认，请检查金额和时间');
+          return;
+        }
         if (ctx.transactionId == null) {
           ctx.failTransactionId(result.error);
         }

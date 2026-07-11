@@ -6284,6 +6284,53 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get twofaStatusOpenWeb => '前往 Web 端启用 →';
+
+  @override
+  String get pendingBillTitle => '确认账单';
+
+  @override
+  String get pendingBillEvidenceSection => '图片证据字段';
+
+  @override
+  String get pendingBillAmount => '金额';
+
+  @override
+  String get pendingBillTime => '交易时间';
+
+  @override
+  String get pendingBillSupplementSection => '账单补充信息（仅本次）';
+
+  @override
+  String get pendingBillSupplementHint => '图片中没有的个人补充，不会作为提取证据';
+
+  @override
+  String get pendingBillCurrentOnly => '仅本次';
+
+  @override
+  String get pendingBillRemember => '对类似账单记住';
+
+  @override
+  String get pendingBillConfirm => '确认并创建账单';
+
+  @override
+  String get pendingBillInvalid => '请填写有效金额和时间';
+
+  @override
+  String get pendingBillCreated => '账单已创建';
+
+  @override
+  String pendingBillRuleEnabled(int count) {
+    return '账单已创建，$count 条个人规则已启用';
+  }
+
+  @override
+  String get pendingBillRulePending => '账单已创建；校正仅用于本次，规则等待更多证据';
+
+  @override
+  String get pendingBillRuleRejected => '账单已创建；个人规则未通过回归门禁';
+
+  @override
+  String get pendingBillRuleConflict => '账单已创建；相似个人规则存在冲突';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -12536,4 +12583,51 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get twofaStatusOpenWeb => '前往 Web 端啟用 →';
+
+  @override
+  String get pendingBillTitle => '確認帳單';
+
+  @override
+  String get pendingBillEvidenceSection => '圖片證據欄位';
+
+  @override
+  String get pendingBillAmount => '金額';
+
+  @override
+  String get pendingBillTime => '交易時間';
+
+  @override
+  String get pendingBillSupplementSection => '帳單補充資訊（僅本次）';
+
+  @override
+  String get pendingBillSupplementHint => '圖片中沒有的個人補充，不會作為提取證據';
+
+  @override
+  String get pendingBillCurrentOnly => '僅本次';
+
+  @override
+  String get pendingBillRemember => '對類似帳單記住';
+
+  @override
+  String get pendingBillConfirm => '確認並建立帳單';
+
+  @override
+  String get pendingBillInvalid => '請填寫有效金額和時間';
+
+  @override
+  String get pendingBillCreated => '帳單已建立';
+
+  @override
+  String pendingBillRuleEnabled(int count) {
+    return '帳單已建立，$count 條個人規則已啟用';
+  }
+
+  @override
+  String get pendingBillRulePending => '帳單已建立；校正僅用於本次，規則等待更多證據';
+
+  @override
+  String get pendingBillRuleRejected => '帳單已建立；個人規則未通過回歸門檻';
+
+  @override
+  String get pendingBillRuleConflict => '帳單已建立；相似個人規則存在衝突';
 }

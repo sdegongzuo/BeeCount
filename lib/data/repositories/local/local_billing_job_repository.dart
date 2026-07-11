@@ -35,6 +35,14 @@ class LocalBillingJobRepository implements BillingJobRepository {
   }
 
   @override
+  Future<List<BillingJob>> findAwaitingConfirmationJobs() async {
+    return (db.select(db.billingJobs)
+          ..where((t) => t.status.equals(BillingJobStatus.awaitingConfirmation))
+          ..orderBy([(t) => d.OrderingTerm.desc(t.updatedAt)]))
+        .get();
+  }
+
+  @override
   Future<void> updateStage(int id, String stage) async {
     await (db.update(db.billingJobs)..where((t) => t.id.equals(id))).write(
       BillingJobsCompanion(

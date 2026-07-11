@@ -88,6 +88,18 @@ void main() {
     expect(result.every((j) => j.id != succeeded.id), isTrue);
   });
 
+  test('findAwaitingConfirmationJobs restores user confirmation work', () async {
+    final awaiting = await repo.createJob(imagePath: '/tmp/confirm.png');
+    await repo.updateStatus(
+      awaiting.id,
+      BillingJobStatus.awaitingConfirmation,
+    );
+
+    final result = await repo.findAwaitingConfirmationJobs();
+
+    expect(result.map((job) => job.id), contains(awaiting.id));
+  });
+
   test('findPendingJobs excludes succeeded and failed', () async {
     final pending = await repo.createJob(imagePath: '/tmp/pending.png');
     final retryable = await repo.createJob(imagePath: '/tmp/retryable.png');

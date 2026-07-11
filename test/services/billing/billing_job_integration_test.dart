@@ -60,6 +60,21 @@ class NonRetryableFailingProcessor implements StageProcessor {
   }
 }
 
+class AwaitingConfirmationProcessor implements StageProcessor {
+  @override
+  String get stageName => BillingJobStage.transactionCreated;
+
+  @override
+  Future<StageResult> process(
+      BillingJob job, DateTime deadline, PipelineContext ctx) async {
+    await repo.updateStatus(job.id, BillingJobStatus.awaitingConfirmation);
+    return const StageResult.awaitingConfirmation();
+  }
+
+  final BillingJobRepository repo;
+  AwaitingConfirmationProcessor(this.repo);
+}
+
 BillingJobRunner _buildRunner({
   required BillingJobRepository repo,
   StageProcessor? ocr,
@@ -108,6 +123,25 @@ void main() {
     expect(updated.stage, BillingJobStage.completed);
     expect(attachment.called, isTrue);
     expect(updated.attachmentDone, isFalse);
+  });
+
+  test('pending confirmation pauses without creating or completing a bill',
+      () async {
+    final runner = _buildRunner(
+      repo: repo,
+      tx: AwaitingConfirmationProcessor(repo),
+    );
+    final job = await repo.createJob(imagePath: '/tmp/confirm.png');
+
+    await runner.runJob(
+      job,
+      DateTime.now().add(const Duration(seconds: 90)),
+    );
+
+    final updated = await repo.findById(job.id);
+    expect(updated!.status, BillingJobStatus.awaitingConfirmation);
+    expect(updated.stage, BillingJobStage.ruleDone);
+    expect(updated.transactionId, isNull);
   });
 
   // TC-71

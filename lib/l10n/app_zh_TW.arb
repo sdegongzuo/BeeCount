@@ -2464,5 +2464,21 @@
     }
   },
   "twofaStatusManageHint": "請前往 Web 端管理(啟用 / 禁用 / 重新生成恢復碼)",
-  "twofaStatusOpenWeb": "前往 Web 端啟用 →"
+  "twofaStatusOpenWeb": "前往 Web 端啟用 →",
+  "pendingBillTitle": "確認帳單",
+  "pendingBillEvidenceSection": "圖片證據欄位",
+  "pendingBillAmount": "金額",
+  "pendingBillTime": "交易時間",
+  "pendingBillSupplementSection": "帳單補充資訊（僅本次）",
+  "pendingBillSupplementHint": "圖片中沒有的個人補充，不會作為提取證據",
+  "pendingBillCurrentOnly": "僅本次",
+  "pendingBillRemember": "對類似帳單記住",
+  "pendingBillConfirm": "確認並建立帳單",
+  "pendingBillInvalid": "請填寫有效金額和時間",
+  "pendingBillCreated": "帳單已建立",
+  "pendingBillRuleEnabled": "帳單已建立，{count} 條個人規則已啟用",
+  "@pendingBillRuleEnabled": {"placeholders": {"count": {"type": "int"}}},
+  "pendingBillRulePending": "帳單已建立；校正僅用於本次，規則等待更多證據",
+  "pendingBillRuleRejected": "帳單已建立；個人規則未通過回歸門檻",
+  "pendingBillRuleConflict": "帳單已建立；相似個人規則存在衝突"
 }

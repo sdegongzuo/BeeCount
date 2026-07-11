@@ -2762,5 +2762,21 @@
     }
   },
   "twofaStatusManageHint": "请前往 Web 端管理(启用 / 禁用 / 重新生成恢复码)",
-  "twofaStatusOpenWeb": "前往 Web 端启用 →"
+  "twofaStatusOpenWeb": "前往 Web 端启用 →",
+  "pendingBillTitle": "确认账单",
+  "pendingBillEvidenceSection": "图片证据字段",
+  "pendingBillAmount": "金额",
+  "pendingBillTime": "交易时间",
+  "pendingBillSupplementSection": "账单补充信息（仅本次）",
+  "pendingBillSupplementHint": "图片中没有的个人补充，不会作为提取证据",
+  "pendingBillCurrentOnly": "仅本次",
+  "pendingBillRemember": "对类似账单记住",
+  "pendingBillConfirm": "确认并创建账单",
+  "pendingBillInvalid": "请填写有效金额和时间",
+  "pendingBillCreated": "账单已创建",
+  "pendingBillRuleEnabled": "账单已创建，{count} 条个人规则已启用",
+  "@pendingBillRuleEnabled": {"placeholders": {"count": {"type": "int"}}},
+  "pendingBillRulePending": "账单已创建；校正仅用于本次，规则等待更多证据",
+  "pendingBillRuleRejected": "账单已创建；个人规则未通过回归门禁",
+  "pendingBillRuleConflict": "账单已创建；相似个人规则存在冲突"
 }
