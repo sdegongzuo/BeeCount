@@ -24,6 +24,11 @@ import 'stages/attachment_stage_processor.dart';
 import 'stages/ocr_stage_processor.dart';
 import 'stages/rule_stage_processor.dart';
 import 'stages/transaction_stage_processor.dart';
+import 'fast_billing_rule_service.dart';
+import 'rules/billing_rule_engine_impl.dart';
+import 'rules/billing_rule_engine.dart';
+import 'rules/billing_rule_repository.dart';
+import 'rules/personal_rule_lifecycle_service.dart';
 import '../platform/screenshot_source_info.dart';
 import '../system/logger_service.dart';
 
@@ -51,15 +56,15 @@ class BillingJobService {
     required ProviderContainer container,
     BillingJobStatusReporter? statusReporter,
   }) {
-    final ocrService = OcrService();
+    final database = container.read(databaseProvider);
+    final ocrService = OcrService(
+      fastBillingRuleService: createProductionRuleService(database),
+    );
     final ocrProcessor = OcrStageProcessor(
       ocrService: _OcrServiceAdapter(ocrService),
       repo: repo,
     );
-    final ruleProcessor = RuleStageProcessor(
-      ruleService: _NoopRuleExtractionService(),
-      repo: repo,
-    );
+    const ruleProcessor = RuleStageProcessor();
 
     // ledgerId 从 provider 读取，fallback 到 SharedPreferences
     final ledgerId = _resolveLedgerId(container);
@@ -212,6 +217,22 @@ class BillingJobService {
     }
   }
 
+  /// 构造 Android 图片分享链使用的真实活动规则服务。
+  ///
+  /// [publicRuleRepository] 仅用于以确定性公共规则验证生产组装接缝。
+  static FastBillingRuleService createProductionRuleService(
+    BeeDatabase database, {
+    BillingRuleRepository? publicRuleRepository,
+  }) =>
+      FastBillingRuleService(
+        ruleRepository: ActiveBillingRuleRepository(
+          publicRepository: publicRuleRepository ?? TomlBillingRuleRepository(),
+          loadActivePersonalRules:
+              SqlitePersonalRuleRevisionStore(database).loadActiveRuleSet,
+        ),
+        ruleEngine: BillingRuleEngineImpl(),
+      );
+
   static ScreenshotSourceInfo? _sourceInfoFromJob(String? jsonText) {
     if (jsonText == null || jsonText.isEmpty) return null;
     try {
@@ -258,12 +279,6 @@ class _OcrServiceAdapter implements OcrServiceInterface {
       enableAiEnhancement: false,
     );
   }
-}
-
-/// 规则已在 OCR 阶段提取，此阶段为空操作。
-class _NoopRuleExtractionService implements RuleExtractionService {
-  @override
-  Future<String?> extractRules(String rawText, String imagePath) async => null;
 }
 
 /// 包装 BillCreationService：接收 OcrResult，创建交易。

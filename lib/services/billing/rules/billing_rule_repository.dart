@@ -8,6 +8,46 @@ import 'billing_rule_models.dart';
 
 typedef BillingRuleFileLoader = Future<String?> Function(File file);
 
+/// 读取当前不可变规则集的延迟加载器。
+typedef BillingRuleSetLoader = Future<BillingRuleSet> Function();
+
+/// 生产活动快照：公共 TOML 与 SQLite 活动个人修订在每次评估前合并。
+class ActiveBillingRuleRepository implements BillingRuleRepository {
+  /// 公共 TOML 规则的权威仓库。
+  final BillingRuleRepository publicRepository;
+
+  /// 从 SQLite 活动版本指针读取个人规则。
+  final BillingRuleSetLoader loadActivePersonalRules;
+
+  /// 创建在每次评估前原子读取并合并两层规则的仓库。
+  const ActiveBillingRuleRepository({
+    required this.publicRepository,
+    required this.loadActivePersonalRules,
+  });
+
+  @override
+  Future<BillingRuleSet> loadActiveRuleSet() async {
+    final publicRules = await publicRepository.loadActiveRuleSet();
+    final personalRules = await loadActivePersonalRules();
+    return BillingRuleSet.activeSnapshot(
+      publicRules: publicRules,
+      personalRules: personalRules,
+    );
+  }
+
+  @override
+  Future<BillingRuleSet> loadBuiltInRuleSet() =>
+      publicRepository.loadBuiltInRuleSet();
+
+  @override
+  Future<BillingRuleSet?> loadDebugOverrideRuleSet() =>
+      publicRepository.loadDebugOverrideRuleSet();
+
+  @override
+  Future<void> validateRuleSet(BillingRuleSet ruleSet) =>
+      publicRepository.validateRuleSet(ruleSet);
+}
+
 class BillingRuleRepositoryException implements Exception {
   final String message;
   final Object? cause;
