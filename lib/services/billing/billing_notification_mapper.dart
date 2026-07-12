@@ -11,6 +11,9 @@ class NotificationContent {
 class BillingNotificationMapper {
   NotificationContent map(BillingJob job) {
     if (job.status == BillingJobStatus.succeeded) {
+      if (!job.attachmentDone) {
+        return const NotificationContent(title: '记账已创建', body: '附件稍后保存');
+      }
       return const NotificationContent(title: '记账完成', body: '账单已成功记录');
     }
     if (job.status == BillingJobStatus.failed) {

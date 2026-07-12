@@ -71,6 +71,17 @@ void main() {
       expect(attachmentPending.body, '附件稍后保存');
     });
 
+    test('succeeded completed job still reports pending attachment', () {
+      final attachmentPending = mapper.map(_fakeJob(
+        stage: BillingJobStage.completed,
+        status: BillingJobStatus.succeeded,
+        attachmentDone: false,
+      ));
+
+      expect(attachmentPending.title, '记账已创建');
+      expect(attachmentPending.body, '附件稍后保存');
+    });
+
     test('TC-66: ai_done + attachment_pending shows 记账已创建附件稍后保存', () {
       final job = _fakeJob(
         stage: BillingJobStage.aiDone,
