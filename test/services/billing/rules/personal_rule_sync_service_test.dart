@@ -2,6 +2,21 @@ import 'package:beecount/services/billing/rules/personal_rule_sync_service.dart'
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('同步载荷拒绝空来源设备标识', () {
+    expect(
+      () => PersonalRuleRevision.fromSyncJson({
+        'revision_id': 'revision-empty-origin',
+        'rule_id': 'rule',
+        'origin_device_id': '',
+        'origin_version': 1,
+        'kind': 'note_preference',
+        'scope_key': 'merchant',
+        'condition_key': 'coffee',
+        'payload': const {'suffix': '工作餐'},
+      }),
+      throwsFormatException,
+    );
+  });
   PersonalRuleRevision extraction(String id, String value,
           {String device = 'a', int version = 1}) =>
       PersonalRuleRevision(

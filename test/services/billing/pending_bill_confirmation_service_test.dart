@@ -5,7 +5,9 @@ import 'package:beecount/data/repositories/billing_job_repository.dart';
 import 'package:beecount/data/repositories/local/local_billing_job_repository.dart';
 import 'package:beecount/services/billing/ocr_service.dart';
 import 'package:beecount/services/billing/pending_bill_confirmation_service.dart';
+import 'package:beecount/services/billing/personal_note_preference_store.dart';
 import 'package:beecount/services/billing/rules/personal_rule_lifecycle_service.dart';
+import 'package:beecount/services/billing/rules/personal_rule_sync_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -146,5 +148,48 @@ void main() {
 
     expect(createdBill.suggestedCategoryId, 5);
     expect(saved, (matchText: '结构化摘要', categoryId: 5, global: true));
+  });
+
+  test('对类似账单记住备注会生成待上传修订并在远端设备物化', () async {
+    final job = await draftJob();
+    final localStore = SqlitePersonalNotePreferenceStore(db);
+    final noteService = PendingBillConfirmationService(
+      repo: repo,
+      createTransaction: (_) async => 83,
+      applyCorrection: service().applyCorrection,
+      rememberNotePreference: localStore.remember,
+    );
+
+    await noteService.confirm(
+      jobId: job.id,
+      amount: 18,
+      time: DateTime(2026, 7, 12, 10, 30),
+      supplementalNote: '和朋友聚餐',
+      rememberForSimilarBills: true,
+    );
+
+    final outgoing =
+        await PersonalRuleSyncRepository(db).pendingUpload();
+    final noteRevision = outgoing
+        .singleWhere((revision) => revision.kind.name == 'notePreference');
+    expect(noteRevision.payload, {'suffix': '和朋友聚餐'});
+    expect(noteRevision.toSyncJson().toString().toLowerCase(),
+        isNot(contains('ocr')));
+
+    final remoteDb = BeeDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(remoteDb.close);
+    await PersonalRuleSyncRepository(remoteDb).mergeRemote(
+      [noteRevision],
+      localDeviceId: 'device-b',
+    );
+    final materialized =
+        await SqlitePersonalNotePreferenceStore(remoteDb).loadActive();
+    expect(materialized, hasLength(1));
+    expect(materialized.single.conditionKey, '结构化摘要');
+    expect(materialized.single.payload, {'suffix': '和朋友聚餐'});
+    expect(
+        await SqlitePersonalNotePreferenceStore(remoteDb)
+            .matchingSuffix('结构化摘要 天津和平测试门店甲'),
+        '和朋友聚餐');
   });
 }

@@ -1,10 +1,71 @@
 import 'dart:convert';
 
+import 'package:uuid/uuid.dart';
+
 import '../../../data/db.dart';
 import '../regression_sample_store.dart';
 import 'billing_rule_engine.dart';
 import 'billing_rule_extractors.dart';
 import 'billing_rule_models.dart';
+import 'personal_rule_sync_repository.dart';
+import 'personal_rule_sync_service.dart';
+
+/// 真实同步下载路径使用本机加密回归样本裁决远端提取修订。
+class PersonalRuleSyncRegressionGate {
+  final BillingRuleEngine engine;
+  final PersonalRuleRevisionStore revisionStore;
+  final PersonalRuleRegressionSampleSource regressionSamples;
+  final Future<BillingRuleSet> Function() loadPublicRules;
+
+  const PersonalRuleSyncRegressionGate({
+    required this.engine,
+    required this.revisionStore,
+    required this.regressionSamples,
+    required this.loadPublicRules,
+  });
+
+  Future<LocalRegressionVerdict> call(PersonalRuleRevision revision) async {
+    final rawTemplate = revision.payload['template'];
+    if (rawTemplate is! Map) return LocalRegressionVerdict.rejected;
+    final candidate = _templateFromJson(Map<String, dynamic>.from(rawTemplate));
+    final batch = await regressionSamples.readBatch();
+    if (batch.unreadableSampleIds.isNotEmpty || batch.samples.isEmpty) {
+      return LocalRegressionVerdict.insufficient;
+    }
+    final active = await revisionStore.loadActiveRuleSet();
+    final public = await loadPublicRules();
+    final snapshot = BillingRuleSet.activeSnapshot(
+      publicRules: public,
+      personalRules: BillingRuleSet(
+        schemaVersion: public.schemaVersion,
+        rulesVersion: 'sync-candidate',
+        paymentChannels: const [],
+        templates: [...active.templates, candidate],
+      ),
+    );
+    var impacted = 0;
+    for (final sample in batch.samples) {
+      final source = sample.sensitiveEvidence['source_package'] as String?;
+      final appName = sample.sensitiveEvidence['source_app_name'] as String?;
+      if (!_canMatch(candidate.match, sample.normalizedOcr, source, appName)) {
+        continue;
+      }
+      impacted++;
+      final actual = await engine.evaluate(
+        ruleSet: snapshot,
+        ocrText: sample.normalizedOcr,
+        sourcePackage: source,
+        sourceAppName: appName,
+      );
+      if (!_preservesExpected(actual, sample.expectedFields)) {
+        return LocalRegressionVerdict.rejected;
+      }
+    }
+    return impacted == 0
+        ? LocalRegressionVerdict.insufficient
+        : LocalRegressionVerdict.passed;
+  }
+}
 
 /// 个人候选规则经过生命周期门禁后的稳定结果。
 enum PersonalRuleLifecycleStatus {
@@ -466,6 +527,17 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
       await db.customStatement(
           'UPDATE personal_rule_state SET active_version = ? WHERE singleton = 1',
           [version]);
+      final matchJson = candidate.match.toJson();
+      await PersonalRuleSyncRepository(db).saveLocal(PersonalRuleRevision(
+        revisionId: const Uuid().v4(),
+        ruleId: candidate.id,
+        originDeviceId: '',
+        originVersion: version,
+        kind: PersonalRuleSyncKind.extraction,
+        scopeKey: jsonEncode(matchJson['source_packages'] ?? const []),
+        conditionKey: jsonEncode(matchJson),
+        payload: {'template': candidate.toJson()},
+      ));
       return version;
     });
   }

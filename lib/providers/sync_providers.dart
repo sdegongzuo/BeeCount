@@ -9,11 +9,16 @@ import 'package:flutter_cloud_sync/flutter_cloud_sync.dart' hide SyncStatus;
 import '../cloud/sync_service.dart';
 import '../cloud/sync/sync_coordinator.dart';
 import '../cloud/sync/sync_engine.dart';
+import '../services/billing/regression_sample_store.dart';
+import '../services/billing/rules/billing_rule_engine_impl.dart';
+import '../services/billing/rules/billing_rule_repository.dart';
+import '../services/billing/rules/personal_rule_lifecycle_service.dart';
 import '../cloud/sync/sync_providers.dart' as sync_p;
 import '../cloud/transactions_sync_manager.dart';
 import '../models/ledger_display_item.dart';
 import '../services/ai/ai_provider_manager.dart';
-import '../pages/ai/ai_provider_manage_page.dart' show aiProviderListRefreshProvider;
+import '../pages/ai/ai_provider_manage_page.dart'
+    show aiProviderListRefreshProvider;
 import 'ai_config_providers.dart';
 import '../services/attachment_service.dart' show attachmentListRefreshProvider;
 import '../services/system/logger_service.dart';
@@ -170,6 +175,14 @@ final syncServiceProvider = Provider<SyncService>((ref) {
       provider: cloudProvider,
       changeTracker: tracker,
       repo: repo,
+      personalRuleRegressionGate: PersonalRuleSyncRegressionGate(
+        engine: BillingRuleEngineImpl(),
+        revisionStore: SqlitePersonalRuleRevisionStore(db),
+        regressionSamples: const PlatformPersonalRuleRegressionSampleSource(
+          RegressionSampleStore(),
+        ),
+        loadPublicRules: TomlBillingRuleRepository().loadActiveRuleSet,
+      ).call,
     );
 
     // 开始监听 WebSocket 实时事件，自动触发 pull
@@ -249,8 +262,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
           await cloud.updateMyProfileAiConfig(aiConfig: snapshot);
           logger.info('CloudSync', 'AI 配置已推送到 server');
         } catch (e, st) {
-          logger.warning(
-              'CloudSync', 'AI 配置推送失败 (non-blocking): $e', st);
+          logger.warning('CloudSync', 'AI 配置推送失败 (non-blocking): $e', st);
         }
       }());
     };
@@ -329,12 +341,10 @@ final syncServiceProvider = Provider<SyncService>((ref) {
             newLedgerCount = await engine.syncLedgersFromServer();
             if (newLedgerCount > 0) {
               ref.read(ledgerListRefreshProvider.notifier).state++;
-              logger.info(
-                  'SyncProvider', '从 server 拉回 $newLedgerCount 个新账本');
+              logger.info('SyncProvider', '从 server 拉回 $newLedgerCount 个新账本');
             }
           } catch (e, st) {
-            logger.warning(
-                'SyncProvider', 'syncLedgersFromServer 失败: $e', st);
+            logger.warning('SyncProvider', 'syncLedgersFromServer 失败: $e', st);
           }
 
           // Step 1.5: 如果有新账本插进来，要从 cursor=0 把 sync_changes 重放
@@ -345,22 +355,22 @@ final syncServiceProvider = Provider<SyncService>((ref) {
           if (newLedgerCount > 0) {
             try {
               final replayed = await engine.replayAllChanges();
-              logger.info(
-                  'SyncProvider', '重放 sync_changes 应用 $replayed 条历史变更');
+              logger.info('SyncProvider', '重放 sync_changes 应用 $replayed 条历史变更');
             } catch (e, st) {
-              logger.warning(
-                  'SyncProvider', 'replayAllChanges 失败: $e', st);
+              logger.warning('SyncProvider', 'replayAllChanges 失败: $e', st);
             }
           }
 
           // Step 2: 账本就绪后再跑全量同步。sync() 的 pull 里每条 tx change
           // 都能按 ledger_sync_id / 本地 id fallback 正确映射。
           logger.info('SyncProvider', '开始自动同步 ledger=$currentLedgerId');
-          final result = await engine.sync(ledgerId: currentLedgerId.toString());
+          final result =
+              await engine.sync(ledgerId: currentLedgerId.toString());
           if (result.hasError) {
             logger.error('SyncProvider', '自动同步返回错误: ${result.error}');
           } else {
-            logger.info('SyncProvider', '自动同步成功: pushed=${result.pushed}, pulled=${result.pulled}');
+            logger.info('SyncProvider',
+                '自动同步成功: pushed=${result.pushed}, pulled=${result.pulled}');
           }
           ref.read(syncStatusRefreshProvider.notifier).state++;
           ref.read(ledgerListRefreshProvider.notifier).state++;
@@ -392,8 +402,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
             logger.info('SyncProvider', '从 server 拉回 $inserted 个新账本');
           }
         } catch (e, st) {
-          logger.warning(
-              'SyncProvider', 'syncLedgersFromServer 失败: $e', st);
+          logger.warning('SyncProvider', 'syncLedgersFromServer 失败: $e', st);
         }
       });
     }
@@ -445,7 +454,8 @@ final beecountCloudProviderInstance =
       try {
         final user = await services.auth!.currentUser;
         if (user != null) {
-          logger.info('CloudSync', 'BeeCount Cloud session ready: ${user.email}');
+          logger.info(
+              'CloudSync', 'BeeCount Cloud session ready: ${user.email}');
         } else if (email != null && email.isNotEmpty) {
           logger.info('CloudSync', 'BeeCount Cloud 未登录,等首次 API 触发恢复');
         }
@@ -468,8 +478,7 @@ final beecountCloudProviderInstance =
 /// 不需要重登/手动到云配置页点确认,下一次同步触发后版本号就更新了。
 ///
 /// /version 是个轻量 endpoint,跟着每次 sync 多发一次 HTTP 请求开销可忽略。
-final beecountCloudServerVersionProvider =
-    FutureProvider<String?>((ref) async {
+final beecountCloudServerVersionProvider = FutureProvider<String?>((ref) async {
   // server 升级后用户在 app 内做任何会触发同步的操作(加交易 / 切账本 / 进
   // Mine 页面 bump refresh 等)都能让版本号刷新。
   ref.watch(syncStatusRefreshProvider);
@@ -515,9 +524,8 @@ Future<void> reconcileProfileToServer({
     if (profile.themePrimaryColor == null ||
         profile.themePrimaryColor!.isEmpty) {
       try {
-        // ignore: deprecated_member_use
         final hex =
-            '#${currentThemeColor.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+            '#${currentThemeColor.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
         await cloud.updateMyProfileThemeColor(hex: hex);
         logger.info('CloudSync', 'reconcile: pushed theme_primary_color=$hex');
       } catch (e, st) {
@@ -530,8 +538,8 @@ Future<void> reconcileProfileToServer({
       try {
         await cloud.updateMyProfileIncomeColorScheme(
             incomeIsRed: currentIncomeIsRed);
-        logger.info('CloudSync',
-            'reconcile: pushed income_is_red=$currentIncomeIsRed');
+        logger.info(
+            'CloudSync', 'reconcile: pushed income_is_red=$currentIncomeIsRed');
       } catch (e, st) {
         logger.warning('CloudSync', 'reconcile income 推送失败: $e', st);
       }
@@ -560,8 +568,8 @@ Future<void> reconcileProfileToServer({
         // 只在本地有实际内容时推 —— 新用户 providers 里只有默认 GLM 且
         // apiKey 为空,推上去也是空壳子,跳过避免污染。
         final providers = snapshot['providers'] as List? ?? const [];
-        final hasAnyValidProvider = providers.any((p) =>
-            p is Map && (p['apiKey'] as String?)?.isNotEmpty == true);
+        final hasAnyValidProvider = providers.any(
+            (p) => p is Map && (p['apiKey'] as String?)?.isNotEmpty == true);
         if (hasAnyValidProvider) {
           await cloud.updateMyProfileAiConfig(aiConfig: snapshot);
           logger.info('CloudSync',
@@ -623,7 +631,8 @@ void _applyThemeColorFromServer(Ref ref, String hex) {
     // ignore: deprecated_member_use
     if (currentColor.value == nextColor.value) return;
     ref.read(primaryColorProvider.notifier).state = nextColor;
-    logger.info('profile_sync', 'applied theme_primary_color from server: $normalized');
+    logger.info(
+        'profile_sync', 'applied theme_primary_color from server: $normalized');
   } catch (e, st) {
     logger.warning('profile_sync', 'apply theme color failed: $e', st);
   }
@@ -633,7 +642,8 @@ void _applyIncomeColorFromServer(Ref ref, bool incomeIsRed) {
   final current = ref.read(incomeExpenseColorSchemeProvider);
   if (current == incomeIsRed) return;
   ref.read(incomeExpenseColorSchemeProvider.notifier).state = incomeIsRed;
-  logger.info('profile_sync', 'applied income_is_red from server: $incomeIsRed');
+  logger.info(
+      'profile_sync', 'applied income_is_red from server: $incomeIsRed');
 }
 
 void _applyAppearanceFromServer(Ref ref, Map<String, dynamic> appearance) {
@@ -810,7 +820,8 @@ final remoteLedgersProvider =
     }
     return out;
   } catch (e, st) {
-    logger.warning('SyncProvider', 'remoteLedgersProvider: readLedgers 失败: $e', st);
+    logger.warning(
+        'SyncProvider', 'remoteLedgersProvider: readLedgers 失败: $e', st);
     return const [];
   }
 });

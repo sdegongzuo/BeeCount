@@ -104,6 +104,10 @@ class PersonalRuleRevision {
   factory PersonalRuleRevision.fromSyncJson(Map<String, Object?> json) {
     final payload = json['payload'];
     if (payload is! Map) throw const FormatException('payload 必须是对象');
+    final originDeviceId = json['origin_device_id'];
+    if (originDeviceId is! String || originDeviceId.trim().isEmpty) {
+      throw const FormatException('origin_device_id 必须是非空字符串');
+    }
     final kind = switch (json['kind']) {
       'extraction' => PersonalRuleSyncKind.extraction,
       'category' => PersonalRuleSyncKind.category,
@@ -113,7 +117,7 @@ class PersonalRuleRevision {
     return PersonalRuleRevision.validated(
       revisionId: json['revision_id'] as String,
       ruleId: json['rule_id'] as String,
-      originDeviceId: json['origin_device_id'] as String,
+      originDeviceId: originDeviceId,
       originVersion: json['origin_version'] as int,
       kind: kind,
       scopeKey: json['scope_key'] as String,

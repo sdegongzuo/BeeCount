@@ -16,6 +16,7 @@ import 'ai_async_enhance_service.dart';
 import 'billing_job_runner.dart';
 import 'ocr_service.dart';
 import 'personal_category_rule_store.dart';
+import 'personal_note_preference_store.dart';
 import 'regression_sample_store.dart';
 import 'successful_regression_sample_recorder.dart';
 import 'stages/ai_stage_processor.dart';
@@ -67,6 +68,9 @@ class BillingJobService {
     final billCreation = BillCreationService(
       baseRepo,
       personalCategoryRules: SqlitePersonalCategoryRuleStore(
+        container.read(databaseProvider),
+      ),
+      personalNotePreferences: SqlitePersonalNotePreferenceStore(
         container.read(databaseProvider),
       ),
     );

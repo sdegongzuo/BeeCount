@@ -39,6 +39,18 @@ extension _SyncEngineApply on SyncEngine {
       case 'ledger':
         await _applyLedgerChange(change);
         return true;
+      case 'personal_rule_revision':
+        if (change.action == 'delete') return false;
+        final ruleRepository = PersonalRuleSyncRepository(db);
+        final revision = PersonalRuleRevision.fromSyncJson(
+          Map<String, Object?>.from(change.payload!),
+        );
+        await ruleRepository.mergeRemote(
+          [revision],
+          localDeviceId: await ruleRepository.localDeviceId(),
+          regressionGate: personalRuleRegressionGate,
+        );
+        return true;
       case 'ledger_snapshot':
         // 全量快照在 fullPull 中处理，这里跳过
         return false;

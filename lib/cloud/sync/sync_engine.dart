@@ -11,6 +11,8 @@ import 'package:uuid/uuid.dart';
 import '../../data/db.dart';
 import '../../data/repositories/base_repository.dart';
 import '../../services/custom_icon_service.dart';
+import '../../services/billing/rules/personal_rule_sync_repository.dart';
+import '../../services/billing/rules/personal_rule_sync_service.dart';
 import '../../services/system/logger_service.dart';
 import '../../services/ui/avatar_service.dart';
 import '../sync_service.dart' as app;
@@ -67,6 +69,7 @@ class SyncEngine implements app.SyncService {
   final BeeCountCloudProvider provider;
   final ChangeTracker changeTracker;
   final BaseRepository repo;
+  final PersonalRuleRegressionGate? personalRuleRegressionGate;
 
   /// 状态缓存
   final Map<int, app.SyncStatus> _statusCache = {};
@@ -105,6 +108,7 @@ class SyncEngine implements app.SyncService {
     required this.provider,
     required this.changeTracker,
     required this.repo,
+    this.personalRuleRegressionGate,
   });
 
   // ==================== SyncService 接口实现 ====================
@@ -135,8 +139,8 @@ class SyncEngine implements app.SyncService {
   }
 
   @override
-  Future<({int inserted, int deletedDup})>
-      downloadAndRestoreToCurrentLedger({required int ledgerId}) async {
+  Future<({int inserted, int deletedDup})> downloadAndRestoreToCurrentLedger(
+      {required int ledgerId}) async {
     logger.info('SyncEngine', '下载并恢复账本 ledger=$ledgerId');
 
     // 先尝试增量拉取
@@ -269,7 +273,6 @@ class SyncEngine implements app.SyncService {
     );
   }
 
-
   /// 释放资源
   void dispose() {
     stopListeningRealtime();
@@ -319,8 +322,8 @@ class SyncEngine implements app.SyncService {
       // state,否则 remote ledgers 列表里还会显示这个被删的账本。
       if (ledgerRow == null) {
         final pushed = await _push(ledgerId);
-        logger.info('SyncEngine',
-            '账本 $ledgerId 已本地删除,push delete changes: $pushed 条');
+        logger.info(
+            'SyncEngine', '账本 $ledgerId 已本地删除,push delete changes: $pushed 条');
         return SyncResult(pushed: pushed, pulled: 0);
       }
 
@@ -335,10 +338,10 @@ class SyncEngine implements app.SyncService {
 
       if (!hasRemote) {
         final localTxCount = (await (db.select(db.transactions)
-              ..where((t) => t.ledgerId.equals(ledgerIdInt)))
-            .get()).length;
-        logger.info('SyncEngine',
-            '远端无快照，本地 $localTxCount 条交易，触发 fullPush');
+                  ..where((t) => t.ledgerId.equals(ledgerIdInt)))
+                .get())
+            .length;
+        logger.info('SyncEngine', '远端无快照，本地 $localTxCount 条交易，触发 fullPush');
         // 无条件 fullPush:即使本地是 0 笔交易的空账本也要 push,否则用户在
         // app 创建的新账本要等到第一笔交易才被动同步,违反"创建后立即可见"
         // 预期。fullPush 内部会 storage.upload 一份(几乎空的)snapshot 创建
@@ -385,7 +388,6 @@ class SyncEngine implements app.SyncService {
       return SyncResult(error: e.toString());
     }
   }
-
 
   /// 首次登录 / app 启动时从 server 拉全部账本写本地 Drift。
   ///
@@ -443,8 +445,7 @@ class SyncEngine implements app.SyncService {
             ));
         inserted++;
       }
-      logger.info(
-          'SyncEngine',
+      logger.info('SyncEngine',
           'syncLedgersFromServer done: total=${remote.length} upserted=$upserted inserted=$inserted');
       return inserted;
     } catch (e, st) {
@@ -459,6 +460,24 @@ class SyncEngine implements app.SyncService {
     final ledger = await (db.select(db.ledgers)
           ..where((l) => l.id.equals(ledgerIdInt)))
         .getSingleOrNull();
+
+    final ruleRepository = PersonalRuleSyncRepository(db);
+    final personalRevisions = await ruleRepository.pendingUpload();
+    if (personalRevisions.isNotEmpty && ledger != null) {
+      await provider.pushChanges(
+          changes: personalRevisions
+              .map((revision) => {
+                    'ledger_id': ledger.syncId ?? ledgerId,
+                    'entity_type': 'personal_rule_revision',
+                    'entity_sync_id': revision.revisionId,
+                    'action': 'upsert',
+                    'payload': revision.toSyncJson(),
+                    'updated_at': DateTime.now().toUtc().toIso8601String(),
+                  })
+              .toList());
+      await ruleRepository
+          .markUploaded(personalRevisions.map((r) => r.revisionId));
+    }
 
     // 关键:ledger 已被本地删除时不能直接 return 0。因为 deleteLedger 会先
     // 登记 ledger_snapshot:delete change 再 hard-delete ledger 行,这条 delete
@@ -481,8 +500,7 @@ class SyncEngine implements app.SyncService {
     final changes = [...ledgerChanges, ...globalChanges];
     if (changes.isEmpty) {
       if (ledger == null) {
-        logger.warning('SyncEngine',
-            'push: 本地账本 $ledgerId 已删除且无待推送变更,跳过');
+        logger.warning('SyncEngine', 'push: 本地账本 $ledgerId 已删除且无待推送变更,跳过');
       } else {
         logger.debug('SyncEngine', 'push: 无待推送变更');
       }
@@ -501,9 +519,10 @@ class SyncEngine implements app.SyncService {
           break;
         }
       }
-      logger.info('SyncEngine',
+      logger.info(
+          'SyncEngine',
           'push: 本地账本 $ledgerId 已删除,但还有 ${changes.length} 条未推送变更(应包含 ledger_snapshot:delete),'
-          '从 snapshot change 拿到 ledgerSyncId=$deletedLedgerSyncId,继续 push');
+              '从 snapshot change 拿到 ledgerSyncId=$deletedLedgerSyncId,继续 push');
     }
 
     // 构建服务端 push 格式：从 DB 读取最新数据序列化
@@ -539,8 +558,7 @@ class SyncEngine implements app.SyncService {
       //      change 现场捞回的被删账本 syncId,保证 server 端 ledger_id 字段
       //      仍是它认得的 external_id 而不是本地 int id)
       //   3. ledgerId 字符串 (兜底,理论上不会用到)
-      final pushLedgerId =
-          ledger?.syncId ?? deletedLedgerSyncId ?? ledgerId;
+      final pushLedgerId = ledger?.syncId ?? deletedLedgerSyncId ?? ledgerId;
       syncChanges.add({
         // ledgerId=0 的 user-global 变更依附到当前账本 push 上。服务端按
         // entity_type + entity_sync_id 做 LWW / 物化，不依赖这里的 ledger_id
@@ -561,7 +579,7 @@ class SyncEngine implements app.SyncService {
     await changeTracker.markPushed(changes.map((c) => c.id).toList());
     logger.info('SyncEngine',
         'push: 推送 ${changes.length} 条变更 (当前账本 ${ledgerChanges.length} + 全局 ${globalChanges.length})');
-    return changes.length;
+    return changes.length + personalRevisions.length;
   }
 
   /// 拉取远程变更并应用到本地。每一页变更用 `db.transaction` 包起来，把
@@ -616,12 +634,10 @@ class SyncEngine implements app.SyncService {
     return _pull('', sinceOverride: 0);
   }
 
-
   // 附件相关方法搬到 sync_engine_attachments.dart 这个 part 文件:
   //   _resetAttachmentCloudRefs / _uploadCategoryIcons / uploadAttachments
   //   downloadAttachments / _getAttachmentFile / _cleanupTxAttachmentFilesOnDisk
   //   _cleanupCategoryIconFilesOnDisk
-
 
   /// 新设备全量拉取
   Future<({int inserted, int deletedDup})> _fullPull(
@@ -652,7 +668,6 @@ class SyncEngine implements app.SyncService {
 
     return (inserted: result.inserted, deletedDup: 0);
   }
-
 
   // ==================== 附件云端同步 ====================
   //
@@ -763,7 +778,9 @@ class SyncHealthReport {
   bool get needsBackfill {
     if (error != null || unpushedChanges > 0) return false;
     if (accounts.remote >= 0 && accounts.local > accounts.remote) return true;
-    if (categories.remote >= 0 && categories.local > categories.remote) return true;
+    if (categories.remote >= 0 && categories.local > categories.remote) {
+      return true;
+    }
     if (tags.remote >= 0 && tags.local > tags.remote) return true;
     return false;
   }

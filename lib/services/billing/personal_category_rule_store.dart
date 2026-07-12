@@ -1,5 +1,8 @@
 import '../../data/db.dart';
 import 'deterministic_bill_enrichment.dart';
+import 'rules/personal_rule_sync_repository.dart';
+import 'rules/personal_rule_sync_service.dart';
+import 'package:uuid/uuid.dart';
 
 abstract class PersonalCategoryRuleStore {
   Future<void> remember({
@@ -42,18 +45,44 @@ class SqlitePersonalCategoryRuleStore implements PersonalCategoryRuleStore {
       throw ArgumentError.value(categorySyncId, 'categorySyncId');
     }
     await _ensureSchema();
-    await db.customStatement(
-      '''INSERT OR REPLACE INTO personal_category_rules
+    String? ledgerSyncId;
+    if (ledgerId != null) {
+      final ledger = await (db.select(db.ledgers)
+            ..where((item) => item.id.equals(ledgerId)))
+          .getSingleOrNull();
+      ledgerSyncId = ledger?.syncId;
+      if (ledgerSyncId?.isEmpty == true) ledgerSyncId = null;
+    }
+    final scopeKey = ledgerId == null
+        ? 'global'
+        : ledgerSyncId == null
+            ? 'local-ledger:$ledgerId'
+            : 'ledger:$ledgerSyncId';
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await db.transaction(() async {
+      await db.customStatement(
+        '''INSERT OR REPLACE INTO personal_category_rules
          (match_text, category_sync_id, ledger_id, scope_key, updated_at)
          VALUES (?, ?, ?, ?, ?)''',
-      [
-        normalized,
-        categorySyncId,
-        ledgerId,
-        ledgerId == null ? 'global' : 'ledger:$ledgerId',
-        DateTime.now().millisecondsSinceEpoch,
-      ],
-    );
+        [normalized, categorySyncId, ledgerId, scopeKey, now],
+      );
+      if (ledgerId == null || ledgerSyncId != null) {
+        await PersonalRuleSyncRepository(db).saveLocal(PersonalRuleRevision(
+          revisionId: const Uuid().v4(),
+          ruleId: 'category:$scopeKey:$normalized',
+          originDeviceId: '',
+          originVersion: now,
+          kind: PersonalRuleSyncKind.category,
+          scopeKey: scopeKey,
+          conditionKey: normalized,
+          payload: {
+            'match_text': normalized,
+            'category_sync_id': categorySyncId,
+            if (ledgerSyncId != null) 'ledger_sync_id': ledgerSyncId,
+          },
+        ));
+      }
+    });
   }
 
   @override

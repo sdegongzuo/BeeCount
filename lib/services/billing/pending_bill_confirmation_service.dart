@@ -14,6 +14,10 @@ typedef CategoryRuleRememberer = Future<void> Function({
   required int categoryId,
   required bool global,
 });
+typedef NotePreferenceRememberer = Future<void> Function({
+  required String matchText,
+  required String supplementalNote,
+});
 
 class ConfirmableCategory {
   final int id;
@@ -52,6 +56,7 @@ class PendingBillConfirmationService {
   final PersonalRuleCorrectionApplier applyCorrection;
   final ConfirmableCategoriesLoader? loadCategories;
   final CategoryRuleRememberer? rememberCategory;
+  final NotePreferenceRememberer? rememberNotePreference;
 
   const PendingBillConfirmationService({
     required this.repo,
@@ -59,6 +64,7 @@ class PendingBillConfirmationService {
     required this.applyCorrection,
     this.loadCategories,
     this.rememberCategory,
+    this.rememberNotePreference,
   });
 
   Future<PendingBillDraft?> loadDraft(int jobId) async {
@@ -141,6 +147,14 @@ class PendingBillConfirmationService {
               original.note ??
               '')
           .trim();
+      if (supplement.isNotEmpty &&
+          matchText.isNotEmpty &&
+          rememberNotePreference != null) {
+        await rememberNotePreference!(
+          matchText: matchText,
+          supplementalNote: supplement,
+        );
+      }
       if (categoryId != null &&
           matchText.isNotEmpty &&
           rememberCategory != null) {

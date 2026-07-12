@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_cloud_sync/flutter_cloud_sync.dart'
-    hide SyncStatus;
+import 'package:flutter_cloud_sync/flutter_cloud_sync.dart' hide SyncStatus;
 
 import '../../providers/database_providers.dart';
+import '../../services/billing/regression_sample_store.dart';
+import '../../services/billing/rules/billing_rule_engine_impl.dart';
+import '../../services/billing/rules/billing_rule_repository.dart';
+import '../../services/billing/rules/personal_rule_lifecycle_service.dart';
 import 'change_tracker.dart';
 import 'sync_engine.dart';
 
@@ -23,6 +26,14 @@ final syncEngineProvider = Provider.family<SyncEngine, BeeCountCloudProvider>(
       provider: provider,
       changeTracker: tracker,
       repo: repo,
+      personalRuleRegressionGate: PersonalRuleSyncRegressionGate(
+        engine: BillingRuleEngineImpl(),
+        revisionStore: SqlitePersonalRuleRevisionStore(db),
+        regressionSamples: const PlatformPersonalRuleRegressionSampleSource(
+          RegressionSampleStore(),
+        ),
+        loadPublicRules: TomlBillingRuleRepository().loadActiveRuleSet,
+      ).call,
     );
   },
 );

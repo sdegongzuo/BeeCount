@@ -10,6 +10,7 @@ import 'category_matcher.dart';
 import 'details_text_helper.dart';
 import 'deterministic_bill_enrichment.dart';
 import 'personal_category_rule_store.dart';
+import 'personal_note_preference_store.dart';
 import 'ocr_service.dart';
 
 /// 账单创建服务
@@ -18,9 +19,11 @@ import 'ocr_service.dart';
 class BillCreationService {
   final BaseRepository repo;
   final PersonalCategoryRuleStore? personalCategoryRules;
+  final SqlitePersonalNotePreferenceStore? personalNotePreferences;
   static const _tag = 'BillCreation';
 
-  BillCreationService(this.repo, {this.personalCategoryRules});
+  BillCreationService(this.repo,
+      {this.personalCategoryRules, this.personalNotePreferences});
 
   /// 匹配分类
   ///
@@ -396,7 +399,7 @@ class BillCreationService {
     // 8. 确定最终备注（优先使用 result.note，其次使用参数 note）
     final isImageBilling = billingTypes?.contains('image') ?? false;
     final details = result.details;
-    final finalNote = isImageBilling
+    var finalNote = isImageBilling
         ? buildStructuredBillSummary(
             merchant: result.merchantFullName ?? result.counterparty,
             productSummary: details?['product_summary']?.toString(),
@@ -405,6 +408,17 @@ class BillCreationService {
             routeEnd: details?['route_end']?.toString(),
           )
         : (result.note ?? note);
+    if (isImageBilling && personalNotePreferences != null) {
+      final suffix = await personalNotePreferences!.matchingSuffix(
+        result.merchantFullName ?? result.counterparty ?? result.note,
+      );
+      if (suffix != null && suffix.trim().isNotEmpty) {
+        finalNote = [
+          if (finalNote?.isNotEmpty == true) finalNote!,
+          suffix.trim()
+        ].join('\n');
+      }
+    }
     final detailParts = <String>[
       if (result.detailsText ?? detailsMapToText(result.details)
           case final text?)

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/billing/bill_creation_service.dart';
 import '../services/billing/pending_bill_confirmation_service.dart';
 import '../services/billing/personal_category_rule_store.dart';
+import '../services/billing/personal_note_preference_store.dart';
 import '../services/billing/regression_sample_store.dart';
 import '../services/billing/rules/billing_rule_engine_impl.dart';
 import '../services/billing/rules/billing_rule_repository.dart';
@@ -28,6 +29,7 @@ final pendingBillConfirmationServiceProvider =
     publicRules: publicRules,
   );
   final categoryRuleStore = SqlitePersonalCategoryRuleStore(database);
+  final notePreferenceStore = SqlitePersonalNotePreferenceStore(database);
   final ledgerId = ref.read(currentLedgerIdProvider);
   return PendingBillConfirmationService(
     repo: repo,
@@ -35,6 +37,7 @@ final pendingBillConfirmationServiceProvider =
       final id = await BillCreationService(
         baseRepository,
         personalCategoryRules: categoryRuleStore,
+        personalNotePreferences: notePreferenceStore,
       ).createBillTransaction(
         result: result,
         ledgerId: ledgerId,
@@ -69,6 +72,13 @@ final pendingBillConfirmationServiceProvider =
         matchText: matchText,
         categorySyncId: syncId,
         ledgerId: global ? null : ledgerId,
+      );
+    },
+    rememberNotePreference: (
+        {required matchText, required supplementalNote}) async {
+      await notePreferenceStore.remember(
+        matchText: matchText,
+        supplementalNote: supplementalNote,
       );
     },
   );
