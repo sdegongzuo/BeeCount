@@ -4243,6 +4243,13 @@ abstract class AppLocalizations {
   /// **'{count} records'**
   String categoryMigrationTransactionLabel(int count);
 
+  /// No description provided for @categoryMigrationImpactSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Impact: {transactions} transactions, {budgets} budgets, {recurring} recurring transactions, {subCategories} subcategories, {rules} personal category rules'**
+  String categoryMigrationImpactSummary(Object budgets, Object recurring,
+      Object rules, Object subCategories, Object transactions);
+
   /// No description provided for @mineImportCompleteAllSuccess.
   ///
   /// In en, this message translates to:

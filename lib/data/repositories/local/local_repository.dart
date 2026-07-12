@@ -6,6 +6,7 @@ import '../../../cloud/sync/change_tracker.dart';
 import '../../../services/system/logger_service.dart';
 import '../base_repository.dart';
 import '../budget_repository.dart';
+import '../category_repository.dart';
 import 'local_ledger_repository.dart';
 import 'local_transaction_repository.dart';
 import 'local_category_repository.dart';
@@ -741,8 +742,10 @@ class LocalRepository extends BaseRepository {
 
   @override
   Future<void> deleteCategory(int id) async {
+    final cat =
+        changeTracker != null ? await _categoryRepo.getCategoryById(id) : null;
+    await _categoryRepo.deleteCategory(id);
     if (changeTracker != null) {
-      final cat = await _categoryRepo.getCategoryById(id);
       if (cat?.syncId != null) {
         await changeTracker!.recordUserGlobalChange(
           entityType: 'category',
@@ -752,7 +755,6 @@ class LocalRepository extends BaseRepository {
         );
       }
     }
-    await _categoryRepo.deleteCategory(id);
   }
 
   @override
@@ -868,6 +870,12 @@ class LocalRepository extends BaseRepository {
       final affected = await (db.select(db.transactions)
             ..where((t) => t.categoryId.equals(fromCategoryId)))
           .get();
+      final affectedBudgets = await (db.select(db.budgets)
+            ..where((b) => b.categoryId.equals(fromCategoryId)))
+          .get();
+      final source = await _categoryRepo.getCategoryById(fromCategoryId);
+      final targetBefore = await _categoryRepo.getCategoryById(toCategoryId);
+      final children = await _categoryRepo.getSubCategories(fromCategoryId);
       final n = await _categoryRepo.migrateCategory(
         fromCategoryId: fromCategoryId,
         toCategoryId: toCategoryId,
@@ -880,6 +888,42 @@ class LocalRepository extends BaseRepository {
           entitySyncId: tx.syncId!,
           ledgerId: tx.ledgerId,
           action: 'update',
+        );
+      }
+      for (final budget in affectedBudgets) {
+        if (budget.syncId == null) continue;
+        await changeTracker!.recordLedgerChange(
+          entityType: 'budget',
+          entityId: budget.id,
+          entitySyncId: budget.syncId!,
+          ledgerId: budget.ledgerId,
+          action: 'update',
+        );
+      }
+      for (final child in children) {
+        if (child.syncId == null) continue;
+        await changeTracker!.recordUserGlobalChange(
+          entityType: 'category',
+          entityId: child.id,
+          entitySyncId: child.syncId!,
+          action: 'update',
+        );
+      }
+      final targetAfter = await _categoryRepo.getCategoryById(toCategoryId);
+      if (targetBefore?.syncId == null && targetAfter?.syncId != null) {
+        await changeTracker!.recordUserGlobalChange(
+          entityType: 'category',
+          entityId: targetAfter!.id,
+          entitySyncId: targetAfter.syncId!,
+          action: 'update',
+        );
+      }
+      if (source?.syncId != null) {
+        await changeTracker!.recordUserGlobalChange(
+          entityType: 'category',
+          entityId: source!.id,
+          entitySyncId: source.syncId!,
+          action: 'delete',
         );
       }
       return n;
@@ -962,6 +1006,16 @@ class LocalRepository extends BaseRepository {
     required int toCategoryId,
   }) =>
       _categoryRepo.getCategoryMigrationInfo(
+        fromCategoryId: fromCategoryId,
+        toCategoryId: toCategoryId,
+      );
+
+  @override
+  Future<CategoryReferenceSummary> getCategoryMigrationPreview({
+    required int fromCategoryId,
+    required int toCategoryId,
+  }) =>
+      _categoryRepo.getCategoryMigrationPreview(
         fromCategoryId: fromCategoryId,
         toCategoryId: toCategoryId,
       );

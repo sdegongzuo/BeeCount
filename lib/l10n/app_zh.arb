@@ -864,6 +864,7 @@
   "categoryMigrationFailedTitle": "迁移失败",
   "categoryMigrationFailedMessage": "迁移过程中发生错误：{error}",
   "categoryMigrationTransactionLabel": "{count}笔",
+  "categoryMigrationImpactSummary": "影响预览：交易 {transactions} 笔、预算 {budgets} 项、周期账单 {recurring} 项、子分类 {subCategories} 个、个人分类规则 {rules} 条",
   "importColumnNumber": "第 {number} 列",
   "importConfirmMapping": "确认映射",
   "importCategoryMapping": "分类映射",

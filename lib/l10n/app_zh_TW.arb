@@ -649,6 +649,7 @@
   "categoryMigrationToLabel": "遷入分類",
   "categoryMigrationTooltip": "分類遷移",
   "categoryMigrationTransactionLabel": "{count}筆",
+  "categoryMigrationImpactSummary": "影響預覽：交易 {transactions} 筆、預算 {budgets} 項、週期帳單 {recurring} 項、子分類 {subCategories} 個、個人分類規則 {rules} 條",
   "categoryMigrationTypeLabel": "選擇類型",
   "categoryNameDuplicate": "分類名稱已存在",
   "categoryNameHint": "請輸入分類名稱",

@@ -2255,6 +2255,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String categoryMigrationImpactSummary(Object budgets, Object recurring,
+      Object rules, Object subCategories, Object transactions) {
+    return '影响预览：交易 $transactions 笔、预算 $budgets 项、周期账单 $recurring 项、子分类 $subCategories 个、个人分类规则 $rules 条';
+  }
+
+  @override
   String get mineImportCompleteAllSuccess => '全部成功';
 
   @override
@@ -8578,6 +8584,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String categoryMigrationTransactionLabel(int count) {
     return '$count筆';
+  }
+
+  @override
+  String categoryMigrationImpactSummary(Object budgets, Object recurring,
+      Object rules, Object subCategories, Object transactions) {
+    return '影響預覽：交易 $transactions 筆、預算 $budgets 項、週期帳單 $recurring 項、子分類 $subCategories 個、個人分類規則 $rules 條';
   }
 
   @override

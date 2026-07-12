@@ -1,5 +1,38 @@
 import '../db.dart';
 
+/// 分类在删除或迁移前的领域引用数量快照。
+class CategoryReferenceSummary {
+  final int transactionCount;
+  final int budgetCount;
+  final int recurringTransactionCount;
+  final int subCategoryCount;
+  final int personalCategoryRuleCount;
+
+  const CategoryReferenceSummary({
+    required this.transactionCount,
+    required this.budgetCount,
+    required this.recurringTransactionCount,
+    required this.subCategoryCount,
+    required this.personalCategoryRuleCount,
+  });
+
+  int get totalCount =>
+      transactionCount +
+      budgetCount +
+      recurringTransactionCount +
+      subCategoryCount +
+      personalCategoryRuleCount;
+}
+
+/// 删除仍被领域对象引用的分类时抛出。
+class CategoryReferencedException implements Exception {
+  final CategoryReferenceSummary references;
+  const CategoryReferencedException(this.references);
+
+  @override
+  String toString() => '分类仍被 ${references.totalCount} 个领域对象引用';
+}
+
 /// 分类Repository接口
 /// 定义分类相关的所有数据操作
 abstract class CategoryRepository {
@@ -77,8 +110,8 @@ abstract class CategoryRepository {
   Future<Map<int, int>> getAllCategoryTransactionCounts();
 
   /// 获取分类汇总信息（总笔数、总金额、平均金额）
-  Future<({int totalCount, double totalAmount, double averageAmount})> getCategorySummary(
-      int categoryId);
+  Future<({int totalCount, double totalAmount, double averageAmount})>
+      getCategorySummary(int categoryId);
 
   /// 获取分类下的所有交易记录
   Future<List<Transaction>> getTransactionsByCategory(int categoryId);
@@ -97,7 +130,8 @@ abstract class CategoryRepository {
   });
 
   /// 迁移分类下的所有交易和子分类
-  Future<({int migratedTransactions, int migratedSubCategories})> migrateCategoryTransactions({
+  Future<({int migratedTransactions, int migratedSubCategories})>
+      migrateCategoryTransactions({
     required int fromCategoryId,
     required int toCategoryId,
   });
@@ -108,8 +142,15 @@ abstract class CategoryRepository {
     required int toCategoryId,
   });
 
+  /// 预览从来源分类迁移到目标分类时会影响的全部领域引用。
+  Future<CategoryReferenceSummary> getCategoryMigrationPreview({
+    required int fromCategoryId,
+    required int toCategoryId,
+  });
+
   /// 批量更新分类排序
-  Future<void> updateCategorySortOrders(List<({int id, int sortOrder})> updates);
+  Future<void> updateCategorySortOrders(
+      List<({int id, int sortOrder})> updates);
 
   /// 获取分类的完整路径名称（一级/二级）
   Future<String> getCategoryFullName(int categoryId);
@@ -118,13 +159,15 @@ abstract class CategoryRepository {
   Stream<Category?> watchCategory(int categoryId);
 
   /// 响应式监听分类下的交易变化
-  Stream<List<Transaction>> watchTransactionsByCategory(int categoryId, {int? ledgerId});
+  Stream<List<Transaction>> watchTransactionsByCategory(int categoryId,
+      {int? ledgerId});
 
   /// 响应式监听分类及其子分类的变化
   Stream<List<Category>> watchCategoryWithSubs(int categoryId);
 
   /// 响应式监听所有分类及其交易数量变化
-  Stream<List<({Category category, int transactionCount})>> watchCategoriesWithCount();
+  Stream<List<({Category category, int transactionCount})>>
+      watchCategoriesWithCount();
 
   /// 批量插入分类
   Future<void> batchInsertCategories(List<CategoriesCompanion> categories);

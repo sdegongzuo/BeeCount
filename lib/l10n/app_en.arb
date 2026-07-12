@@ -1013,6 +1013,7 @@
   "categoryMigrationFailedTitle": "Migration Failed",
   "categoryMigrationFailedMessage": "Migration error: {error}",
   "categoryMigrationTransactionLabel": "{count} records",
+  "categoryMigrationImpactSummary": "Impact: {transactions} transactions, {budgets} budgets, {recurring} recurring transactions, {subCategories} subcategories, {rules} personal category rules",
   "@categoryMigrationTransactionLabel": {
     "placeholders": {
       "count": {

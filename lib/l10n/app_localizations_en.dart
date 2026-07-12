@@ -2330,6 +2330,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String categoryMigrationImpactSummary(Object budgets, Object recurring,
+      Object rules, Object subCategories, Object transactions) {
+    return 'Impact: $transactions transactions, $budgets budgets, $recurring recurring transactions, $subCategories subcategories, $rules personal category rules';
+  }
+
+  @override
   String get mineImportCompleteAllSuccess => 'All Success';
 
   @override
