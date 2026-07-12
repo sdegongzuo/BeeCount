@@ -233,6 +233,27 @@ class BillingJobService {
         ruleEngine: BillingRuleEngineImpl(),
       );
 
+  /// 构造待确认校正链使用的真实个人规则生命周期服务。
+  ///
+  /// 可替换规则仓库与回归样本源，供 Android 接缝测试使用固定数据。
+  static Future<PersonalRuleLifecycleService>
+      createProductionPersonalRuleLifecycle(
+    BeeDatabase database, {
+    BillingRuleRepository? publicRuleRepository,
+    PersonalRuleRegressionSampleSource regressionSamples =
+        const PlatformPersonalRuleRegressionSampleSource(
+      RegressionSampleStore(),
+    ),
+  }) async =>
+          PersonalRuleLifecycleService(
+            engine: BillingRuleEngineImpl(),
+            revisionStore: SqlitePersonalRuleRevisionStore(database),
+            regressionSamples: regressionSamples,
+            publicRules:
+                await (publicRuleRepository ?? TomlBillingRuleRepository())
+                    .loadActiveRuleSet(),
+          );
+
   static ScreenshotSourceInfo? _sourceInfoFromJob(String? jsonText) {
     if (jsonText == null || jsonText.isEmpty) return null;
     try {

@@ -2,13 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/billing/bill_creation_service.dart';
+import '../services/billing/billing_job_service.dart';
 import '../services/billing/pending_bill_confirmation_service.dart';
 import '../services/billing/personal_category_rule_store.dart';
 import '../services/billing/personal_note_preference_store.dart';
-import '../services/billing/regression_sample_store.dart';
-import '../services/billing/rules/billing_rule_engine_impl.dart';
-import '../services/billing/rules/billing_rule_repository.dart';
-import '../services/billing/rules/personal_rule_lifecycle_service.dart';
 import 'database_providers.dart';
 
 /// Android 分享入口发现待确认账单后设置；根页面消费并打开校正界面。
@@ -19,15 +16,8 @@ final pendingBillConfirmationServiceProvider =
   final repo = ref.watch(billingJobRepositoryProvider);
   final database = ref.watch(databaseProvider);
   final baseRepository = ref.watch(repositoryProvider);
-  final publicRules = await TomlBillingRuleRepository().loadActiveRuleSet();
-  final lifecycle = PersonalRuleLifecycleService(
-    engine: BillingRuleEngineImpl(),
-    revisionStore: SqlitePersonalRuleRevisionStore(database),
-    regressionSamples: const PlatformPersonalRuleRegressionSampleSource(
-      RegressionSampleStore(),
-    ),
-    publicRules: publicRules,
-  );
+  final lifecycle =
+      await BillingJobService.createProductionPersonalRuleLifecycle(database);
   final categoryRuleStore = SqlitePersonalCategoryRuleStore(database);
   final notePreferenceStore = SqlitePersonalNotePreferenceStore(database);
   final ledgerId = ref.read(currentLedgerIdProvider);
