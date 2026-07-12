@@ -412,6 +412,13 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
       singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
       active_version INTEGER REFERENCES personal_rule_revisions(version)
     )''');
+    await db
+        .customStatement('''CREATE TABLE IF NOT EXISTS personal_rule_archives (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_id TEXT NOT NULL,
+      public_rules_version TEXT NOT NULL,
+      archived_at INTEGER NOT NULL
+    )''');
     await db.customStatement(
         'INSERT OR IGNORE INTO personal_rule_state(singleton, active_version) VALUES (1, NULL)');
   }
@@ -478,6 +485,50 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
       }
     }
     return false;
+  }
+
+  /// 将已被指定公共版本等价覆盖的个人规则移出活动快照并记录原因。
+  Future<int> archiveEquivalentRules(
+    List<String> ruleIds, {
+    required String publicRulesVersion,
+    required int? expectedActiveVersion,
+  }) async {
+    await ensureSchema();
+    final ids = ruleIds.toSet();
+    return db.transaction(() async {
+      final actualVersion = (await db
+              .customSelect(
+                  'SELECT active_version FROM personal_rule_state WHERE singleton = 1')
+              .getSingle())
+          .data['active_version'] as int?;
+      if (actualVersion != expectedActiveVersion) {
+        throw const PersonalRuleActivationConflict();
+      }
+      final current = await loadActiveRuleSet();
+      final archived = current.templates.where((rule) => ids.contains(rule.id));
+      final retained =
+          current.templates.where((rule) => !ids.contains(rule.id));
+      final now = DateTime.now().millisecondsSinceEpoch;
+      for (final rule in archived) {
+        await db.customStatement(
+          'INSERT INTO personal_rule_archives(rule_id, public_rules_version, archived_at) VALUES (?, ?, ?)',
+          [rule.id, publicRulesVersion, now],
+        );
+      }
+      await db.customStatement(
+        'INSERT INTO personal_rule_revisions(rule_json, created_at) VALUES (?, ?)',
+        [jsonEncode(retained.map((rule) => rule.toJson()).toList()), now],
+      );
+      final version = (await db
+              .customSelect('SELECT last_insert_rowid() AS id')
+              .getSingle())
+          .read<int>('id');
+      await db.customStatement(
+        'UPDATE personal_rule_state SET active_version = ? WHERE singleton = 1',
+        [version],
+      );
+      return version;
+    });
   }
 
   @override

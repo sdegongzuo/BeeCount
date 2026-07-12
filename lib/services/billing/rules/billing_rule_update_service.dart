@@ -12,7 +12,33 @@ import 'billing_rule_repository.dart';
 typedef BillingRuleManifestLoader = Future<String> Function(Uri uri);
 typedef BillingRulePackageDownloader = Future<String> Function(Uri uri);
 typedef BillingRuleSmokeTest = Future<bool> Function(BillingRuleSet ruleSet);
+typedef BillingRuleUpgradeEvaluation = Future<bool> Function(
+    BillingRuleSet ruleSet);
+typedef BillingRulePersonalRegression
+    = Future<BillingRulePersonalRegressionResult> Function(
+        BillingRuleSet ruleSet);
+typedef BillingRulePersonalRuleArchiver = Future<void> Function(
+    List<String> ruleIds);
 typedef BillingRuleUpdateClock = DateTime Function();
+
+class BillingRulePersonalRegressionResult {
+  final bool isPassed;
+  final List<String> equivalentPersonalRuleIds;
+  final String? explanation;
+  final String? conflictExplanation;
+
+  const BillingRulePersonalRegressionResult.passed({
+    this.equivalentPersonalRuleIds = const [],
+    this.conflictExplanation,
+  })  : isPassed = true,
+        explanation = null;
+
+  const BillingRulePersonalRegressionResult.rejected({
+    required this.explanation,
+  })  : isPassed = false,
+        equivalentPersonalRuleIds = const [],
+        conflictExplanation = null;
+}
 
 enum BillingRuleUpdateStatus {
   activated,
@@ -22,6 +48,8 @@ enum BillingRuleUpdateStatus {
   invalidManifest,
   invalidRulePackage,
   smokeTestFailed,
+  goldenEvaluationFailed,
+  personalRegressionFailed,
   rolledBack,
   rollbackUnavailable,
   failed,
@@ -51,6 +79,10 @@ class BillingRuleUpdateService {
   final BillingRuleManifestLoader manifestLoader;
   final BillingRulePackageDownloader rulePackageDownloader;
   final BillingRuleSmokeTest smokeTest;
+  final BillingRuleUpgradeEvaluation upgradeEvaluation;
+  final BillingRulePersonalRegression personalRegression;
+  final BillingRulePersonalRuleArchiver personalRuleArchiver;
+  final void Function()? beforeAtomicSwitch;
   final BillingRuleUpdateClock clock;
 
   BillingRuleUpdateService({
@@ -59,6 +91,10 @@ class BillingRuleUpdateService {
     BillingRuleManifestLoader? manifestLoader,
     BillingRulePackageDownloader? rulePackageDownloader,
     BillingRuleSmokeTest? smokeTest,
+    required this.upgradeEvaluation,
+    required this.personalRegression,
+    required this.personalRuleArchiver,
+    this.beforeAtomicSwitch,
     BillingRuleUpdateClock? clock,
   })  : manifestUri = manifestUri ?? Uri.parse(defaultManifestUrl),
         manifestLoader = manifestLoader ?? _httpGetString,
@@ -123,43 +159,95 @@ class BillingRuleUpdateService {
       }
     }
 
-    final remoteToml = await rulePackageDownloader(manifest.latest.url);
-    final remoteHash = sha256.convert(utf8.encode(remoteToml)).toString();
-    if (remoteHash.toLowerCase() != manifest.latest.sha256.toLowerCase()) {
-      return BillingRuleUpdateResult(
-        status: BillingRuleUpdateStatus.hashMismatch,
-        rulesVersion: manifest.latest.rulesVersion,
-        message: 'Expected ${manifest.latest.sha256}, got $remoteHash',
-      );
-    }
+    try {
+      final remoteToml = await rulePackageDownloader(manifest.latest.url);
+      final remoteHash = sha256.convert(utf8.encode(remoteToml)).toString();
+      if (remoteHash.toLowerCase() != manifest.latest.sha256.toLowerCase()) {
+        return BillingRuleUpdateResult(
+          status: BillingRuleUpdateStatus.hashMismatch,
+          rulesVersion: manifest.latest.rulesVersion,
+          message: 'Expected ${manifest.latest.sha256}, got $remoteHash',
+        );
+      }
 
-    final candidateFile =
-        File('${directory.path}/billing_rules.candidate.toml');
-    await candidateFile.writeAsString(remoteToml);
-    final candidateRuleSet = await _tryLoadRuleSet(candidateFile);
-    if (candidateRuleSet == null) {
-      return BillingRuleUpdateResult(
-        status: BillingRuleUpdateStatus.invalidRulePackage,
-        rulesVersion: manifest.latest.rulesVersion,
-      );
-    }
+      final candidateFile =
+          File('${directory.path}/billing_rules.candidate.toml');
+      await candidateFile.writeAsString(remoteToml);
+      final candidateRuleSet = await _tryLoadRuleSet(candidateFile);
+      if (candidateRuleSet == null ||
+          candidateRuleSet.schemaVersion != manifest.latest.schemaVersion ||
+          candidateRuleSet.rulesVersion != manifest.latest.rulesVersion) {
+        return BillingRuleUpdateResult(
+          status: BillingRuleUpdateStatus.invalidRulePackage,
+          rulesVersion: manifest.latest.rulesVersion,
+        );
+      }
 
-    if (!await smokeTest(candidateRuleSet)) {
+      if (!await smokeTest(candidateRuleSet)) {
+        return BillingRuleUpdateResult(
+          status: BillingRuleUpdateStatus.smokeTestFailed,
+          rulesVersion: candidateRuleSet.rulesVersion,
+        );
+      }
+
+      if (!await upgradeEvaluation(candidateRuleSet)) {
+        return BillingRuleUpdateResult(
+          status: BillingRuleUpdateStatus.goldenEvaluationFailed,
+          rulesVersion: candidateRuleSet.rulesVersion,
+        );
+      }
+      final regression = await personalRegression(candidateRuleSet);
+      if (!regression.isPassed) {
+        return BillingRuleUpdateResult(
+          status: BillingRuleUpdateStatus.personalRegressionFailed,
+          rulesVersion: candidateRuleSet.rulesVersion,
+          message: regression.explanation,
+        );
+      }
+
+      if (await activeFile.exists()) {
+        final previousPending = File('${previousFile.path}.pending');
+        await previousPending.writeAsString(await activeFile.readAsString(),
+            flush: true);
+        await previousPending.rename(previousFile.path);
+      }
+      beforeAtomicSwitch?.call();
+      await candidateFile.rename(activeFile.path);
+      String? activationMessage = regression.conflictExplanation;
+      if (regression.equivalentPersonalRuleIds.isNotEmpty) {
+        try {
+          await personalRuleArchiver.call(regression.equivalentPersonalRuleIds);
+        } catch (e) {
+          if (await previousFile.exists()) {
+            await _restorePrevious(activeFile, previousFile);
+          }
+          return BillingRuleUpdateResult(
+            status: BillingRuleUpdateStatus.failed,
+            rulesVersion: candidateRuleSet.rulesVersion,
+            message:
+                'Equivalent personal rule archival failed; old public snapshot restored: $e',
+          );
+        }
+      }
+
       return BillingRuleUpdateResult(
-        status: BillingRuleUpdateStatus.smokeTestFailed,
+        status: BillingRuleUpdateStatus.activated,
         rulesVersion: candidateRuleSet.rulesVersion,
+        message: activationMessage,
+      );
+    } catch (e) {
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.failed,
+        rulesVersion: manifest.latest.rulesVersion,
+        message: e.toString(),
       );
     }
+  }
 
-    if (await activeFile.exists()) {
-      await previousFile.writeAsString(await activeFile.readAsString());
-    }
-    await activeFile.writeAsString(remoteToml);
-
-    return BillingRuleUpdateResult(
-      status: BillingRuleUpdateStatus.activated,
-      rulesVersion: candidateRuleSet.rulesVersion,
-    );
+  Future<void> _restorePrevious(File activeFile, File previousFile) async {
+    final pending = File('${activeFile.path}.recovery.pending');
+    await pending.writeAsString(await previousFile.readAsString(), flush: true);
+    await pending.rename(activeFile.path);
   }
 
   Future<BillingRuleUpdateResult> rollback() async {
@@ -175,9 +263,13 @@ class BillingRuleUpdateService {
     final previousText = await previousFile.readAsString();
     final activeText =
         await activeFile.exists() ? await activeFile.readAsString() : null;
-    await activeFile.writeAsString(previousText);
+    final rollbackPending = File('${activeFile.path}.rollback.pending');
+    await rollbackPending.writeAsString(previousText, flush: true);
+    await rollbackPending.rename(activeFile.path);
     if (activeText != null) {
-      await previousFile.writeAsString(activeText);
+      final previousPending = File('${previousFile.path}.rollback.pending');
+      await previousPending.writeAsString(activeText, flush: true);
+      await previousPending.rename(previousFile.path);
     }
 
     final activeRuleSet = await _tryLoadRuleSet(activeFile);

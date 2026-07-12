@@ -106,6 +106,130 @@ void main() {
       expect(await active.readAsString(), contains('rulesVersion = "active"'));
     });
 
+    test('requires golden evaluation and local personal regression', () async {
+      final active = File('${tempDir.path}/billing_rules.active.toml');
+      await active.writeAsString(_validToml(rulesVersion: 'active'));
+      final remoteToml = _validToml(rulesVersion: 'remote');
+      var regressionCalls = 0;
+      final service = _service(
+        tempDir,
+        manifest: _manifestJson(sha256: _sha256(remoteToml)),
+        remoteToml: remoteToml,
+        upgradeEvaluation: (_) async => false,
+        personalRegression: (_) async {
+          regressionCalls++;
+          return const BillingRulePersonalRegressionResult.passed();
+        },
+      );
+
+      final result = await service.checkForUpdate();
+
+      expect(result.status, BillingRuleUpdateStatus.goldenEvaluationFailed);
+      expect(regressionCalls, 0);
+      expect(await active.readAsString(), contains('rulesVersion = "active"'));
+    });
+
+    test('keeps old snapshot when a personal sample regresses', () async {
+      final active = File('${tempDir.path}/billing_rules.active.toml');
+      await active.writeAsString(_validToml(rulesVersion: 'active'));
+      final remoteToml = _validToml(rulesVersion: 'remote');
+      final service = _service(
+        tempDir,
+        manifest: _manifestJson(sha256: _sha256(remoteToml)),
+        remoteToml: remoteToml,
+        personalRegression: (_) async =>
+            const BillingRulePersonalRegressionResult.rejected(
+          explanation: 'sample corrected-7 changed amount',
+        ),
+      );
+
+      final result = await service.checkForUpdate();
+
+      expect(result.status, BillingRuleUpdateStatus.personalRegressionFailed);
+      expect(result.message, contains('corrected-7'));
+      expect(await active.readAsString(), contains('rulesVersion = "active"'));
+    });
+
+    test('archives equivalent personal rules after activation', () async {
+      final remoteToml = _validToml(rulesVersion: 'remote');
+      List<String>? archived;
+      final service = _service(
+        tempDir,
+        manifest: _manifestJson(sha256: _sha256(remoteToml)),
+        remoteToml: remoteToml,
+        personalRegression: (_) async =>
+            const BillingRulePersonalRegressionResult.passed(
+          equivalentPersonalRuleIds: ['personal-amount'],
+          conflictExplanation: 'personal merchant rule retained',
+        ),
+        personalRuleArchiver: (ids) async => archived = ids,
+      );
+
+      final result = await service.checkForUpdate();
+
+      expect(result.status, BillingRuleUpdateStatus.activated);
+      expect(result.message, contains('personal merchant rule retained'));
+      expect(archived, ['personal-amount']);
+    });
+
+    test('restores old public snapshot when equivalent archival fails',
+        () async {
+      final active = File('${tempDir.path}/billing_rules.active.toml');
+      await active.writeAsString(_validToml(rulesVersion: 'active'));
+      final remoteToml = _validToml(rulesVersion: 'remote');
+      final service = _service(
+        tempDir,
+        manifest: _manifestJson(sha256: _sha256(remoteToml)),
+        remoteToml: remoteToml,
+        personalRegression: (_) async =>
+            const BillingRulePersonalRegressionResult.passed(
+          equivalentPersonalRuleIds: ['personal-amount'],
+        ),
+        personalRuleArchiver: (_) async => throw StateError('database busy'),
+      );
+
+      final result = await service.checkForUpdate();
+
+      expect(result.status, BillingRuleUpdateStatus.failed);
+      expect(await active.readAsString(), contains('rulesVersion = "active"'));
+    });
+
+    test('interruption before atomic switch leaves old snapshot active',
+        () async {
+      final active = File('${tempDir.path}/billing_rules.active.toml');
+      await active.writeAsString(_validToml(rulesVersion: 'active'));
+      final remoteToml = _validToml(rulesVersion: 'remote');
+      final service = _service(
+        tempDir,
+        manifest: _manifestJson(sha256: _sha256(remoteToml)),
+        remoteToml: remoteToml,
+        beforeAtomicSwitch: () => throw StateError('interrupted'),
+      );
+
+      final result = await service.checkForUpdate();
+
+      expect(result.status, BillingRuleUpdateStatus.failed);
+      expect(await active.readAsString(), contains('rulesVersion = "active"'));
+    });
+
+    test('network failure leaves old snapshot active', () async {
+      final active = File('${tempDir.path}/billing_rules.active.toml');
+      await active.writeAsString(_validToml(rulesVersion: 'active'));
+      final service = BillingRuleUpdateService(
+        storageDirectory: tempDir,
+        manifestLoader: (_) async => throw const SocketException('offline'),
+        upgradeEvaluation: (_) async => true,
+        personalRegression: (_) async =>
+            const BillingRulePersonalRegressionResult.passed(),
+        personalRuleArchiver: (_) async {},
+      );
+
+      final result = await service.checkForUpdate();
+
+      expect(result.status, BillingRuleUpdateStatus.failed);
+      expect(await active.readAsString(), contains('rulesVersion = "active"'));
+    });
+
     test('activates valid remote rules and preserves previous rules', () async {
       final active = File('${tempDir.path}/billing_rules.active.toml');
       await active.writeAsString(_validToml(rulesVersion: 'active'));
@@ -200,6 +324,10 @@ BillingRuleUpdateService _service(
   required String manifest,
   required String remoteToml,
   BillingRuleSmokeTest? smokeTest,
+  BillingRuleUpgradeEvaluation? upgradeEvaluation,
+  BillingRulePersonalRegression? personalRegression,
+  BillingRulePersonalRuleArchiver? personalRuleArchiver,
+  void Function()? beforeAtomicSwitch,
   BillingRuleUpdateClock? clock,
   void Function()? onManifestLoad,
 }) {
@@ -211,6 +339,11 @@ BillingRuleUpdateService _service(
     },
     rulePackageDownloader: (_) async => remoteToml,
     smokeTest: smokeTest ?? (_) async => true,
+    upgradeEvaluation: upgradeEvaluation ?? (_) async => true,
+    personalRegression: personalRegression ??
+        (_) async => const BillingRulePersonalRegressionResult.passed(),
+    personalRuleArchiver: personalRuleArchiver ?? (_) async {},
+    beforeAtomicSwitch: beforeAtomicSwitch,
     clock: clock,
   );
 }

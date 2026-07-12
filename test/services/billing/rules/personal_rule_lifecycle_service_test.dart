@@ -214,6 +214,34 @@ void main() {
     expect(attempts.whereType<PersonalRuleActivationConflict>(), hasLength(1));
     expect((await revisions.loadActiveRuleSet()).templates, hasLength(2));
   });
+
+  test('公共规则等价时原子归档个人规则并保留审计记录', () async {
+    final first = await revisions.activate(
+      _candidate('equivalent', '金额', 'amount'),
+      expectedActiveVersion: null,
+    );
+    final second = await revisions.activate(
+      _candidate('retained', '时间', 'time'),
+      expectedActiveVersion: first,
+    );
+
+    final version = await revisions.archiveEquivalentRules(
+      const ['equivalent'],
+      publicRulesVersion: 'public-2',
+      expectedActiveVersion: second,
+    );
+
+    expect((await revisions.loadActiveRuleSet()).templates.map((e) => e.id),
+        ['retained']);
+    expect(version, greaterThan(second));
+    final audit = await db
+        .customSelect(
+          'SELECT rule_id, public_rules_version FROM personal_rule_archives',
+        )
+        .getSingle();
+    expect(audit.read<String>('rule_id'), 'equivalent');
+    expect(audit.read<String>('public_rules_version'), 'public-2');
+  });
 }
 
 PersonalRuleLifecycleService _service(
