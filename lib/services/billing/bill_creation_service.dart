@@ -8,6 +8,8 @@ import '../system/logger_service.dart';
 import '../data/tag_seed_service.dart';
 import 'category_matcher.dart';
 import 'details_text_helper.dart';
+import 'deterministic_bill_enrichment.dart';
+import 'personal_category_rule_store.dart';
 import 'ocr_service.dart';
 
 /// 账单创建服务
@@ -15,77 +17,66 @@ import 'ocr_service.dart';
 /// 提供统一的账单创建接口，供OCR手动扫描和自动记账使用
 class BillCreationService {
   final BaseRepository repo;
+  final PersonalCategoryRuleStore? personalCategoryRules;
   static const _tag = 'BillCreation';
 
-  BillCreationService(this.repo);
+  BillCreationService(this.repo, {this.personalCategoryRules});
 
   /// 匹配分类
   ///
-  /// 优先使用AI识别的分类名称，失败则降级到规则匹配
-  /// 匹配优先级：完全匹配 > 模糊匹配（包含） > 规则匹配
+  /// 图片记账只使用页面规则、商户词典和关键词规则，不消费 AI 分类。
   /// 返回匹配的分类ID，如果都失败则返回null
-  Future<int?> matchCategory(
-    OcrResult result,
-    List<Category> categories,
-  ) async {
-    // 1. 优先使用AI识别的分类
-    if (result.aiCategoryName != null &&
-        result.aiCategoryName!.isNotEmpty &&
-        categories.isNotEmpty) {
-      final aiCategory = result.aiCategoryName!;
-
-      // 1.1 尝试完全匹配
-      try {
-        final matchedCategory = categories.firstWhere(
-          (cat) => cat.name == aiCategory,
-        );
-        final transactionType = result.aiType ?? 'expense';
-        logger.debug(_tag,
-            '[分类匹配-完全] AI分类"$aiCategory"($transactionType) → ${matchedCategory.name}(ID:${matchedCategory.id})');
-        return matchedCategory.id;
-      } catch (_) {
-        // 完全匹配失败，继续尝试模糊匹配
+  Future<int?> matchCategory(OcrResult result, List<Category> categories,
+      {int? ledgerId, bool allowAiCategory = true}) async {
+    if (ledgerId != null &&
+        personalCategoryRules != null &&
+        categories.any((c) => c.name == '其他')) {
+      final personal = DeterministicBillClassifier(
+        personalRules: await personalCategoryRules!.loadActiveRules(),
+      ).classify(
+        ledgerId: ledgerId,
+        merchant: result.merchantFullName ?? result.counterparty ?? result.note,
+        searchableText: result.rawText,
+        categories: categories
+            .map((category) => BillCategoryRef(
+                  localId: category.id,
+                  syncId: category.syncId,
+                  name: category.name,
+                ))
+            .toList(growable: false),
+      );
+      if (personal.source == BillCategorySource.personalRule) {
+        return personal.category.localId;
       }
-
-      // 1.2 尝试模糊匹配（AI分类名包含在分类名中，或分类名包含在AI分类名中）
-      Category? fuzzyMatch;
-      int bestScore = 0;
-
-      for (final cat in categories) {
-        int score = 0;
-
-        // 情况1: 分类名包含AI分类名（如：餐饮美食 包含 餐饮）
-        if (cat.name.contains(aiCategory)) {
-          score = aiCategory.length; // 匹配长度越长，分数越高
-        }
-        // 情况2: AI分类名包含分类名（如：早餐 包含在 午餐早餐 中，但这种情况较少见）
-        else if (aiCategory.contains(cat.name)) {
-          score = cat.name.length;
-        }
-
-        if (score > bestScore) {
-          bestScore = score;
-          fuzzyMatch = cat;
-        }
-      }
-
-      if (fuzzyMatch != null) {
-        final transactionType = result.aiType ?? 'expense';
-        logger.debug(_tag,
-            '[分类匹配-模糊] AI分类"$aiCategory"($transactionType) → ${fuzzyMatch.name}(ID:${fuzzyMatch.id})');
-        return fuzzyMatch.id;
-      }
-
-      logger.debug(_tag, '[分类匹配] AI分类"$aiCategory"未找到匹配，降级使用规则匹配');
+    }
+    if (result.suggestedCategoryId != null &&
+        categories
+            .any((category) => category.id == result.suggestedCategoryId)) {
+      return result.suggestedCategoryId;
     }
 
-    // 2. 降级使用规则匹配
+    // 非图片分享入口保留既有 AI 分类能力；Issue #7 只移除图片分享主链依赖。
+    if (allowAiCategory && result.aiCategoryName?.trim().isNotEmpty == true) {
+      final name = result.aiCategoryName!.trim();
+      for (final category in categories) {
+        if (category.name == name) return category.id;
+      }
+      final fuzzy = categories
+          .where((category) =>
+              category.name.contains(name) || name.contains(category.name))
+          .toList()
+        ..sort((a, b) => b.name.length.compareTo(a.name.length));
+      if (fuzzy.isNotEmpty) return fuzzy.first.id;
+    }
+
+    // 商户词典先于通用关键词，避免全文的次要字段抢占商户命中。
     if (categories.isNotEmpty) {
-      return CategoryMatcher.smartMatch(
-        merchant: result.note,
-        fullText: result.rawText,
-        categories: categories,
+      final merchantMatch = CategoryMatcher.matchByMerchant(
+        result.merchantFullName ?? result.counterparty,
+        categories,
       );
+      if (merchantMatch != null) return merchantMatch;
+      return CategoryMatcher.matchByFullText(result.rawText, categories);
     }
 
     return null;
@@ -355,7 +346,13 @@ class BillCreationService {
     final categories = CategoryHierarchy.getUsableCategories(allCategories);
 
     // 4. 匹配分类
-    int? categoryId = await matchCategory(result, categories);
+    int? categoryId = await matchCategory(
+      result,
+      categories,
+      ledgerId: ledgerId,
+      allowAiCategory: !(billingTypes?.contains('image') ?? false),
+    );
+    var needsClassification = categoryId == null;
 
     // 4.1 如果没有匹配到分类，尝试使用"其他"分类作为兜底
     if (categoryId == null && categories.isNotEmpty) {
@@ -397,7 +394,23 @@ class BillCreationService {
     }
 
     // 8. 确定最终备注（优先使用 result.note，其次使用参数 note）
-    final finalNote = result.note ?? note;
+    final isImageBilling = billingTypes?.contains('image') ?? false;
+    final details = result.details;
+    final finalNote = isImageBilling
+        ? buildStructuredBillSummary(
+            merchant: result.merchantFullName ?? result.counterparty,
+            productSummary: details?['product_summary']?.toString(),
+            storeName: details?['store_name']?.toString(),
+            routeStart: details?['route_start']?.toString(),
+            routeEnd: details?['route_end']?.toString(),
+          )
+        : (result.note ?? note);
+    final detailParts = <String>[
+      if (result.detailsText ?? detailsMapToText(result.details)
+          case final text?)
+        text,
+      if (isImageBilling && needsClassification) '待分类：是',
+    ];
 
     // 9. 使用Repository创建交易
     final finalAmount = result.amount!.abs();
@@ -415,7 +428,7 @@ class BillCreationService {
       paymentChannel: result.paymentChannel,
       merchantFullName: result.merchantFullName,
       acquirer: result.acquirer,
-      detailsText: result.detailsText ?? detailsMapToText(result.details),
+      detailsText: detailParts.isEmpty ? null : detailParts.join('\n'),
     );
 
     // 10. 自动添加标签（记账方式标签 + AI识别标签）

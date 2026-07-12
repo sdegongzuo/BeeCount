@@ -73,7 +73,8 @@ void main() {
     expect(result.transactionId, 81);
     expect(result.ruleResults, isEmpty);
     expect(remembered, isEmpty);
-    expect(createdBill.note, '结构化摘要\n和朋友聚餐');
+    expect(createdBill.note, '结构化摘要');
+    expect(createdBill.details?['supplemental_note'], '和朋友聚餐');
     final updated = await repo.findById(job.id);
     expect(updated!.status, BillingJobStatus.succeeded);
     expect(updated.transactionId, 81);
@@ -115,5 +116,35 @@ void main() {
         result.ruleResults.every(
             (item) => item.status == PersonalRuleLifecycleStatus.enabled),
         isTrue);
+  });
+
+  test('确认分类时可明确记住当前账本或全局规则', () async {
+    final job = await draftJob();
+    ({String matchText, int categoryId, bool global})? saved;
+    final categoryService = PendingBillConfirmationService(
+      repo: repo,
+      createTransaction: (result) async {
+        createdBill = result;
+        return 82;
+      },
+      applyCorrection: service().applyCorrection,
+      rememberCategory: (
+          {required matchText, required categoryId, required global}) async {
+        saved = (matchText: matchText, categoryId: categoryId, global: global);
+      },
+    );
+
+    await categoryService.confirm(
+      jobId: job.id,
+      amount: 18,
+      time: DateTime(2026, 7, 12, 10, 30),
+      supplementalNote: '',
+      rememberForSimilarBills: true,
+      categoryId: 5,
+      categoryRuleGlobal: true,
+    );
+
+    expect(createdBill.suggestedCategoryId, 5);
+    expect(saved, (matchText: '结构化摘要', categoryId: 5, global: true));
   });
 }

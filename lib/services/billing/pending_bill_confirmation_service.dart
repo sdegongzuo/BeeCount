@@ -7,16 +7,31 @@ import 'rules/personal_rule_lifecycle_service.dart';
 typedef ConfirmedBillCreator = Future<int> Function(OcrResult result);
 typedef PersonalRuleCorrectionApplier = Future<PersonalRuleLifecycleResult>
     Function(PersonalRuleCorrection correction);
+typedef ConfirmableCategoriesLoader = Future<List<ConfirmableCategory>>
+    Function();
+typedef CategoryRuleRememberer = Future<void> Function({
+  required String matchText,
+  required int categoryId,
+  required bool global,
+});
+
+class ConfirmableCategory {
+  final int id;
+  final String name;
+  const ConfirmableCategory(this.id, this.name);
+}
 
 class PendingBillDraft {
   final int jobId;
   final String imagePath;
   final OcrResult candidate;
+  final List<ConfirmableCategory> categories;
 
   const PendingBillDraft({
     required this.jobId,
     required this.imagePath,
     required this.candidate,
+    this.categories = const [],
   });
 }
 
@@ -35,11 +50,15 @@ class PendingBillConfirmationService {
   final BillingJobRepository repo;
   final ConfirmedBillCreator createTransaction;
   final PersonalRuleCorrectionApplier applyCorrection;
+  final ConfirmableCategoriesLoader? loadCategories;
+  final CategoryRuleRememberer? rememberCategory;
 
   const PendingBillConfirmationService({
     required this.repo,
     required this.createTransaction,
     required this.applyCorrection,
+    this.loadCategories,
+    this.rememberCategory,
   });
 
   Future<PendingBillDraft?> loadDraft(int jobId) async {
@@ -54,6 +73,7 @@ class PendingBillConfirmationService {
       jobId: job.id,
       imagePath: job.imagePath,
       candidate: OcrResult.fromJson(json),
+      categories: await loadCategories?.call() ?? const [],
     );
   }
 
@@ -63,6 +83,8 @@ class PendingBillConfirmationService {
     required DateTime time,
     required String supplementalNote,
     required bool rememberForSimilarBills,
+    int? categoryId,
+    bool categoryRuleGlobal = false,
   }) async {
     final job = await repo.findById(jobId);
     if (job == null || job.status != BillingJobStatus.awaitingConfirmation) {
@@ -72,20 +94,21 @@ class PendingBillConfirmationService {
     final original = OcrResult.fromJson(stored);
     final rawText = stored['rawText'] as String? ?? job.rawText ?? '';
     final supplement = supplementalNote.trim();
-    final transactionNote = supplement.isEmpty
-        ? original.note
-        : [original.note, supplement]
-            .where((part) => part != null && part.trim().isNotEmpty)
-            .join('\n');
+    final originalDetails = original.details ?? const <String, dynamic>{};
     final confirmedJson = <String, dynamic>{
       ...stored,
       'amount': amount,
       'time': time.toIso8601String(),
+      if (categoryId != null) 'suggestedCategoryId': categoryId,
       'supplemental_note': supplement.isEmpty ? null : supplement,
+      'details': {
+        ...originalDetails,
+        if (supplement.isNotEmpty) 'supplemental_note': supplement,
+      },
     };
     final transactionJson = <String, dynamic>{
       ...confirmedJson,
-      'note': transactionNote,
+      'note': original.note,
     };
     final confirmed = OcrResult.fromJson(transactionJson);
     final transactionId = await createTransaction(confirmed);
@@ -112,6 +135,20 @@ class PendingBillConfirmationService {
           sourcePackage: source.$1,
           sourceAppName: source.$2,
         )));
+      }
+      final matchText = (original.merchantFullName ??
+              original.counterparty ??
+              original.note ??
+              '')
+          .trim();
+      if (categoryId != null &&
+          matchText.isNotEmpty &&
+          rememberCategory != null) {
+        await rememberCategory!(
+          matchText: matchText,
+          categoryId: categoryId,
+          global: categoryRuleGlobal,
+        );
       }
     }
     return PendingBillConfirmationResult(

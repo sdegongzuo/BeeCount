@@ -57,6 +57,71 @@ void main() {
     final transaction = await repo.getTransactionById(transactionId!);
     expect(transaction?.type, 'expense');
     expect(transaction?.amount, 3.75);
-    expect(transaction?.note, 'ETC服务');
+    expect(transaction?.note, isNull);
+  });
+
+  test('图片分享分类与备注不消费 AI 输出', () async {
+    final foodId = await repo.createCategory(name: '餐饮', kind: 'expense');
+    final service = BillCreationService(repo);
+    final transactionId = await service.createBillTransaction(
+      result: OcrResult(
+        rawText: '天津海河测试餐厅甲 咖啡 支付成功',
+        amount: 28,
+        time: DateTime(2026, 7, 12),
+        note: '天津海河测试餐厅甲',
+        merchantFullName: '天津海河测试餐厅甲',
+        details: const {'product_summary': '海河测试饮品甲', 'store_name': '天津和平测试门店甲'},
+        aiCategoryName: '交通',
+        allNumbers: const ['28'],
+      ),
+      ledgerId: ledgerId,
+      billingTypes: const ['image'],
+      autoAddTags: false,
+    );
+
+    final transaction = await repo.getTransactionById(transactionId!);
+    expect(transaction?.categoryId, foodId);
+    expect(transaction?.note, '商户：天津海河测试餐厅甲\n商品：海河测试饮品甲\n门店：天津和平测试门店甲');
+  });
+
+  test('图片分享优先使用图片中的商户字段做确定性分类', () async {
+    final foodCategoryId =
+        await repo.createCategory(name: '餐饮', kind: 'expense');
+    final service = BillCreationService(repo);
+    final transactionId = await service.createBillTransaction(
+      result: OcrResult(
+        rawText: '滴滴 支付成功',
+        amount: 28,
+        time: DateTime(2026, 7, 12),
+        allNumbers: const ['28'],
+        merchantFullName: '天津海河测试餐厅甲',
+        aiCategoryName: '交通',
+      ),
+      ledgerId: ledgerId,
+      billingTypes: const ['image'],
+      autoAddTags: false,
+    );
+
+    final transaction = await repo.getTransactionById(transactionId!);
+    expect(transaction?.categoryId, foodCategoryId);
+  });
+
+  test('图片分享无法可靠分类时仍创建到其他并记录待分类', () async {
+    final service = BillCreationService(repo);
+    final transactionId = await service.createBillTransaction(
+      result: OcrResult(
+        rawText: '未知服务 支付成功',
+        amount: 12,
+        time: DateTime(2026, 7, 12),
+        allNumbers: const ['12'],
+      ),
+      ledgerId: ledgerId,
+      billingTypes: const ['image'],
+      autoAddTags: false,
+    );
+
+    final transaction = await repo.getTransactionById(transactionId!);
+    expect(transaction, isNotNull);
+    expect(transaction?.detailsText, contains('待分类：是'));
   });
 }

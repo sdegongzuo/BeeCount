@@ -13,9 +13,9 @@ import '../ai/ai_bill_service.dart';
 import '../attachment_service.dart';
 import 'bill_creation_service.dart';
 import 'ai_async_enhance_service.dart';
-import 'billing_error_classifier.dart';
 import 'billing_job_runner.dart';
 import 'ocr_service.dart';
+import 'personal_category_rule_store.dart';
 import 'regression_sample_store.dart';
 import 'successful_regression_sample_recorder.dart';
 import 'stages/ai_stage_processor.dart';
@@ -64,18 +64,19 @@ class BillingJobService {
     final ledgerId = _resolveLedgerId(container);
 
     final baseRepo = container.read(repositoryProvider);
-    final billCreation = BillCreationService(baseRepo);
+    final billCreation = BillCreationService(
+      baseRepo,
+      personalCategoryRules: SqlitePersonalCategoryRuleStore(
+        container.read(databaseProvider),
+      ),
+    );
     final txProcessor = TransactionStageProcessor(
       txService: _BillCreationAdapter(billCreation, ledgerId),
       repo: repo,
     );
 
-    // AI 增强：接入真实 AIBillService
-    final aiProcessor = AiStageProcessor(
-      aiService: _RealAiEnhancementService(container),
-      repo: repo,
-      classifier: BillingErrorClassifier(),
-    );
+    // 图片分享主链以确定性结果完成；保留其他入口的 AI 功能，但不在这里调用。
+    final aiProcessor = _DeterministicCompletionProcessor();
 
     // 附件保存：接入真实 AttachmentService
     final attachmentProc = AttachmentStageProcessor(
@@ -222,6 +223,19 @@ class BillingJobService {
   }
 }
 
+class _DeterministicCompletionProcessor implements StageProcessor {
+  @override
+  String get stageName => BillingJobStage.completed;
+
+  @override
+  Future<StageResult> process(
+    BillingJob job,
+    DateTime deadline,
+    PipelineContext ctx,
+  ) async =>
+      const StageResult.success();
+}
+
 // ── Adapters ──
 
 /// 包装 OcrService：调用 OCR + 规则提取（一次），返回 OcrResult。
@@ -260,6 +274,7 @@ class _BillCreationAdapter implements TransactionCreationService {
     final txId = await _billCreation.createBillTransaction(
       result: ocrResult,
       ledgerId: _ledgerId,
+      billingTypes: const ['image'],
     );
     if (txId == null) {
       throw StateError('创建交易失败：金额为空或为零');
@@ -269,6 +284,8 @@ class _BillCreationAdapter implements TransactionCreationService {
 }
 
 /// 接入真实 AI 异步增强服务，并让它负责把 AI 字段合并回交易。
+// 保留给非图片分享入口复用；图片分享主链不再实例化它。
+// ignore: unused_element
 class _RealAiEnhancementService implements AiEnhancementService {
   final ProviderContainer _container;
 

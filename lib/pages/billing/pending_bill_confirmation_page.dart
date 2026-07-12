@@ -28,6 +28,8 @@ class _PendingBillConfirmationPageState
   final _supplement = TextEditingController();
   PendingBillDraft? _draft;
   bool _remember = false;
+  int? _categoryId;
+  bool _categoryRuleGlobal = false;
   bool _saving = false;
 
   @override
@@ -43,6 +45,7 @@ class _PendingBillConfirmationPageState
       _draft = draft;
       _amount.text = draft?.candidate.amount?.toStringAsFixed(2) ?? '';
       _time.text = _formatTime(draft?.candidate.time);
+      _categoryId = draft?.candidate.suggestedCategoryId;
     });
   }
 
@@ -104,6 +107,36 @@ class _PendingBillConfirmationPageState
                   ),
                 ),
                 const SizedBox(height: 20),
+                if (_draft!.categories.isNotEmpty) ...[
+                  DropdownButtonFormField<int>(
+                    key: const Key('categoryField'),
+                    initialValue: _draft!.categories
+                            .any((category) => category.id == _categoryId)
+                        ? _categoryId
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: '分类',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _draft!.categories
+                        .map((category) => DropdownMenuItem(
+                              value: category.id,
+                              child: Text(category.name),
+                            ))
+                        .toList(),
+                    onChanged: (value) => setState(() => _categoryId = value),
+                  ),
+                  if (_remember && _categoryId != null)
+                    SwitchListTile(
+                      key: const Key('globalCategoryRule'),
+                      value: _categoryRuleGlobal,
+                      title: const Text('应用到所有账本'),
+                      subtitle: const Text('关闭时只记住当前账本'),
+                      onChanged: (value) =>
+                          setState(() => _categoryRuleGlobal = value),
+                    ),
+                  const SizedBox(height: 12),
+                ],
                 Text(l10n.pendingBillSupplementSection,
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
@@ -161,6 +194,8 @@ class _PendingBillConfirmationPageState
         time: time,
         supplementalNote: _supplement.text,
         rememberForSimilarBills: _remember,
+        categoryId: _categoryId,
+        categoryRuleGlobal: _categoryRuleGlobal,
       );
       if (!mounted) return;
       final enabled = result.ruleResults

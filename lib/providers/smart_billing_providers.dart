@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/billing/bill_creation_service.dart';
 import '../services/billing/pending_bill_confirmation_service.dart';
+import '../services/billing/personal_category_rule_store.dart';
 import '../services/billing/regression_sample_store.dart';
 import '../services/billing/rules/billing_rule_engine_impl.dart';
 import '../services/billing/rules/billing_rule_repository.dart';
@@ -26,19 +27,50 @@ final pendingBillConfirmationServiceProvider =
     ),
     publicRules: publicRules,
   );
+  final categoryRuleStore = SqlitePersonalCategoryRuleStore(database);
+  final ledgerId = ref.read(currentLedgerIdProvider);
   return PendingBillConfirmationService(
     repo: repo,
     createTransaction: (result) async {
-      final id =
-          await BillCreationService(baseRepository).createBillTransaction(
+      final id = await BillCreationService(
+        baseRepository,
+        personalCategoryRules: categoryRuleStore,
+      ).createBillTransaction(
         result: result,
-        ledgerId: ref.read(currentLedgerIdProvider),
+        ledgerId: ledgerId,
         billingTypes: const ['image'],
       );
       if (id == null) throw StateError('confirmed_bill_not_created');
       return id;
     },
     applyCorrection: lifecycle.applyCorrection,
+    loadCategories: () async {
+      final top = await baseRepository.getTopLevelCategories('expense');
+      final all = <ConfirmableCategory>[];
+      for (final category in top) {
+        final children = await baseRepository.getSubCategories(category.id);
+        if (children.isEmpty) {
+          all.add(ConfirmableCategory(category.id, category.name));
+        } else {
+          all.addAll(children.map((child) => ConfirmableCategory(
+              child.id, '${category.name} / ${child.name}')));
+        }
+      }
+      return all;
+    },
+    rememberCategory: (
+        {required matchText, required categoryId, required global}) async {
+      final category = await baseRepository.getCategoryById(categoryId);
+      final syncId = category?.syncId;
+      if (syncId == null || syncId.isEmpty) {
+        throw StateError('category_sync_id_missing');
+      }
+      await categoryRuleStore.remember(
+        matchText: matchText,
+        categorySyncId: syncId,
+        ledgerId: global ? null : ledgerId,
+      );
+    },
   );
 });
 
