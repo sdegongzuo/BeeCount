@@ -93,6 +93,42 @@ void main() {
     expect(processed, ['expired-after-wait']);
   });
 
+  test('drainer can recover the same request after its lease wait', () async {
+    var now = 1000;
+    var reads = 0;
+    final owners = <String>[];
+    final drainer = ShareBillingPendingPayloadDrainer(
+      nowMillis: () => now,
+      wait: (duration) async => now += duration.inMilliseconds,
+      loadNext: () async {
+        reads++;
+        if (reads == 1) {
+          return {
+            'requestId': 'retry-same-1',
+            'deliveryOwnerToken': 'owner-1',
+            'cacheImagePath': '/retry-same.png',
+          };
+        }
+        if (reads == 2) return {shareBillingRetryAtMillisKey: 1100};
+        if (reads == 3) {
+          return {
+            'requestId': 'retry-same-1',
+            'deliveryOwnerToken': 'owner-2',
+            'cacheImagePath': '/retry-same.png',
+          };
+        }
+        return null;
+      },
+      process: (payload) async {
+        owners.add(payload['deliveryOwnerToken']! as String);
+      },
+    );
+
+    await drainer.drain();
+
+    expect(owners, ['owner-1', 'owner-2']);
+  });
+
   test('headless initialization failure retains request correlation', () async {
     final invocations = <({String method, Map<String, Object?> arguments})>[];
     final coordinator = ShareBillingRequestCoordinator(

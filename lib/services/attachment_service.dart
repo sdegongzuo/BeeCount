@@ -13,6 +13,19 @@ import '../data/db.dart';
 import '../providers.dart';
 import 'system/logger_service.dart';
 
+TransactionAttachment? findExistingBillingJobAttachment({
+  required Iterable<TransactionAttachment> attachments,
+  required int transactionId,
+  required int billingJobId,
+  required int index,
+}) {
+  final stablePrefix = 'tx_${transactionId}_${billingJobId}_$index.';
+  for (final attachment in attachments) {
+    if (attachment.fileName.startsWith(stablePrefix)) return attachment;
+  }
+  return null;
+}
+
 /// 附件服务
 /// 负责图片的选择、压缩、存储和管理
 class AttachmentService {
@@ -166,12 +179,34 @@ class AttachmentService {
     required Future<int> transactionId,
     required File sourceFile,
     required int index,
+    int? billingJobId,
   }) async {
     try {
       final dir = await getAttachmentDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final txId = await transactionId;
+      // Billing Job retries use one deterministic file key. A rolled-back old
+      // owner may leave a file, but the next owner overwrites that same path
+      // instead of producing another orphan attachment file.
+      final timestamp =
+          billingJobId ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final quality = _attachmentQuality;
       var format = ref.read(smartBillingAttachmentFormatProvider);
+      final repo = ref.read(repositoryProvider);
+      if (billingJobId != null) {
+        final existing = findExistingBillingJobAttachment(
+          attachments: await repo.getAttachmentsByTransaction(txId),
+          transactionId: txId,
+          billingJobId: billingJobId,
+          index: index,
+        );
+        if (existing != null) {
+          logger.info(
+            'AttachmentService',
+            '附件幂等命中: jobId=$billingJobId, file=${existing.fileName}',
+          );
+          return existing;
+        }
+      }
       var tempFileName = _buildPendingAttachmentFileName(
         timestamp,
         index,
@@ -216,7 +251,6 @@ class AttachmentService {
         return null;
       }
 
-      final txId = await transactionId;
       final fileName = _buildAttachmentFileName(txId, timestamp, index, format);
       final destPath = '${dir.path}/$fileName';
       final finalFile = await _moveFile(compressedFile, destPath);
@@ -227,7 +261,6 @@ class AttachmentService {
         await _generateThumbnailFromSource(sourceFile, fileName);
       }
 
-      final repo = ref.read(repositoryProvider);
       final id = await repo.createAttachment(
         transactionId: txId,
         fileName: fileName,

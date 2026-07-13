@@ -3,6 +3,7 @@ import 'package:beecount/data/repositories/billing_job_repository.dart';
 import 'package:beecount/data/repositories/local/local_billing_job_repository.dart';
 import 'package:beecount/services/billing/billing_job_runner.dart';
 import 'package:beecount/services/billing/stages/attachment_stage_processor.dart';
+import 'package:beecount/services/attachment_service.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,13 +11,21 @@ class FakeAttachmentSaveService implements AttachmentSaveServiceInterface {
   bool called = false;
   String? lastImagePath;
   Future<int>? lastTransactionId;
+  int? lastBillingJobId;
+  BillingJobLease? lastLease;
 
   @override
   Future<void> saveAttachment(
-      String imagePath, Future<int> transactionId) async {
+    String imagePath,
+    Future<int> transactionId, {
+    int? billingJobId,
+    BillingJobLease? lease,
+  }) async {
     called = true;
     lastImagePath = imagePath;
     lastTransactionId = transactionId;
+    lastBillingJobId = billingJobId;
+    lastLease = lease;
   }
 }
 
@@ -47,6 +56,7 @@ void main() {
     expect(result.success, isTrue);
     expect(attachmentService.called, isTrue);
     expect(attachmentService.lastImagePath, equals('/tmp/test.png'));
+    expect(attachmentService.lastBillingJobId, job.id);
   });
 
   test('skips if attachment already exists for this job', () async {
@@ -90,5 +100,34 @@ void main() {
 
     expect(result.success, isTrue);
     expect(attachmentService.called, isTrue);
+  });
+
+  test('Billing Job attachment retries use the same deterministic record', () {
+    final existing = TransactionAttachment(
+      id: 7,
+      transactionId: 81,
+      fileName: 'tx_81_42_0.avif',
+      sortOrder: 0,
+      createdAt: DateTime(2026, 7, 14),
+    );
+
+    expect(
+      findExistingBillingJobAttachment(
+        attachments: [existing],
+        transactionId: 81,
+        billingJobId: 42,
+        index: 0,
+      ),
+      same(existing),
+    );
+    expect(
+      findExistingBillingJobAttachment(
+        attachments: [existing],
+        transactionId: 81,
+        billingJobId: 43,
+        index: 0,
+      ),
+      isNull,
+    );
   });
 }

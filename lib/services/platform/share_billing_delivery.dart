@@ -119,6 +119,10 @@ class ShareBillingPendingPayloadDrainer {
         if (delayMillis > 0) {
           await wait(Duration(milliseconds: delayMillis));
         }
+        // A retry marker ends the current native lease generation. The same
+        // requestId may legitimately be claimed by a new owner afterwards;
+        // only duplicates within one generation are suppressed.
+        seen.clear();
         continue;
       }
       final identity = shareBillingRequestIdFrom(payload) ??

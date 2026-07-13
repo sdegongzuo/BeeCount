@@ -38,6 +38,37 @@ class BlockingTransactionCreationService implements TransactionCreationService {
   }
 }
 
+class _LeaseBreakingTransactionCreationService
+    implements TransactionCreationService {
+  _LeaseBreakingTransactionCreationService(this.db);
+
+  final BeeDatabase db;
+
+  @override
+  Future<int> createTransaction(OcrResult ocrResult) async {
+    await db.customStatement('INSERT INTO atomic_tx_marker (id) VALUES (901)');
+    await db.customStatement(
+      'UPDATE billing_jobs SET lease_until = 0 WHERE image_path = ?',
+      ['/tmp/atomic-rollback.png'],
+    );
+    return 901;
+  }
+}
+
+class _MarkerTransactionCreationService implements TransactionCreationService {
+  _MarkerTransactionCreationService(this.db);
+
+  final BeeDatabase db;
+  int calls = 0;
+
+  @override
+  Future<int> createTransaction(OcrResult ocrResult) async {
+    calls++;
+    await db.customStatement('INSERT INTO atomic_tx_marker (id) VALUES (902)');
+    return 902;
+  }
+}
+
 void main() {
   late BeeDatabase db;
   late BillingJobRepository repo;
@@ -189,6 +220,95 @@ void main() {
     );
     expect(second.success, isTrue);
     expect(txService.callCount, 1);
+  });
+
+  test('production atomic creator rolls back a transaction if job CAS fails',
+      () async {
+    await db.customStatement(
+      'CREATE TABLE atomic_tx_marker (id INTEGER PRIMARY KEY)',
+    );
+    final job = await repo.createJob(imagePath: '/tmp/atomic-rollback.png');
+    final candidate = OcrResult(
+      rawText: '付款 9.01',
+      allNumbers: const ['9.01'],
+      amount: 9.01,
+      time: DateTime(2026, 7, 14, 2, 3, 4),
+      fastBillingAccepted: true,
+    );
+    await repo.updateRuleResultJson(job.id, jsonEncode(candidate.toJson()));
+    final lease =
+        (await repo.claimJobLease(job.id, const Duration(seconds: 5)))!;
+    final context = PipelineContext()
+      ..configureOwnership(repository: repo, lease: lease);
+    final processor = TransactionStageProcessor(
+      txService: AtomicBillingJobTransactionCreationService(
+        database: db,
+        delegate: _LeaseBreakingTransactionCreationService(db),
+      ),
+      repo: repo,
+    );
+
+    await expectLater(
+      processor.process(
+        (await repo.findById(job.id))!,
+        DateTime.now().add(const Duration(seconds: 5)),
+        context,
+      ),
+      throwsA(isA<BillingJobExecutionCancelled>()),
+    );
+
+    expect((await repo.findById(job.id))!.transactionId, isNull);
+    final markerCount = await db
+        .customSelect(
+          'SELECT COUNT(*) AS count FROM atomic_tx_marker',
+        )
+        .getSingle();
+    expect(markerCount.read<int>('count'), 0);
+  });
+
+  test('concurrent atomic creators serialize and reuse the committed bill',
+      () async {
+    await db.customStatement(
+      'CREATE TABLE atomic_tx_marker (id INTEGER PRIMARY KEY)',
+    );
+    final job = await repo.createJob(imagePath: '/tmp/atomic-concurrent.png');
+    final lease =
+        (await repo.claimJobLease(job.id, const Duration(seconds: 5)))!;
+    final candidate = OcrResult(
+      rawText: '付款 9.02',
+      allNumbers: const ['9.02'],
+      amount: 9.02,
+      time: DateTime(2026, 7, 14, 2, 3, 5),
+      fastBillingAccepted: true,
+    );
+    final delegate = _MarkerTransactionCreationService(db);
+    final creator = AtomicBillingJobTransactionCreationService(
+      database: db,
+      delegate: delegate,
+    );
+
+    final results = await Future.wait([
+      creator.createTransactionForJob(
+        jobId: job.id,
+        lease: lease,
+        ocrResult: candidate,
+      ),
+      creator.createTransactionForJob(
+        jobId: job.id,
+        lease: lease,
+        ocrResult: candidate,
+      ),
+    ]);
+
+    expect(results, [902, 902]);
+    expect(delegate.calls, 1);
+    expect((await repo.findById(job.id))!.transactionId, 902);
+    final markerCount = await db
+        .customSelect(
+          'SELECT COUNT(*) AS count FROM atomic_tx_marker',
+        )
+        .getSingle();
+    expect(markerCount.read<int>('count'), 1);
   });
 
   test('deduplicates by time+amount within same second', () async {

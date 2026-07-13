@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../data/db.dart';
 import '../../../data/repositories/billing_job_repository.dart';
+import '../../../data/repositories/local/local_billing_job_repository.dart';
 import '../billing_job_runner.dart';
 import '../ocr_service.dart';
 
@@ -9,6 +10,68 @@ import '../ocr_service.dart';
 /// 接收 OcrResult（由 OcrStageProcessor 通过 PipelineContext 或 ruleResultJson 传递），返回交易 ID。
 abstract class TransactionCreationService {
   Future<int> createTransaction(OcrResult ocrResult);
+}
+
+abstract class BillingJobAtomicTransactionCreationService
+    implements TransactionCreationService {
+  Future<int> createTransactionForJob({
+    required int jobId,
+    required BillingJobLease lease,
+    required OcrResult ocrResult,
+  });
+}
+
+/// Production transaction boundary for image billing.
+///
+/// The bill, its tags/change-tracking rows, and Billing Job transactionId are
+/// committed by one SQLite transaction. If ownership expires before the final
+/// CAS, throwing rolls every write back and leaves no orphan bill for a later
+/// runner to duplicate.
+class AtomicBillingJobTransactionCreationService
+    implements BillingJobAtomicTransactionCreationService {
+  AtomicBillingJobTransactionCreationService({
+    required this.database,
+    required this.delegate,
+  });
+
+  final BeeDatabase database;
+  final TransactionCreationService delegate;
+
+  @override
+  Future<int> createTransaction(OcrResult ocrResult) =>
+      delegate.createTransaction(ocrResult);
+
+  @override
+  Future<int> createTransactionForJob({
+    required int jobId,
+    required BillingJobLease lease,
+    required OcrResult ocrResult,
+  }) {
+    return database.transaction(() async {
+      final jobRepository = LocalBillingJobRepository(database);
+      final current = await jobRepository.findById(jobId);
+      if (current == null) {
+        throw StateError('billing_job_not_found');
+      }
+      if (current.transactionId case final transactionId?) {
+        return transactionId;
+      }
+      if (!await jobRepository.isLeaseOwner(lease)) {
+        throw const BillingJobExecutionCancelled('billing_job_lease_lost');
+      }
+
+      final transactionId = await delegate.createTransaction(ocrResult);
+      final committed = await jobRepository.updateTransactionId(
+        jobId,
+        transactionId,
+        lease: lease,
+      );
+      if (!committed) {
+        throw const BillingJobExecutionCancelled('billing_job_cas_rejected');
+      }
+      return transactionId;
+    });
+  }
 }
 
 /// 交易创建阶段处理器。
@@ -65,17 +128,29 @@ class TransactionStageProcessor implements StageProcessor {
 
       ctx.ensureCanStartSideEffect();
       await ctx.ensureJobOwned();
-      final txId = await txService.createTransaction(ocrResult);
-      // A delivery lease may be lost while the already-started transaction
-      // Future is running. Persist its result only through this Billing Job
-      // lease CAS so a later runner observes transactionId and skips creation.
-      await ctx.requireOwnedWrite(
-        (lease) => repo.updateTransactionId(
-          job.id,
-          txId,
+      final atomicService =
+          txService is BillingJobAtomicTransactionCreationService
+              ? txService as BillingJobAtomicTransactionCreationService
+              : null;
+      final lease = ctx.lease;
+      final int txId;
+      if (atomicService != null && lease != null) {
+        txId = await atomicService.createTransactionForJob(
+          jobId: job.id,
           lease: lease,
-        ),
-      );
+          ocrResult: ocrResult,
+        );
+      } else {
+        // Test/legacy seam. Production always uses the atomic capability above.
+        txId = await txService.createTransaction(ocrResult);
+        await ctx.requireOwnedWrite(
+          (lease) => repo.updateTransactionId(
+            job.id,
+            txId,
+            lease: lease,
+          ),
+        );
+      }
       ctx.completeTransactionId(txId); // 写入 PipelineContext，供后续阶段使用
       return const StageResult.success();
     } on BillingJobExecutionCancelled {

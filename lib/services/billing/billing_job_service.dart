@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../ai/tasks/bill_extraction_task.dart';
 import '../../data/db.dart';
 import '../../data/repositories/billing_job_repository.dart';
+import '../../data/repositories/local/local_billing_job_repository.dart';
 import '../../providers/database_providers.dart';
 import '../ai/ai_bill_service.dart';
 import '../attachment_service.dart';
@@ -101,7 +102,10 @@ class BillingJobService {
       ),
     );
     final txProcessor = TransactionStageProcessor(
-      txService: _BillCreationAdapter(billCreation, ledgerId),
+      txService: AtomicBillingJobTransactionCreationService(
+        database: database,
+        delegate: _BillCreationAdapter(billCreation, ledgerId),
+      ),
       repo: repo,
     );
 
@@ -514,13 +518,36 @@ class _RealAttachmentService implements AttachmentSaveServiceInterface {
 
   @override
   Future<void> saveAttachment(
-      String imagePath, Future<int> transactionId) async {
+    String imagePath,
+    Future<int> transactionId, {
+    int? billingJobId,
+    BillingJobLease? lease,
+  }) async {
     // AttachmentService 需要 Ref，通过 container 获取 provider 值
     final attachmentService = _container.read(attachmentServiceProvider);
-    await attachmentService.saveAttachmentWhenTransactionReady(
-      transactionId: transactionId,
-      sourceFile: File(imagePath),
-      index: 0,
-    );
+    final database = _container.read(databaseProvider);
+    // Never hold a database transaction while waiting for transaction
+    // creation: both atomic operations use the same SQLite writer.
+    final transactionIdValue = await transactionId;
+    await database.transaction(() async {
+      final attachment =
+          await attachmentService.saveAttachmentWhenTransactionReady(
+        transactionId: Future<int>.value(transactionIdValue),
+        sourceFile: File(imagePath),
+        index: 0,
+        billingJobId: billingJobId,
+      );
+      if (attachment == null) {
+        throw StateError('attachment_save_failed');
+      }
+      if (billingJobId != null && lease != null) {
+        final committed = await LocalBillingJobRepository(database)
+            .markAttachmentDone(billingJobId, lease: lease);
+        if (!committed) {
+          throw const BillingJobExecutionCancelled(
+              'billing_job_attachment_cas_rejected');
+        }
+      }
+    });
   }
 }

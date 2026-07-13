@@ -7,7 +7,12 @@ import '../billing_job_runner.dart';
 
 /// 附件保存服务抽象。
 abstract class AttachmentSaveServiceInterface {
-  Future<void> saveAttachment(String imagePath, Future<int> transactionId);
+  Future<void> saveAttachment(
+    String imagePath,
+    Future<int> transactionId, {
+    int? billingJobId,
+    BillingJobLease? lease,
+  });
 }
 
 /// 附件保存阶段处理器。
@@ -36,7 +41,14 @@ class AttachmentStageProcessor implements StageProcessor {
           ? Future<int>.value(job.transactionId)
           : ctx.transactionIdFuture;
       unawaited(
-        attachmentService.saveAttachment(job.imagePath, txFuture).then((_) {
+        attachmentService
+            .saveAttachment(
+          job.imagePath,
+          txFuture,
+          billingJobId: job.id,
+          lease: ctx.lease,
+        )
+            .then((_) {
           return ctx.requireOwnedWrite(
             (lease) => repo.markAttachmentDone(job.id, lease: lease),
           );
