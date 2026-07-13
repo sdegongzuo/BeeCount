@@ -8,6 +8,18 @@ import org.junit.Test
 
 class ShareBillingPendingPayloadPolicyTest {
     @Test
+    fun `delivery lease exceeds job deadline plus heartbeat and safety margin`() {
+        val billingJobDeadlineMs = 90_000L
+        val heartbeatIntervalMs = 30_000L
+        val safetyMarginMs = 15_000L
+
+        assertTrue(
+            ShareBillingPendingPayloadPolicy.DELIVERY_LEASE_MS >
+                billingJobDeadlineMs + heartbeatIntervalMs + safetyMarginMs
+        )
+    }
+
+    @Test
     fun `legacy payload gets a stable request id across repeated recovery`() {
         val json = "{\"cacheImagePath\":\"/cache/share/legacy.png\",\"screenshotTimeMillis\":42}"
         val first = ShareBillingPendingPayloadPolicy.stableLegacyRequestId(json)

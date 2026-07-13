@@ -6,6 +6,15 @@ import '../platform/screenshot_source_info.dart';
 
 typedef BillingJobStatusReporter = FutureOr<void> Function(String status);
 
+class BillingJobExecutionCancelled implements Exception {
+  final Object? cause;
+  const BillingJobExecutionCancelled([this.cause]);
+
+  @override
+  String toString() =>
+      'BillingJobExecutionCancelled${cause == null ? '' : ': $cause'}';
+}
+
 /// 阶段间传递的上下文，用于在 stage 之间共享数据。
 /// 避免重复调用 OCR 等昂贵操作，并解决 job 快照过期问题。
 class PipelineContext {
@@ -24,7 +33,53 @@ class PipelineContext {
   /// 分享来源信息，供 OCR/规则阶段保留 app 来源和支付通道证据。
   ScreenshotSourceInfo? sourceInfo;
 
-  PipelineContext();
+  void Function()? _ensureDeliveryOwned;
+  BillingJobRepository? _leaseRepository;
+  BillingJobLease? _lease;
+
+  PipelineContext({void Function()? ensureDeliveryOwned})
+      : _ensureDeliveryOwned = ensureDeliveryOwned;
+
+  BillingJobLease? get lease => _lease;
+
+  void configureOwnership({
+    required BillingJobRepository repository,
+    required BillingJobLease lease,
+    void Function()? ensureDeliveryOwned,
+  }) {
+    _leaseRepository = repository;
+    _lease = lease;
+    if (ensureDeliveryOwned != null) {
+      _ensureDeliveryOwned = ensureDeliveryOwned;
+    }
+  }
+
+  void ensureCanStartSideEffect() {
+    try {
+      _ensureDeliveryOwned?.call();
+    } catch (error) {
+      throw BillingJobExecutionCancelled(error);
+    }
+  }
+
+  Future<void> ensureJobOwned() async {
+    final repository = _leaseRepository;
+    final currentLease = _lease;
+    if (repository != null &&
+        currentLease != null &&
+        !await repository.isLeaseOwner(currentLease)) {
+      throw const BillingJobExecutionCancelled('billing_job_lease_lost');
+    }
+  }
+
+  Future<void> requireOwnedWrite(
+    Future<bool> Function(BillingJobLease? lease) write,
+  ) async {
+    await ensureJobOwned();
+    if (!await write(_lease)) {
+      throw const BillingJobExecutionCancelled('billing_job_cas_rejected');
+    }
+  }
 
   Future<int> get transactionIdFuture {
     _transactionIdFutureRequested = true;
@@ -93,82 +148,127 @@ class BillingJobRunner {
     this.statusReporter,
   });
 
-  Future<void> runJob(
+  Future<bool> runJob(
     BillingJob job,
     DateTime deadline, {
     PipelineContext? initialContext,
   }) async {
-    final claimed =
-        await repo.claimJob(job.id, deadline.difference(DateTime.now()));
-    if (!claimed) return;
+    initialContext?.ensureCanStartSideEffect();
+    final remaining = deadline.difference(DateTime.now());
+    final lease = await repo.claimJobLease(
+      job.id,
+      remaining.isNegative ? const Duration(seconds: 1) : remaining,
+    );
+    if (lease == null) return false;
 
     final ctx = initialContext ?? PipelineContext();
-    await _reportStatus('已接收图片，准备识别账单');
-    await _dispatchAttachment(job, deadline, ctx);
-    await _runProcessors(job, deadline,
-        [ocrProcessor, ruleProcessor, txProcessor, aiProcessor], ctx);
+    ctx.configureOwnership(
+      repository: repo,
+      lease: lease,
+      ensureDeliveryOwned: ctx._ensureDeliveryOwned,
+    );
+    try {
+      ctx.ensureCanStartSideEffect();
+      await _reportStatus('已接收图片，准备识别账单');
+      await _dispatchAttachment(job, deadline, ctx);
+      await _runProcessors(job, deadline,
+          [ocrProcessor, ruleProcessor, txProcessor, aiProcessor], ctx);
 
-    // 附件在主流程完成后启动（此时 transactionId 已在 ctx 中）
-    final current = await repo.findById(job.id);
-    if (current == null) return;
-    if (current.status != BillingJobStatus.failed &&
-        current.status != BillingJobStatus.retryableFailed &&
-        current.status != BillingJobStatus.awaitingConfirmation) {
-      await _completeJob(job.id);
+      // 附件在主流程完成后启动（此时 transactionId 已在 ctx 中）
+      final current = await repo.findById(job.id);
+      if (current == null) return true;
+      if (current.status != BillingJobStatus.failed &&
+          current.status != BillingJobStatus.retryableFailed &&
+          current.status != BillingJobStatus.awaitingConfirmation) {
+        await _completeJob(job.id, ctx);
+      }
+    } on BillingJobExecutionCancelled catch (error) {
+      ctx.failTransactionId(error);
     }
+    return true;
   }
 
-  Future<void> resumeJob(
+  Future<bool> resumeJob(
     BillingJob job,
     DateTime deadline, {
     PipelineContext? initialContext,
   }) async {
-    final claimed =
-        await repo.claimJob(job.id, deadline.difference(DateTime.now()));
-    if (!claimed) return;
+    initialContext?.ensureCanStartSideEffect();
+    final remaining = deadline.difference(DateTime.now());
+    final lease = await repo.claimJobLease(
+      job.id,
+      remaining.isNegative ? const Duration(seconds: 1) : remaining,
+    );
+    if (lease == null) return false;
 
     final ctx = initialContext ?? PipelineContext();
-    await _reportStatus('正在恢复未完成的账单识别');
-    // 恢复时，从已有 stage 之前的数据重建 ctx
-    ctx.rawText = job.rawText;
-    ctx.transactionId = job.transactionId;
-    if (job.transactionId != null) {
-      ctx.completeTransactionId(job.transactionId!);
+    ctx.configureOwnership(
+      repository: repo,
+      lease: lease,
+      ensureDeliveryOwned: ctx._ensureDeliveryOwned,
+    );
+    try {
+      ctx.ensureCanStartSideEffect();
+      await _reportStatus('正在恢复未完成的账单识别');
+      // 恢复时，从已有 stage 之前的数据重建 ctx
+      ctx.rawText = job.rawText;
+      ctx.transactionId = job.transactionId;
+      if (job.transactionId != null) {
+        ctx.completeTransactionId(job.transactionId!);
+      }
+      await _dispatchAttachment(job, deadline, ctx);
+
+      final allProcessors = [
+        ocrProcessor,
+        ruleProcessor,
+        txProcessor,
+        aiProcessor
+      ];
+      final startIndex = _startIndexForStage(job.stage);
+      final processors = allProcessors.sublist(startIndex);
+      await _runProcessors(job, deadline, processors, ctx);
+
+      // 附件在主流程完成后启动
+      final current = await repo.findById(job.id);
+      if (current == null) return true;
+
+      if (current.status == BillingJobStatus.retryableFailed) {
+        await ctx.requireOwnedWrite(
+          (lease) => repo.updateStatus(
+            current.id,
+            BillingJobStatus.pending,
+            lease: lease,
+          ),
+        );
+        final refreshed = await repo.findById(job.id);
+        if (refreshed == null) return true;
+        await _completeJob(job.id, ctx);
+        return true;
+      }
+
+      if (current.status != BillingJobStatus.failed &&
+          current.status != BillingJobStatus.awaitingConfirmation) {
+        await _completeJob(job.id, ctx);
+      }
+    } on BillingJobExecutionCancelled catch (error) {
+      ctx.failTransactionId(error);
     }
-    await _dispatchAttachment(job, deadline, ctx);
-
-    final allProcessors = [
-      ocrProcessor,
-      ruleProcessor,
-      txProcessor,
-      aiProcessor
-    ];
-    final startIndex = _startIndexForStage(job.stage);
-    final processors = allProcessors.sublist(startIndex);
-    await _runProcessors(job, deadline, processors, ctx);
-
-    // 附件在主流程完成后启动
-    final current = await repo.findById(job.id);
-    if (current == null) return;
-
-    if (current.status == BillingJobStatus.retryableFailed) {
-      await repo.updateStatus(current.id, BillingJobStatus.pending);
-      final refreshed = await repo.findById(job.id);
-      if (refreshed == null) return;
-      await _completeJob(job.id);
-      return;
-    }
-
-    if (current.status != BillingJobStatus.failed &&
-        current.status != BillingJobStatus.awaitingConfirmation) {
-      await _completeJob(job.id);
-    }
+    return true;
   }
 
-  Future<void> _completeJob(int jobId) async {
-    await repo.updateStage(jobId, BillingJobStage.completed);
+  Future<void> _completeJob(int jobId, PipelineContext ctx) async {
+    await ctx.requireOwnedWrite(
+      (lease) => repo.updateStage(
+        jobId,
+        BillingJobStage.completed,
+        lease: lease,
+      ),
+    );
+    ctx.ensureCanStartSideEffect();
     await _reportStatus('账单识别完成，正在收尾');
-    await repo.markSucceeded(jobId);
+    await ctx.requireOwnedWrite(
+      (lease) => repo.markSucceeded(jobId, lease: lease),
+    );
   }
 
   Future<void> _dispatchAttachment(
@@ -177,6 +277,8 @@ class BillingJobRunner {
     PipelineContext ctx,
   ) async {
     if (attachmentProcessor == null) return;
+    ctx.ensureCanStartSideEffect();
+    await ctx.ensureJobOwned();
     final freshJob = await repo.findById(job.id);
     if (freshJob == null || freshJob.attachmentDone) return;
     await _reportStatus('正在保存账单图片');
@@ -213,14 +315,29 @@ class BillingJobRunner {
       if (DateTime.now().isAfter(deadline)) {
         ctx.failTransactionId('foreground_timeout');
         await _reportStatus('账单识别超时，等待重试');
-        await repo.updateStatus(job.id, BillingJobStatus.retryableFailed,
-            lastError: 'foreground_timeout');
+        await ctx.requireOwnedWrite(
+          (lease) => repo.updateStatus(
+            job.id,
+            BillingJobStatus.retryableFailed,
+            lastError: 'foreground_timeout',
+            lease: lease,
+            releaseLease: true,
+          ),
+        );
         return;
       }
+      ctx.ensureCanStartSideEffect();
+      await ctx.ensureJobOwned();
       await _reportStatus(_statusForProcessor(processor));
       final result = await processor.process(currentJob, deadline, ctx);
       if (result.success) {
-        await repo.updateStage(job.id, processor.stageName);
+        await ctx.requireOwnedWrite(
+          (lease) => repo.updateStage(
+            job.id,
+            processor.stageName,
+            lease: lease,
+          ),
+        );
         // 刷新 job 快照，让下一阶段看到最新数据
         final refreshed = await repo.findById(job.id);
         if (refreshed != null) currentJob = refreshed;
@@ -236,12 +353,16 @@ class BillingJobRunner {
         await _reportStatus(
           result.retryable ? '账单识别暂时失败，等待重试' : '账单识别失败',
         );
-        await repo.updateStatus(
-          job.id,
-          result.retryable
-              ? BillingJobStatus.retryableFailed
-              : BillingJobStatus.failed,
-          lastError: result.error,
+        await ctx.requireOwnedWrite(
+          (lease) => repo.updateStatus(
+            job.id,
+            result.retryable
+                ? BillingJobStatus.retryableFailed
+                : BillingJobStatus.failed,
+            lastError: result.error,
+            lease: lease,
+            releaseLease: true,
+          ),
         );
         return;
       }

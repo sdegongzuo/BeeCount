@@ -88,7 +88,8 @@ void main() {
     expect(result.every((j) => j.id != succeeded.id), isTrue);
   });
 
-  test('findAwaitingConfirmationJobs restores user confirmation work', () async {
+  test('findAwaitingConfirmationJobs restores user confirmation work',
+      () async {
     final awaiting = await repo.createJob(imagePath: '/tmp/confirm.png');
     await repo.updateStatus(
       awaiting.id,
@@ -148,6 +149,25 @@ void main() {
 
     final second = await repo.claimJob(job.id, Duration(seconds: 60));
     expect(second, isTrue);
+  });
+
+  test('an expired owner cannot mutate after a later owner claims the job',
+      () async {
+    final job = await repo.createJob(imagePath: '/tmp/stale-owner.png');
+    final stale =
+        (await repo.claimJobLease(job.id, const Duration(seconds: -1)))!;
+    final current =
+        (await repo.claimJobLease(job.id, const Duration(seconds: 30)))!;
+
+    expect(
+      await repo.updateTransactionId(job.id, 41, lease: stale),
+      isFalse,
+    );
+    expect(
+      await repo.updateTransactionId(job.id, 42, lease: current),
+      isTrue,
+    );
+    expect((await repo.findById(job.id))!.transactionId, 42);
   });
 
   test('markSucceeded sets completed_at', () async {

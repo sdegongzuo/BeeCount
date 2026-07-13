@@ -30,17 +30,23 @@ class AttachmentStageProcessor implements StageProcessor {
     }
 
     try {
+      ctx.ensureCanStartSideEffect();
+      await ctx.ensureJobOwned();
       final txFuture = job.transactionId != null
           ? Future<int>.value(job.transactionId)
           : ctx.transactionIdFuture;
       unawaited(
         attachmentService.saveAttachment(job.imagePath, txFuture).then((_) {
-          return repo.markAttachmentDone(job.id);
+          return ctx.requireOwnedWrite(
+            (lease) => repo.markAttachmentDone(job.id, lease: lease),
+          );
         }).catchError((Object e, StackTrace st) {
           logger.error('AttachmentStage', '附件后台保存失败', e, st);
         }),
       );
       return const StageResult.success();
+    } on BillingJobExecutionCancelled {
+      rethrow;
     } catch (e) {
       return StageResult.failure(e.toString());
     }

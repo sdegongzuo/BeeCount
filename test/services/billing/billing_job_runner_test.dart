@@ -290,6 +290,39 @@ void main() {
     expect(ai.called, isFalse);
   });
 
+  test('delivery ownership loss prevents every later business stage', () async {
+    var deliveryOwned = true;
+    final losingOcr = _TimedStageProcessor(
+      onCalled: () => deliveryOwned = false,
+      stageName: BillingJobStage.ocrDone,
+    );
+    final fencedRunner = BillingJobRunner(
+      repo: repo,
+      ocrProcessor: losingOcr,
+      ruleProcessor: rule,
+      txProcessor: tx,
+      aiProcessor: ai,
+    );
+    final job = await repo.createJob(imagePath: '/tmp/fenced.png');
+
+    await fencedRunner.runJob(
+      job,
+      DateTime.now().add(const Duration(seconds: 5)),
+      initialContext: PipelineContext(
+        ensureDeliveryOwned: () {
+          if (!deliveryOwned) throw StateError('delivery lease lost');
+        },
+      ),
+    );
+
+    final updated = await repo.findById(job.id);
+    expect(updated!.stage, BillingJobStage.ocrDone);
+    expect(updated.status, BillingJobStatus.pending);
+    expect(rule.called, isFalse);
+    expect(tx.called, isFalse);
+    expect(ai.called, isFalse);
+  });
+
   test('runJob classifies retryable AI errors', () async {
     final retryableAi = FailingStageProcessor(BillingJobStage.aiDone);
     final retryableRunner = BillingJobRunner(
@@ -489,10 +522,10 @@ class _SlowStageProcessor implements StageProcessor {
 
 class _TimedStageProcessor implements StageProcessor {
   @override
-  String get stageName => 'attachment';
+  final String stageName;
   final void Function() onCalled;
 
-  _TimedStageProcessor({required this.onCalled});
+  _TimedStageProcessor({required this.onCalled, this.stageName = 'attachment'});
 
   @override
   Future<StageResult> process(

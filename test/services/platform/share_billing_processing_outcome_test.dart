@@ -60,4 +60,36 @@ void main() {
     expect(
         calls.map((call) => call.method), isNot(contains('failShareBilling')));
   });
+
+  test('仍由另一执行者处理的 job 到观察 deadline 后不会被误报失败', () async {
+    final calls = <({String method, Map<String, Object?> arguments})>[];
+    final job = BillingJob(
+      id: 20,
+      kind: 'image_share',
+      imagePath: '/isolated/active.png',
+      status: BillingJobStatus.pending,
+      stage: BillingJobStage.ocrDone,
+      attemptCount: 0,
+      attachmentDone: false,
+      createdAt: DateTime(2026, 7, 14),
+      updatedAt: DateTime(2026, 7, 14),
+    );
+    final reporter = ShareBillingProcessingOutcomeReporter(
+      (method, arguments) async {
+        calls.add((method: method, arguments: arguments));
+      },
+    );
+
+    final outcome = await reporter.report(
+      transactionId: null,
+      job: job,
+      imagePath: job.imagePath,
+    );
+
+    expect(outcome, ShareBillingProcessingOutcome.inProgress);
+    expect(calls.single.method, 'updateShareBillingStatus');
+    expect(calls.single.arguments['statusText'], contains('自动恢复'));
+    expect(
+        calls.map((call) => call.method), isNot(contains('failShareBilling')));
+  });
 }

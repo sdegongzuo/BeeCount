@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 object ShareBillingPendingPayloadPolicy {
-    const val DELIVERY_LEASE_MS = 95_000L
+    const val DELIVERY_LEASE_MS = 150_000L
 
     data class NormalizedRoot(val root: JSONObject, val changed: Boolean)
 

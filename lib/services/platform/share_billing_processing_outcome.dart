@@ -4,6 +4,7 @@ import '../../data/repositories/billing_job_repository.dart';
 enum ShareBillingProcessingOutcome {
   completed,
   awaitingConfirmation,
+  inProgress,
   failed,
 }
 
@@ -35,6 +36,13 @@ class ShareBillingProcessingOutcomeReporter {
           'imagePath': imagePath,
         });
         break;
+      case ShareBillingProcessingOutcome.inProgress:
+        // Non-terminal: keep the native pending payload intact. Its delivery
+        // lease will expire and recovery will observe/resume the same job.
+        await _invokeMethod('updateShareBillingStatus', {
+          'statusText': '账单仍在处理中，将自动恢复',
+        });
+        break;
       case ShareBillingProcessingOutcome.failed:
         await _invokeMethod('failShareBilling', {
           'reason': 'transaction_not_created',
@@ -52,6 +60,10 @@ ShareBillingProcessingOutcome resolveShareBillingProcessingOutcome({
   if (transactionId != null) return ShareBillingProcessingOutcome.completed;
   if (job?.status == BillingJobStatus.awaitingConfirmation) {
     return ShareBillingProcessingOutcome.awaitingConfirmation;
+  }
+  if (job?.status == BillingJobStatus.pending ||
+      job?.status == BillingJobStatus.retryableFailed) {
+    return ShareBillingProcessingOutcome.inProgress;
   }
   return ShareBillingProcessingOutcome.failed;
 }

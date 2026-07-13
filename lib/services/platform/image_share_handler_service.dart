@@ -36,6 +36,7 @@ class ImageShareHandlerService {
     );
     _coordinator = ShareBillingRequestCoordinator(
       processImage: _billingJobService.processImage,
+      processImageWithOwnership: _billingJobService.processImage,
       findJob: _container.read(billingJobRepositoryProvider).findByImagePath,
       loadTransaction: (transactionId) async {
         final transaction = await _container

@@ -44,6 +44,8 @@ class OcrStageProcessor implements StageProcessor {
     }
 
     try {
+      ctx.ensureCanStartSideEffect();
+      await ctx.ensureJobOwned();
       final ocrResult = await ocrService.recognize(
         job.imagePath,
         sourceInfo: ctx.sourceInfo,
@@ -53,15 +55,29 @@ class OcrStageProcessor implements StageProcessor {
       }
 
       // 存储 rawText
-      await repo.updateRawText(job.id, ocrResult.rawText);
+      await ctx.requireOwnedWrite(
+        (lease) => repo.updateRawText(
+          job.id,
+          ocrResult.rawText,
+          lease: lease,
+        ),
+      );
       ctx.rawText = ocrResult.rawText;
 
       // 存储完整 OcrResult JSON 到 ruleResultJson（规则阶段为空操作）
       final ocrJson = jsonEncode(ocrResult.toJson());
-      await repo.updateRuleResultJson(job.id, ocrJson);
+      await ctx.requireOwnedWrite(
+        (lease) => repo.updateRuleResultJson(
+          job.id,
+          ocrJson,
+          lease: lease,
+        ),
+      );
       ctx.ocrFields = ocrResult.toJson();
 
       return const StageResult.success();
+    } on BillingJobExecutionCancelled {
+      rethrow;
     } catch (e) {
       return StageResult.failure(e.toString());
     }

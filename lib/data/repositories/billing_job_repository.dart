@@ -21,21 +21,44 @@ abstract final class BillingJobStatus {
   static const failed = 'failed';
 }
 
+/// An opaque claim version used to fence writes from an expired runner.
+///
+/// [leaseUntil] is written atomically by [claimJobLease]. A later claimant
+/// replaces it, so mutations carrying an older value fail their SQL WHERE CAS.
+class BillingJobLease {
+  final int jobId;
+  final DateTime leaseUntil;
+
+  const BillingJobLease({required this.jobId, required this.leaseUntil});
+}
+
 abstract class BillingJobRepository {
   Future<BillingJob> createJob(
       {required String imagePath, String kind = 'image_share'});
   Future<BillingJob?> findById(int id);
   Future<List<BillingJob>> findPendingJobs();
   Future<List<BillingJob>> findAwaitingConfirmationJobs();
-  Future<void> updateStage(int id, String stage);
-  Future<void> updateStatus(int id, String status, {String? lastError});
+  Future<bool> updateStage(int id, String stage, {BillingJobLease? lease});
+  Future<bool> updateStatus(
+    int id,
+    String status, {
+    String? lastError,
+    BillingJobLease? lease,
+    bool releaseLease = false,
+  });
   Future<bool> claimJob(int id, Duration leaseDuration);
-  Future<void> markSucceeded(int id);
-  Future<void> markAttachmentDone(int id);
+  Future<BillingJobLease?> claimJobLease(int id, Duration leaseDuration);
+  Future<bool> isLeaseOwner(BillingJobLease lease);
+  Future<bool> markSucceeded(int id, {BillingJobLease? lease});
+  Future<bool> markAttachmentDone(int id, {BillingJobLease? lease});
   Future<BillingJob?> findByImagePath(String imagePath);
-  Future<void> updateRawText(int id, String rawText);
-  Future<void> updateSourceInfoJson(int id, String sourceInfoJson);
-  Future<void> updateRuleResultJson(int id, String ruleResultJson);
-  Future<void> updateTransactionId(int id, int transactionId);
-  Future<void> updateFinalResultJson(int id, String finalResultJson);
+  Future<bool> updateRawText(int id, String rawText, {BillingJobLease? lease});
+  Future<bool> updateSourceInfoJson(int id, String sourceInfoJson,
+      {BillingJobLease? lease});
+  Future<bool> updateRuleResultJson(int id, String ruleResultJson,
+      {BillingJobLease? lease});
+  Future<bool> updateTransactionId(int id, int transactionId,
+      {BillingJobLease? lease});
+  Future<bool> updateFinalResultJson(int id, String finalResultJson,
+      {BillingJobLease? lease});
 }

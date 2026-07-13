@@ -2,11 +2,22 @@ import 'dart:async';
 
 import 'package:beecount/services/platform/share_billing_delivery.dart';
 import 'package:beecount/services/platform/share_billing_request_coordinator.dart';
+import 'package:beecount/services/billing/billing_job_service.dart';
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/billing_job_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('delivery lease exceeds Billing Job deadline plus heartbeat margin', () {
+    expect(
+      shareBillingDeliveryLease,
+      greaterThan(
+        billingJobProcessingDeadline +
+            shareBillingHeartbeatInterval +
+            shareBillingLeaseSafetyMargin,
+      ),
+    );
+  });
   test('drainer processes every distinct pending payload in order', () async {
     final pending = <Map<String, Object?>>[
       {'requestId': 'expired-1', 'cacheImagePath': '/one.png'},
@@ -164,5 +175,41 @@ void main() {
     );
     owner.stop();
     expect(renewals, greaterThanOrEqualTo(2));
+  });
+
+  test(
+      'a continued processing Future receives a guard that fences side effects',
+      () async {
+    var renewals = 0;
+    var businessSideEffects = 0;
+    final processingFinished = Completer<void>();
+    final coordinator = ShareBillingRequestCoordinator(
+      processImage: (_, {sourceInfo}) async => null,
+      processImageWithOwnership: (_, {sourceInfo, ensureDeliveryOwned}) async {
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+        try {
+          ensureDeliveryOwned!();
+          businessSideEffects++;
+        } finally {
+          processingFinished.complete();
+        }
+        return null;
+      },
+      findJob: (_) async => null,
+      loadTransaction: (_) async => null,
+      invokeMethod: (_, __) async {},
+      renewDeliveryLease: (_, __) async => ++renewals < 2,
+      deliveryLeaseHeartbeatInterval: const Duration(milliseconds: 5),
+    );
+
+    await coordinator.process(const {
+      'requestId': 'future-continues-1',
+      'deliveryOwnerToken': 'old-owner',
+      'cacheImagePath': '/future-continues.png',
+    });
+    await processingFinished.future;
+
+    expect(renewals, greaterThanOrEqualTo(2));
+    expect(businessSideEffects, 0);
   });
 }

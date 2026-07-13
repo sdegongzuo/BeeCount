@@ -32,23 +32,44 @@ import 'rules/personal_rule_lifecycle_service.dart';
 import '../platform/screenshot_source_info.dart';
 import '../system/logger_service.dart';
 
+const billingJobProcessingDeadline = Duration(seconds: 90);
+
 /// 胶水层：组装 BillingJobRunner + concrete processors + repository。
 /// 接入真实生产依赖（AIBillService、AttachmentService）。
 class BillingJobService {
   final BillingJobRepository _repo;
   final BillingJobRunner _runner;
-  final OcrService _ocrService;
-  final SuccessfulRegressionSampleRecorder _regressionSampleRecorder;
+  final OcrService? _ocrService;
+  final SuccessfulRegressionSampleRecorder? _regressionSampleRecorder;
+  final Duration _processingDeadline;
+  final Duration _terminalPollInterval;
 
   BillingJobService._({
     required BillingJobRepository repo,
     required BillingJobRunner runner,
-    required OcrService ocrService,
-    required SuccessfulRegressionSampleRecorder regressionSampleRecorder,
+    OcrService? ocrService,
+    SuccessfulRegressionSampleRecorder? regressionSampleRecorder,
+    Duration processingDeadline = billingJobProcessingDeadline,
+    Duration terminalPollInterval = const Duration(milliseconds: 50),
   })  : _repo = repo,
         _runner = runner,
         _ocrService = ocrService,
-        _regressionSampleRecorder = regressionSampleRecorder;
+        _regressionSampleRecorder = regressionSampleRecorder,
+        _processingDeadline = processingDeadline,
+        _terminalPollInterval = terminalPollInterval;
+
+  factory BillingJobService.forTesting({
+    required BillingJobRepository repo,
+    required BillingJobRunner runner,
+    Duration processingDeadline = billingJobProcessingDeadline,
+    Duration terminalPollInterval = const Duration(milliseconds: 50),
+  }) =>
+      BillingJobService._(
+        repo: repo,
+        runner: runner,
+        processingDeadline: processingDeadline,
+        terminalPollInterval: terminalPollInterval,
+      );
 
   /// 创建 BillingJobService，接入真实生产依赖。
   factory BillingJobService.create({
@@ -137,31 +158,61 @@ class BillingJobService {
   Future<int?> processImage(
     String imagePath, {
     ScreenshotSourceInfo? sourceInfo,
+    void Function()? ensureDeliveryOwned,
   }) async {
     logger.info('BillingJobService', '开始处理图片', imagePath);
 
     final existing = await _repo.findByImagePath(imagePath);
-    if (existing != null &&
-        (existing.status == BillingJobStatus.pending ||
-            existing.status == BillingJobStatus.awaitingConfirmation ||
-            existing.status == BillingJobStatus.succeeded)) {
-      logger.warning('BillingJobService', '图片已处理过，跳过', imagePath);
-      return existing.transactionId;
+    if (existing != null) {
+      if (existing.status == BillingJobStatus.awaitingConfirmation ||
+          existing.status == BillingJobStatus.succeeded ||
+          existing.status == BillingJobStatus.failed) {
+        logger.warning('BillingJobService', '图片已有终态，复用结果', imagePath);
+        return existing.transactionId;
+      }
+      if (sourceInfo != null && existing.sourceInfoJson == null) {
+        ensureDeliveryOwned?.call();
+        await _repo.updateSourceInfoJson(
+          existing.id,
+          jsonEncode(sourceInfo.toJson()),
+        );
+      }
+      final deadline = DateTime.now().add(_processingDeadline);
+      final claimed = await _runner.resumeJob(
+        existing,
+        deadline,
+        initialContext: PipelineContext(
+          ensureDeliveryOwned: ensureDeliveryOwned,
+        )..sourceInfo = sourceInfo,
+      );
+      final updated = claimed
+          ? await _repo.findById(existing.id)
+          : await _waitForTerminal(existing.id, deadline);
+      if (updated != null) {
+        ensureDeliveryOwned?.call();
+        await _captureRegressionSample(updated);
+      }
+      return updated?.transactionId;
     }
 
+    ensureDeliveryOwned?.call();
     final job = await _repo.createJob(imagePath: imagePath);
     if (sourceInfo != null) {
+      ensureDeliveryOwned?.call();
       await _repo.updateSourceInfoJson(job.id, jsonEncode(sourceInfo.toJson()));
     }
-    final deadline = DateTime.now().add(const Duration(seconds: 90));
+    final deadline = DateTime.now().add(_processingDeadline);
     await _runner.runJob(
       job,
       deadline,
-      initialContext: PipelineContext()..sourceInfo = sourceInfo,
+      initialContext: PipelineContext(
+        ensureDeliveryOwned: ensureDeliveryOwned,
+      )..sourceInfo = sourceInfo,
     );
 
     final updated = await _repo.findById(job.id);
     if (updated != null) {
+      ensureDeliveryOwned?.call();
       await _captureRegressionSample(updated);
     }
     logger.info(
@@ -172,6 +223,24 @@ class BillingJobService {
     return updated?.transactionId;
   }
 
+  Future<BillingJob?> _waitForTerminal(int jobId, DateTime deadline) async {
+    while (true) {
+      final current = await _repo.findById(jobId);
+      if (current == null ||
+          current.status == BillingJobStatus.succeeded ||
+          current.status == BillingJobStatus.awaitingConfirmation ||
+          current.status == BillingJobStatus.failed ||
+          current.status == BillingJobStatus.retryableFailed) {
+        return current;
+      }
+      if (!DateTime.now().isBefore(deadline)) return current;
+      final remaining = deadline.difference(DateTime.now());
+      await Future<void>.delayed(
+        remaining < _terminalPollInterval ? remaining : _terminalPollInterval,
+      );
+    }
+  }
+
   /// 恢复所有 pending/retryable_failed 的 job。
   Future<void> resumePendingJobs() async {
     final jobs = await _repo.findPendingJobs();
@@ -179,7 +248,7 @@ class BillingJobService {
     logger.info('BillingJobService', '恢复待处理任务', '${jobs.length} 个 job');
     for (final job in jobs) {
       try {
-        final deadline = DateTime.now().add(const Duration(seconds: 90));
+        final deadline = DateTime.now().add(_processingDeadline);
         await _runner.resumeJob(
           job,
           deadline,
@@ -198,12 +267,14 @@ class BillingJobService {
 
   /// 释放资源
   void dispose() {
-    _ocrService.dispose();
+    _ocrService?.dispose();
   }
 
   Future<void> _captureRegressionSample(BillingJob job) async {
+    final recorder = _regressionSampleRecorder;
+    if (recorder == null) return;
     try {
-      await _regressionSampleRecorder.capture(job);
+      await recorder.capture(job);
     } catch (error, stackTrace) {
       logger.error('BillingJobService', '保存个人规则回归样本失败', error, stackTrace);
     }

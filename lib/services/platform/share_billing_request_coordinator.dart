@@ -8,6 +8,11 @@ typedef ShareBillingImageProcessor = Future<int?> Function(
   String imagePath, {
   ScreenshotSourceInfo? sourceInfo,
 });
+typedef ShareBillingOwnedImageProcessor = Future<int?> Function(
+  String imagePath, {
+  ScreenshotSourceInfo? sourceInfo,
+  void Function()? ensureDeliveryOwned,
+});
 typedef ShareBillingJobFinder = Future<BillingJob?> Function(String imagePath);
 typedef ShareBillingTransactionLoader = Future<ShareBillingTransactionSummary?>
     Function(int transactionId);
@@ -23,6 +28,7 @@ class ShareBillingTransactionSummary {
 /// One orchestration path shared by the foreground and headless Flutter engines.
 class ShareBillingRequestCoordinator {
   final ShareBillingImageProcessor processImage;
+  final ShareBillingOwnedImageProcessor? processImageWithOwnership;
   final ShareBillingJobFinder findJob;
   final ShareBillingTransactionLoader loadTransaction;
   final ShareBillingMethodInvoker invokeMethod;
@@ -36,12 +42,13 @@ class ShareBillingRequestCoordinator {
 
   const ShareBillingRequestCoordinator({
     required this.processImage,
+    this.processImageWithOwnership,
     required this.findJob,
     required this.loadTransaction,
     required this.invokeMethod,
     this.renewDeliveryLease,
     this.initialize,
-    this.deliveryLeaseHeartbeatInterval = const Duration(seconds: 30),
+    this.deliveryLeaseHeartbeatInterval = shareBillingHeartbeatInterval,
     this.onAwaitingConfirmation,
     this.pollInterval = const Duration(milliseconds: 500),
     this.maxPolls = 180,
@@ -69,10 +76,15 @@ class ShareBillingRequestCoordinator {
           'statusText': '正在准备识别账单',
         });
 
-        final processing = processImage(
-          payload.path,
-          sourceInfo: payload.sourceInfo,
-        );
+        final processing = processImageWithOwnership?.call(
+              payload.path,
+              sourceInfo: payload.sourceInfo,
+              ensureDeliveryOwned: owner?.ensureOwned,
+            ) ??
+            processImage(
+              payload.path,
+              sourceInfo: payload.sourceInfo,
+            );
         final transactionCreated = _notifyWhenTransactionCreated(
           payload.path,
           requestId,

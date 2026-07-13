@@ -5,7 +5,8 @@ import '../billing_job_runner.dart';
 
 /// AI 增强服务抽象。
 abstract class AiEnhancementService {
-  Future<Map<String, dynamic>> enhanceTransaction(int transactionId, String rawText);
+  Future<Map<String, dynamic>> enhanceTransaction(
+      int transactionId, String rawText);
 }
 
 /// AI 增强阶段处理器。
@@ -26,22 +27,34 @@ class AiStageProcessor implements StageProcessor {
   String get stageName => BillingJobStage.aiDone;
 
   @override
-  Future<StageResult> process(BillingJob job, DateTime deadline, PipelineContext ctx) async {
+  Future<StageResult> process(
+      BillingJob job, DateTime deadline, PipelineContext ctx) async {
     // 优先从 PipelineContext 读取 transactionId（解决快照过期问题）
     final txId = ctx.transactionId ?? job.transactionId;
     if (txId == null) {
       return const StageResult.failure('no_transaction');
     }
     try {
+      ctx.ensureCanStartSideEffect();
+      await ctx.ensureJobOwned();
       final result = await aiService.enhanceTransaction(
         txId,
         ctx.rawText ?? job.rawText ?? '',
       );
-      await repo.updateFinalResultJson(job.id, result.toString());
+      await ctx.requireOwnedWrite(
+        (lease) => repo.updateFinalResultJson(
+          job.id,
+          result.toString(),
+          lease: lease,
+        ),
+      );
       return const StageResult.success();
+    } on BillingJobExecutionCancelled {
+      rethrow;
     } catch (e) {
       final classification = _classifier.classify(e);
-      return StageResult.failure(classification.errorCode, retryable: classification.retryable);
+      return StageResult.failure(classification.errorCode,
+          retryable: classification.retryable);
     }
   }
 }

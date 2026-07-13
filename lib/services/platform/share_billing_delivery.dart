@@ -1,6 +1,9 @@
 import 'dart:async';
 
 const shareBillingRetryAtMillisKey = '_shareBillingRetryAtMillis';
+const shareBillingHeartbeatInterval = Duration(seconds: 30);
+const shareBillingLeaseSafetyMargin = Duration(seconds: 15);
+const shareBillingDeliveryLease = Duration(seconds: 150);
 
 class ShareBillingLeaseLost implements Exception {
   final String requestId;

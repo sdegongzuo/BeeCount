@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:beecount/data/db.dart';
@@ -21,6 +22,19 @@ class FakeTransactionCreationService implements TransactionCreationService {
     called = true;
     callCount++;
     return txIdToReturn;
+  }
+}
+
+class BlockingTransactionCreationService implements TransactionCreationService {
+  final started = Completer<void>();
+  final result = Completer<int>();
+  int callCount = 0;
+
+  @override
+  Future<int> createTransaction(OcrResult ocrResult) {
+    callCount++;
+    if (!started.isCompleted) started.complete();
+    return result.future;
   }
 }
 
@@ -130,6 +144,51 @@ void main() {
 
     expect(result.success, isTrue);
     expect(txService.called, isFalse);
+  });
+
+  test(
+      'an already-started transaction is fenced into its job before delivery cancellation',
+      () async {
+    final txService = BlockingTransactionCreationService();
+    final processor =
+        TransactionStageProcessor(txService: txService, repo: repo);
+    final job = await repo.createJob(imagePath: '/tmp/lost-delivery.png');
+    final candidate = OcrResult(
+      rawText: '付款 18.00',
+      allNumbers: const ['18.00'],
+      amount: 18,
+      time: DateTime(2026, 7, 14, 1, 2, 3),
+      fastBillingAccepted: true,
+    );
+    await repo.updateRuleResultJson(job.id, jsonEncode(candidate.toJson()));
+    final lease =
+        (await repo.claimJobLease(job.id, const Duration(seconds: 5)))!;
+    var deliveryOwned = true;
+    final context = PipelineContext(
+      ensureDeliveryOwned: () {
+        if (!deliveryOwned) throw StateError('delivery lease lost');
+      },
+    )..configureOwnership(repository: repo, lease: lease);
+
+    final first = processor.process(
+      (await repo.findById(job.id))!,
+      DateTime.now().add(const Duration(seconds: 5)),
+      context,
+    );
+    await txService.started.future;
+    deliveryOwned = false;
+    txService.result.complete(812);
+
+    expect((await first).success, isTrue);
+    expect((await repo.findById(job.id))!.transactionId, 812);
+
+    final second = await processor.process(
+      (await repo.findById(job.id))!,
+      DateTime.now().add(const Duration(seconds: 5)),
+      PipelineContext(),
+    );
+    expect(second.success, isTrue);
+    expect(txService.callCount, 1);
   });
 
   test('deduplicates by time+amount within same second', () async {

@@ -45,19 +45,41 @@ class TransactionStageProcessor implements StageProcessor {
       if (!ocrResult.fastBillingAccepted ||
           ocrResult.amount == null ||
           ocrResult.time == null) {
-        await repo.updateFinalResultJson(
-            job.id, jsonEncode(ocrResult.toJson()));
-        await repo.updateStatus(
-          job.id,
-          BillingJobStatus.awaitingConfirmation,
+        await ctx.requireOwnedWrite(
+          (lease) => repo.updateFinalResultJson(
+            job.id,
+            jsonEncode(ocrResult.toJson()),
+            lease: lease,
+          ),
+        );
+        await ctx.requireOwnedWrite(
+          (lease) => repo.updateStatus(
+            job.id,
+            BillingJobStatus.awaitingConfirmation,
+            lease: lease,
+            releaseLease: true,
+          ),
         );
         return const StageResult.awaitingConfirmation();
       }
 
+      ctx.ensureCanStartSideEffect();
+      await ctx.ensureJobOwned();
       final txId = await txService.createTransaction(ocrResult);
-      await repo.updateTransactionId(job.id, txId);
+      // A delivery lease may be lost while the already-started transaction
+      // Future is running. Persist its result only through this Billing Job
+      // lease CAS so a later runner observes transactionId and skips creation.
+      await ctx.requireOwnedWrite(
+        (lease) => repo.updateTransactionId(
+          job.id,
+          txId,
+          lease: lease,
+        ),
+      );
       ctx.completeTransactionId(txId); // 写入 PipelineContext，供后续阶段使用
       return const StageResult.success();
+    } on BillingJobExecutionCancelled {
+      rethrow;
     } catch (e) {
       return StageResult.failure(e.toString());
     }

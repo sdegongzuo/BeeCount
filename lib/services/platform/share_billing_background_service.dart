@@ -42,6 +42,12 @@ class ShareBillingBackgroundService {
         initialize: _ensureInitialized,
         processImage: (path, {sourceInfo}) =>
             _billingJobService!.processImage(path, sourceInfo: sourceInfo),
+        processImageWithOwnership: (path, {sourceInfo, ensureDeliveryOwned}) =>
+            _billingJobService!.processImage(
+          path,
+          sourceInfo: sourceInfo,
+          ensureDeliveryOwned: ensureDeliveryOwned,
+        ),
         findJob: (path) => _container!
             .read(billingJobRepositoryProvider)
             .findByImagePath(path),
