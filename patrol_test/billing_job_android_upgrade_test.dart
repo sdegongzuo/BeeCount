@@ -11,9 +11,11 @@ import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:patrol/patrol.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 void main() {
-  patrolTest('schema 26 Billing Job upgrades and resumes on Android', ($) async {
+  patrolTest('schema 26 Billing Job upgrades and resumes on Android',
+      ($) async {
     await $.pumpWidget(const SizedBox.shrink());
 
     final directory = await getTemporaryDirectory();
@@ -22,23 +24,7 @@ void main() {
       'billing_job_schema_26_${DateTime.now().microsecondsSinceEpoch}.sqlite',
     ));
 
-    final seedDb = BeeDatabase.forTesting(NativeDatabase(databaseFile));
-    final seedRepo = LocalBillingJobRepository(seedDb);
-    final attachmentDone = await seedRepo.createJob(
-      imagePath: '/instrumentation/attachment-done.png',
-    );
-    final attachmentPending = await seedRepo.createJob(
-      imagePath: '/instrumentation/attachment-pending.png',
-    );
-    for (final job in [attachmentDone, attachmentPending]) {
-      await seedRepo.updateRawText(job.id, 'historical OCR');
-      await seedRepo.updateRuleResultJson(job.id, '{"amount":26}');
-      await seedRepo.updateTransactionId(job.id, 2600 + job.id);
-      await seedRepo.updateStage(job.id, BillingJobStage.aiDone);
-    }
-    await seedRepo.markAttachmentDone(attachmentDone.id);
-    await seedDb.customStatement('PRAGMA user_version = 26');
-    await seedDb.close();
+    _seedHistoricalV26Database(databaseFile);
 
     final db = BeeDatabase.forTesting(NativeDatabase(databaseFile));
     try {
@@ -46,8 +32,8 @@ void main() {
       expect(version.read<int>('user_version'), 27);
 
       final repo = LocalBillingJobRepository(db);
-      final migratedDone = (await repo.findById(attachmentDone.id))!;
-      final migratedPending = (await repo.findById(attachmentPending.id))!;
+      final migratedDone = (await repo.findById(2601))!;
+      final migratedPending = (await repo.findById(2602))!;
       expect(migratedDone.stage, BillingJobStage.completed);
       expect(migratedPending.stage, BillingJobStage.completed);
 
@@ -68,24 +54,89 @@ void main() {
         migratedPending,
         DateTime.now().add(const Duration(seconds: 30)),
       );
-      expect(calls, isEmpty,
-          reason: '历史终态恢复不得重放 OCR、规则、交易或 AI');
+      expect(calls, isEmpty, reason: '历史终态恢复不得重放 OCR、规则、交易或 AI');
 
-      final restoredDone = (await repo.findById(attachmentDone.id))!;
-      final restoredPending = (await repo.findById(attachmentPending.id))!;
+      final restoredDone = (await repo.findById(2601))!;
+      final restoredPending = (await repo.findById(2602))!;
       expect(restoredDone.status, BillingJobStatus.succeeded);
       expect(restoredPending.status, BillingJobStatus.succeeded);
       expect(restoredDone.attachmentDone, isTrue);
       expect(restoredPending.attachmentDone, isFalse);
 
       final mapper = BillingNotificationMapper();
-      expect(mapper.map(restoredDone).title, '记账完成');
-      expect(mapper.map(restoredPending).body, '附件稍后保存');
+      final doneNotification = mapper.map(restoredDone);
+      expect(doneNotification.title, '记账完成');
+      expect(doneNotification.body, '账单已成功记录');
+      final pendingNotification = mapper.map(restoredPending);
+      expect(pendingNotification.title, '记账已创建');
+      expect(pendingNotification.body, '附件稍后保存');
     } finally {
       await db.close();
     }
-  });
+  }, timeout: const Timeout(Duration(seconds: 30)));
 }
+
+/// 使用 `b70b1b3^`（schema v26）生成代码对应的原始表结构创建夹具。
+///
+/// 不使用当前 [BeeDatabase] 建表、也不把 v27 数据库伪装成 v26，确保随后打开
+/// 文件时确实走 Drift 的 26 -> 27 `onUpgrade`。
+void _seedHistoricalV26Database(File file) {
+  final oldDb = sqlite.sqlite3.open(file.path);
+  try {
+    oldDb.execute(_billingJobsV26Sql);
+    oldDb.execute('PRAGMA user_version = 26');
+    final insert = oldDb.prepare('''
+      INSERT INTO billing_jobs (
+        id, status, stage, transaction_id, image_path, raw_text,
+        rule_result_json, attachment_done
+      ) VALUES (?, 'pending', 'ai_done', ?, ?, 'historical OCR', ?, ?)
+    ''');
+    try {
+      insert.execute([
+        2601,
+        2601,
+        '/instrumentation/attachment-done.png',
+        '{"amount":26}',
+        1,
+      ]);
+      insert.execute([
+        2602,
+        2602,
+        '/instrumentation/attachment-pending.png',
+        '{"amount":26}',
+        0,
+      ]);
+    } finally {
+      insert.close();
+    }
+  } finally {
+    oldDb.close();
+  }
+}
+
+const _billingJobsV26Sql = '''
+CREATE TABLE billing_jobs (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  kind TEXT NOT NULL DEFAULT 'image_share',
+  status TEXT NOT NULL DEFAULT 'pending',
+  stage TEXT NOT NULL DEFAULT 'received',
+  transaction_id INTEGER,
+  image_path TEXT NOT NULL,
+  raw_text TEXT,
+  ocr_engine TEXT,
+  source_info_json TEXT,
+  rule_result_json TEXT,
+  final_result_json TEXT,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  lease_until INTEGER,
+  attachment_done INTEGER NOT NULL DEFAULT 0
+    CHECK (attachment_done IN (0, 1)),
+  created_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s', 'now') AS INTEGER)),
+  updated_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s', 'now') AS INTEGER)),
+  completed_at INTEGER
+)
+''';
 
 class _RecordingProcessor implements StageProcessor {
   _RecordingProcessor(this.stageName, this.calls);

@@ -88,6 +88,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   # Testing framework enhancements
   mocktail: ^1.0.4
+  sqlite3: ^3.3.1
   integration_test:
     sdk: flutter
   patrol: ^4.6.0
