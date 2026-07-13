@@ -174,6 +174,23 @@ class ShareBillingForegroundService : Service() {
                     LoggerPlugin.info(TAG, "Share billing created notification updated")
                     result.success(null)
                 }
+                "shareBillingNeedsConfirmation" -> {
+                    val jobId = call.argument<Number>("jobId")?.toLong()
+                    val imagePath = call.argument<String>("imagePath")
+                    val notification = buildNotification(
+                        contentText = "请打开应用检查金额和时间",
+                        title = "账单需要确认",
+                        ongoing = false
+                    )
+                    removeForegroundNotification()
+                    publishResultNotification(notification)
+                    LoggerPlugin.info(
+                        TAG,
+                        "Share billing awaits confirmation: jobId=$jobId, imagePath=$imagePath"
+                    )
+                    stopSelf()
+                    result.success(null)
+                }
                 "failShareBilling" -> {
                     val reason = call.argument<String>("reason") ?: "unknown"
                     clearPendingPayload()
