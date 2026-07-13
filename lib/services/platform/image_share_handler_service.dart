@@ -50,10 +50,15 @@ class ImageShareHandlerService {
       },
       invokeMethod: (method, arguments) =>
           _channel.invokeMethod<void>(method, arguments),
-      renewDeliveryLease: (requestId) => _channel.invokeMethod<void>(
-        'renewShareBillingDeliveryLease',
-        {'requestId': requestId},
-      ),
+      renewDeliveryLease: (requestId, ownerToken) async =>
+          await _channel.invokeMethod<bool>(
+            'renewShareBillingDeliveryLease',
+            {
+              'requestId': requestId,
+              'deliveryOwnerToken': ownerToken,
+            },
+          ) ==
+          true,
       onAwaitingConfirmation: (jobId) async {
         _container.read(pendingBillConfirmationJobIdProvider.notifier).state =
             jobId;

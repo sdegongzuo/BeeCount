@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:beecount/services/platform/share_billing_delivery.dart';
+import 'package:beecount/services/platform/share_billing_request_coordinator.dart';
+import 'package:beecount/data/db.dart';
+import 'package:beecount/data/repositories/billing_job_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -43,19 +46,60 @@ void main() {
     expect(reads, 2);
   });
 
+  test(
+      'drainer waits for the nearest active lease then retries without restart',
+      () async {
+    var now = 1000;
+    var reads = 0;
+    final waits = <Duration>[];
+    final processed = <String>[];
+    final drainer = ShareBillingPendingPayloadDrainer(
+      nowMillis: () => now,
+      wait: (duration) async {
+        waits.add(duration);
+        now += duration.inMilliseconds;
+      },
+      loadNext: () async {
+        reads++;
+        if (reads == 1) return {shareBillingRetryAtMillisKey: 1075};
+        if (reads == 2) {
+          return {
+            'requestId': 'expired-after-wait',
+            'deliveryOwnerToken': 'owner-after-wait',
+            'cacheImagePath': '/after-wait.png',
+          };
+        }
+        return null;
+      },
+      process: (payload) async {
+        processed.add(payload['requestId']! as String);
+      },
+    );
+
+    await drainer.drain();
+
+    expect(waits, [const Duration(milliseconds: 75)]);
+    expect(processed, ['expired-after-wait']);
+  });
+
   test('headless initialization failure retains request correlation', () async {
     final invocations = <({String method, Map<String, Object?> arguments})>[];
-    final runner = ShareBillingHeadlessRequestRunner(
+    final coordinator = ShareBillingRequestCoordinator(
       initialize: () async => throw StateError('init failed'),
-      process: (_) async => fail('processing must not start'),
+      processImage: (_, {sourceInfo}) async =>
+          fail('processing must not start'),
+      findJob: (_) async => null,
+      loadTransaction: (_) async => null,
       invokeMethod: (method, arguments) async {
         invocations.add((method: method, arguments: arguments));
       },
-      heartbeatInterval: const Duration(milliseconds: 5),
+      renewDeliveryLease: (_, __) async => true,
+      deliveryLeaseHeartbeatInterval: const Duration(milliseconds: 5),
     );
 
-    await runner.run(const {
+    await coordinator.process(const {
       'requestId': 'headless-init-7',
+      'deliveryOwnerToken': 'headless-owner-7',
       'cacheImagePath': '/headless.png',
     });
 
@@ -67,19 +111,33 @@ void main() {
   test('headless owner renews lease throughout long initialization', () async {
     final initialized = Completer<void>();
     final renewals = <String>[];
-    final runner = ShareBillingHeadlessRequestRunner(
+    final awaitingJob = BillingJob(
+      id: 92,
+      kind: 'image_share',
+      imagePath: '/headless-slow.png',
+      status: BillingJobStatus.awaitingConfirmation,
+      stage: BillingJobStage.ruleDone,
+      attemptCount: 1,
+      attachmentDone: false,
+      createdAt: DateTime(2026, 7, 14),
+      updatedAt: DateTime(2026, 7, 14),
+    );
+    final coordinator = ShareBillingRequestCoordinator(
       initialize: () => initialized.future,
-      process: (_) async {},
-      invokeMethod: (method, arguments) async {
-        if (method == 'renewShareBillingDeliveryLease') {
-          renewals.add(arguments['requestId']! as String);
-        }
+      processImage: (_, {sourceInfo}) async => null,
+      findJob: (_) async => awaitingJob,
+      loadTransaction: (_) async => null,
+      invokeMethod: (_, __) async {},
+      renewDeliveryLease: (requestId, ownerToken) async {
+        renewals.add('$requestId:$ownerToken');
+        return true;
       },
-      heartbeatInterval: const Duration(milliseconds: 5),
+      deliveryLeaseHeartbeatInterval: const Duration(milliseconds: 5),
     );
 
-    final result = runner.run(const {
+    final result = coordinator.process(const {
       'requestId': 'headless-slow-9',
+      'deliveryOwnerToken': 'headless-owner-9',
       'cacheImagePath': '/headless-slow.png',
     });
     await Future<void>.delayed(const Duration(milliseconds: 25));
@@ -87,6 +145,24 @@ void main() {
     await result;
 
     expect(renewals.length, greaterThanOrEqualTo(2));
-    expect(renewals, everyElement('headless-slow-9'));
+    expect(renewals, everyElement('headless-slow-9:headless-owner-9'));
+  });
+
+  test('lease renewal rejection fences and terminates guarded work', () async {
+    var renewals = 0;
+    final owner = ShareBillingDeliveryLeaseOwner(
+      requestId: 'fenced-1',
+      ownerToken: 'owner-a',
+      renew: (_, __) async => ++renewals < 2,
+      interval: const Duration(milliseconds: 5),
+    );
+    await owner.start();
+
+    await expectLater(
+      owner.guard(Completer<void>().future),
+      throwsA(isA<ShareBillingLeaseLost>()),
+    );
+    owner.stop();
+    expect(renewals, greaterThanOrEqualTo(2));
   });
 }

@@ -56,6 +56,37 @@ class ShareBillingPendingPayloadPolicyTest {
     }
 
     @Test
+    fun `nearest active lease expiry is exposed for recovery scheduling`() {
+        val root = JSONObject()
+            .put("later", JSONObject().put("requestId", "later").put("dispatchLeaseUntil", 900))
+            .put("awaiting", JSONObject().put("requestId", "awaiting").put("jobId", 42).put("dispatchLeaseUntil", 600))
+            .put("nearer", JSONObject().put("requestId", "nearer").put("dispatchLeaseUntil", 700))
+
+        assertEquals(700L, ShareBillingPendingPayloadPolicy.nearestRetryAt(root, 500))
+    }
+
+    @Test
+    fun `owner token fences renewal and terminal removal`() {
+        val root = JSONObject().put(
+            "request-1",
+            JSONObject().put("requestId", "request-1")
+        )
+        val claimed = ShareBillingPendingPayloadPolicy.claim(
+            root = root,
+            requestId = "request-1",
+            ownerToken = "owner-a",
+            now = 1_000
+        )
+        assertEquals("owner-a", claimed?.getString("deliveryOwnerToken"))
+        assertTrue(ShareBillingPendingPayloadPolicy.renew(root, "request-1", "owner-a", 2_000))
+        assertFalse(ShareBillingPendingPayloadPolicy.renew(root, "request-1", "owner-b", 3_000))
+        assertFalse(ShareBillingPendingPayloadPolicy.removeIfOwner(root, "request-1", "owner-b"))
+        assertTrue(root.has("request-1"))
+        assertTrue(ShareBillingPendingPayloadPolicy.removeIfOwner(root, "request-1", "owner-a"))
+        assertFalse(root.has("request-1"))
+    }
+
+    @Test
     fun `awaiting payload stays durable but is not reprocessed`() {
         assertFalse(
             ShareBillingPendingPayloadPolicy.isRecoverable(

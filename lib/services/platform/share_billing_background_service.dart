@@ -38,38 +38,45 @@ class ShareBillingBackgroundService {
 
   Future<void> _processShareBilling(Object? arguments) async {
     try {
-      await ShareBillingHeadlessRequestRunner(
+      final coordinator = ShareBillingRequestCoordinator(
         initialize: _ensureInitialized,
-        process: (payload) async {
-          final coordinator = ShareBillingRequestCoordinator(
-            processImage: _billingJobService!.processImage,
-            findJob:
-                _container!.read(billingJobRepositoryProvider).findByImagePath,
-            loadTransaction: (transactionId) async {
-              final transaction = await _container!
-                  .read(repositoryProvider)
-                  .getTransactionById(transactionId);
-              return transaction == null
-                  ? null
-                  : ShareBillingTransactionSummary(
-                      amount: transaction.amount,
-                      note: transaction.note,
-                    );
-            },
-            invokeMethod: (method, values) =>
-                _channel.invokeMethod<void>(method, values),
-          );
-          await coordinator.process(payload);
+        processImage: (path, {sourceInfo}) =>
+            _billingJobService!.processImage(path, sourceInfo: sourceInfo),
+        findJob: (path) => _container!
+            .read(billingJobRepositoryProvider)
+            .findByImagePath(path),
+        loadTransaction: (transactionId) async {
+          final transaction = await _container!
+              .read(repositoryProvider)
+              .getTransactionById(transactionId);
+          return transaction == null
+              ? null
+              : ShareBillingTransactionSummary(
+                  amount: transaction.amount,
+                  note: transaction.note,
+                );
         },
         invokeMethod: (method, values) =>
             _channel.invokeMethod<void>(method, values),
-      ).run(arguments);
+        renewDeliveryLease: (requestId, ownerToken) async =>
+            await _channel.invokeMethod<bool>(
+              'renewShareBillingDeliveryLease',
+              {
+                'requestId': requestId,
+                'deliveryOwnerToken': ownerToken,
+              },
+            ) ==
+            true,
+      );
+      await coordinator.process(arguments);
     } catch (e, stackTrace) {
       logger.error('ShareBillingBackground', '后台图片记账失败', e, stackTrace);
       await _channel.invokeMethod<void>('failShareBilling', {
         'reason': e.toString(),
         if (shareBillingRequestIdFrom(arguments) case final requestId?)
           'requestId': requestId,
+        if (shareBillingOwnerTokenFrom(arguments) case final ownerToken?)
+          'deliveryOwnerToken': ownerToken,
       });
     }
   }

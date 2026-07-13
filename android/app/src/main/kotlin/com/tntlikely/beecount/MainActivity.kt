@@ -21,7 +21,7 @@ import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import com.tntlikely.beecount.regression.RegressionSampleChannel
-import org.json.JSONObject
+import java.util.UUID
 
 class MainActivity: FlutterFragmentActivity() {
     private var regressionSampleChannel: RegressionSampleChannel? = null
@@ -34,6 +34,7 @@ class MainActivity: FlutterFragmentActivity() {
     private var screenshotObserver: ScreenshotObserver? = null
     private var rapidOcrBridge: RapidOcrBridge? = null
     private var shareBillingReceiver: BroadcastReceiver? = null
+    private val shareBillingPendingStore by lazy { ShareBillingPendingPayloadStore(this) }
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -277,31 +278,35 @@ class MainActivity: FlutterFragmentActivity() {
                     result.success(true)
                 }
                 "getPendingShareBillingPayload" -> {
-                    result.success(readPendingShareBillingPayload())
+                    result.success(claimPendingShareBillingPayload())
                 }
                 "renewShareBillingDeliveryLease" -> {
                     val requestId = call.argument<String>(
                         ShareBillingForegroundService.EXTRA_REQUEST_ID
                     )
-                    if (requestId == null) {
-                        result.error("missing_request_id", "lease renewal requires requestId", null)
-                    } else {
-                        startShareBillingService(
-                            ShareBillingForegroundService.createRenewLeaseIntent(this, requestId)
+                    val ownerToken = call.argument<String>(
+                        ShareBillingForegroundService.EXTRA_DELIVERY_OWNER_TOKEN
+                    )
+                    result.success(
+                        shareBillingPendingStore.renew(
+                            requestId,
+                            ownerToken,
+                            System.currentTimeMillis()
                         )
-                        result.success(true)
-                    }
+                    )
                 }
                 "completeShareBilling" -> {
                     val amount = call.argument<Number>("amount")?.toDouble()
                     val note = call.argument<String>("note")
                     val requestId = call.argument<String>(ShareBillingForegroundService.EXTRA_REQUEST_ID)
+                    val ownerToken = call.argument<String>(ShareBillingForegroundService.EXTRA_DELIVERY_OWNER_TOKEN)
                     startShareBillingService(
                         ShareBillingForegroundService.createCompleteIntent(
                             this,
                             amount = amount,
                             note = note,
-                            requestId = requestId
+                            requestId = requestId,
+                            ownerToken = ownerToken
                         )
                     )
                     result.success(true)
@@ -316,31 +321,35 @@ class MainActivity: FlutterFragmentActivity() {
                 "failShareBilling" -> {
                     val reason = call.argument<String>("reason") ?: "unknown"
                     val requestId = call.argument<String>(ShareBillingForegroundService.EXTRA_REQUEST_ID)
-                    startShareBillingService(ShareBillingForegroundService.createFailedIntent(this, reason, requestId))
+                    val ownerToken = call.argument<String>(ShareBillingForegroundService.EXTRA_DELIVERY_OWNER_TOKEN)
+                    startShareBillingService(ShareBillingForegroundService.createFailedIntent(this, reason, requestId, ownerToken))
                     result.success(true)
                 }
                 "shareBillingCreated" -> {
                     val amount = call.argument<Number>("amount")?.toDouble()
                     val note = call.argument<String>("note")
                     val requestId = call.argument<String>(ShareBillingForegroundService.EXTRA_REQUEST_ID)
+                    val ownerToken = call.argument<String>(ShareBillingForegroundService.EXTRA_DELIVERY_OWNER_TOKEN)
                     startShareBillingService(
                         ShareBillingForegroundService.createCreatedIntent(
                             this,
                             amount = amount,
                             note = note,
-                            requestId = requestId
+                            requestId = requestId,
+                            ownerToken = ownerToken
                         )
                     )
                     result.success(true)
                 }
                 "shareBillingNeedsConfirmation" -> {
                     val requestId = call.argument<String>(ShareBillingForegroundService.EXTRA_REQUEST_ID)
+                    val ownerToken = call.argument<String>(ShareBillingForegroundService.EXTRA_DELIVERY_OWNER_TOKEN)
                     val jobId = call.argument<Number>(ShareBillingForegroundService.EXTRA_JOB_ID)?.toLong()
                     if (jobId == null) {
                         result.error("missing_job_id", "shareBillingNeedsConfirmation requires jobId", null)
                     } else {
                         startShareBillingService(
-                            ShareBillingForegroundService.createNeedsConfirmationIntent(this, requestId, jobId)
+                            ShareBillingForegroundService.createNeedsConfirmationIntent(this, requestId, ownerToken, jobId)
                         )
                         result.success(true)
                     }
@@ -349,7 +358,7 @@ class MainActivity: FlutterFragmentActivity() {
                     val jobId = call.argument<Number>(ShareBillingForegroundService.EXTRA_JOB_ID)?.toLong()
                     if (jobId == null) result.error("missing_job_id", "ack requires jobId", null)
                     else {
-                        acknowledgePendingShareBilling(jobId)
+                        shareBillingPendingStore.acknowledge(jobId)
                         result.success(true)
                     }
                 }
@@ -384,70 +393,14 @@ class MainActivity: FlutterFragmentActivity() {
         }
     }
 
-    private fun readPendingShareBillingPayload(): Map<String, Any?>? {
-        val prefs = getSharedPreferences(SHARE_BILLING_PREFS, Context.MODE_PRIVATE)
-        val json = prefs.getString(SHARE_BILLING_PENDING_PAYLOAD, null) ?: return null
-        return try {
-            val normalized = ShareBillingPendingPayloadPolicy.normalizeRoot(json)
-            val root = normalized.root
-            val now = System.currentTimeMillis()
-            val requestId = ShareBillingPendingPayloadPolicy
-                .recoverableRequestIds(root, now)
-                .firstOrNull()
-            val payload = requestId?.let(root::optJSONObject)
-            if (payload != null) {
-                payload.put(
-                    ShareBillingForegroundService.EXTRA_DISPATCH_LEASE_UNTIL,
-                    now + ShareBillingPendingPayloadPolicy.DELIVERY_LEASE_MS
-                )
-            }
-            if (normalized.changed || payload != null) {
-                prefs.edit()
-                    .putString(SHARE_BILLING_PENDING_PAYLOAD, root.toString())
-                    .apply()
-            }
-            payload?.let(::jsonToMap)
-        } catch (e: Exception) {
-            LoggerPlugin.warning("MainActivity", "读取待处理分享账单 payload 失败: ${e.message}")
-            null
+    private fun claimPendingShareBillingPayload(): Map<String, Any?>? {
+        val claim = shareBillingPendingStore.claimNext(
+            ownerToken = UUID.randomUUID().toString(),
+            now = System.currentTimeMillis()
+        )
+        return claim.payload ?: claim.retryAtMillis?.let {
+            mapOf("_shareBillingRetryAtMillis" to it)
         }
-    }
-
-    private fun pendingPayloadIfRecoverable(payload: JSONObject): Map<String, Any?>? {
-        val jobId = payload.optLong(ShareBillingForegroundService.EXTRA_JOB_ID, -1L)
-            .takeIf { it > 0L }
-        val leaseUntil = payload.optLong(
-            ShareBillingForegroundService.EXTRA_DISPATCH_LEASE_UNTIL, 0L
-        ).takeIf { it > 0L }
-        if (!ShareBillingPendingPayloadPolicy.isRecoverable(
-                jobId = jobId,
-                dispatchLeaseUntil = leaseUntil,
-                now = System.currentTimeMillis()
-            )
-        ) return null
-        return jsonToMap(payload)
-    }
-
-    private fun acknowledgePendingShareBilling(jobId: Long) {
-        val prefs = getSharedPreferences(SHARE_BILLING_PREFS, Context.MODE_PRIVATE)
-        val raw = prefs.getString(SHARE_BILLING_PENDING_PAYLOAD, null) ?: return
-        val root = try { JSONObject(raw) } catch (_: Exception) { return }
-        if (root.has(ShareBillingForegroundService.EXTRA_REQUEST_ID)) {
-            if (root.optLong(ShareBillingForegroundService.EXTRA_JOB_ID, -1L) == jobId) {
-                prefs.edit().remove(SHARE_BILLING_PENDING_PAYLOAD).apply()
-            }
-            return
-        }
-        val keys = root.keys().asSequence().toList()
-        keys.forEach { key ->
-            if (root.optJSONObject(key)
-                    ?.optLong(ShareBillingForegroundService.EXTRA_JOB_ID, -1L) == jobId
-            ) root.remove(key)
-        }
-        val editor = prefs.edit()
-        if (root.length() == 0) editor.remove(SHARE_BILLING_PENDING_PAYLOAD)
-        else editor.putString(SHARE_BILLING_PENDING_PAYLOAD, root.toString())
-        editor.apply()
     }
 
     private fun startShareBillingService(intent: Intent) {
@@ -463,17 +416,6 @@ class MainActivity: FlutterFragmentActivity() {
         bundle.keySet().forEach { key ->
             @Suppress("DEPRECATION")
             map[key] = bundle.get(key)
-        }
-        return map
-    }
-
-    private fun jsonToMap(json: JSONObject): Map<String, Any?> {
-        val map = mutableMapOf<String, Any?>()
-        val keys = json.keys()
-        while (keys.hasNext()) {
-            val key = keys.next()
-            val value = json.opt(key)
-            map[key] = if (value == JSONObject.NULL) null else value
         }
         return map
     }
@@ -853,11 +795,6 @@ class MainActivity: FlutterFragmentActivity() {
         }
         ShareBillingMainEngineBridge.detach()
         stopScreenshotObserver()
-    }
-
-    companion object {
-        private const val SHARE_BILLING_PREFS = "share_billing_payloads"
-        private const val SHARE_BILLING_PENDING_PAYLOAD = "pending_payload"
     }
 
     private fun installApkWithIntent(filePath: String): Boolean {

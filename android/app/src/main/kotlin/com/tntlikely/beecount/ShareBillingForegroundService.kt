@@ -28,6 +28,7 @@ class ShareBillingForegroundService : Service() {
     private var backgroundChannel: MethodChannel? = null
     private val pendingBackgroundPayloads = ArrayDeque<Bundle>()
     private val requestTracker = ShareBillingRequestTracker()
+    private val pendingPayloadStore by lazy { ShareBillingPendingPayloadStore(this) }
     private val timeoutRunnable = Runnable {
         LoggerPlugin.warning(TAG, "Share billing foreground service timed out waiting for integration callback")
         stopForegroundService()
@@ -39,14 +40,6 @@ class ShareBillingForegroundService : Service() {
         createNotificationChannel()
 
         when (intent?.action) {
-            ACTION_RENEW_LEASE -> {
-                val requestId = intent.getStringExtra(EXTRA_REQUEST_ID)
-                val notification = buildNotification("姝ｅ湪澶勭悊璐﹀崟")
-                startForegroundCompat(notification)
-                markPendingDispatched(requestId)
-                extendProcessingTimeout()
-                return START_NOT_STICKY
-            }
             ACTION_UPDATE -> {
                 val status = intent.getStringExtra(EXTRA_STATUS_TEXT) ?: "正在处理账单"
                 val notification = buildNotification(status)
@@ -57,6 +50,10 @@ class ShareBillingForegroundService : Service() {
             }
             ACTION_COMPLETE -> {
                 val requestId = intent.getStringExtra(EXTRA_REQUEST_ID)
+                val ownerToken = intent.getStringExtra(EXTRA_DELIVERY_OWNER_TOKEN)
+                if (!finishRequest(requestId, ownerToken, clearPending = true)) {
+                    return START_NOT_STICKY
+                }
                 val content = ShareBillingNotificationContent.completed(
                     amount = intent.getDoubleExtraOrNull(EXTRA_AMOUNT),
                     note = intent.getStringExtra(EXTRA_NOTE)
@@ -68,20 +65,27 @@ class ShareBillingForegroundService : Service() {
                 )
                 removeForegroundNotification()
                 publishResultNotification(notification)
-                finishRequest(requestId, clearPending = true)
                 return START_NOT_STICKY
             }
             ACTION_FAILED -> {
                 val requestId = intent.getStringExtra(EXTRA_REQUEST_ID)
+                val ownerToken = intent.getStringExtra(EXTRA_DELIVERY_OWNER_TOKEN)
+                if (!finishRequest(requestId, ownerToken, clearPending = true)) {
+                    return START_NOT_STICKY
+                }
                 val reason = intent.getStringExtra(EXTRA_FAILURE_REASON) ?: "unknown"
                 val notification = buildNotification("账单识别失败", ongoing = false)
                 removeForegroundNotification()
                 publishResultNotification(notification)
                 LoggerPlugin.warning(TAG, "Share billing failed: $reason")
-                finishRequest(requestId, clearPending = true)
                 return START_NOT_STICKY
             }
             ACTION_CREATED -> {
+                val requestId = intent.getStringExtra(EXTRA_REQUEST_ID)
+                val ownerToken = intent.getStringExtra(EXTRA_DELIVERY_OWNER_TOKEN)
+                if (!pendingPayloadStore.renew(requestId, ownerToken, System.currentTimeMillis())) {
+                    return START_NOT_STICKY
+                }
                 val content = ShareBillingNotificationContent.created(
                     amount = intent.getDoubleExtraOrNull(EXTRA_AMOUNT),
                     note = intent.getStringExtra(EXTRA_NOTE)
@@ -99,8 +103,11 @@ class ShareBillingForegroundService : Service() {
             }
             ACTION_NEEDS_CONFIRMATION -> {
                 val requestId = intent.getStringExtra(EXTRA_REQUEST_ID)
+                val ownerToken = intent.getStringExtra(EXTRA_DELIVERY_OWNER_TOKEN)
                 val jobId = intent.getLongExtra(EXTRA_JOB_ID, -1L).takeIf { it > 0 }
-                markPendingAwaitingConfirmation(requestId, jobId)
+                if (!markPendingAwaitingConfirmation(requestId, ownerToken, jobId)) {
+                    return START_NOT_STICKY
+                }
                 val notification = buildNotification(
                     contentText = "请打开应用检查金额和时间",
                     title = "账单需要确认",
@@ -109,7 +116,7 @@ class ShareBillingForegroundService : Service() {
                 )
                 removeForegroundNotification()
                 publishResultNotification(notification)
-                finishRequest(requestId, clearPending = false)
+                finishTrackedRequest(requestId)
                 return START_NOT_STICKY
             }
             else -> {
@@ -119,10 +126,15 @@ class ShareBillingForegroundService : Service() {
                 val extras = enrichPayload(intent?.extras ?: Bundle.EMPTY)
                 val requestId = extras.getString(EXTRA_REQUEST_ID)
                     ?: UUID.randomUUID().toString().also { extras.putString(EXTRA_REQUEST_ID, it) }
+                val ownerToken = UUID.randomUUID().toString()
+                val claimedExtras = pendingPayloadStore.saveAndClaim(
+                    extras,
+                    ownerToken,
+                    System.currentTimeMillis()
+                )
                 requestTracker.started(requestId)
-                savePendingPayload(extras)
-                if (!dispatchToMainEngine(extras)) {
-                    pendingBackgroundPayloads.addLast(extras)
+                if (!dispatchToMainEngine(claimedExtras)) {
+                    pendingBackgroundPayloads.addLast(claimedExtras)
                     try {
                         ensureBackgroundEngine()
                     } catch (error: Exception) {
@@ -177,12 +189,22 @@ class ShareBillingForegroundService : Service() {
                 }
                 "renewShareBillingDeliveryLease" -> {
                     val requestId = call.argument<String>(EXTRA_REQUEST_ID)
-                    markPendingDispatched(requestId)
-                    extendProcessingTimeout()
-                    result.success(null)
+                    val ownerToken = call.argument<String>(EXTRA_DELIVERY_OWNER_TOKEN)
+                    val renewed = pendingPayloadStore.renew(
+                        requestId,
+                        ownerToken,
+                        System.currentTimeMillis()
+                    )
+                    if (renewed) extendProcessingTimeout()
+                    result.success(renewed)
                 }
                 "completeShareBilling" -> {
                     val requestId = call.argument<String>(EXTRA_REQUEST_ID)
+                    val ownerToken = call.argument<String>(EXTRA_DELIVERY_OWNER_TOKEN)
+                    if (!finishRequest(requestId, ownerToken, clearPending = true)) {
+                        result.error("lease_lost", "delivery owner token rejected", null)
+                        return@setMethodCallHandler
+                    }
                     val amount = call.argument<Number>("amount")?.toDouble()
                     val note = call.argument<String>("note")
                     val content = ShareBillingNotificationContent.completed(
@@ -196,10 +218,15 @@ class ShareBillingForegroundService : Service() {
                     )
                     removeForegroundNotification()
                     publishResultNotification(notification)
-                    finishRequest(requestId, clearPending = true)
                     result.success(null)
                 }
                 "shareBillingCreated" -> {
+                    val requestId = call.argument<String>(EXTRA_REQUEST_ID)
+                    val ownerToken = call.argument<String>(EXTRA_DELIVERY_OWNER_TOKEN)
+                    if (!pendingPayloadStore.renew(requestId, ownerToken, System.currentTimeMillis())) {
+                        result.error("lease_lost", "delivery owner token rejected", null)
+                        return@setMethodCallHandler
+                    }
                     val amount = call.argument<Number>("amount")?.toDouble()
                     val note = call.argument<String>("note")
                     val content = ShareBillingNotificationContent.created(amount, note)
@@ -216,7 +243,12 @@ class ShareBillingForegroundService : Service() {
                 }
                 "shareBillingNeedsConfirmation" -> {
                     val requestId = call.argument<String>(EXTRA_REQUEST_ID)
+                    val ownerToken = call.argument<String>(EXTRA_DELIVERY_OWNER_TOKEN)
                     val jobId = call.argument<Number>("jobId")?.toLong()
+                    if (!markPendingAwaitingConfirmation(requestId, ownerToken, jobId)) {
+                        result.error("lease_lost", "delivery owner token rejected", null)
+                        return@setMethodCallHandler
+                    }
                     val imagePath = call.argument<String>("imagePath")
                     val notification = buildNotification(
                         contentText = "请打开应用检查金额和时间",
@@ -230,18 +262,21 @@ class ShareBillingForegroundService : Service() {
                         TAG,
                         "Share billing awaits confirmation: jobId=$jobId, imagePath=$imagePath"
                     )
-                    markPendingAwaitingConfirmation(requestId, jobId)
-                    finishRequest(requestId, clearPending = false)
+                    finishTrackedRequest(requestId)
                     result.success(null)
                 }
                 "failShareBilling" -> {
                     val requestId = call.argument<String>(EXTRA_REQUEST_ID)
+                    val ownerToken = call.argument<String>(EXTRA_DELIVERY_OWNER_TOKEN)
+                    if (!finishRequest(requestId, ownerToken, clearPending = true)) {
+                        result.error("lease_lost", "delivery owner token rejected", null)
+                        return@setMethodCallHandler
+                    }
                     val reason = call.argument<String>("reason") ?: "unknown"
                     val notification = buildNotification("璐﹀崟璇嗗埆澶辫触", ongoing = false)
                     removeForegroundNotification()
                     publishResultNotification(notification)
                     LoggerPlugin.warning(TAG, "Share billing failed: $reason")
-                    finishRequest(requestId, clearPending = true)
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -258,7 +293,6 @@ class ShareBillingForegroundService : Service() {
     private fun dispatchToMainEngine(extras: Bundle): Boolean {
         val dispatched = ShareBillingMainEngineBridge.dispatch(bundleToMap(extras))
         if (dispatched) {
-            markPendingDispatched(extras.getString(EXTRA_REQUEST_ID))
             LoggerPlugin.info(
                 TAG,
                 "Share billing payload dispatched to main FlutterEngine: path=${extras.getString(EXTRA_CACHE_IMAGE_PATH)}"
@@ -271,7 +305,6 @@ class ShareBillingForegroundService : Service() {
         val channel = backgroundChannel ?: return
         while (pendingBackgroundPayloads.isNotEmpty()) {
             val payload = pendingBackgroundPayloads.removeFirst()
-            markPendingDispatched(payload.getString(EXTRA_REQUEST_ID))
             channel.invokeMethod("processShareBilling", bundleToMap(payload))
             LoggerPlugin.info(
                 TAG,
@@ -286,8 +319,12 @@ class ShareBillingForegroundService : Service() {
         removeForegroundNotification()
         publishResultNotification(notification)
         while (pendingBackgroundPayloads.isNotEmpty()) {
-            val requestId = pendingBackgroundPayloads.removeFirst().getString(EXTRA_REQUEST_ID)
-            finishRequest(requestId, clearPending = true)
+            val payload = pendingBackgroundPayloads.removeFirst()
+            finishRequest(
+                payload.getString(EXTRA_REQUEST_ID),
+                payload.getString(EXTRA_DELIVERY_OWNER_TOKEN),
+                clearPending = true
+            )
         }
     }
 
@@ -323,66 +360,25 @@ class ShareBillingForegroundService : Service() {
         return enriched
     }
 
-    private fun savePendingPayload(extras: Bundle) {
-        val requestId = extras.getString(EXTRA_REQUEST_ID) ?: return
-        val payload = org.json.JSONObject()
-        extras.keySet().forEach { key ->
-            @Suppress("DEPRECATION")
-            payload.put(key, extras.get(key))
+    private fun markPendingAwaitingConfirmation(
+        requestId: String?,
+        ownerToken: String?,
+        jobId: Long?
+    ): Boolean = pendingPayloadStore.markAwaitingConfirmation(requestId, ownerToken, jobId)
+
+    private fun finishRequest(
+        requestId: String?,
+        ownerToken: String?,
+        clearPending: Boolean
+    ): Boolean {
+        if (clearPending && !pendingPayloadStore.removeIfOwner(requestId, ownerToken)) {
+            return false
         }
-        val root = readPendingPayloadRoot()
-        root.put(requestId, payload)
-        writePendingPayloadRoot(root)
+        finishTrackedRequest(requestId)
+        return true
     }
 
-    private fun markPendingAwaitingConfirmation(requestId: String?, jobId: Long?) {
-        if (requestId == null || jobId == null) return
-        val root = readPendingPayloadRoot()
-        root.optJSONObject(requestId)?.apply {
-            put(EXTRA_JOB_ID, jobId)
-            remove(EXTRA_DISPATCH_LEASE_UNTIL)
-        }
-        writePendingPayloadRoot(root)
-    }
-
-    private fun markPendingDispatched(requestId: String?) {
-        if (requestId == null) return
-        val root = readPendingPayloadRoot()
-        root.optJSONObject(requestId)?.put(
-            EXTRA_DISPATCH_LEASE_UNTIL,
-            System.currentTimeMillis() + ShareBillingPendingPayloadPolicy.DELIVERY_LEASE_MS
-        )
-        writePendingPayloadRoot(root)
-    }
-
-    private fun removePendingPayload(requestId: String?) {
-        if (requestId == null) return
-        val root = readPendingPayloadRoot()
-        root.remove(requestId)
-        writePendingPayloadRoot(root)
-    }
-
-    private fun readPendingPayloadRoot(): org.json.JSONObject {
-        val raw = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .getString(PREF_PENDING_PAYLOAD, null) ?: return org.json.JSONObject()
-        return try {
-            val normalized = ShareBillingPendingPayloadPolicy.normalizeRoot(raw)
-            if (normalized.changed) writePendingPayloadRoot(normalized.root)
-            normalized.root
-        } catch (_: Exception) {
-            org.json.JSONObject()
-        }
-    }
-
-    private fun writePendingPayloadRoot(root: org.json.JSONObject) {
-        val editor = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
-        if (root.length() == 0) editor.remove(PREF_PENDING_PAYLOAD)
-        else editor.putString(PREF_PENDING_PAYLOAD, root.toString())
-        editor.apply()
-    }
-
-    private fun finishRequest(requestId: String?, clearPending: Boolean) {
-        if (clearPending) removePendingPayload(requestId)
+    private fun finishTrackedRequest(requestId: String?) {
         if (requestTracker.finished(requestId)) {
             stopSelf()
         }
@@ -538,7 +534,6 @@ class ShareBillingForegroundService : Service() {
 
     companion object {
         const val ACTION_START = "com.tntlikely.beecount.action.SHARE_BILLING_START"
-        const val ACTION_RENEW_LEASE = "com.tntlikely.beecount.action.SHARE_BILLING_RENEW_LEASE"
         const val ACTION_PAYLOAD_READY = "com.tntlikely.beecount.action.SHARE_BILLING_PAYLOAD_READY"
         const val ACTION_UPDATE = "com.tntlikely.beecount.action.SHARE_BILLING_UPDATE"
         const val ACTION_COMPLETE = "com.tntlikely.beecount.action.SHARE_BILLING_COMPLETE"
@@ -555,13 +550,12 @@ class ShareBillingForegroundService : Service() {
         const val EXTRA_REQUEST_ID = "requestId"
         const val EXTRA_JOB_ID = "jobId"
         const val EXTRA_DISPATCH_LEASE_UNTIL = "dispatchLeaseUntil"
+        const val EXTRA_DELIVERY_OWNER_TOKEN = "deliveryOwnerToken"
 
         private const val TAG = "ShareBillingService"
         private const val CHANNEL_ID = "share_billing_processing_v2"
         private const val NOTIFICATION_ID = 2404
         private const val PROCESSING_TIMEOUT_MS = 300_000L
-        private const val PREFS_NAME = "share_billing_payloads"
-        private const val PREF_PENDING_PAYLOAD = "pending_payload"
         private const val BACKGROUND_CHANNEL =
             "com.tntlikely.beecount/share_background"
 
@@ -572,24 +566,19 @@ class ShareBillingForegroundService : Service() {
             }
         }
 
-        fun createRenewLeaseIntent(context: Context, requestId: String): Intent {
-            return Intent(context, ShareBillingForegroundService::class.java).apply {
-                action = ACTION_RENEW_LEASE
-                putExtra(EXTRA_REQUEST_ID, requestId)
-            }
-        }
-
         fun createCompleteIntent(
             context: Context,
             amount: Double?,
             note: String?,
-            requestId: String? = null
+            requestId: String? = null,
+            ownerToken: String? = null
         ): Intent {
             return Intent(context, ShareBillingForegroundService::class.java).apply {
                 action = ACTION_COMPLETE
                 if (amount != null) putExtra(EXTRA_AMOUNT, amount)
                 if (!note.isNullOrBlank()) putExtra(EXTRA_NOTE, note)
                 if (requestId != null) putExtra(EXTRA_REQUEST_ID, requestId)
+                if (ownerToken != null) putExtra(EXTRA_DELIVERY_OWNER_TOKEN, ownerToken)
             }
         }
 
@@ -600,11 +589,17 @@ class ShareBillingForegroundService : Service() {
             }
         }
 
-        fun createFailedIntent(context: Context, reason: String, requestId: String? = null): Intent {
+        fun createFailedIntent(
+            context: Context,
+            reason: String,
+            requestId: String? = null,
+            ownerToken: String? = null
+        ): Intent {
             return Intent(context, ShareBillingForegroundService::class.java).apply {
                 action = ACTION_FAILED
                 putExtra(EXTRA_FAILURE_REASON, reason)
                 if (requestId != null) putExtra(EXTRA_REQUEST_ID, requestId)
+                if (ownerToken != null) putExtra(EXTRA_DELIVERY_OWNER_TOKEN, ownerToken)
             }
         }
 
@@ -612,23 +607,27 @@ class ShareBillingForegroundService : Service() {
             context: Context,
             amount: Double?,
             note: String?,
-            requestId: String? = null
+            requestId: String? = null,
+            ownerToken: String? = null
         ): Intent {
             return Intent(context, ShareBillingForegroundService::class.java).apply {
                 action = ACTION_CREATED
                 if (amount != null) putExtra(EXTRA_AMOUNT, amount)
                 if (!note.isNullOrBlank()) putExtra(EXTRA_NOTE, note)
                 if (requestId != null) putExtra(EXTRA_REQUEST_ID, requestId)
+                if (ownerToken != null) putExtra(EXTRA_DELIVERY_OWNER_TOKEN, ownerToken)
             }
         }
 
         fun createNeedsConfirmationIntent(
             context: Context,
             requestId: String?,
+            ownerToken: String?,
             jobId: Long
         ): Intent = Intent(context, ShareBillingForegroundService::class.java).apply {
             action = ACTION_NEEDS_CONFIRMATION
             if (requestId != null) putExtra(EXTRA_REQUEST_ID, requestId)
+            if (ownerToken != null) putExtra(EXTRA_DELIVERY_OWNER_TOKEN, ownerToken)
             putExtra(EXTRA_JOB_ID, jobId)
         }
     }

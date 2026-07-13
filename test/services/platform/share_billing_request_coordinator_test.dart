@@ -25,12 +25,16 @@ void main() {
       findJob: (_) async => awaitingJob,
       loadTransaction: (_) async => null,
       invokeMethod: (_, __) async {},
-      renewDeliveryLease: (requestId) async => renewals.add(requestId),
+      renewDeliveryLease: (requestId, ownerToken) async {
+        renewals.add('$requestId:$ownerToken');
+        return true;
+      },
       deliveryLeaseHeartbeatInterval: const Duration(milliseconds: 5),
     );
 
     final result = coordinator.process(const {
       'requestId': 'long-main-1',
+      'deliveryOwnerToken': 'main-owner-1',
       'cacheImagePath': '/isolated/slow.png',
     });
     await Future<void>.delayed(const Duration(milliseconds: 25));
@@ -38,7 +42,7 @@ void main() {
     await result;
 
     expect(renewals.length, greaterThanOrEqualTo(2));
-    expect(renewals, everyElement('long-main-1'));
+    expect(renewals, everyElement('long-main-1:main-owner-1'));
   });
 
   test('malformed MethodChannel payload reports a terminal failure', () async {

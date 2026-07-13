@@ -72,6 +72,72 @@ object ShareBillingPendingPayloadPolicy {
         return ids
     }
 
+    fun nearestRetryAt(root: JSONObject, now: Long): Long? {
+        var nearest: Long? = null
+        root.keys().forEach { key ->
+            val payload = root.optJSONObject(key) ?: return@forEach
+            val jobId = payload.optLong(ShareBillingForegroundService.EXTRA_JOB_ID, -1L)
+            if (jobId > 0L) return@forEach
+            val leaseUntil = payload.optLong(
+                ShareBillingForegroundService.EXTRA_DISPATCH_LEASE_UNTIL,
+                0L
+            )
+            if (leaseUntil > now && (nearest == null || leaseUntil < nearest!!)) {
+                nearest = leaseUntil
+            }
+        }
+        return nearest
+    }
+
+    fun claim(
+        root: JSONObject,
+        requestId: String,
+        ownerToken: String,
+        now: Long
+    ): JSONObject? {
+        val payload = root.optJSONObject(requestId) ?: return null
+        val jobId = payload.optLong(ShareBillingForegroundService.EXTRA_JOB_ID, -1L)
+            .takeIf { it > 0L }
+        val leaseUntil = payload.optLong(
+            ShareBillingForegroundService.EXTRA_DISPATCH_LEASE_UNTIL,
+            0L
+        ).takeIf { it > 0L }
+        if (!isRecoverable(jobId, leaseUntil, now)) return null
+        payload.put(ShareBillingForegroundService.EXTRA_DELIVERY_OWNER_TOKEN, ownerToken)
+        payload.put(
+            ShareBillingForegroundService.EXTRA_DISPATCH_LEASE_UNTIL,
+            now + DELIVERY_LEASE_MS
+        )
+        return payload
+    }
+
+    fun renew(
+        root: JSONObject,
+        requestId: String,
+        ownerToken: String,
+        now: Long
+    ): Boolean {
+        val payload = root.optJSONObject(requestId) ?: return false
+        if (payload.optString(ShareBillingForegroundService.EXTRA_DELIVERY_OWNER_TOKEN) != ownerToken) {
+            return false
+        }
+        payload.put(
+            ShareBillingForegroundService.EXTRA_DISPATCH_LEASE_UNTIL,
+            now + DELIVERY_LEASE_MS
+        )
+        return true
+    }
+
+    fun isCurrentOwner(root: JSONObject, requestId: String, ownerToken: String): Boolean =
+        root.optJSONObject(requestId)
+            ?.optString(ShareBillingForegroundService.EXTRA_DELIVERY_OWNER_TOKEN) == ownerToken
+
+    fun removeIfOwner(root: JSONObject, requestId: String, ownerToken: String): Boolean {
+        if (!isCurrentOwner(root, requestId, ownerToken)) return false
+        root.remove(requestId)
+        return true
+    }
+
     private fun looksLikeSinglePayload(value: JSONObject): Boolean =
         value.has(ShareBillingForegroundService.EXTRA_REQUEST_ID) ||
             value.has(ShareBillingForegroundService.EXTRA_CACHE_IMAGE_PATH) ||
