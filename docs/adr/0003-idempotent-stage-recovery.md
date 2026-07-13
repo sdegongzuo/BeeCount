@@ -1,10 +1,14 @@
 # 幂等阶段恢复
 
+> 状态更新（ADR-0004、Issue #2）：`completed` 已取代本文原先约定的
+> `ai_done` 终态。历史 `ai_done` 在 schema v27 迁移为 `completed`；恢复时把
+> 两者等价识别为已完成主流程，且不重放 OCR、规则、交易或增强处理器。
+
 billing job 的每个阶段设计为幂等——恢复时从已完成阶段的下一步继续，不重复执行已完成的工作。
 
-主流程 stage 追踪 OCR → 规则 → 交易创建 → AI 增强的线性进度。stage 值域为：received / ocr_done / rule_done / transaction_created / ai_done。附件保存（AVIF 编码）与主流程完全独立——它只依赖源图片文件，从收到图片那一刻即可并行启动，用 `attachment_done` boolean 独立追踪。
+主流程 stage 追踪 OCR → 规则 → 交易创建 → 完成的线性进度。当前值域为：received / ocr_done / rule_done / transaction_created / ai_done（仅迁移兼容）/ completed。附件保存（AVIF 编码）与主流程完全独立——它只依赖源图片文件，从收到图片那一刻即可并行启动，用 `attachment_done` boolean 独立追踪。
 
-成功条件：`stage == ai_done && attachment_done == true`。
+主流程成功条件为 `stage == completed`；完整完成通知要求同时满足 `attachment_done == true`。若主流程已完成而附件仍待保存，任务保持成功但通知明确显示附件稍后保存。
 
 幂等规则：
 - OCR 完成后保存 `raw_text`，恢复时如果 `raw_text` 已有值，不再调用 OCR。

@@ -1,5 +1,8 @@
 # Android 分享账单真机测试方法
 
+> 在含有用户数据的真机上执行任何集成测试前，必须先阅读
+> [Android 真机测试数据安全与排障经验](android-real-device-test-safety.md)。
+
 ## 推荐方式：写入 pending payload 后启动 MainActivity
 
 `ShareBillingForegroundService` 是 `exported=false`，不能直接从 `adb shell am start-foreground-service` 启动。`ACTION_SEND image/*` 的 `am start` 也可能缺少真实分享器提供的 URI 授权/ClipData，导致只启动 `ShareBillingActivity`，但没有进入 OCR 流程。

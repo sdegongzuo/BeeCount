@@ -10,6 +10,7 @@
 - Windows 下 Pub Cache 在 `C:`、项目在 `D:` 时，Kotlin 可能报 `different roots`；保留 `android/gradle.properties` 中 `kotlin.incremental=false` 和 `kotlin.compiler.execution.strategy=in-process`。
 - Flutter 3.41+ 使用 `CardThemeData`，不要把 `ThemeData.cardTheme` 改回 `CardTheme`。
 - 后续项目文档默认使用中文。
+- 在含有用户数据的 Android 真机上测试时，必须遵守 [Android 真机测试数据安全与排障经验](docs/android-real-device-test-safety.md)：禁止 `flutter test ... -d`、uninstall、`pm clear` 和 `flutter clean`，Patrol 必须使用 `--no-uninstall` 并验证 `run-as` 哨兵。
 
 ## Agent skills
 
