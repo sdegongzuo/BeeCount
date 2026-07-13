@@ -9,6 +9,7 @@ import '../../providers/smart_billing_providers.dart';
 import '../billing/billing_job_service.dart';
 import '../system/logger_service.dart';
 import 'share_billing_request_coordinator.dart';
+import 'share_billing_delivery.dart';
 
 class ShareBillingBackgroundService {
   static const MethodChannel _channel =
@@ -37,29 +38,38 @@ class ShareBillingBackgroundService {
 
   Future<void> _processShareBilling(Object? arguments) async {
     try {
-      await _ensureInitialized();
-      final coordinator = ShareBillingRequestCoordinator(
-        processImage: _billingJobService!.processImage,
-        findJob: _container!.read(billingJobRepositoryProvider).findByImagePath,
-        loadTransaction: (transactionId) async {
-          final transaction = await _container!
-              .read(repositoryProvider)
-              .getTransactionById(transactionId);
-          return transaction == null
-              ? null
-              : ShareBillingTransactionSummary(
-                  amount: transaction.amount,
-                  note: transaction.note,
-                );
+      await ShareBillingHeadlessRequestRunner(
+        initialize: _ensureInitialized,
+        process: (payload) async {
+          final coordinator = ShareBillingRequestCoordinator(
+            processImage: _billingJobService!.processImage,
+            findJob:
+                _container!.read(billingJobRepositoryProvider).findByImagePath,
+            loadTransaction: (transactionId) async {
+              final transaction = await _container!
+                  .read(repositoryProvider)
+                  .getTransactionById(transactionId);
+              return transaction == null
+                  ? null
+                  : ShareBillingTransactionSummary(
+                      amount: transaction.amount,
+                      note: transaction.note,
+                    );
+            },
+            invokeMethod: (method, values) =>
+                _channel.invokeMethod<void>(method, values),
+          );
+          await coordinator.process(payload);
         },
         invokeMethod: (method, values) =>
             _channel.invokeMethod<void>(method, values),
-      );
-      await coordinator.process(arguments);
+      ).run(arguments);
     } catch (e, stackTrace) {
       logger.error('ShareBillingBackground', '后台图片记账失败', e, stackTrace);
       await _channel.invokeMethod<void>('failShareBilling', {
         'reason': e.toString(),
+        if (shareBillingRequestIdFrom(arguments) case final requestId?)
+          'requestId': requestId,
       });
     }
   }

@@ -2,8 +2,45 @@ import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/billing_job_repository.dart';
 import 'package:beecount/services/platform/share_billing_request_coordinator.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
 
 void main() {
+  test('main-engine processing renews its delivery lease while work is running',
+      () async {
+    final processing = Completer<int?>();
+    final renewals = <String>[];
+    final awaitingJob = BillingJob(
+      id: 91,
+      kind: 'image_share',
+      imagePath: '/isolated/slow.png',
+      status: BillingJobStatus.awaitingConfirmation,
+      stage: BillingJobStage.ruleDone,
+      attemptCount: 1,
+      attachmentDone: false,
+      createdAt: DateTime(2026, 7, 14),
+      updatedAt: DateTime(2026, 7, 14),
+    );
+    final coordinator = ShareBillingRequestCoordinator(
+      processImage: (_, {sourceInfo}) => processing.future,
+      findJob: (_) async => awaitingJob,
+      loadTransaction: (_) async => null,
+      invokeMethod: (_, __) async {},
+      renewDeliveryLease: (requestId) async => renewals.add(requestId),
+      deliveryLeaseHeartbeatInterval: const Duration(milliseconds: 5),
+    );
+
+    final result = coordinator.process(const {
+      'requestId': 'long-main-1',
+      'cacheImagePath': '/isolated/slow.png',
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+    processing.complete(null);
+    await result;
+
+    expect(renewals.length, greaterThanOrEqualTo(2));
+    expect(renewals, everyElement('long-main-1'));
+  });
+
   test('malformed MethodChannel payload reports a terminal failure', () async {
     final calls = <({String method, Map<String, Object?> arguments})>[];
     final coordinator = ShareBillingRequestCoordinator(

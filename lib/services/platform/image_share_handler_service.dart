@@ -5,6 +5,7 @@ import '../../providers/smart_billing_providers.dart';
 import '../billing/billing_job_service.dart';
 import '../system/logger_service.dart';
 import 'share_billing_request_coordinator.dart';
+import 'share_billing_delivery.dart';
 
 /// 图片分享处理服务（Android专用）
 /// 处理从相册或其他应用分享过来的图片，通过 BillingJobService 进行 OCR 识别和记账
@@ -49,6 +50,10 @@ class ImageShareHandlerService {
       },
       invokeMethod: (method, arguments) =>
           _channel.invokeMethod<void>(method, arguments),
+      renewDeliveryLease: (requestId) => _channel.invokeMethod<void>(
+        'renewShareBillingDeliveryLease',
+        {'requestId': requestId},
+      ),
       onAwaitingConfirmation: (jobId) async {
         _container.read(pendingBillConfirmationJobIdProvider.notifier).state =
             jobId;
@@ -73,11 +78,12 @@ class ImageShareHandlerService {
 
   Future<void> _processPendingSharedImage() async {
     try {
-      final pending = await _channel.invokeMapMethod<String, dynamic>(
-        'getPendingShareBillingPayload',
-      );
-      if (pending == null || pending.isEmpty) return;
-      await _coordinator.process(pending);
+      await ShareBillingPendingPayloadDrainer(
+        loadNext: () => _channel.invokeMapMethod<String, dynamic>(
+          'getPendingShareBillingPayload',
+        ),
+        process: _coordinator.process,
+      ).drain();
     } catch (e, stackTrace) {
       logger.error('ImageShare', '读取待处理分享图片失败', e, stackTrace);
     }

@@ -1,6 +1,7 @@
 import '../../data/db.dart';
 import '../../data/repositories/billing_job_repository.dart';
 import 'screenshot_source_info.dart';
+import 'share_billing_delivery.dart';
 import 'share_billing_processing_outcome.dart';
 
 typedef ShareBillingImageProcessor = Future<int?> Function(
@@ -25,6 +26,8 @@ class ShareBillingRequestCoordinator {
   final ShareBillingJobFinder findJob;
   final ShareBillingTransactionLoader loadTransaction;
   final ShareBillingMethodInvoker invokeMethod;
+  final Future<void> Function(String requestId)? renewDeliveryLease;
+  final Duration deliveryLeaseHeartbeatInterval;
   final ShareBillingAwaitingHandler? onAwaitingConfirmation;
   final Duration pollInterval;
   final int maxPolls;
@@ -34,6 +37,8 @@ class ShareBillingRequestCoordinator {
     required this.findJob,
     required this.loadTransaction,
     required this.invokeMethod,
+    this.renewDeliveryLease,
+    this.deliveryLeaseHeartbeatInterval = const Duration(seconds: 30),
     this.onAwaitingConfirmation,
     this.pollInterval = const Duration(milliseconds: 500),
     this.maxPolls = 180,
@@ -41,7 +46,15 @@ class ShareBillingRequestCoordinator {
 
   Future<void> process(Object? arguments) async {
     final requestId = _requestIdFrom(arguments);
+    final owner = requestId == null || renewDeliveryLease == null
+        ? null
+        : ShareBillingDeliveryLeaseOwner(
+            requestId: requestId,
+            renew: renewDeliveryLease!,
+            interval: deliveryLeaseHeartbeatInterval,
+          );
     try {
+      await owner?.start();
       final payload = _payloadFromArguments(arguments);
       await _invoke('updateShareBillingStatus', requestId, {
         'statusText': '正在准备识别账单',
@@ -82,6 +95,8 @@ class ShareBillingRequestCoordinator {
       await _invoke('failShareBilling', requestId, {
         'reason': error.toString(),
       });
+    } finally {
+      owner?.stop();
     }
   }
 

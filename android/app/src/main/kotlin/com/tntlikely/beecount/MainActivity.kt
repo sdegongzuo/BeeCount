@@ -279,6 +279,19 @@ class MainActivity: FlutterFragmentActivity() {
                 "getPendingShareBillingPayload" -> {
                     result.success(readPendingShareBillingPayload())
                 }
+                "renewShareBillingDeliveryLease" -> {
+                    val requestId = call.argument<String>(
+                        ShareBillingForegroundService.EXTRA_REQUEST_ID
+                    )
+                    if (requestId == null) {
+                        result.error("missing_request_id", "lease renewal requires requestId", null)
+                    } else {
+                        startShareBillingService(
+                            ShareBillingForegroundService.createRenewLeaseIntent(this, requestId)
+                        )
+                        result.success(true)
+                    }
+                }
                 "completeShareBilling" -> {
                     val amount = call.argument<Number>("amount")?.toDouble()
                     val note = call.argument<String>("note")
@@ -372,21 +385,28 @@ class MainActivity: FlutterFragmentActivity() {
     }
 
     private fun readPendingShareBillingPayload(): Map<String, Any?>? {
-        val json = getSharedPreferences(SHARE_BILLING_PREFS, Context.MODE_PRIVATE)
-            .getString(SHARE_BILLING_PENDING_PAYLOAD, null)
-            ?: return null
+        val prefs = getSharedPreferences(SHARE_BILLING_PREFS, Context.MODE_PRIVATE)
+        val json = prefs.getString(SHARE_BILLING_PENDING_PAYLOAD, null) ?: return null
         return try {
-            val root = JSONObject(json)
-            if (root.has(ShareBillingForegroundService.EXTRA_REQUEST_ID)) {
-                pendingPayloadIfRecoverable(root)
-            } else {
-                val keys = root.keys()
-                var pending: Map<String, Any?>? = null
-                while (keys.hasNext() && pending == null) {
-                    pending = root.optJSONObject(keys.next())?.let(::pendingPayloadIfRecoverable)
-                }
-                pending
+            val normalized = ShareBillingPendingPayloadPolicy.normalizeRoot(json)
+            val root = normalized.root
+            val now = System.currentTimeMillis()
+            val requestId = ShareBillingPendingPayloadPolicy
+                .recoverableRequestIds(root, now)
+                .firstOrNull()
+            val payload = requestId?.let(root::optJSONObject)
+            if (payload != null) {
+                payload.put(
+                    ShareBillingForegroundService.EXTRA_DISPATCH_LEASE_UNTIL,
+                    now + ShareBillingPendingPayloadPolicy.DELIVERY_LEASE_MS
+                )
             }
+            if (normalized.changed || payload != null) {
+                prefs.edit()
+                    .putString(SHARE_BILLING_PENDING_PAYLOAD, root.toString())
+                    .apply()
+            }
+            payload?.let(::jsonToMap)
         } catch (e: Exception) {
             LoggerPlugin.warning("MainActivity", "读取待处理分享账单 payload 失败: ${e.message}")
             null

@@ -39,6 +39,14 @@ class ShareBillingForegroundService : Service() {
         createNotificationChannel()
 
         when (intent?.action) {
+            ACTION_RENEW_LEASE -> {
+                val requestId = intent.getStringExtra(EXTRA_REQUEST_ID)
+                val notification = buildNotification("姝ｅ湪澶勭悊璐﹀崟")
+                startForegroundCompat(notification)
+                markPendingDispatched(requestId)
+                extendProcessingTimeout()
+                return START_NOT_STICKY
+            }
             ACTION_UPDATE -> {
                 val status = intent.getStringExtra(EXTRA_STATUS_TEXT) ?: "正在处理账单"
                 val notification = buildNotification(status)
@@ -115,7 +123,11 @@ class ShareBillingForegroundService : Service() {
                 savePendingPayload(extras)
                 if (!dispatchToMainEngine(extras)) {
                     pendingBackgroundPayloads.addLast(extras)
-                    ensureBackgroundEngine()
+                    try {
+                        ensureBackgroundEngine()
+                    } catch (error: Exception) {
+                        failPendingBackgroundRequests(error)
+                    }
                 }
                 extendProcessingTimeout()
                 return START_NOT_STICKY
@@ -160,6 +172,12 @@ class ShareBillingForegroundService : Service() {
                     val notification = buildNotification(status)
                     startForegroundCompat(notification)
                     publishProgressNotification(notification)
+                    extendProcessingTimeout()
+                    result.success(null)
+                }
+                "renewShareBillingDeliveryLease" -> {
+                    val requestId = call.argument<String>(EXTRA_REQUEST_ID)
+                    markPendingDispatched(requestId)
                     extendProcessingTimeout()
                     result.success(null)
                 }
@@ -262,6 +280,17 @@ class ShareBillingForegroundService : Service() {
         }
     }
 
+    private fun failPendingBackgroundRequests(error: Exception) {
+        LoggerPlugin.warning(TAG, "Headless FlutterEngine initialization failed: ${error.message}")
+        val notification = buildNotification("璐﹀崟璇嗗埆澶辫触", ongoing = false)
+        removeForegroundNotification()
+        publishResultNotification(notification)
+        while (pendingBackgroundPayloads.isNotEmpty()) {
+            val requestId = pendingBackgroundPayloads.removeFirst().getString(EXTRA_REQUEST_ID)
+            finishRequest(requestId, clearPending = true)
+        }
+    }
+
     private fun sendPayloadReadyBroadcast(extras: Bundle) {
         sendBroadcast(Intent(ACTION_PAYLOAD_READY).apply {
             setPackage(packageName)
@@ -321,7 +350,7 @@ class ShareBillingForegroundService : Service() {
         val root = readPendingPayloadRoot()
         root.optJSONObject(requestId)?.put(
             EXTRA_DISPATCH_LEASE_UNTIL,
-            System.currentTimeMillis() + DISPATCH_LEASE_MS
+            System.currentTimeMillis() + ShareBillingPendingPayloadPolicy.DELIVERY_LEASE_MS
         )
         writePendingPayloadRoot(root)
     }
@@ -337,12 +366,9 @@ class ShareBillingForegroundService : Service() {
         val raw = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
             .getString(PREF_PENDING_PAYLOAD, null) ?: return org.json.JSONObject()
         return try {
-            val parsed = org.json.JSONObject(raw)
-            if (parsed.has(EXTRA_REQUEST_ID)) {
-                org.json.JSONObject().put(parsed.getString(EXTRA_REQUEST_ID), parsed)
-            } else {
-                parsed
-            }
+            val normalized = ShareBillingPendingPayloadPolicy.normalizeRoot(raw)
+            if (normalized.changed) writePendingPayloadRoot(normalized.root)
+            normalized.root
         } catch (_: Exception) {
             org.json.JSONObject()
         }
@@ -512,6 +538,7 @@ class ShareBillingForegroundService : Service() {
 
     companion object {
         const val ACTION_START = "com.tntlikely.beecount.action.SHARE_BILLING_START"
+        const val ACTION_RENEW_LEASE = "com.tntlikely.beecount.action.SHARE_BILLING_RENEW_LEASE"
         const val ACTION_PAYLOAD_READY = "com.tntlikely.beecount.action.SHARE_BILLING_PAYLOAD_READY"
         const val ACTION_UPDATE = "com.tntlikely.beecount.action.SHARE_BILLING_UPDATE"
         const val ACTION_COMPLETE = "com.tntlikely.beecount.action.SHARE_BILLING_COMPLETE"
@@ -533,7 +560,6 @@ class ShareBillingForegroundService : Service() {
         private const val CHANNEL_ID = "share_billing_processing_v2"
         private const val NOTIFICATION_ID = 2404
         private const val PROCESSING_TIMEOUT_MS = 300_000L
-        private const val DISPATCH_LEASE_MS = 95_000L
         private const val PREFS_NAME = "share_billing_payloads"
         private const val PREF_PENDING_PAYLOAD = "pending_payload"
         private const val BACKGROUND_CHANNEL =
@@ -543,6 +569,13 @@ class ShareBillingForegroundService : Service() {
             return Intent(context, ShareBillingForegroundService::class.java).apply {
                 action = ACTION_START
                 putExtras(payload.toBundle())
+            }
+        }
+
+        fun createRenewLeaseIntent(context: Context, requestId: String): Intent {
+            return Intent(context, ShareBillingForegroundService::class.java).apply {
+                action = ACTION_RENEW_LEASE
+                putExtra(EXTRA_REQUEST_ID, requestId)
             }
         }
 
