@@ -7,17 +7,21 @@ import '../billing_job_runner.dart';
 
 /// 附件保存服务抽象。
 abstract class AttachmentSaveServiceInterface {
+  Future<Set<String>> indexRecoveryFiles() async => const {};
+
   Future<void> saveAttachment(
     String imagePath,
     Future<int> transactionId, {
     int? billingJobId,
     BillingJobLease? lease,
+    Set<String>? recoveryFileNames,
   });
 }
 
 /// 附件保存阶段处理器。
 /// 如果 attachmentDone 已为 true（幂等），跳过。
-class AttachmentStageProcessor implements StageProcessor {
+class AttachmentStageProcessor
+    implements StageProcessor, AttachmentRecoveryProcessor {
   final AttachmentSaveServiceInterface attachmentService;
   final BillingJobRepository repo;
 
@@ -26,6 +30,11 @@ class AttachmentStageProcessor implements StageProcessor {
 
   @override
   String get stageName => 'attachment';
+
+  @override
+  Future<Set<String>> indexRecoveryFiles() {
+    return attachmentService.indexRecoveryFiles();
+  }
 
   @override
   Future<StageResult> process(
@@ -47,6 +56,7 @@ class AttachmentStageProcessor implements StageProcessor {
           txFuture,
           billingJobId: job.id,
           lease: ctx.lease,
+          recoveryFileNames: ctx.attachmentRecoveryFileNames,
         )
             .then((_) {
           return ctx.requireOwnedWrite(

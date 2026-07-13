@@ -26,19 +26,25 @@ class LocalAttachmentRepository implements AttachmentRepository {
     String? cloudFileId,
     String? cloudSha256,
   }) async {
-    return await db.into(db.transactionAttachments).insert(
-      TransactionAttachmentsCompanion.insert(
-        transactionId: transactionId,
-        fileName: fileName,
-        originalName: d.Value(originalName),
-        fileSize: d.Value(fileSize),
-        width: d.Value(width),
-        height: d.Value(height),
-        sortOrder: d.Value(sortOrder),
-        cloudFileId: d.Value(cloudFileId),
-        cloudSha256: d.Value(cloudSha256),
-      ),
-    );
+    return db.transaction(() async {
+      final existing = await (db.select(db.transactionAttachments)
+            ..where((t) => t.fileName.equals(fileName)))
+          .getSingleOrNull();
+      if (existing != null) return existing.id;
+      return db.into(db.transactionAttachments).insert(
+            TransactionAttachmentsCompanion.insert(
+              transactionId: transactionId,
+              fileName: fileName,
+              originalName: d.Value(originalName),
+              fileSize: d.Value(fileSize),
+              width: d.Value(width),
+              height: d.Value(height),
+              sortOrder: d.Value(sortOrder),
+              cloudFileId: d.Value(cloudFileId),
+              cloudSha256: d.Value(cloudSha256),
+            ),
+          );
+    });
   }
 
   @override

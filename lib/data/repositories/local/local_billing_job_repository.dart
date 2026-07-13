@@ -36,12 +36,15 @@ class LocalBillingJobRepository implements BillingJobRepository {
 
   @override
   Future<List<BillingJob>> findAttachmentRecoveryJobs() async {
+    final now = DateTime.now();
     return (db.select(db.billingJobs)
           ..where((t) =>
               t.transactionId.isNotNull() &
               t.attachmentDone.equals(false) &
               (t.status.equals(BillingJobStatus.succeeded) |
-                  t.stage.equals(BillingJobStage.completed))))
+                  t.stage.equals(BillingJobStage.completed)) &
+              (t.leaseUntil.isNull() |
+                  t.leaseUntil.isSmallerOrEqualValue(now))))
         .get();
   }
 
@@ -130,14 +133,16 @@ class LocalBillingJobRepository implements BillingJobRepository {
     final now = DateTime.now();
     final newLease = _persistedLeaseDeadline(now, leaseDuration);
     // 该入口只在应用启动时恢复已完成主链但附件未完成的任务。
-    // 新 lease 会取代崩溃进程遗留的未过期 lease，并通过 CAS 隔离旧 owner。
+    // 仅无 owner 或 lease 已过期时抢占，避免与仍活跃的附件写入并行。
     final updatedCount = await (db.update(db.billingJobs)
           ..where((t) =>
               t.id.equals(id) &
               t.transactionId.isNotNull() &
               t.attachmentDone.equals(false) &
               (t.status.equals(BillingJobStatus.succeeded) |
-                  t.stage.equals(BillingJobStage.completed))))
+                  t.stage.equals(BillingJobStage.completed)) &
+              (t.leaseUntil.isNull() |
+                  t.leaseUntil.isSmallerOrEqualValue(now))))
         .write(BillingJobsCompanion(
       leaseUntil: d.Value(newLease),
       updatedAt: d.Value(now),

@@ -33,6 +33,9 @@ class PipelineContext {
   /// 分享来源信息，供 OCR/规则阶段保留 app 来源和支付通道证据。
   ScreenshotSourceInfo? sourceInfo;
 
+  /// 应用启动恢复时一次性建立的附件文件名索引。
+  Set<String>? attachmentRecoveryFileNames;
+
   void Function()? _ensureDeliveryOwned;
   BillingJobRepository? _leaseRepository;
   BillingJobLease? _lease;
@@ -106,6 +109,10 @@ abstract class StageProcessor {
   String get stageName;
   Future<StageResult> process(
       BillingJob job, DateTime deadline, PipelineContext ctx);
+}
+
+abstract class AttachmentRecoveryProcessor {
+  Future<Set<String>> indexRecoveryFiles();
 }
 
 class StageResult {
@@ -260,6 +267,7 @@ class BillingJobRunner {
   Future<bool> resumeAttachment(
     BillingJob job,
     DateTime deadline,
+    Set<String>? recoveryFileNames,
   ) async {
     if (attachmentProcessor == null || job.transactionId == null) return false;
     final remaining = deadline.difference(DateTime.now());
@@ -271,6 +279,7 @@ class BillingJobRunner {
 
     final ctx = PipelineContext()
       ..configureOwnership(repository: repo, lease: lease)
+      ..attachmentRecoveryFileNames = recoveryFileNames
       ..completeTransactionId(job.transactionId!);
     try {
       await _dispatchAttachment(job, deadline, ctx);
@@ -278,6 +287,14 @@ class BillingJobRunner {
       ctx.failTransactionId(error);
     }
     return true;
+  }
+
+  Future<Set<String>> indexAttachmentRecoveryFiles() async {
+    final processor = attachmentProcessor;
+    if (processor is AttachmentRecoveryProcessor) {
+      return (processor as AttachmentRecoveryProcessor).indexRecoveryFiles();
+    }
+    return const {};
   }
 
   Future<void> _completeJob(int jobId, PipelineContext ctx) async {

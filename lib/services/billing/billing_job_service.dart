@@ -278,11 +278,15 @@ class BillingJobService {
         '${attachmentJobs.length} 个 job',
       );
     }
+    final recoveryFileNames = attachmentJobs.isEmpty
+        ? const <String>{}
+        : await _runner.indexAttachmentRecoveryFiles();
     for (final job in attachmentJobs) {
       try {
         await _runner.resumeAttachment(
           job,
           DateTime.now().add(_processingDeadline),
+          recoveryFileNames,
         );
       } catch (e, st) {
         logger.error('BillingJobService', '恢复附件失败', e, st);
@@ -538,11 +542,19 @@ class _RealAttachmentService implements AttachmentSaveServiceInterface {
   _RealAttachmentService(this._container);
 
   @override
+  Future<Set<String>> indexRecoveryFiles() {
+    return _container
+        .read(attachmentServiceProvider)
+        .indexAttachmentFileNames();
+  }
+
+  @override
   Future<void> saveAttachment(
     String imagePath,
     Future<int> transactionId, {
     int? billingJobId,
     BillingJobLease? lease,
+    Set<String>? recoveryFileNames,
   }) async {
     // AttachmentService 需要 Ref，通过 container 获取 provider 值
     final attachmentService = _container.read(attachmentServiceProvider);
@@ -555,6 +567,7 @@ class _RealAttachmentService implements AttachmentSaveServiceInterface {
       sourceFile: File(imagePath),
       index: 0,
       billingJobId: billingJobId,
+      recoveryFileNames: recoveryFileNames,
     );
     if (attachment == null) throw StateError('attachment_save_failed');
   }

@@ -1,5 +1,6 @@
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/billing_job_repository.dart';
+import 'package:beecount/data/repositories/local/local_attachment_repository.dart';
 import 'package:beecount/data/repositories/local/local_billing_job_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -192,6 +193,43 @@ void main() {
       isTrue,
     );
     expect((await repo.findById(job.id))!.transactionId, 42);
+  });
+
+  test('attachment recovery cannot replace an active lease owner', () async {
+    final job = await repo.createJob(imagePath: '/tmp/active-attachment.png');
+    await repo.updateTransactionId(job.id, 53);
+    await repo.updateStage(job.id, BillingJobStage.completed);
+    await repo.markSucceeded(job.id);
+    final active =
+        await repo.claimJobLease(job.id, const Duration(seconds: 30));
+
+    final recovery = await repo.claimAttachmentRecoveryLease(
+      job.id,
+      const Duration(seconds: 30),
+    );
+
+    expect(active, isNotNull);
+    expect(recovery, isNull);
+    expect(await repo.isLeaseOwner(active!), isTrue);
+  });
+
+  test('concurrent attachment inserts reuse the deterministic file record',
+      () async {
+    final attachments = LocalAttachmentRepository(db);
+
+    final ids = await Future.wait([
+      attachments.createAttachment(
+        transactionId: 61,
+        fileName: 'tx_61_9_0.avif',
+      ),
+      attachments.createAttachment(
+        transactionId: 61,
+        fileName: 'tx_61_9_0.avif',
+      ),
+    ]);
+
+    expect(ids.toSet(), hasLength(1));
+    expect(await attachments.getAttachmentsByTransaction(61), hasLength(1));
   });
 
   test('markSucceeded sets completed_at', () async {

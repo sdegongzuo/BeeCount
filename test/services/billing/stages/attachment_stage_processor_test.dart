@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/billing_job_repository.dart';
 import 'package:beecount/data/repositories/local/local_billing_job_repository.dart';
@@ -15,11 +18,15 @@ class FakeAttachmentSaveService implements AttachmentSaveServiceInterface {
   BillingJobLease? lastLease;
 
   @override
+  Future<Set<String>> indexRecoveryFiles() async => const {};
+
+  @override
   Future<void> saveAttachment(
     String imagePath,
     Future<int> transactionId, {
     int? billingJobId,
     BillingJobLease? lease,
+    Set<String>? recoveryFileNames,
   }) async {
     called = true;
     lastImagePath = imagePath;
@@ -145,5 +152,43 @@ void main() {
       ),
       'tx_81_42_0.avif',
     );
+  });
+
+  test('zero-byte attachment candidate is not decodable', () async {
+    expect(
+      await decodeCompleteBillingJobAttachmentBytes(
+        Uint8List(0),
+        extension: '.jpg',
+      ),
+      isNull,
+    );
+  });
+
+  test('corrupt non-empty attachment candidate is not decodable', () async {
+    expect(
+      await decodeCompleteBillingJobAttachmentBytes(
+        Uint8List.fromList([1, 2, 3, 4]),
+        extension: '.jpg',
+      ),
+      isNull,
+    );
+  });
+
+  test('a completely decodable image candidate returns dimensions', () async {
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    canvas.drawRect(
+      const ui.Rect.fromLTWH(0, 0, 1, 1),
+      ui.Paint()..color = const ui.Color(0xFFFFFFFF),
+    );
+    final image = await recorder.endRecording().toImage(1, 1);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
+    final decoded = await decodeCompleteBillingJobAttachmentBytes(
+      byteData!.buffer.asUint8List(),
+      extension: '.png',
+    );
+
+    expect(decoded, (width: 1, height: 1));
   });
 }

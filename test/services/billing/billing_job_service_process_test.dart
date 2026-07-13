@@ -135,7 +135,7 @@ void main() {
     await repo.updateTransactionId(job.id, 704);
     await repo.updateStage(job.id, BillingJobStage.completed);
     await repo.markSucceeded(job.id);
-    expect(await repo.claimJob(job.id, const Duration(seconds: 10)), isTrue);
+    expect(await repo.claimJob(job.id, const Duration(seconds: -1)), isTrue);
     final attachmentService = _ExistingAttachmentService();
     final service = BillingJobService.forTesting(
       repo: repo,
@@ -156,6 +156,34 @@ void main() {
     expect(attachmentService.saveCount, 1);
     expect(attachmentService.reusedExistingArtifact, isTrue);
     expect(await _jobCount(db), 1);
+  });
+
+  test('startup indexes attachment files once for multiple recovery jobs',
+      () async {
+    for (var i = 0; i < 2; i++) {
+      final job = await repo.createJob(imagePath: '/same/restart-$i.png');
+      await repo.updateTransactionId(job.id, 800 + i);
+      await repo.updateStage(job.id, BillingJobStage.completed);
+      await repo.markSucceeded(job.id);
+    }
+    final attachmentService = _ExistingAttachmentService();
+    final service = BillingJobService.forTesting(
+      repo: repo,
+      runner: _runner(
+        repo,
+        transactionId: 800,
+        attachmentProcessor: AttachmentStageProcessor(
+          attachmentService: attachmentService,
+          repo: repo,
+        ),
+      ),
+      processingDeadline: const Duration(milliseconds: 300),
+    );
+
+    await service.resumePendingJobs();
+    await _waitUntil(() async => attachmentService.saveCount == 2);
+
+    expect(attachmentService.recoveryIndexCount, 1);
   });
 }
 
@@ -190,7 +218,14 @@ Future<void> _waitUntil(Future<bool> Function() predicate) async {
 
 class _ExistingAttachmentService implements AttachmentSaveServiceInterface {
   int saveCount = 0;
+  int recoveryIndexCount = 0;
   bool reusedExistingArtifact = false;
+
+  @override
+  Future<Set<String>> indexRecoveryFiles() async {
+    recoveryIndexCount++;
+    return const {};
+  }
 
   @override
   Future<void> saveAttachment(
@@ -198,8 +233,9 @@ class _ExistingAttachmentService implements AttachmentSaveServiceInterface {
     Future<int> transactionId, {
     int? billingJobId,
     BillingJobLease? lease,
+    Set<String>? recoveryFileNames,
   }) async {
-    expect(await transactionId, 704);
+    expect(await transactionId, greaterThan(0));
     expect(billingJobId, isNotNull);
     saveCount++;
     reusedExistingArtifact = true;

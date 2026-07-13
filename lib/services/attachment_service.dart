@@ -15,6 +15,30 @@ import 'system/logger_service.dart';
 
 const _billingJobAttachmentExtensions = <String>{'.jpg', '.webp', '.avif'};
 
+Future<({int width, int height})?> decodeCompleteBillingJobAttachmentBytes(
+  Uint8List bytes, {
+  required String extension,
+}) async {
+  if (bytes.isEmpty) return null;
+  try {
+    if (extension.toLowerCase() == '.avif') {
+      final frames = await decodeAvif(bytes);
+      if (frames.isEmpty) return null;
+      final image = frames.first.image;
+      return (width: image.width, height: image.height);
+    }
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+    final dimensions = (width: image.width, height: image.height);
+    image.dispose();
+    codec.dispose();
+    return dimensions;
+  } catch (_) {
+    return null;
+  }
+}
+
 String billingJobAttachmentBaseName({
   required int transactionId,
   required int billingJobId,
@@ -85,6 +109,15 @@ class AttachmentService {
       await dir.create(recursive: true);
     }
     return dir;
+  }
+
+  Future<Set<String>> indexAttachmentFileNames() async {
+    final dir = await getAttachmentDirectory();
+    return dir
+        .list(followLinks: false)
+        .where((entity) => entity is File)
+        .map((entity) => path.basename(entity.path))
+        .toSet();
   }
 
   /// 获取缩略图缓存目录
@@ -217,6 +250,7 @@ class AttachmentService {
     required File sourceFile,
     required int index,
     int? billingJobId,
+    Set<String>? recoveryFileNames,
   }) async {
     try {
       final dir = await getAttachmentDirectory();
@@ -248,25 +282,31 @@ class AttachmentService {
         // row was inserted. Adopt any supported existing extension so changing
         // the preferred format cannot create a second orphan for this job.
         final diskFileName = findExistingBillingJobAttachmentFileName(
-          fileNames: await dir
-              .list(followLinks: false)
-              .where((entity) => entity is File)
-              .map((entity) => path.basename(entity.path))
-              .toList(),
+          fileNames: recoveryFileNames ?? await indexAttachmentFileNames(),
           transactionId: txId,
           billingJobId: billingJobId,
           index: index,
         );
         if (diskFileName != null) {
           final diskFile = File('${dir.path}/$diskFileName');
-          final imageInfo = await _getImageInfo(diskFile.path);
+          final imageInfo = await decodeCompleteBillingJobAttachmentBytes(
+            await diskFile.readAsBytes(),
+            extension: path.extension(diskFileName),
+          );
+          if (imageInfo == null) {
+            logger.warning(
+              'AttachmentService',
+              '拒绝收养不完整附件: jobId=$billingJobId, file=$diskFileName',
+            );
+            return null;
+          }
           final id = await repo.createAttachment(
             transactionId: txId,
             fileName: diskFileName,
             originalName: path.basename(sourceFile.path),
             fileSize: await diskFile.length(),
-            width: imageInfo?.width,
-            height: imageInfo?.height,
+            width: imageInfo.width,
+            height: imageInfo.height,
             sortOrder: index,
           );
           if (path.extension(diskFileName).toLowerCase() == '.avif') {
