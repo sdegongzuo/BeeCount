@@ -20,12 +20,14 @@ import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodChannel
+import java.util.UUID
 
 class ShareBillingForegroundService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var backgroundEngine: FlutterEngine? = null
     private var backgroundChannel: MethodChannel? = null
-    private var pendingBackgroundPayload: Bundle? = null
+    private val pendingBackgroundPayloads = ArrayDeque<Bundle>()
+    private val requestTracker = ShareBillingRequestTracker()
     private val timeoutRunnable = Runnable {
         LoggerPlugin.warning(TAG, "Share billing foreground service timed out waiting for integration callback")
         stopForegroundService()
@@ -46,6 +48,7 @@ class ShareBillingForegroundService : Service() {
                 return START_NOT_STICKY
             }
             ACTION_COMPLETE -> {
+                val requestId = intent.getStringExtra(EXTRA_REQUEST_ID)
                 val content = ShareBillingNotificationContent.completed(
                     amount = intent.getDoubleExtraOrNull(EXTRA_AMOUNT),
                     note = intent.getStringExtra(EXTRA_NOTE)
@@ -57,16 +60,17 @@ class ShareBillingForegroundService : Service() {
                 )
                 removeForegroundNotification()
                 publishResultNotification(notification)
-                stopSelf()
+                finishRequest(requestId, clearPending = true)
                 return START_NOT_STICKY
             }
             ACTION_FAILED -> {
+                val requestId = intent.getStringExtra(EXTRA_REQUEST_ID)
                 val reason = intent.getStringExtra(EXTRA_FAILURE_REASON) ?: "unknown"
                 val notification = buildNotification("账单识别失败", ongoing = false)
                 removeForegroundNotification()
                 publishResultNotification(notification)
                 LoggerPlugin.warning(TAG, "Share billing failed: $reason")
-                stopSelf()
+                finishRequest(requestId, clearPending = true)
                 return START_NOT_STICKY
             }
             ACTION_CREATED -> {
@@ -85,14 +89,32 @@ class ShareBillingForegroundService : Service() {
                 LoggerPlugin.info(TAG, "Share billing created notification updated")
                 return START_NOT_STICKY
             }
+            ACTION_NEEDS_CONFIRMATION -> {
+                val requestId = intent.getStringExtra(EXTRA_REQUEST_ID)
+                val jobId = intent.getLongExtra(EXTRA_JOB_ID, -1L).takeIf { it > 0 }
+                markPendingAwaitingConfirmation(requestId, jobId)
+                val notification = buildNotification(
+                    contentText = "请打开应用检查金额和时间",
+                    title = "账单需要确认",
+                    ongoing = false,
+                    confirmationJobId = jobId
+                )
+                removeForegroundNotification()
+                publishResultNotification(notification)
+                finishRequest(requestId, clearPending = false)
+                return START_NOT_STICKY
+            }
             else -> {
                 val notification = buildNotification("正在识别账单")
                 startForegroundCompat(notification)
                 publishProgressNotification(notification)
                 val extras = enrichPayload(intent?.extras ?: Bundle.EMPTY)
+                val requestId = extras.getString(EXTRA_REQUEST_ID)
+                    ?: UUID.randomUUID().toString().also { extras.putString(EXTRA_REQUEST_ID, it) }
+                requestTracker.started(requestId)
                 savePendingPayload(extras)
-                pendingBackgroundPayload = extras
                 if (!dispatchToMainEngine(extras)) {
+                    pendingBackgroundPayloads.addLast(extras)
                     ensureBackgroundEngine()
                 }
                 extendProcessingTimeout()
@@ -105,7 +127,7 @@ class ShareBillingForegroundService : Service() {
         handler.removeCallbacks(timeoutRunnable)
         backgroundChannel?.setMethodCallHandler(null)
         backgroundChannel = null
-        pendingBackgroundPayload = null
+        pendingBackgroundPayloads.clear()
         backgroundEngine?.destroy()
         backgroundEngine = null
         super.onDestroy()
@@ -142,9 +164,9 @@ class ShareBillingForegroundService : Service() {
                     result.success(null)
                 }
                 "completeShareBilling" -> {
+                    val requestId = call.argument<String>(EXTRA_REQUEST_ID)
                     val amount = call.argument<Number>("amount")?.toDouble()
                     val note = call.argument<String>("note")
-                    clearPendingPayload()
                     val content = ShareBillingNotificationContent.completed(
                         amount = amount,
                         note = note
@@ -156,7 +178,7 @@ class ShareBillingForegroundService : Service() {
                     )
                     removeForegroundNotification()
                     publishResultNotification(notification)
-                    stopSelf()
+                    finishRequest(requestId, clearPending = true)
                     result.success(null)
                 }
                 "shareBillingCreated" -> {
@@ -175,12 +197,14 @@ class ShareBillingForegroundService : Service() {
                     result.success(null)
                 }
                 "shareBillingNeedsConfirmation" -> {
+                    val requestId = call.argument<String>(EXTRA_REQUEST_ID)
                     val jobId = call.argument<Number>("jobId")?.toLong()
                     val imagePath = call.argument<String>("imagePath")
                     val notification = buildNotification(
                         contentText = "请打开应用检查金额和时间",
                         title = "账单需要确认",
-                        ongoing = false
+                        ongoing = false,
+                        confirmationJobId = jobId
                     )
                     removeForegroundNotification()
                     publishResultNotification(notification)
@@ -188,17 +212,18 @@ class ShareBillingForegroundService : Service() {
                         TAG,
                         "Share billing awaits confirmation: jobId=$jobId, imagePath=$imagePath"
                     )
-                    stopSelf()
+                    markPendingAwaitingConfirmation(requestId, jobId)
+                    finishRequest(requestId, clearPending = false)
                     result.success(null)
                 }
                 "failShareBilling" -> {
+                    val requestId = call.argument<String>(EXTRA_REQUEST_ID)
                     val reason = call.argument<String>("reason") ?: "unknown"
-                    clearPendingPayload()
                     val notification = buildNotification("璐﹀崟璇嗗埆澶辫触", ongoing = false)
                     removeForegroundNotification()
                     publishResultNotification(notification)
                     LoggerPlugin.warning(TAG, "Share billing failed: $reason")
-                    stopSelf()
+                    finishRequest(requestId, clearPending = true)
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -215,6 +240,7 @@ class ShareBillingForegroundService : Service() {
     private fun dispatchToMainEngine(extras: Bundle): Boolean {
         val dispatched = ShareBillingMainEngineBridge.dispatch(bundleToMap(extras))
         if (dispatched) {
+            markPendingDispatched(extras.getString(EXTRA_REQUEST_ID))
             LoggerPlugin.info(
                 TAG,
                 "Share billing payload dispatched to main FlutterEngine: path=${extras.getString(EXTRA_CACHE_IMAGE_PATH)}"
@@ -224,13 +250,16 @@ class ShareBillingForegroundService : Service() {
     }
 
     private fun dispatchPendingBackgroundPayload() {
-        val payload = pendingBackgroundPayload ?: return
         val channel = backgroundChannel ?: return
-        channel.invokeMethod("processShareBilling", bundleToMap(payload))
-        LoggerPlugin.info(
-            TAG,
-            "Share billing payload dispatched to headless engine: path=${payload.getString(EXTRA_CACHE_IMAGE_PATH)}"
-        )
+        while (pendingBackgroundPayloads.isNotEmpty()) {
+            val payload = pendingBackgroundPayloads.removeFirst()
+            markPendingDispatched(payload.getString(EXTRA_REQUEST_ID))
+            channel.invokeMethod("processShareBilling", bundleToMap(payload))
+            LoggerPlugin.info(
+                TAG,
+                "Share billing payload dispatched to headless engine: path=${payload.getString(EXTRA_CACHE_IMAGE_PATH)}"
+            )
+        }
     }
 
     private fun sendPayloadReadyBroadcast(extras: Bundle) {
@@ -266,23 +295,71 @@ class ShareBillingForegroundService : Service() {
     }
 
     private fun savePendingPayload(extras: Bundle) {
+        val requestId = extras.getString(EXTRA_REQUEST_ID) ?: return
         val payload = org.json.JSONObject()
         extras.keySet().forEach { key ->
             @Suppress("DEPRECATION")
             payload.put(key, extras.get(key))
         }
-        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .edit()
-            .putString(PREF_PENDING_PAYLOAD, payload.toString())
-            .apply()
+        val root = readPendingPayloadRoot()
+        root.put(requestId, payload)
+        writePendingPayloadRoot(root)
     }
 
-    private fun clearPendingPayload() {
-        pendingBackgroundPayload = null
-        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .edit()
-            .remove(PREF_PENDING_PAYLOAD)
-            .apply()
+    private fun markPendingAwaitingConfirmation(requestId: String?, jobId: Long?) {
+        if (requestId == null || jobId == null) return
+        val root = readPendingPayloadRoot()
+        root.optJSONObject(requestId)?.apply {
+            put(EXTRA_JOB_ID, jobId)
+            remove(EXTRA_DISPATCH_LEASE_UNTIL)
+        }
+        writePendingPayloadRoot(root)
+    }
+
+    private fun markPendingDispatched(requestId: String?) {
+        if (requestId == null) return
+        val root = readPendingPayloadRoot()
+        root.optJSONObject(requestId)?.put(
+            EXTRA_DISPATCH_LEASE_UNTIL,
+            System.currentTimeMillis() + DISPATCH_LEASE_MS
+        )
+        writePendingPayloadRoot(root)
+    }
+
+    private fun removePendingPayload(requestId: String?) {
+        if (requestId == null) return
+        val root = readPendingPayloadRoot()
+        root.remove(requestId)
+        writePendingPayloadRoot(root)
+    }
+
+    private fun readPendingPayloadRoot(): org.json.JSONObject {
+        val raw = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .getString(PREF_PENDING_PAYLOAD, null) ?: return org.json.JSONObject()
+        return try {
+            val parsed = org.json.JSONObject(raw)
+            if (parsed.has(EXTRA_REQUEST_ID)) {
+                org.json.JSONObject().put(parsed.getString(EXTRA_REQUEST_ID), parsed)
+            } else {
+                parsed
+            }
+        } catch (_: Exception) {
+            org.json.JSONObject()
+        }
+    }
+
+    private fun writePendingPayloadRoot(root: org.json.JSONObject) {
+        val editor = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+        if (root.length() == 0) editor.remove(PREF_PENDING_PAYLOAD)
+        else editor.putString(PREF_PENDING_PAYLOAD, root.toString())
+        editor.apply()
+    }
+
+    private fun finishRequest(requestId: String?, clearPending: Boolean) {
+        if (clearPending) removePendingPayload(requestId)
+        if (requestTracker.finished(requestId)) {
+            stopSelf()
+        }
     }
 
     private fun bundleToMap(bundle: Bundle): Map<String, Any?> {
@@ -317,13 +394,15 @@ class ShareBillingForegroundService : Service() {
     private fun buildNotification(
         contentText: String,
         title: String = "蜜蜂记账",
-        ongoing: Boolean = true
+        ongoing: Boolean = true,
+        confirmationJobId: Long? = null
     ): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
             NOTIFICATION_ID,
             Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                if (confirmationJobId != null) putExtra(EXTRA_JOB_ID, confirmationJobId)
             },
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -438,6 +517,7 @@ class ShareBillingForegroundService : Service() {
         const val ACTION_COMPLETE = "com.tntlikely.beecount.action.SHARE_BILLING_COMPLETE"
         const val ACTION_FAILED = "com.tntlikely.beecount.action.SHARE_BILLING_FAILED"
         const val ACTION_CREATED = "com.tntlikely.beecount.action.SHARE_BILLING_CREATED"
+        const val ACTION_NEEDS_CONFIRMATION = "com.tntlikely.beecount.action.SHARE_BILLING_NEEDS_CONFIRMATION"
 
         const val EXTRA_CACHE_IMAGE_PATH = "cacheImagePath"
         const val EXTRA_FAILURE_REASON = "failureReason"
@@ -445,11 +525,15 @@ class ShareBillingForegroundService : Service() {
         const val EXTRA_STATUS_TEXT = "statusText"
         const val EXTRA_AMOUNT = "amount"
         const val EXTRA_NOTE = "note"
+        const val EXTRA_REQUEST_ID = "requestId"
+        const val EXTRA_JOB_ID = "jobId"
+        const val EXTRA_DISPATCH_LEASE_UNTIL = "dispatchLeaseUntil"
 
         private const val TAG = "ShareBillingService"
         private const val CHANNEL_ID = "share_billing_processing_v2"
         private const val NOTIFICATION_ID = 2404
         private const val PROCESSING_TIMEOUT_MS = 300_000L
+        private const val DISPATCH_LEASE_MS = 95_000L
         private const val PREFS_NAME = "share_billing_payloads"
         private const val PREF_PENDING_PAYLOAD = "pending_payload"
         private const val BACKGROUND_CHANNEL =
@@ -465,12 +549,14 @@ class ShareBillingForegroundService : Service() {
         fun createCompleteIntent(
             context: Context,
             amount: Double?,
-            note: String?
+            note: String?,
+            requestId: String? = null
         ): Intent {
             return Intent(context, ShareBillingForegroundService::class.java).apply {
                 action = ACTION_COMPLETE
                 if (amount != null) putExtra(EXTRA_AMOUNT, amount)
                 if (!note.isNullOrBlank()) putExtra(EXTRA_NOTE, note)
+                if (requestId != null) putExtra(EXTRA_REQUEST_ID, requestId)
             }
         }
 
@@ -481,23 +567,36 @@ class ShareBillingForegroundService : Service() {
             }
         }
 
-        fun createFailedIntent(context: Context, reason: String): Intent {
+        fun createFailedIntent(context: Context, reason: String, requestId: String? = null): Intent {
             return Intent(context, ShareBillingForegroundService::class.java).apply {
                 action = ACTION_FAILED
                 putExtra(EXTRA_FAILURE_REASON, reason)
+                if (requestId != null) putExtra(EXTRA_REQUEST_ID, requestId)
             }
         }
 
         fun createCreatedIntent(
             context: Context,
             amount: Double?,
-            note: String?
+            note: String?,
+            requestId: String? = null
         ): Intent {
             return Intent(context, ShareBillingForegroundService::class.java).apply {
                 action = ACTION_CREATED
                 if (amount != null) putExtra(EXTRA_AMOUNT, amount)
                 if (!note.isNullOrBlank()) putExtra(EXTRA_NOTE, note)
+                if (requestId != null) putExtra(EXTRA_REQUEST_ID, requestId)
             }
+        }
+
+        fun createNeedsConfirmationIntent(
+            context: Context,
+            requestId: String?,
+            jobId: Long
+        ): Intent = Intent(context, ShareBillingForegroundService::class.java).apply {
+            action = ACTION_NEEDS_CONFIRMATION
+            if (requestId != null) putExtra(EXTRA_REQUEST_ID, requestId)
+            putExtra(EXTRA_JOB_ID, jobId)
         }
     }
 }

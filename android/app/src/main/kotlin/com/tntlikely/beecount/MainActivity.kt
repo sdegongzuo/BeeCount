@@ -272,18 +272,23 @@ class MainActivity: FlutterFragmentActivity() {
         ShareBillingMainEngineBridge.attach(shareChannel)
         shareChannel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "shareBillingMainReady" -> {
+                    ShareBillingMainEngineBridge.markReady()
+                    result.success(true)
+                }
                 "getPendingShareBillingPayload" -> {
                     result.success(readPendingShareBillingPayload())
                 }
                 "completeShareBilling" -> {
                     val amount = call.argument<Number>("amount")?.toDouble()
                     val note = call.argument<String>("note")
-                    clearPendingShareBillingPayload()
+                    val requestId = call.argument<String>(ShareBillingForegroundService.EXTRA_REQUEST_ID)
                     startShareBillingService(
                         ShareBillingForegroundService.createCompleteIntent(
                             this,
                             amount = amount,
-                            note = note
+                            note = note,
+                            requestId = requestId
                         )
                     )
                     result.success(true)
@@ -297,21 +302,43 @@ class MainActivity: FlutterFragmentActivity() {
                 }
                 "failShareBilling" -> {
                     val reason = call.argument<String>("reason") ?: "unknown"
-                    clearPendingShareBillingPayload()
-                    startShareBillingService(ShareBillingForegroundService.createFailedIntent(this, reason))
+                    val requestId = call.argument<String>(ShareBillingForegroundService.EXTRA_REQUEST_ID)
+                    startShareBillingService(ShareBillingForegroundService.createFailedIntent(this, reason, requestId))
                     result.success(true)
                 }
                 "shareBillingCreated" -> {
                     val amount = call.argument<Number>("amount")?.toDouble()
                     val note = call.argument<String>("note")
+                    val requestId = call.argument<String>(ShareBillingForegroundService.EXTRA_REQUEST_ID)
                     startShareBillingService(
                         ShareBillingForegroundService.createCreatedIntent(
                             this,
                             amount = amount,
-                            note = note
+                            note = note,
+                            requestId = requestId
                         )
                     )
                     result.success(true)
+                }
+                "shareBillingNeedsConfirmation" -> {
+                    val requestId = call.argument<String>(ShareBillingForegroundService.EXTRA_REQUEST_ID)
+                    val jobId = call.argument<Number>(ShareBillingForegroundService.EXTRA_JOB_ID)?.toLong()
+                    if (jobId == null) {
+                        result.error("missing_job_id", "shareBillingNeedsConfirmation requires jobId", null)
+                    } else {
+                        startShareBillingService(
+                            ShareBillingForegroundService.createNeedsConfirmationIntent(this, requestId, jobId)
+                        )
+                        result.success(true)
+                    }
+                }
+                "acknowledgeShareBillingConfirmationOpened" -> {
+                    val jobId = call.argument<Number>(ShareBillingForegroundService.EXTRA_JOB_ID)?.toLong()
+                    if (jobId == null) result.error("missing_job_id", "ack requires jobId", null)
+                    else {
+                        acknowledgePendingShareBilling(jobId)
+                        result.success(true)
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -349,18 +376,58 @@ class MainActivity: FlutterFragmentActivity() {
             .getString(SHARE_BILLING_PENDING_PAYLOAD, null)
             ?: return null
         return try {
-            jsonToMap(JSONObject(json))
+            val root = JSONObject(json)
+            if (root.has(ShareBillingForegroundService.EXTRA_REQUEST_ID)) {
+                pendingPayloadIfRecoverable(root)
+            } else {
+                val keys = root.keys()
+                var pending: Map<String, Any?>? = null
+                while (keys.hasNext() && pending == null) {
+                    pending = root.optJSONObject(keys.next())?.let(::pendingPayloadIfRecoverable)
+                }
+                pending
+            }
         } catch (e: Exception) {
             LoggerPlugin.warning("MainActivity", "读取待处理分享账单 payload 失败: ${e.message}")
             null
         }
     }
 
-    private fun clearPendingShareBillingPayload() {
-        getSharedPreferences(SHARE_BILLING_PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .remove(SHARE_BILLING_PENDING_PAYLOAD)
-            .apply()
+    private fun pendingPayloadIfRecoverable(payload: JSONObject): Map<String, Any?>? {
+        val jobId = payload.optLong(ShareBillingForegroundService.EXTRA_JOB_ID, -1L)
+            .takeIf { it > 0L }
+        val leaseUntil = payload.optLong(
+            ShareBillingForegroundService.EXTRA_DISPATCH_LEASE_UNTIL, 0L
+        ).takeIf { it > 0L }
+        if (!ShareBillingPendingPayloadPolicy.isRecoverable(
+                jobId = jobId,
+                dispatchLeaseUntil = leaseUntil,
+                now = System.currentTimeMillis()
+            )
+        ) return null
+        return jsonToMap(payload)
+    }
+
+    private fun acknowledgePendingShareBilling(jobId: Long) {
+        val prefs = getSharedPreferences(SHARE_BILLING_PREFS, Context.MODE_PRIVATE)
+        val raw = prefs.getString(SHARE_BILLING_PENDING_PAYLOAD, null) ?: return
+        val root = try { JSONObject(raw) } catch (_: Exception) { return }
+        if (root.has(ShareBillingForegroundService.EXTRA_REQUEST_ID)) {
+            if (root.optLong(ShareBillingForegroundService.EXTRA_JOB_ID, -1L) == jobId) {
+                prefs.edit().remove(SHARE_BILLING_PENDING_PAYLOAD).apply()
+            }
+            return
+        }
+        val keys = root.keys().asSequence().toList()
+        keys.forEach { key ->
+            if (root.optJSONObject(key)
+                    ?.optLong(ShareBillingForegroundService.EXTRA_JOB_ID, -1L) == jobId
+            ) root.remove(key)
+        }
+        val editor = prefs.edit()
+        if (root.length() == 0) editor.remove(SHARE_BILLING_PENDING_PAYLOAD)
+        else editor.putString(SHARE_BILLING_PENDING_PAYLOAD, root.toString())
+        editor.apply()
     }
 
     private fun startShareBillingService(intent: Intent) {

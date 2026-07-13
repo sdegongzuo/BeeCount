@@ -1,12 +1,10 @@
-import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/smart_billing_providers.dart';
-import '../../data/repositories/billing_job_repository.dart';
 import '../billing/billing_job_service.dart';
 import '../system/logger_service.dart';
-import 'screenshot_source_info.dart';
+import 'share_billing_request_coordinator.dart';
 
 /// 图片分享处理服务（Android专用）
 /// 处理从相册或其他应用分享过来的图片，通过 BillingJobService 进行 OCR 识别和记账
@@ -15,6 +13,7 @@ class ImageShareHandlerService {
 
   final ProviderContainer _container;
   late final BillingJobService _billingJobService;
+  late final ShareBillingRequestCoordinator _coordinator;
 
   // 单例模式
   static ImageShareHandlerService? _instance;
@@ -29,7 +28,31 @@ class ImageShareHandlerService {
     _billingJobService = BillingJobService.create(
       repo: repo,
       container: _container,
-      statusReporter: _updateShareBillingStatus,
+      statusReporter: (statusText) => _channel.invokeMethod<void>(
+        'updateShareBillingStatus',
+        {'statusText': statusText},
+      ),
+    );
+    _coordinator = ShareBillingRequestCoordinator(
+      processImage: _billingJobService.processImage,
+      findJob: _container.read(billingJobRepositoryProvider).findByImagePath,
+      loadTransaction: (transactionId) async {
+        final transaction = await _container
+            .read(repositoryProvider)
+            .getTransactionById(transactionId);
+        return transaction == null
+            ? null
+            : ShareBillingTransactionSummary(
+                amount: transaction.amount,
+                note: transaction.note,
+              );
+      },
+      invokeMethod: (method, arguments) =>
+          _channel.invokeMethod<void>(method, arguments),
+      onAwaitingConfirmation: (jobId) async {
+        _container.read(pendingBillConfirmationJobIdProvider.notifier).state =
+            jobId;
+      },
     );
     _setupMethodCallHandler();
     _processPendingSharedImage();
@@ -42,62 +65,19 @@ class ImageShareHandlerService {
     _channel.setMethodCallHandler((call) async {
       logger.info('ImageShare', '收到方法调用: ${call.method}');
       if (call.method == 'onImageShared') {
-        final payload = _payloadFromArguments(call.arguments);
-        logger.info('ImageShare', '收到分享的图片，路径: ${payload.path}');
-        await _handleSharedImage(payload);
+        await _coordinator.process(call.arguments);
       }
     });
-  }
-
-  /// 处理分享的图片
-  Future<void> _handleSharedImage(_SharedImagePayload payload) async {
-    logger.info('ImageShare', '开始处理分享的图片: ${payload.path}');
-
-    try {
-      if (!Platform.isAndroid) {
-        logger.warning('ImageShare', '图片分享仅支持 Android 平台');
-        return;
-      }
-
-      await _updateShareBillingStatus('正在准备识别账单');
-      final processing = _billingJobService.processImage(
-        payload.path,
-        sourceInfo: payload.sourceInfo,
-      );
-      final transactionCreated = _notifyWhenTransactionCreated(payload.path);
-      final transactionId = await processing;
-      await transactionCreated;
-      if (transactionId != null) {
-        await _completeShareBilling(transactionId);
-      } else {
-        final job = await _container
-            .read(billingJobRepositoryProvider)
-            .findByImagePath(payload.path);
-        if (job?.status == BillingJobStatus.awaitingConfirmation) {
-          _container.read(pendingBillConfirmationJobIdProvider.notifier).state =
-              job!.id;
-          await _updateShareBillingStatus('账单需要确认，请检查金额和时间');
-        } else {
-          await _failShareBilling('transaction_not_created');
-        }
-      }
-      logger.info('ImageShare', '图片处理完成');
-    } catch (e, stackTrace) {
-      logger.error('ImageShare', '处理分享图片失败', e, stackTrace);
-      await _failShareBilling(e.toString());
-    }
+    _channel.invokeMethod<void>('shareBillingMainReady');
   }
 
   Future<void> _processPendingSharedImage() async {
-    if (!Platform.isAndroid) return;
     try {
       final pending = await _channel.invokeMapMethod<String, dynamic>(
         'getPendingShareBillingPayload',
       );
       if (pending == null || pending.isEmpty) return;
-      final payload = _payloadFromArguments(pending);
-      logger.info('ImageShare', '发现待处理分享图片: ${payload.path}');
-      await _handleSharedImage(payload);
+      await _coordinator.process(pending);
     } catch (e, stackTrace) {
       logger.error('ImageShare', '读取待处理分享图片失败', e, stackTrace);
     }
@@ -119,110 +99,8 @@ class ImageShareHandlerService {
     }
   }
 
-  Future<void> _completeShareBilling(int transactionId) async {
-    if (!Platform.isAndroid) return;
-    try {
-      final repo = _container.read(repositoryProvider);
-      final transaction = await repo.getTransactionById(transactionId);
-      await _channel.invokeMethod('completeShareBilling', {
-        'amount': transaction?.amount,
-        'note': transaction?.note,
-      });
-    } catch (e) {
-      logger.warning('ImageShare', '通知分享前台服务完成失败: $e');
-    }
-  }
-
-  Future<void> _notifyWhenTransactionCreated(String imagePath) async {
-    try {
-      for (var i = 0; i < 180; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 500));
-        final job = await _container
-            .read(billingJobRepositoryProvider)
-            .findByImagePath(imagePath);
-        if (job?.status == BillingJobStatus.awaitingConfirmation) return;
-        final transactionId = job?.transactionId;
-        if (transactionId == null) continue;
-
-        final transaction = await _container
-            .read(repositoryProvider)
-            .getTransactionById(transactionId);
-        await _channel.invokeMethod('shareBillingCreated', {
-          'amount': transaction?.amount,
-          'note': transaction?.note,
-        });
-        logger.info(
-          'ImageShare',
-          '分享图片交易已创建',
-          'txId=$transactionId',
-        );
-        return;
-      }
-    } catch (e, stackTrace) {
-      logger.warning(
-        'ImageShare',
-        '更新交易已创建通知失败: $e',
-        stackTrace,
-      );
-    }
-  }
-
-  Future<void> _updateShareBillingStatus(String statusText) async {
-    if (!Platform.isAndroid) return;
-    try {
-      await _channel.invokeMethod('updateShareBillingStatus', {
-        'statusText': statusText,
-      });
-    } catch (e) {
-      logger.warning('ImageShare', '更新分享记账通知状态失败: $e');
-    }
-  }
-
-  Future<void> _failShareBilling(String reason) async {
-    if (!Platform.isAndroid) return;
-    try {
-      await _channel.invokeMethod('failShareBilling', {'reason': reason});
-    } catch (e) {
-      logger.warning('ImageShare', '通知分享前台服务失败状态失败: $e');
-    }
-  }
-
   /// 释放资源
   void dispose() {
     _billingJobService.dispose();
   }
-}
-
-_SharedImagePayload _payloadFromArguments(Object? arguments) {
-  if (arguments is String) {
-    return _SharedImagePayload(path: arguments);
-  }
-  if (arguments is Map) {
-    final map = Map<String, dynamic>.from(arguments);
-    final path =
-        _stringValue(map['cacheImagePath']) ?? _stringValue(map['path']);
-    if (path == null || path.isEmpty) {
-      throw ArgumentError('Shared image payload missing cacheImagePath/path');
-    }
-    return _SharedImagePayload(
-      path: path,
-      sourceInfo: ScreenshotSourceInfo.fromMap(map),
-    );
-  }
-  throw ArgumentError('Unsupported shared image payload: $arguments');
-}
-
-String? _stringValue(Object? value) {
-  final text = value?.toString().trim();
-  return text == null || text.isEmpty ? null : text;
-}
-
-class _SharedImagePayload {
-  final String path;
-  final ScreenshotSourceInfo? sourceInfo;
-
-  const _SharedImagePayload({
-    required this.path,
-    this.sourceInfo,
-  });
 }

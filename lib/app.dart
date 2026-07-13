@@ -25,6 +25,7 @@ import 'utils/image_billing_helper.dart';
 import 'services/ai/ai_constants.dart';
 import 'pages/ai/ai_chat_page.dart';
 import 'services/platform/app_link_service.dart';
+import 'services/platform/share_billing_confirmation_handoff.dart';
 import 'services/platform/quick_actions_service.dart';
 import 'services/system/logger_service.dart';
 import 'services/security/app_lock_service.dart';
@@ -111,12 +112,14 @@ class _BeeAppState extends ConsumerState<BeeApp>
           final service =
               await ref.read(pendingBillConfirmationServiceProvider.future);
           if (!mounted) return;
-          await Navigator.of(context).push(MaterialPageRoute(
+          final confirmation = Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => PendingBillConfirmationPage(
               jobId: jobId,
               service: service,
             ),
           ));
+          await ShareBillingConfirmationHandoff.acknowledgeOpened(jobId);
+          await confirmation;
         } catch (error, stackTrace) {
           logger.error('PendingBill', '打开待确认账单失败', error, stackTrace);
         }
