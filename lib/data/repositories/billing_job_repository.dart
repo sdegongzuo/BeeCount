@@ -37,6 +37,7 @@ abstract class BillingJobRepository {
       {required String imagePath, String kind = 'image_share'});
   Future<BillingJob?> findById(int id);
   Future<List<BillingJob>> findPendingJobs();
+  Future<List<BillingJob>> findAttachmentRecoveryJobs();
   Future<List<BillingJob>> findAwaitingConfirmationJobs();
   Future<bool> updateStage(int id, String stage, {BillingJobLease? lease});
   Future<bool> updateStatus(
@@ -48,6 +49,10 @@ abstract class BillingJobRepository {
   });
   Future<bool> claimJob(int id, Duration leaseDuration);
   Future<BillingJobLease?> claimJobLease(int id, Duration leaseDuration);
+  Future<BillingJobLease?> claimAttachmentRecoveryLease(
+    int id,
+    Duration leaseDuration,
+  );
   Future<bool> isLeaseOwner(BillingJobLease lease);
   Future<bool> markSucceeded(int id, {BillingJobLease? lease});
   Future<bool> markAttachmentDone(int id, {BillingJobLease? lease});

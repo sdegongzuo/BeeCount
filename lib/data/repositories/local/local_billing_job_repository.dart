@@ -35,6 +35,17 @@ class LocalBillingJobRepository implements BillingJobRepository {
   }
 
   @override
+  Future<List<BillingJob>> findAttachmentRecoveryJobs() async {
+    return (db.select(db.billingJobs)
+          ..where((t) =>
+              t.transactionId.isNotNull() &
+              t.attachmentDone.equals(false) &
+              (t.status.equals(BillingJobStatus.succeeded) |
+                  t.stage.equals(BillingJobStage.completed))))
+        .get();
+  }
+
+  @override
   Future<List<BillingJob>> findAwaitingConfirmationJobs() async {
     return (db.select(db.billingJobs)
           ..where((t) => t.status.equals(BillingJobStatus.awaitingConfirmation))
@@ -106,6 +117,31 @@ class LocalBillingJobRepository implements BillingJobRepository {
       updatedAt: d.Value(now),
     ));
 
+    return updatedCount > 0
+        ? BillingJobLease(jobId: id, leaseUntil: newLease)
+        : null;
+  }
+
+  @override
+  Future<BillingJobLease?> claimAttachmentRecoveryLease(
+    int id,
+    Duration leaseDuration,
+  ) async {
+    final now = DateTime.now();
+    final newLease = _persistedLeaseDeadline(now, leaseDuration);
+    // 该入口只在应用启动时恢复已完成主链但附件未完成的任务。
+    // 新 lease 会取代崩溃进程遗留的未过期 lease，并通过 CAS 隔离旧 owner。
+    final updatedCount = await (db.update(db.billingJobs)
+          ..where((t) =>
+              t.id.equals(id) &
+              t.transactionId.isNotNull() &
+              t.attachmentDone.equals(false) &
+              (t.status.equals(BillingJobStatus.succeeded) |
+                  t.stage.equals(BillingJobStage.completed))))
+        .write(BillingJobsCompanion(
+      leaseUntil: d.Value(newLease),
+      updatedAt: d.Value(now),
+    ));
     return updatedCount > 0
         ? BillingJobLease(jobId: id, leaseUntil: newLease)
         : null;
@@ -239,4 +275,11 @@ class LocalBillingJobRepository implements BillingJobRepository {
         table.leaseUntil.equals(lease.leaseUntil) &
         table.leaseUntil.isBiggerThanValue(DateTime.now());
   }
+}
+
+DateTime _persistedLeaseDeadline(DateTime now, Duration leaseDuration) {
+  final requestedLease = now.add(leaseDuration);
+  return DateTime.fromMillisecondsSinceEpoch(
+    ((requestedLease.millisecondsSinceEpoch + 999) ~/ 1000) * 1000,
+  );
 }

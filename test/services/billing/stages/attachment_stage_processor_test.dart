@@ -130,4 +130,20 @@ void main() {
       isNull,
     );
   });
+
+  test('format changes reuse an existing supported stable file', () {
+    expect(
+      findExistingBillingJobAttachmentFileName(
+        fileNames: [
+          'tx_81_42_0.avif',
+          'tx_81_42_0.txt',
+          'tx_81_43_0.webp',
+        ],
+        transactionId: 81,
+        billingJobId: 42,
+        index: 0,
+      ),
+      'tx_81_42_0.avif',
+    );
+  });
 }

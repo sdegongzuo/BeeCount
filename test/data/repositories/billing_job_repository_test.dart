@@ -120,6 +120,30 @@ void main() {
     expect(result.any((j) => j.id == failed.id), isFalse);
   });
 
+  test(
+      'findAttachmentRecoveryJobs returns only committed unfinished attachments',
+      () async {
+    final recoverable =
+        await repo.createJob(imagePath: '/tmp/recover-attachment.png');
+    await repo.updateTransactionId(recoverable.id, 51);
+    await repo.updateStage(recoverable.id, BillingJobStage.completed);
+    await repo.markSucceeded(recoverable.id);
+
+    final alreadyDone = await repo.createJob(imagePath: '/tmp/done.png');
+    await repo.updateTransactionId(alreadyDone.id, 52);
+    await repo.updateStage(alreadyDone.id, BillingJobStage.completed);
+    await repo.markSucceeded(alreadyDone.id);
+    await repo.markAttachmentDone(alreadyDone.id);
+
+    final noTransaction = await repo.createJob(imagePath: '/tmp/no-tx.png');
+    await repo.updateStage(noTransaction.id, BillingJobStage.completed);
+    await repo.markSucceeded(noTransaction.id);
+
+    final result = await repo.findAttachmentRecoveryJobs();
+
+    expect(result.map((job) => job.id), [recoverable.id]);
+  });
+
   test('claimJob sets lease_until and returns true', () async {
     final job = await repo.createJob(imagePath: '/tmp/test.png');
 

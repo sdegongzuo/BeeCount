@@ -256,6 +256,30 @@ class BillingJobRunner {
     return true;
   }
 
+  /// 仅恢复已创建交易但尚未完成的附件，不重复执行 OCR、规则或交易创建。
+  Future<bool> resumeAttachment(
+    BillingJob job,
+    DateTime deadline,
+  ) async {
+    if (attachmentProcessor == null || job.transactionId == null) return false;
+    final remaining = deadline.difference(DateTime.now());
+    final lease = await repo.claimAttachmentRecoveryLease(
+      job.id,
+      remaining.isNegative ? const Duration(seconds: 1) : remaining,
+    );
+    if (lease == null) return false;
+
+    final ctx = PipelineContext()
+      ..configureOwnership(repository: repo, lease: lease)
+      ..completeTransactionId(job.transactionId!);
+    try {
+      await _dispatchAttachment(job, deadline, ctx);
+    } on BillingJobExecutionCancelled catch (error) {
+      ctx.failTransactionId(error);
+    }
+    return true;
+  }
+
   Future<void> _completeJob(int jobId, PipelineContext ctx) async {
     await ctx.requireOwnedWrite(
       (lease) => repo.updateStage(

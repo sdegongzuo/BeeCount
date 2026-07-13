@@ -13,15 +13,52 @@ import '../data/db.dart';
 import '../providers.dart';
 import 'system/logger_service.dart';
 
+const _billingJobAttachmentExtensions = <String>{'.jpg', '.webp', '.avif'};
+
+String billingJobAttachmentBaseName({
+  required int transactionId,
+  required int billingJobId,
+  required int index,
+}) =>
+    'tx_${transactionId}_${billingJobId}_$index';
+
+String? findExistingBillingJobAttachmentFileName({
+  required Iterable<String> fileNames,
+  required int transactionId,
+  required int billingJobId,
+  required int index,
+}) {
+  final baseName = billingJobAttachmentBaseName(
+    transactionId: transactionId,
+    billingJobId: billingJobId,
+    index: index,
+  );
+  for (final fileName in fileNames) {
+    if (path.basenameWithoutExtension(fileName) == baseName &&
+        _billingJobAttachmentExtensions
+            .contains(path.extension(fileName).toLowerCase())) {
+      return fileName;
+    }
+  }
+  return null;
+}
+
 TransactionAttachment? findExistingBillingJobAttachment({
   required Iterable<TransactionAttachment> attachments,
   required int transactionId,
   required int billingJobId,
   required int index,
 }) {
-  final stablePrefix = 'tx_${transactionId}_${billingJobId}_$index.';
   for (final attachment in attachments) {
-    if (attachment.fileName.startsWith(stablePrefix)) return attachment;
+    if (findExistingBillingJobAttachmentFileName(
+          fileNames: [attachment.fileName],
+          transactionId: transactionId,
+          billingJobId: billingJobId,
+          index: index,
+        ) !=
+        null) {
+      return attachment;
+    }
   }
   return null;
 }
@@ -205,6 +242,41 @@ class AttachmentService {
             '附件幂等命中: jobId=$billingJobId, file=${existing.fileName}',
           );
           return existing;
+        }
+
+        // A crash may happen after the stable file was moved but before its DB
+        // row was inserted. Adopt any supported existing extension so changing
+        // the preferred format cannot create a second orphan for this job.
+        final diskFileName = findExistingBillingJobAttachmentFileName(
+          fileNames: await dir
+              .list(followLinks: false)
+              .where((entity) => entity is File)
+              .map((entity) => path.basename(entity.path))
+              .toList(),
+          transactionId: txId,
+          billingJobId: billingJobId,
+          index: index,
+        );
+        if (diskFileName != null) {
+          final diskFile = File('${dir.path}/$diskFileName');
+          final imageInfo = await _getImageInfo(diskFile.path);
+          final id = await repo.createAttachment(
+            transactionId: txId,
+            fileName: diskFileName,
+            originalName: path.basename(sourceFile.path),
+            fileSize: await diskFile.length(),
+            width: imageInfo?.width,
+            height: imageInfo?.height,
+            sortOrder: index,
+          );
+          if (path.extension(diskFileName).toLowerCase() == '.avif') {
+            await _generateThumbnailFromSource(sourceFile, diskFileName);
+          }
+          logger.info(
+            'AttachmentService',
+            '附件文件恢复: jobId=$billingJobId, file=$diskFileName',
+          );
+          return repo.getAttachmentById(id);
         }
       }
       var tempFileName = _buildPendingAttachmentFileName(

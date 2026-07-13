@@ -5,6 +5,7 @@ import 'package:beecount/data/repositories/billing_job_repository.dart';
 import 'package:beecount/data/repositories/local/local_billing_job_repository.dart';
 import 'package:beecount/services/billing/billing_job_runner.dart';
 import 'package:beecount/services/billing/billing_job_service.dart';
+import 'package:beecount/services/billing/stages/attachment_stage_processor.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -127,6 +128,35 @@ void main() {
     );
     expect(await _jobCount(db), 0);
   });
+
+  test('startup resumes an existing attachment artifact and marks it done',
+      () async {
+    final job = await repo.createJob(imagePath: '/same/restart.png');
+    await repo.updateTransactionId(job.id, 704);
+    await repo.updateStage(job.id, BillingJobStage.completed);
+    await repo.markSucceeded(job.id);
+    expect(await repo.claimJob(job.id, const Duration(seconds: 10)), isTrue);
+    final attachmentService = _ExistingAttachmentService();
+    final service = BillingJobService.forTesting(
+      repo: repo,
+      runner: _runner(
+        repo,
+        transactionId: 704,
+        attachmentProcessor: AttachmentStageProcessor(
+          attachmentService: attachmentService,
+          repo: repo,
+        ),
+      ),
+      processingDeadline: const Duration(milliseconds: 300),
+    );
+
+    await service.resumePendingJobs();
+    await _waitUntil(() async => (await repo.findById(job.id))!.attachmentDone);
+
+    expect(attachmentService.saveCount, 1);
+    expect(attachmentService.reusedExistingArtifact, isTrue);
+    expect(await _jobCount(db), 1);
+  });
 }
 
 Future<int> _jobCount(BeeDatabase db) async => (await db
@@ -137,6 +167,7 @@ Future<int> _jobCount(BeeDatabase db) async => (await db
 BillingJobRunner _runner(
   BillingJobRepository repo, {
   required int transactionId,
+  StageProcessor? attachmentProcessor,
 }) =>
     BillingJobRunner(
       repo: repo,
@@ -144,7 +175,36 @@ BillingJobRunner _runner(
       ruleProcessor: _SuccessStage(BillingJobStage.ruleDone),
       txProcessor: _TransactionStage(repo, transactionId),
       aiProcessor: _SuccessStage(BillingJobStage.completed),
+      attachmentProcessor: attachmentProcessor,
     );
+
+Future<void> _waitUntil(Future<bool> Function() predicate) async {
+  final deadline = DateTime.now().add(const Duration(milliseconds: 300));
+  while (!await predicate()) {
+    if (DateTime.now().isAfter(deadline)) {
+      fail('condition was not met before timeout');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
+
+class _ExistingAttachmentService implements AttachmentSaveServiceInterface {
+  int saveCount = 0;
+  bool reusedExistingArtifact = false;
+
+  @override
+  Future<void> saveAttachment(
+    String imagePath,
+    Future<int> transactionId, {
+    int? billingJobId,
+    BillingJobLease? lease,
+  }) async {
+    expect(await transactionId, 704);
+    expect(billingJobId, isNotNull);
+    saveCount++;
+    reusedExistingArtifact = true;
+  }
+}
 
 class _SuccessStage implements StageProcessor {
   _SuccessStage(this.stageName);

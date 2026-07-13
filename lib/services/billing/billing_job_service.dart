@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../ai/tasks/bill_extraction_task.dart';
 import '../../data/db.dart';
 import '../../data/repositories/billing_job_repository.dart';
-import '../../data/repositories/local/local_billing_job_repository.dart';
 import '../../providers/database_providers.dart';
 import '../ai/ai_bill_service.dart';
 import '../attachment_service.dart';
@@ -248,8 +247,12 @@ class BillingJobService {
   /// 恢复所有 pending/retryable_failed 的 job。
   Future<void> resumePendingJobs() async {
     final jobs = await _repo.findPendingJobs();
-    if (jobs.isEmpty) return;
-    logger.info('BillingJobService', '恢复待处理任务', '${jobs.length} 个 job');
+    // 先固定启动时的附件恢复快照，避免下面的主链刚完成就被同一次
+    // resumePendingJobs 再次调度附件。
+    final attachmentJobs = await _repo.findAttachmentRecoveryJobs();
+    if (jobs.isNotEmpty) {
+      logger.info('BillingJobService', '恢复待处理任务', '${jobs.length} 个 job');
+    }
     for (final job in jobs) {
       try {
         final deadline = DateTime.now().add(_processingDeadline);
@@ -265,6 +268,24 @@ class BillingJobService {
         }
       } catch (e, st) {
         logger.error('BillingJobService', '恢复任务失败', e, st);
+      }
+    }
+
+    if (attachmentJobs.isNotEmpty) {
+      logger.info(
+        'BillingJobService',
+        '恢复待保存附件',
+        '${attachmentJobs.length} 个 job',
+      );
+    }
+    for (final job in attachmentJobs) {
+      try {
+        await _runner.resumeAttachment(
+          job,
+          DateTime.now().add(_processingDeadline),
+        );
+      } catch (e, st) {
+        logger.error('BillingJobService', '恢复附件失败', e, st);
       }
     }
   }
@@ -525,29 +546,16 @@ class _RealAttachmentService implements AttachmentSaveServiceInterface {
   }) async {
     // AttachmentService 需要 Ref，通过 container 获取 provider 值
     final attachmentService = _container.read(attachmentServiceProvider);
-    final database = _container.read(databaseProvider);
-    // Never hold a database transaction while waiting for transaction
-    // creation: both atomic operations use the same SQLite writer.
     final transactionIdValue = await transactionId;
-    await database.transaction(() async {
-      final attachment =
-          await attachmentService.saveAttachmentWhenTransactionReady(
-        transactionId: Future<int>.value(transactionIdValue),
-        sourceFile: File(imagePath),
-        index: 0,
-        billingJobId: billingJobId,
-      );
-      if (attachment == null) {
-        throw StateError('attachment_save_failed');
-      }
-      if (billingJobId != null && lease != null) {
-        final committed = await LocalBillingJobRepository(database)
-            .markAttachmentDone(billingJobId, lease: lease);
-        if (!committed) {
-          throw const BillingJobExecutionCancelled(
-              'billing_job_attachment_cas_rejected');
-        }
-      }
-    });
+    // 压缩、缩略图和文件移动都是慢 I/O，不得占用 SQLite 写事务。
+    // attachmentDone 由 AttachmentStageProcessor 在保存成功后单独 CAS。
+    final attachment =
+        await attachmentService.saveAttachmentWhenTransactionReady(
+      transactionId: Future<int>.value(transactionIdValue),
+      sourceFile: File(imagePath),
+      index: 0,
+      billingJobId: billingJobId,
+    );
+    if (attachment == null) throw StateError('attachment_save_failed');
   }
 }
