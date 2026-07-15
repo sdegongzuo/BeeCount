@@ -3,24 +3,48 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('ShareBillingC2Fixture', () {
-    test('runtime extra cannot enable a fixture without a compile-time id', () {
-      final fixture = ShareBillingC2Fixture.resolve(
-        compileTimeId: '',
-        runtimeId: 'issue6-c2-20260716',
-        isDebug: true,
+    test('both missing ids leave the production path disabled', () {
+      expect(
+        ShareBillingC2Fixture.resolve(
+          compileTimeId: '',
+          runtimeId: null,
+          isDebug: true,
+        ),
+        isNull,
       );
-
-      expect(fixture, isNull);
     });
 
-    test('release builds ignore fixture ids even when both ids match', () {
-      final fixture = ShareBillingC2Fixture.resolve(
-        compileTimeId: 'issue6-c2-20260716',
-        runtimeId: 'issue6-c2-20260716',
-        isDebug: false,
+    test('runtime id without compile-time authority is rejected', () {
+      expect(
+        () => ShareBillingC2Fixture.resolve(
+          compileTimeId: '',
+          runtimeId: 'issue6-c2-20260716',
+          isDebug: true,
+        ),
+        throwsStateError,
       );
+    });
 
-      expect(fixture, isNull);
+    test('compile-time fixture requires runtime correlation', () {
+      expect(
+        () => ShareBillingC2Fixture.resolve(
+          compileTimeId: 'issue6-c2-20260716',
+          runtimeId: null,
+          isDebug: true,
+        ),
+        throwsStateError,
+      );
+    });
+
+    test('release builds reject fixture ids even when both ids match', () {
+      expect(
+        () => ShareBillingC2Fixture.resolve(
+          compileTimeId: 'issue6-c2-20260716',
+          runtimeId: 'issue6-c2-20260716',
+          isDebug: false,
+        ),
+        throwsStateError,
+      );
     });
 
     test('invalid compile-time fixture ids are rejected before path derivation',

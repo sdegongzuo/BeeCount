@@ -18,7 +18,15 @@ class ShareBillingC2Fixture {
     required String? runtimeId,
     required bool isDebug,
   }) {
-    if (!isDebug || compileTimeId.isEmpty) return null;
+    final runtimeMissing = runtimeId == null || runtimeId.isEmpty;
+    if (compileTimeId.isEmpty && runtimeMissing) return null;
+    if (!isDebug) {
+      throw StateError('Share C2 fixture is unavailable outside debug builds');
+    }
+    if (compileTimeId.isEmpty) {
+      throw StateError(
+          'Share C2 runtime fixture has no compile-time authority');
+    }
     if (!_validId.hasMatch(compileTimeId)) {
       throw FormatException('Invalid BEECOUNT_SHARE_C2_FIXTURE_ID');
     }

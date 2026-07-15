@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:beecount/data/db.dart';
@@ -6,6 +8,7 @@ import 'package:beecount/data/repositories/local/local_billing_job_repository.da
 import 'package:beecount/data/repositories/billing_job_repository.dart';
 import 'package:beecount/providers/database_providers.dart';
 import 'package:beecount/services/billing/bill_creation_service.dart';
+import 'package:beecount/services/billing/billing_attachment_publisher.dart';
 import 'package:beecount/services/billing/billing_job_service.dart';
 import 'package:beecount/services/billing/ocr_service.dart';
 import 'package:beecount/services/billing/pending_bill_confirmation_service.dart';
@@ -22,6 +25,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 const _tracer = MethodChannel('com.tntlikely.beecount/share_c2_tracer');
 
@@ -49,6 +54,7 @@ void main() {
       expect(reliable.status, BillingJobStatus.succeeded);
       expect(reliable.transactionId, isNotNull);
       expect(await _transactionCount(runtime.database), 1);
+      await _expectReliableTransactionAndAttachment(runtime, reliable);
 
       await _send('pending-current-only', _unreliableBillText);
       final currentOnlyJob = await _waitForJob(runtime.database, 2);
@@ -59,27 +65,18 @@ void main() {
       expect(draft!.candidate.rawText, contains('实付金额'));
       expect(draft.candidate.allNumbers, isNotEmpty);
 
-      await $.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: PendingBillConfirmationPage(
-          jobId: currentOnlyJob.id,
-          service: service,
-        ),
-      ));
-      await $.pumpAndSettle();
-      expect(find.byType(Image), findsOneWidget);
-      expect(find.byKey(const Key('amountField')), findsOneWidget);
-      expect(find.byKey(const Key('timeField')), findsOneWidget);
-
       final revisionsBefore = await _revisionCount(runtime.database);
-      await service.confirm(
+      await _confirmThroughPage(
+        $,
+        service: service,
         jobId: currentOnlyJob.id,
         amount: _confirmedAmount(draft.candidate),
-        time: DateTime(2026, 7, 16, 12, 34),
-        supplementalNote: '',
         rememberForSimilarBills: false,
       );
+      final currentOnlyDone =
+          await runtimeJob(runtime.database, currentOnlyJob.id);
+      expect(currentOnlyDone?.status, BillingJobStatus.succeeded);
+      expect(find.text('账单已创建'), findsOneWidget);
       expect(await _revisionCount(runtime.database), revisionsBefore);
 
       await _send('pending-remember', _unreliableBillText);
@@ -87,41 +84,118 @@ void main() {
       expect(rememberJob.status, BillingJobStatus.awaitingConfirmation);
       final rememberDraft = (await service.loadDraft(rememberJob.id))!;
       final correctedAmount = _confirmedAmount(rememberDraft.candidate);
-      final remembered = await service.confirm(
+      await _confirmThroughPage(
+        $,
+        service: service,
         jobId: rememberJob.id,
         amount: correctedAmount,
-        time: DateTime(2026, 7, 16, 12, 34),
-        supplementalNote: '',
         rememberForSimilarBills: true,
       );
-      expect(
-        remembered.ruleResults.any(
-          (result) => result.status == PersonalRuleLifecycleStatus.enabled,
-        ),
-        isTrue,
-      );
+      final rememberDone = await runtimeJob(runtime.database, rememberJob.id);
+      expect(rememberDone?.status, BillingJobStatus.succeeded);
+      expect(find.textContaining('个人规则已启用'), findsOneWidget);
       expect(
           await _revisionCount(runtime.database), greaterThan(revisionsBefore));
 
-      final rules = BillingJobService.createProductionRuleService(
-        runtime.database,
+      final transactionCountBeforeFuture =
+          await _transactionCount(runtime.database);
+      await _send('future-similar', _futureSimilarBillText);
+      final future = await _waitForJob(runtime.database, 4);
+      expect(future.status, BillingJobStatus.succeeded);
+      expect(future.transactionId, isNotNull);
+      expect(
+        await _transactionCount(runtime.database),
+        transactionCountBeforeFuture + 1,
       );
-      final future = await rules.evaluate(
-        baseResult: OcrResult(
-          rawText: _futureSimilarBillText,
-          allNumbers: const ['12.00', '29.90'],
-        ),
+      final futureResult = OcrResult.fromJson(
+        jsonDecode(future.finalResultJson!) as Map<String, dynamic>,
       );
       expect(
-        future.result.billingRuleTrace?.matchedRules,
+        futureResult.billingRuleTrace?.matchedRules,
         contains(predicate<Map<String, dynamic>>(
           (rule) => rule['origin'] == 'personal',
         )),
       );
-      expect(await _transactionCount(runtime.database), 3);
+      final futureTransaction = await runtime.container
+          .read(repositoryProvider)
+          .getTransactionById(future.transactionId!);
+      expect(futureTransaction, isNotNull);
+      expect(
+        futureTransaction!.amount,
+        closeTo(correctedAmount == 12 ? 12 : 29.9, 0.001),
+      );
     },
     timeout: const Timeout(Duration(minutes: 3)),
   );
+}
+
+Future<void> _confirmThroughPage(
+  PatrolIntegrationTester $, {
+  required PendingBillConfirmationService service,
+  required int jobId,
+  required double amount,
+  required bool rememberForSimilarBills,
+}) async {
+  await $.pumpWidget(MaterialApp(
+    locale: const Locale('zh'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: PendingBillConfirmationPage(jobId: jobId, service: service),
+  ));
+  await $.pumpAndSettle();
+  expect(find.byType(PendingBillConfirmationPage), findsOneWidget);
+  expect(find.byType(Image), findsOneWidget);
+  expect(find.byKey(const Key('amountField')), findsOneWidget);
+  expect(find.byKey(const Key('timeField')), findsOneWidget);
+
+  await $.enterText(
+    find.byKey(const Key('amountField')),
+    amount.toStringAsFixed(2),
+  );
+  await $.enterText(
+    find.byKey(const Key('timeField')),
+    '2026-07-16 12:34',
+  );
+  final choice = find.text(
+    rememberForSimilarBills ? '对类似账单记住' : '仅本次',
+  );
+  await $.tester.ensureVisible(choice);
+  await $.tap(choice);
+  final confirm = find.text('确认并创建账单');
+  await $.tester.ensureVisible(confirm);
+  await $.tap(confirm);
+  await $.pumpAndSettle();
+}
+
+Future<void> _expectReliableTransactionAndAttachment(
+  ShareBillingC2Container runtime,
+  BillingJob job,
+) async {
+  final repository = runtime.container.read(repositoryProvider);
+  final transaction = await repository.getTransactionById(job.transactionId!);
+  expect(transaction, isNotNull);
+  expect(transaction!.amount, closeTo(18.5, 0.001));
+  expect(transaction.happenedAt, DateTime(2026, 7, 16, 12, 34, 56));
+
+  final List<TransactionAttachment> attachments =
+      await repository.getAttachmentsByTransaction(transaction.id);
+  expect(attachments, hasLength(1));
+  final attachment = attachments.single;
+  final documents = await getApplicationDocumentsDirectory();
+  final isolatedDirectory = p.join(
+    documents.path,
+    runtime.fixture.attachmentDirectoryName,
+  );
+  final file = File(p.join(isolatedDirectory, attachment.fileName));
+  expect(p.dirname(file.path), p.normalize(isolatedDirectory));
+  expect(await file.exists(), isTrue);
+  final decoded = await decodeCompleteBillingJobAttachmentBytes(
+    await file.readAsBytes(),
+    extension: p.extension(attachment.fileName),
+  );
+  expect(decoded, isNotNull);
+  expect(decoded!.width, greaterThan(0));
+  expect(decoded.height, greaterThan(0));
 }
 
 Future<PendingBillConfirmationService> _confirmationService(

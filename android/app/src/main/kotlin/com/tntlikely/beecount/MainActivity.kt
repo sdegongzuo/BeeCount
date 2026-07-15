@@ -169,7 +169,12 @@ class MainActivity: FlutterFragmentActivity() {
         LoggerPlugin.info("MainActivity", "RapidOCR 通道已初始化")
 
         setupShareChannel(flutterEngine)
-        setupShareC2TracerChannel(flutterEngine)
+        if (ShareBillingC2ChannelRegistration.shouldRegister(
+                applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+            )
+        ) {
+            setupShareC2TracerChannel(flutterEngine)
+        }
 
         // 延迟发送测试日志，确保 Flutter 端已就绪
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
