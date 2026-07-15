@@ -5,6 +5,7 @@ import 'package:beecount/data/repositories/local/local_attachment_repository.dar
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 void main() {
   test('billing attachment upsert is idempotent across database connections',
@@ -99,5 +100,120 @@ void main() {
     expect(attachment.width, 200);
     expect(attachment.height, 300);
     expect(attachment.sortOrder, 3);
+  });
+
+  test('billing attachment upsert preserves non-origin constraint failures',
+      () async {
+    final db = BeeDatabase.forTesting(NativeDatabase.memory());
+    final repo = LocalAttachmentRepository(db);
+    addTearDown(db.close);
+
+    final existingId = await repo.upsertBillingAttachment(
+      originKey: 'billing:20:0',
+      transactionId: 80,
+      fileName: 'existing.avif',
+    );
+    await db.customStatement('''
+      CREATE TRIGGER reject_blocked_billing_attachment
+      BEFORE INSERT ON transaction_attachments
+      WHEN NEW.file_name = 'blocked.avif'
+      BEGIN
+        SELECT RAISE(ABORT, 'forced non-origin constraint');
+      END;
+    ''');
+
+    Object? caughtError;
+    StackTrace? caughtStack;
+    try {
+      await repo.upsertBillingAttachment(
+        originKey: 'billing:20:0',
+        transactionId: 80,
+        fileName: 'blocked.avif',
+      );
+    } catch (error, stackTrace) {
+      caughtError = error;
+      caughtStack = stackTrace;
+    }
+
+    expect(
+      caughtError,
+      isA<sqlite.SqliteException>()
+          .having(
+            (error) => error.extendedResultCode,
+            'extendedResultCode',
+            sqlite.SqlExtendedError.SQLITE_CONSTRAINT_TRIGGER,
+          )
+          .having(
+            (error) => error.message,
+            'message',
+            contains('forced non-origin constraint'),
+          ),
+    );
+    expect(
+      caughtStack.toString(),
+      contains('local_attachment_repository.dart'),
+    );
+    expect((await repo.getAttachmentById(existingId))!.fileName,
+        'existing.avif');
+  });
+
+  test('billing attachment upsert rejects unique conflicts on other columns',
+      () async {
+    final db = BeeDatabase.forTesting(NativeDatabase.memory());
+    final repo = LocalAttachmentRepository(db);
+    addTearDown(db.close);
+
+    final existingId = await repo.upsertBillingAttachment(
+      originKey: 'billing:21:0',
+      transactionId: 81,
+      fileName: 'existing.avif',
+    );
+    await repo.createAttachment(
+      transactionId: 82,
+      fileName: 'duplicate.avif',
+    );
+    await db.customStatement('''
+      CREATE UNIQUE INDEX ux_transaction_attachments_file_name_test
+      ON transaction_attachments(file_name);
+    ''');
+
+    Object? caughtError;
+    StackTrace? caughtStack;
+    try {
+      await repo.upsertBillingAttachment(
+        originKey: 'billing:21:0',
+        transactionId: 81,
+        fileName: 'duplicate.avif',
+      );
+    } catch (error, stackTrace) {
+      caughtError = error;
+      caughtStack = stackTrace;
+    }
+
+    expect(
+      caughtError,
+      isA<sqlite.SqliteException>()
+          .having(
+            (error) => error.extendedResultCode,
+            'extendedResultCode',
+            sqlite.SqlExtendedError.SQLITE_CONSTRAINT_UNIQUE,
+          )
+          .having(
+            (error) => error.message,
+            'message',
+            contains('transaction_attachments.file_name'),
+          )
+          .having(
+            (error) => error.causingStatement,
+            'causingStatement',
+            contains('INSERT INTO'),
+          ),
+    );
+    expect(
+      caughtStack.toString(),
+      contains('local_attachment_repository.dart'),
+    );
+    expect((await repo.getAttachmentById(existingId))!.fileName,
+        'existing.avif');
   });
 }

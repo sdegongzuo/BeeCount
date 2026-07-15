@@ -6,6 +6,12 @@ import '../attachment_repository.dart';
 /// 本地附件Repository实现
 /// 基于 Drift 数据库实现
 class LocalAttachmentRepository implements AttachmentRepository {
+  static const _sqliteConstraintUnique = 2067;
+  static const _originKeyColumnIdentity =
+      'transaction_attachments.origin_key';
+  static const _originKeyIndexIdentity =
+      'ux_transaction_attachments_origin_key';
+
   final BeeDatabase db;
 
   LocalAttachmentRepository(this.db);
@@ -66,6 +72,9 @@ class LocalAttachmentRepository implements AttachmentRepository {
     try {
       return await db.into(db.transactionAttachments).insert(attachment);
     } catch (error, stackTrace) {
+      if (!_isOriginKeyUniqueConstraint(error)) {
+        Error.throwWithStackTrace(error, stackTrace);
+      }
       final existing = await (db.select(db.transactionAttachments)
             ..where((row) => row.originKey.equals(originKey)))
           .getSingleOrNull();
@@ -77,6 +86,22 @@ class LocalAttachmentRepository implements AttachmentRepository {
             ..where((row) => row.id.equals(existing.id)))
           .write(attachment);
       return existing.id;
+    }
+  }
+
+  bool _isOriginKeyUniqueConstraint(Object error) {
+    try {
+      final dynamic sqliteError = error;
+      final extendedResultCode = sqliteError.extendedResultCode as int?;
+      final message = sqliteError.message as String?;
+      return extendedResultCode == _sqliteConstraintUnique &&
+          message != null &&
+          (message.contains(_originKeyColumnIdentity) ||
+              message.contains(_originKeyIndexIdentity));
+    } on NoSuchMethodError {
+      return false;
+    } on TypeError {
+      return false;
     }
   }
 
