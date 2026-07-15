@@ -10,6 +10,8 @@ import '../billing/billing_job_service.dart';
 import '../system/logger_service.dart';
 import 'share_billing_request_coordinator.dart';
 import 'share_billing_delivery.dart';
+import 'share_billing_c2_container.dart';
+import 'share_billing_c2_fixture.dart';
 
 class ShareBillingBackgroundService {
   static const MethodChannel _channel =
@@ -38,8 +40,11 @@ class ShareBillingBackgroundService {
 
   Future<void> _processShareBilling(Object? arguments) async {
     try {
+      final runtimeId =
+          arguments is Map ? arguments['c2FixtureId']?.toString() : null;
+      final fixture = ShareBillingC2Fixture.fromRuntime(runtimeId);
       final coordinator = ShareBillingRequestCoordinator(
-        initialize: _ensureInitialized,
+        initialize: () => _ensureInitialized(fixture),
         processImage: (path, {sourceInfo}) =>
             _billingJobService!.processImage(path, sourceInfo: sourceInfo),
         processImageWithOwnership: (path, {sourceInfo, ensureDeliveryOwned}) =>
@@ -87,18 +92,23 @@ class ShareBillingBackgroundService {
     }
   }
 
-  Future<void> _ensureInitialized() async {
+  Future<void> _ensureInitialized(ShareBillingC2Fixture? fixture) async {
     if (_container != null && _billingJobService != null) return;
 
-    final container = ProviderContainer();
-    await _initializeAppMode(container);
-    await _initializeSmartBilling(container);
+    final c2Runtime =
+        fixture == null ? null : await ShareBillingC2Container.create(fixture);
+    final container = c2Runtime?.container ?? ProviderContainer();
+    if (fixture == null) {
+      await _initializeAppMode(container);
+      await _initializeSmartBilling(container);
+    }
 
     final repo = container.read(billingJobRepositoryProvider);
     final service = BillingJobService.create(
       repo: repo,
       container: container,
       statusReporter: _updateStatus,
+      captureRegressionSamples: fixture == null,
     );
 
     _container = container;

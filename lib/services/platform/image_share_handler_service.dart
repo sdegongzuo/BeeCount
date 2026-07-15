@@ -6,6 +6,7 @@ import '../billing/billing_job_service.dart';
 import '../system/logger_service.dart';
 import 'share_billing_request_coordinator.dart';
 import 'share_billing_delivery.dart';
+import 'share_billing_c2_fixture.dart';
 
 /// 图片分享处理服务（Android专用）
 /// 处理从相册或其他应用分享过来的图片，通过 BillingJobService 进行 OCR 识别和记账
@@ -13,22 +14,27 @@ class ImageShareHandlerService {
   static const _channel = MethodChannel('com.tntlikely.beecount/share');
 
   final ProviderContainer _container;
+  final ShareBillingC2Fixture? _c2Fixture;
   late final BillingJobService _billingJobService;
   late final ShareBillingRequestCoordinator _coordinator;
 
   // 单例模式
   static ImageShareHandlerService? _instance;
 
-  factory ImageShareHandlerService(ProviderContainer container) {
-    _instance ??= ImageShareHandlerService._internal(container);
+  factory ImageShareHandlerService(
+    ProviderContainer container, {
+    ShareBillingC2Fixture? c2Fixture,
+  }) {
+    _instance ??= ImageShareHandlerService._internal(container, c2Fixture);
     return _instance!;
   }
 
-  ImageShareHandlerService._internal(this._container) {
+  ImageShareHandlerService._internal(this._container, this._c2Fixture) {
     final repo = _container.read(billingJobRepositoryProvider);
     _billingJobService = BillingJobService.create(
       repo: repo,
       container: _container,
+      captureRegressionSamples: _c2Fixture == null,
       statusReporter: (statusText) => _channel.invokeMethod<void>(
         'updateShareBillingStatus',
         {'statusText': statusText},
@@ -76,7 +82,7 @@ class ImageShareHandlerService {
     _channel.setMethodCallHandler((call) async {
       logger.info('ImageShare', '收到方法调用: ${call.method}');
       if (call.method == 'onImageShared') {
-        await _coordinator.process(call.arguments);
+        await _processCorrelated(call.arguments);
       }
     });
     _channel.invokeMethod<void>('shareBillingMainReady');
@@ -88,11 +94,21 @@ class ImageShareHandlerService {
         loadNext: () => _channel.invokeMapMethod<String, dynamic>(
           'getPendingShareBillingPayload',
         ),
-        process: _coordinator.process,
+        process: _processCorrelated,
       ).drain();
     } catch (e, stackTrace) {
       logger.error('ImageShare', '读取待处理分享图片失败', e, stackTrace);
     }
+  }
+
+  Future<void> _processCorrelated(Object? arguments) async {
+    final runtimeId =
+        arguments is Map ? arguments['c2FixtureId']?.toString() : null;
+    final runtimeFixture = ShareBillingC2Fixture.fromRuntime(runtimeId);
+    if (runtimeFixture != _c2Fixture) {
+      throw StateError('Share C2 fixture container mismatch');
+    }
+    await _coordinator.process(arguments);
   }
 
   /// 恢复未完成的 billing jobs

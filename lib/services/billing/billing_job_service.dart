@@ -76,6 +76,7 @@ class BillingJobService {
     required BillingJobRepository repo,
     required ProviderContainer container,
     BillingJobStatusReporter? statusReporter,
+    bool captureRegressionSamples = true,
   }) {
     final database = container.read(databaseProvider);
     final ocrService = OcrService(
@@ -131,28 +132,31 @@ class BillingJobService {
       repo: repo,
       runner: runner,
       ocrService: ocrService,
-      regressionSampleRecorder: SuccessfulRegressionSampleRecorder(
-        saveSample: const RegressionSampleStore().save,
-        loadExpectedFields: (transactionId) async {
-          final transaction = await baseRepo.getTransactionById(transactionId);
-          if (transaction == null) return const {};
-          return {
-            'type': transaction.type,
-            'amount': transaction.amount,
-            'categoryId': transaction.categoryId,
-            'accountId': transaction.accountId,
-            'toAccountId': transaction.toAccountId,
-            'happenedAt': transaction.happenedAt.toIso8601String(),
-            'note': transaction.note,
-            'paymentMethod': transaction.paymentMethod,
-            'counterparty': transaction.counterparty,
-            'paymentChannel': transaction.paymentChannel,
-            'merchantFullName': transaction.merchantFullName,
-            'acquirer': transaction.acquirer,
-            'detailsText': transaction.detailsText,
-          };
-        },
-      ),
+      regressionSampleRecorder: captureRegressionSamples
+          ? SuccessfulRegressionSampleRecorder(
+              saveSample: const RegressionSampleStore().save,
+              loadExpectedFields: (transactionId) async {
+                final transaction =
+                    await baseRepo.getTransactionById(transactionId);
+                if (transaction == null) return const {};
+                return {
+                  'type': transaction.type,
+                  'amount': transaction.amount,
+                  'categoryId': transaction.categoryId,
+                  'accountId': transaction.accountId,
+                  'toAccountId': transaction.toAccountId,
+                  'happenedAt': transaction.happenedAt.toIso8601String(),
+                  'note': transaction.note,
+                  'paymentMethod': transaction.paymentMethod,
+                  'counterparty': transaction.counterparty,
+                  'paymentChannel': transaction.paymentChannel,
+                  'merchantFullName': transaction.merchantFullName,
+                  'acquirer': transaction.acquirer,
+                  'detailsText': transaction.detailsText,
+                };
+              },
+            )
+          : null,
     );
   }
 

@@ -31,7 +31,8 @@ data class ShareBillingPayload(
     val mimeType: String?,
     val receivedAtMillis: Long,
     val metadata: ShareBillingImageMetadata,
-    val sourceInfo: ScreenshotSourceInfo? = null
+    val sourceInfo: ScreenshotSourceInfo? = null,
+    val c2FixtureId: String? = null
 ) {
     fun toServiceExtras(): Map<String, Any?> {
         val payload = mutableMapOf<String, Any?>(
@@ -43,6 +44,7 @@ data class ShareBillingPayload(
         )
         payload.putAll(metadata.toPayload())
         sourceInfo?.let { payload.putAll(it.toPayload()) }
+        c2FixtureId?.let { payload["c2FixtureId"] = it }
         return payload
     }
 }

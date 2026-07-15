@@ -68,4 +68,21 @@ class ShareBillingPayloadTest {
         assertEquals(150_000L, extras["screenshotTimeMillis"])
         assertFalse(extras.containsKey("cacheFileTimeMillis"))
     }
+
+    @Test
+    fun serviceExtrasCarryDebugFixtureCorrelation() {
+        val payload = ShareBillingPayload(
+            cacheImagePath = "/cache/share_billing/c2.jpg",
+            originalUri = "content://c2/image",
+            mimeType = "image/jpeg",
+            receivedAtMillis = 999_000L,
+            metadata = ShareBillingImageMetadata(null, null, null),
+            c2FixtureId = "issue6-c2-20260716"
+        )
+
+        assertEquals(
+            "issue6-c2-20260716",
+            payload.toServiceExtras()["c2FixtureId"]
+        )
+    }
 }

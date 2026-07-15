@@ -9,6 +9,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -62,7 +63,11 @@ class ShareBillingActivity : Activity() {
                 originalUri = imageUri.toString(),
                 mimeType = intent.type,
                 receivedAtMillis = receivedAtMillis,
-                metadata = metadata
+                metadata = metadata,
+                c2FixtureId = ShareBillingC2RuntimeCorrelation.accept(
+                    applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
+                    intent.getStringExtra(EXTRA_C2_FIXTURE_ID)
+                )
             )
 
             val started = startBillingForegroundService(payload)
@@ -320,6 +325,7 @@ class ShareBillingActivity : Activity() {
     )
 
     companion object {
+        const val EXTRA_C2_FIXTURE_ID = "com.tntlikely.beecount.extra.SHARE_C2_FIXTURE_ID"
         private const val TAG = "ShareBillingActivity"
         private const val CACHE_DIR_NAME = "share_billing"
         private const val REQUEST_POST_NOTIFICATIONS = 2404

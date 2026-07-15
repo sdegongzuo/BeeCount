@@ -6,9 +6,11 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
@@ -30,6 +32,7 @@ class MainActivity: FlutterFragmentActivity() {
     private val SCREENSHOT_CHANNEL = "com.tntlikely.beecount/screenshot"
     private val LOGGER_CHANNEL = "com.beecount.logger"
     private val SHARE_CHANNEL = "com.tntlikely.beecount/share"
+    private val SHARE_C2_TRACER_CHANNEL = "com.tntlikely.beecount/share_c2_tracer"
 
     private var screenshotObserver: ScreenshotObserver? = null
     private var rapidOcrBridge: RapidOcrBridge? = null
@@ -166,6 +169,7 @@ class MainActivity: FlutterFragmentActivity() {
         LoggerPlugin.info("MainActivity", "RapidOCR 通道已初始化")
 
         setupShareChannel(flutterEngine)
+        setupShareC2TracerChannel(flutterEngine)
 
         // 延迟发送测试日志，确保 Flutter 端已就绪
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -264,6 +268,54 @@ class MainActivity: FlutterFragmentActivity() {
                     result.success(true)
                 }
                 else -> result.notImplemented()
+            }
+        }
+    }
+
+    private fun setupShareC2TracerChannel(flutterEngine: FlutterEngine) {
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SHARE_C2_TRACER_CHANNEL
+        ).setMethodCallHandler { call, result ->
+            if (call.method != "sendActionSend") {
+                result.notImplemented()
+                return@setMethodCallHandler
+            }
+            try {
+                val request = ShareBillingC2ActionSendRequest.parse(
+                    isDebug = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
+                    fixtureId = call.argument<String>("fixtureId"),
+                    caseId = call.argument<String>("caseId"),
+                    pngBytes = call.argument<ByteArray>("pngBytes")
+                )
+                val directory = File(cacheDir, "share_c2_input/${request.fixtureId}")
+                check(directory.mkdirs() || directory.isDirectory) {
+                    "Unable to create isolated share C2 input directory"
+                }
+                val image = File(directory, request.fileName)
+                image.writeBytes(request.pngBytes)
+                val uri = FileProvider.getUriForFile(
+                    this,
+                    "$packageName.fileprovider",
+                    image
+                )
+                startActivity(Intent(this, ShareBillingActivity::class.java).apply {
+                    action = Intent.ACTION_SEND
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    clipData = ClipData.newUri(contentResolver, request.caseId, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    putExtra(ShareBillingActivity.EXTRA_C2_FIXTURE_ID, request.fixtureId)
+                })
+                result.success(
+                    mapOf(
+                        "fixtureId" to request.fixtureId,
+                        "caseId" to request.caseId,
+                        "uri" to uri.toString()
+                    )
+                )
+            } catch (error: Throwable) {
+                result.error("share_c2_action_send_failed", error.message, null)
             }
         }
     }

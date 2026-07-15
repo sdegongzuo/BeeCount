@@ -37,7 +37,10 @@ class AttachmentService {
   /// 获取附件存储目录
   Future<Directory> getAttachmentDirectory() async {
     final appDir = await getApplicationDocumentsDirectory();
-    final dir = Directory('${appDir.path}/attachments');
+    final namespace = ref.read(attachmentStorageNamespaceProvider);
+    final dir = Directory(
+      '${appDir.path}/${namespace ?? 'attachments'}',
+    );
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
@@ -58,7 +61,10 @@ class AttachmentService {
   /// 获取缩略图缓存目录
   Future<Directory> getThumbnailDirectory() async {
     final cacheDir = await getTemporaryDirectory();
-    final dir = Directory('${cacheDir.path}/attachment_thumbs');
+    final namespace = ref.read(attachmentStorageNamespaceProvider);
+    final dir = Directory(
+      '${cacheDir.path}/${namespace == null ? 'attachment_thumbs' : '${namespace}_thumbs'}',
+    );
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
@@ -840,6 +846,9 @@ class AttachmentService {
     }
   }
 }
+
+/// 非空值仅供显式隔离的 Android C2 fixture 覆盖。
+final attachmentStorageNamespaceProvider = Provider<String?>((ref) => null);
 
 /// AttachmentService Provider
 final attachmentServiceProvider = Provider<AttachmentService>((ref) {
