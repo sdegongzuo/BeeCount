@@ -9,6 +9,7 @@ import '../services/system/logger_service.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqlite3/sqlite3.dart' show Database;
 
 part 'db.g.dart';
 
@@ -1007,8 +1008,16 @@ LazyDatabase _openConnection() {
       logger.debug('db', '检查锁文件时出错: $e');
     }
 
-    return NativeDatabase.createInBackground(file);
+    return NativeDatabase.createInBackground(
+      file,
+      setup: configureBeeDatabaseConnection,
+    );
   });
+}
+
+/// Applies connection-local settings shared by the main and headless engines.
+void configureBeeDatabaseConnection(Database database) {
+  database.execute('PRAGMA busy_timeout=5000');
 }
 
 /// 开发工具：清除数据库锁文件（仅在应用完全关闭后使用）

@@ -20,7 +20,7 @@ class FakeAttachmentSaveService implements AttachmentSaveServiceInterface {
   Future<int>? lastTransactionId;
   int? lastBillingJobId;
   BillingJobLease? lastLease;
-  Future<bool> Function(BillingJobLease lease)? lastIsLeaseOwner;
+  BillingJobPublicationGate? lastRunFencedPublication;
   Object? saveError;
 
   @override
@@ -32,7 +32,7 @@ class FakeAttachmentSaveService implements AttachmentSaveServiceInterface {
     Future<int> transactionId, {
     required int billingJobId,
     required BillingJobLease lease,
-    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
+    required BillingJobPublicationGate runFencedPublication,
     Set<String>? recoveryFileNames,
   }) async {
     if (saveError case final error?) throw error;
@@ -41,7 +41,7 @@ class FakeAttachmentSaveService implements AttachmentSaveServiceInterface {
     lastTransactionId = transactionId;
     lastBillingJobId = billingJobId;
     lastLease = lease;
-    lastIsLeaseOwner = isLeaseOwner;
+    lastRunFencedPublication = runFencedPublication;
     return TransactionAttachment(
       id: 1,
       transactionId: await transactionId,
@@ -88,8 +88,11 @@ void main() {
     expect(attachmentService.lastBillingJobId, job.id);
     expect(attachmentService.lastLease, context.lease);
     expect(
-      await attachmentService.lastIsLeaseOwner!(context.lease!),
-      isTrue,
+      await attachmentService.lastRunFencedPublication!(
+        context.lease!,
+        () async => 'owned',
+      ),
+      'owned',
     );
   });
 
@@ -186,6 +189,7 @@ void main() {
 
   group('database attachment recovery validation', () {
     late BeeDatabase attachmentDb;
+    late LocalBillingJobRepository attachmentJobs;
     late LocalRepository attachmentRepo;
     late Directory attachmentDir;
     late ProviderContainer container;
@@ -195,6 +199,15 @@ void main() {
 
     setUp(() async {
       attachmentDb = BeeDatabase.forTesting(NativeDatabase.memory());
+      attachmentJobs = LocalBillingJobRepository(attachmentDb);
+      final lease = _testLease(9);
+      await attachmentDb.into(attachmentDb.billingJobs).insert(
+            BillingJobsCompanion.insert(
+              id: const Value(9),
+              imagePath: '/tmp/recovery-source.jpg',
+              leaseUntil: Value(lease.leaseUntil),
+            ),
+          );
       attachmentRepo = LocalRepository(attachmentDb);
       attachmentDir = await Directory(
         '${Directory.systemTemp.path}'
@@ -255,7 +268,7 @@ void main() {
         index: 0,
         billingJobId: 9,
         lease: _testLease(9),
-        isLeaseOwner: (lease) async => true,
+        runFencedPublication: attachmentJobs.runFencedPublication,
         recoveryFileNames: const {},
       );
 
@@ -292,7 +305,7 @@ void main() {
         index: 0,
         billingJobId: 9,
         lease: _testLease(9),
-        isLeaseOwner: (lease) async => true,
+        runFencedPublication: attachmentJobs.runFencedPublication,
         recoveryFileNames: {fileName},
       );
 
@@ -330,7 +343,7 @@ void main() {
         index: 0,
         billingJobId: 9,
         lease: _testLease(9),
-        isLeaseOwner: (lease) async => true,
+        runFencedPublication: attachmentJobs.runFencedPublication,
         recoveryFileNames: {fileName},
       );
 

@@ -59,7 +59,7 @@ void main() {
         preparedFile: oldPrepared,
         finalFileName: 'tx_61_9_0.jpg',
         lease: oldLease,
-        isLeaseOwner: (lease) async => false,
+        runFencedPublication: _rejectPublication,
         createOrGet: (originKey, publishedFile, dimensions) async {
           oldUpserts++;
           return _upsert(repo, identity, publishedFile, dimensions);
@@ -73,7 +73,7 @@ void main() {
       preparedFile: newPrepared,
       finalFileName: 'tx_61_9_0.jpg',
       lease: newLease,
-      isLeaseOwner: (lease) async => true,
+      runFencedPublication: _allowPublication,
       createOrGet: (originKey, publishedFile, dimensions) =>
           _upsert(repo, identity, publishedFile, dimensions),
     );
@@ -106,7 +106,7 @@ void main() {
         preparedFile: firstPrepared,
         finalFileName: 'tx_61_9_0.jpg',
         lease: lease,
-        isLeaseOwner: (lease) async => true,
+        runFencedPublication: _allowPublication,
         createOrGet: (originKey, publishedFile, dimensions) async {
           throw StateError('simulated crash after rename');
         },
@@ -126,7 +126,7 @@ void main() {
       preparedFile: secondPrepared,
       finalFileName: 'tx_61_9_0.jpg',
       lease: lease,
-      isLeaseOwner: (lease) async => true,
+      runFencedPublication: _allowPublication,
       createOrGet: (originKey, publishedFile, dimensions) =>
           _upsert(repo, identity, publishedFile, dimensions),
     );
@@ -158,7 +158,7 @@ void main() {
       preparedFile: prepared,
       finalFileName: 'tx_61_9_0.jpg',
       lease: lease,
-      isLeaseOwner: (lease) async => true,
+      runFencedPublication: _allowPublication,
       createOrGet: (originKey, publishedFile, dimensions) =>
           _upsert(repo, identity, publishedFile, dimensions),
     );
@@ -188,7 +188,7 @@ void main() {
       preparedFile: prepared,
       finalFileName: 'tx_62_10_0.webp',
       lease: lease,
-      isLeaseOwner: (lease) async => true,
+      runFencedPublication: _allowPublication,
       createOrGet: (originKey, publishedFile, dimensions) =>
           _upsert(repo, identity, publishedFile, dimensions),
     );
@@ -213,16 +213,30 @@ Future<TransactionAttachment> _upsert(
   LocalAttachmentRepository repo,
   BillingAttachmentIdentity identity,
   File file,
-  ({int width, int height}) dimensions,
+  BillingAttachmentMetadata metadata,
 ) async {
   final id = await repo.upsertBillingAttachment(
     originKey: identity.originKey,
     transactionId: identity.transactionId,
     fileName: file.uri.pathSegments.last,
-    fileSize: await file.length(),
-    width: dimensions.width,
-    height: dimensions.height,
+    fileSize: metadata.fileSize,
+    width: metadata.dimensions.width,
+    height: metadata.dimensions.height,
     sortOrder: identity.index,
   );
   return (await repo.getAttachmentById(id))!;
+}
+
+Future<T> _allowPublication<T>(
+  BillingJobLease lease,
+  Future<T> Function() action,
+) {
+  return action();
+}
+
+Future<T> _rejectPublication<T>(
+  BillingJobLease lease,
+  Future<T> Function() action,
+) {
+  throw BillingJobLeaseLost(lease);
 }

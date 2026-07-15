@@ -32,6 +32,20 @@ class BillingJobLease {
   const BillingJobLease({required this.jobId, required this.leaseUntil});
 }
 
+final class BillingJobLeaseLost implements Exception {
+  final BillingJobLease lease;
+
+  const BillingJobLeaseLost(this.lease);
+
+  @override
+  String toString() => 'BillingJobLeaseLost(jobId=${lease.jobId})';
+}
+
+typedef BillingJobPublicationGate = Future<T> Function<T>(
+  BillingJobLease lease,
+  Future<T> Function() action,
+);
+
 abstract class BillingJobRepository {
   Future<BillingJob> createJob(
       {required String imagePath, String kind = 'image_share'});
@@ -54,6 +68,10 @@ abstract class BillingJobRepository {
     Duration leaseDuration,
   );
   Future<bool> isLeaseOwner(BillingJobLease lease);
+  Future<T> runFencedPublication<T>(
+    BillingJobLease lease,
+    Future<T> Function() action,
+  );
   Future<bool> markSucceeded(int id, {BillingJobLease? lease});
   Future<bool> markAttachmentDone(int id, {BillingJobLease? lease});
   Future<BillingJob?> findByImagePath(String imagePath);

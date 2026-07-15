@@ -186,7 +186,7 @@ class AttachmentService {
     required int index,
     required int billingJobId,
     required BillingJobLease lease,
-    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
+    required BillingJobPublicationGate runFencedPublication,
     Set<String>? recoveryFileNames,
   }) async {
     try {
@@ -222,7 +222,7 @@ class AttachmentService {
             finalFileName: existing.fileName,
             sourceFile: sourceFile,
             lease: lease,
-            isLeaseOwner: isLeaseOwner,
+            runFencedPublication: runFencedPublication,
           );
         }
         logger.warning(
@@ -249,7 +249,7 @@ class AttachmentService {
             finalFileName: diskFileName,
             sourceFile: sourceFile,
             lease: lease,
-            isLeaseOwner: isLeaseOwner,
+            runFencedPublication: runFencedPublication,
           );
         }
         logger.warning(
@@ -311,7 +311,7 @@ class AttachmentService {
         finalFileName: fileName,
         sourceFile: sourceFile,
         lease: lease,
-        isLeaseOwner: isLeaseOwner,
+        runFencedPublication: runFencedPublication,
       );
 
       if (format == SmartBillingAttachmentFormat.avif) {
@@ -531,7 +531,7 @@ class AttachmentService {
     required String finalFileName,
     required File sourceFile,
     required BillingJobLease lease,
-    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
+    required BillingJobPublicationGate runFencedPublication,
   }) {
     final repo = ref.read(repositoryProvider);
     return const BillingAttachmentPublisher().publish(
@@ -539,16 +539,16 @@ class AttachmentService {
       preparedFile: preparedFile,
       finalFileName: finalFileName,
       lease: lease,
-      isLeaseOwner: isLeaseOwner,
-      createOrGet: (originKey, publishedFile, dimensions) async {
+      runFencedPublication: runFencedPublication,
+      createOrGet: (originKey, publishedFile, metadata) async {
         final id = await repo.upsertBillingAttachment(
           originKey: originKey,
           transactionId: identity.transactionId,
           fileName: path.basename(publishedFile.path),
           originalName: path.basename(sourceFile.path),
-          fileSize: await publishedFile.length(),
-          width: dimensions.width,
-          height: dimensions.height,
+          fileSize: metadata.fileSize,
+          width: metadata.dimensions.width,
+          height: metadata.dimensions.height,
           sortOrder: identity.index,
         );
         return (await repo.getAttachmentById(id))!;

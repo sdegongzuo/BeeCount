@@ -14,7 +14,7 @@ abstract class AttachmentSaveServiceInterface {
     Future<int> transactionId, {
     required int billingJobId,
     required BillingJobLease lease,
-    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
+    required BillingJobPublicationGate runFencedPublication,
     Set<String>? recoveryFileNames,
   });
 }
@@ -61,7 +61,7 @@ class AttachmentStageProcessor
           txFuture,
           billingJobId: job.id,
           lease: lease,
-          isLeaseOwner: repo.isLeaseOwner,
+          runFencedPublication: repo.runFencedPublication,
           recoveryFileNames: ctx.attachmentRecoveryFileNames,
         )
             .then((_) {

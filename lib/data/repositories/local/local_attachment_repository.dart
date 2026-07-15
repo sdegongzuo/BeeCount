@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as d;
+import 'package:drift/isolate.dart' show DriftRemoteException;
 
 import '../../db.dart';
 import '../attachment_repository.dart';
@@ -90,6 +91,9 @@ class LocalAttachmentRepository implements AttachmentRepository {
   }
 
   bool _isOriginKeyUniqueConstraint(Object error) {
+    if (error is DriftRemoteException) {
+      return _isOriginKeyUniqueConstraint(error.remoteCause);
+    }
     try {
       final dynamic sqliteError = error;
       final extendedResultCode = sqliteError.extendedResultCode as int?;

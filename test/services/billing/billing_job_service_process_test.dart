@@ -233,13 +233,16 @@ class _ExistingAttachmentService implements AttachmentSaveServiceInterface {
     Future<int> transactionId, {
     required int billingJobId,
     required BillingJobLease lease,
-    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
+    required BillingJobPublicationGate runFencedPublication,
     Set<String>? recoveryFileNames,
   }) async {
     final transactionIdValue = await transactionId;
     expect(transactionIdValue, greaterThan(0));
     expect(billingJobId, isNotNull);
-    expect(await isLeaseOwner(lease), isTrue);
+    expect(
+      await runFencedPublication(lease, () async => 'owned'),
+      'owned',
+    );
     saveCount++;
     reusedExistingArtifact = true;
     return TransactionAttachment(

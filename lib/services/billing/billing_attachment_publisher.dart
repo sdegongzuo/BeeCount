@@ -12,10 +12,14 @@ import '../../data/repositories/billing_job_repository.dart';
 import 'billing_attachment_identity.dart';
 
 typedef BillingAttachmentDimensions = ({int width, int height});
+typedef BillingAttachmentMetadata = ({
+  BillingAttachmentDimensions dimensions,
+  int fileSize,
+});
 typedef BillingAttachmentUpsert = Future<TransactionAttachment> Function(
   String originKey,
   File publishedFile,
-  BillingAttachmentDimensions dimensions,
+  BillingAttachmentMetadata metadata,
 );
 
 final class BillingAttachmentPublishLeaseLost implements Exception {
@@ -45,7 +49,7 @@ final class BillingAttachmentPublisher {
     required File preparedFile,
     required String finalFileName,
     required BillingJobLease lease,
-    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
+    required BillingJobPublicationGate runFencedPublication,
     required BillingAttachmentUpsert createOrGet,
   }) async {
     final directory = path.dirname(path.absolute(preparedFile.path));
@@ -58,52 +62,56 @@ final class BillingAttachmentPublisher {
       throw ArgumentError('prepared and stable files must share one format');
     }
 
+    final preparedBytes = await preparedFile.readAsBytes();
     final preparedDimensions = await decodeCompleteBillingJobAttachmentBytes(
-      await preparedFile.readAsBytes(),
+      preparedBytes,
       extension: path.extension(finalFileName),
     );
     if (preparedDimensions == null) {
       throw BillingAttachmentInvalidImage(preparedFile.path);
     }
 
-    final lockFile =
-        File(path.join(directory, '${identity.baseName}.publish.lock'));
-    final lock = await lockFile.open(mode: FileMode.append);
-    await lock.lock(FileLock.exclusive);
+    final stableFile = File(finalPath);
+    final stableMetadata = await _metadataIfComplete(stableFile);
     try {
-      final stableFile = File(finalPath);
-      final stableDimensions = await _decodeFileIfComplete(stableFile);
-      if (!await isLeaseOwner(lease)) {
-        throw BillingAttachmentPublishLeaseLost(lease);
-      }
+      return await runFencedPublication(
+        lease,
+        () async {
+          if (stableMetadata != null) {
+            return createOrGet(
+              identity.originKey,
+              stableFile,
+              stableMetadata,
+            );
+          }
 
-      if (stableDimensions != null) {
-        return await createOrGet(
-          identity.originKey,
-          stableFile,
-          stableDimensions,
-        );
-      }
-
-      final publishedFile = await _replaceAtomically(preparedFile, stableFile);
-      return await createOrGet(
-        identity.originKey,
-        publishedFile,
-        preparedDimensions,
+          final publishedFile =
+              await _replaceAtomically(preparedFile, stableFile);
+          return createOrGet(
+            identity.originKey,
+            publishedFile,
+            (
+              dimensions: preparedDimensions,
+              fileSize: preparedBytes.length,
+            ),
+          );
+        },
       );
-    } finally {
-      await lock.unlock();
-      await lock.close();
+    } on BillingJobLeaseLost {
+      throw BillingAttachmentPublishLeaseLost(lease);
     }
   }
 
-  Future<BillingAttachmentDimensions?> _decodeFileIfComplete(File file) async {
+  Future<BillingAttachmentMetadata?> _metadataIfComplete(File file) async {
     if (!await file.exists()) return null;
     try {
-      return decodeCompleteBillingJobAttachmentBytes(
-        await file.readAsBytes(),
+      final bytes = await file.readAsBytes();
+      final dimensions = await decodeCompleteBillingJobAttachmentBytes(
+        bytes,
         extension: path.extension(file.path),
       );
+      if (dimensions == null) return null;
+      return (dimensions: dimensions, fileSize: bytes.length);
     } on FileSystemException {
       return null;
     }

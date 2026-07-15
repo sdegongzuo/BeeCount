@@ -80,6 +80,7 @@ dependencies:
   toml: ^0.18.0
   ffi: ^2.1.3
   win32: ^5.10.1
+  sqlite3: ^3.3.1
 
 dev_dependencies:
   flutter_test:
@@ -90,7 +91,6 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   # Testing framework enhancements
   mocktail: ^1.0.4
-  sqlite3: ^3.3.1
   integration_test:
     sdk: flutter
   patrol: ^4.6.0

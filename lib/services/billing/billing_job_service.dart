@@ -554,7 +554,7 @@ class _RealAttachmentService implements AttachmentSaveServiceInterface {
     Future<int> transactionId, {
     required int billingJobId,
     required BillingJobLease lease,
-    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
+    required BillingJobPublicationGate runFencedPublication,
     Set<String>? recoveryFileNames,
   }) async {
     // AttachmentService 需要 Ref，通过 container 获取 provider 值
@@ -569,7 +569,7 @@ class _RealAttachmentService implements AttachmentSaveServiceInterface {
       index: 0,
       billingJobId: billingJobId,
       lease: lease,
-      isLeaseOwner: isLeaseOwner,
+      runFencedPublication: runFencedPublication,
       recoveryFileNames: recoveryFileNames,
     );
     if (attachment == null) throw StateError('attachment_save_failed');

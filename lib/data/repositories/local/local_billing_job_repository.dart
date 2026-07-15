@@ -162,6 +162,35 @@ class LocalBillingJobRepository implements BillingJobRepository {
   }
 
   @override
+  Future<T> runFencedPublication<T>(
+    BillingJobLease lease,
+    Future<T> Function() action,
+  ) {
+    return db.transaction(() async {
+      // This must remain the transaction's first statement. Besides fencing
+      // the lease token, the no-op UPDATE obtains SQLite's cross-connection
+      // write lock before the publication action can touch the stable file.
+      final updated = await db.customUpdate(
+        '''
+UPDATE billing_jobs
+SET updated_at = updated_at
+WHERE id = ?
+  AND lease_until = ?
+  AND lease_until > ?
+''',
+        variables: [
+          d.Variable<int>(lease.jobId),
+          d.Variable<DateTime>(lease.leaseUntil),
+          d.Variable<DateTime>(DateTime.now()),
+        ],
+        updates: {db.billingJobs},
+      );
+      if (updated == 0) throw BillingJobLeaseLost(lease);
+      return action();
+    });
+  }
+
+  @override
   Future<bool> markAttachmentDone(int id, {BillingJobLease? lease}) async {
     final updated = await (db.update(db.billingJobs)
           ..where((t) => _canMutate(t, id, lease)))
