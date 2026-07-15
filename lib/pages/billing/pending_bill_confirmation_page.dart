@@ -193,7 +193,9 @@ class _PendingBillConfirmationPageState
         amount: amount,
         time: time,
         supplementalNote: _supplement.text,
-        rememberForSimilarBills: _remember,
+        rememberExtractionCorrections: _remember,
+        rememberCategoryRule: _remember,
+        rememberNotePreference: _remember,
         categoryId: _categoryId,
         categoryRuleGlobal: _categoryRuleGlobal,
       );

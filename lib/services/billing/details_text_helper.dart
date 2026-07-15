@@ -54,6 +54,7 @@ String _detailLabel(String key) {
 }
 
 const _detailLabels = {
+  'supplemental_note': '补充信息',
   'route_start': '出发站',
   'route_end': '到达站',
   'trip_time_range': '通行时间',

@@ -88,7 +88,11 @@ class PendingBillConfirmationService {
     required double amount,
     required DateTime time,
     required String supplementalNote,
-    required bool rememberForSimilarBills,
+    @Deprecated('Use the three independent remember options instead.')
+    bool? rememberForSimilarBills,
+    bool rememberExtractionCorrections = false,
+    bool rememberCategoryRule = false,
+    bool rememberNotePreference = false,
     int? categoryId,
     bool categoryRuleGlobal = false,
   }) async {
@@ -123,8 +127,13 @@ class PendingBillConfirmationService {
     await repo.updateStage(job.id, BillingJobStage.completed);
     await repo.markSucceeded(job.id);
 
+    final legacyRememberAll = rememberForSimilarBills ?? false;
+    final rememberExtraction =
+        rememberExtractionCorrections || legacyRememberAll;
+    final rememberCategory = rememberCategoryRule || legacyRememberAll;
+    final rememberNote = rememberNotePreference || legacyRememberAll;
     final results = <PersonalRuleLifecycleResult>[];
-    if (rememberForSimilarBills) {
+    if (rememberExtraction) {
       final source = _source(job.sourceInfoJson);
       final changedFields = <MapEntry<String, Object>>[];
       if (original.amount != amount) {
@@ -142,23 +151,23 @@ class PendingBillConfirmationService {
           sourceAppName: source.$2,
         )));
       }
-      final matchText = (original.merchantFullName ??
-              original.counterparty ??
-              original.note ??
-              '')
-          .trim();
+    }
+    if (rememberCategory || rememberNote) {
+      final matchText = _ruleMatchText(original);
       if (supplement.isNotEmpty &&
-          matchText.isNotEmpty &&
-          rememberNotePreference != null) {
-        await rememberNotePreference!(
+          matchText != null &&
+          rememberNote &&
+          this.rememberNotePreference != null) {
+        await this.rememberNotePreference!(
           matchText: matchText,
           supplementalNote: supplement,
         );
       }
       if (categoryId != null &&
-          matchText.isNotEmpty &&
-          rememberCategory != null) {
-        await rememberCategory!(
+          matchText != null &&
+          rememberCategory &&
+          this.rememberCategory != null) {
+        await this.rememberCategory!(
           matchText: matchText,
           categoryId: categoryId,
           global: categoryRuleGlobal,
@@ -179,4 +188,24 @@ class PendingBillConfirmationService {
     (json['sourceAppPackage'] ?? json['sourcePackage']) as String?,
     json['sourceAppName'] as String?,
   );
+}
+
+String? _ruleMatchText(OcrResult result) {
+  for (final candidate in <String?>[
+    result.merchantFullName,
+    result.counterparty,
+    _merchantFromStructuredSummary(result.note),
+  ]) {
+    final normalized = candidate?.trim();
+    if (normalized != null && normalized.isNotEmpty) return normalized;
+  }
+  return null;
+}
+
+String? _merchantFromStructuredSummary(String? summary) {
+  if (summary == null || summary.trim().isEmpty) return null;
+  return RegExp(r'(?:^|\n)\s*商户\s*[：:]\s*([^\n]+)')
+      .firstMatch(summary)
+      ?.group(1)
+      ?.trim();
 }

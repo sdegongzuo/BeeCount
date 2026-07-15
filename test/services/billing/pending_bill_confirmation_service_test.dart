@@ -40,6 +40,7 @@ void main() {
         allNumbers: const ['18.00'],
         amount: 18,
         note: '结构化摘要',
+        merchantFullName: '天津海河测试餐厅甲',
       ).toJson()),
     );
     await repo.updateStatus(job.id, BillingJobStatus.awaitingConfirmation);
@@ -147,7 +148,7 @@ void main() {
     );
 
     expect(createdBill.suggestedCategoryId, 5);
-    expect(saved, (matchText: '结构化摘要', categoryId: 5, global: true));
+    expect(saved, (matchText: '天津海河测试餐厅甲', categoryId: 5, global: true));
   });
 
   test('对类似账单记住备注会生成待上传修订并在远端设备物化', () async {
@@ -168,8 +169,7 @@ void main() {
       rememberForSimilarBills: true,
     );
 
-    final outgoing =
-        await PersonalRuleSyncRepository(db).pendingUpload();
+    final outgoing = await PersonalRuleSyncRepository(db).pendingUpload();
     final noteRevision = outgoing
         .singleWhere((revision) => revision.kind.name == 'notePreference');
     expect(noteRevision.payload, {'suffix': '和朋友聚餐'});
@@ -185,11 +185,127 @@ void main() {
     final materialized =
         await SqlitePersonalNotePreferenceStore(remoteDb).loadActive();
     expect(materialized, hasLength(1));
-    expect(materialized.single.conditionKey, '结构化摘要');
+    expect(materialized.single.conditionKey, '天津海河测试餐厅甲');
     expect(materialized.single.payload, {'suffix': '和朋友聚餐'});
     expect(
         await SqlitePersonalNotePreferenceStore(remoteDb)
-            .matchingSuffix('结构化摘要 天津和平测试门店甲'),
+            .matchingSuffix('天津海河测试餐厅甲 天津和平测试门店甲'),
         '和朋友聚餐');
+  });
+
+  test('分类记忆可独立于提取修正和备注偏好开启', () async {
+    final job = await draftJob();
+    ({String matchText, int categoryId, bool global})? savedCategory;
+    var savedNote = false;
+    final independentService = PendingBillConfirmationService(
+      repo: repo,
+      createTransaction: (_) async => 84,
+      applyCorrection: (correction) async {
+        remembered.add(correction);
+        return const PersonalRuleLifecycleResult(
+          status: PersonalRuleLifecycleStatus.enabled,
+          revision: 1,
+        );
+      },
+      rememberCategory: (
+          {required matchText, required categoryId, required global}) async {
+        savedCategory =
+            (matchText: matchText, categoryId: categoryId, global: global);
+      },
+      rememberNotePreference: (
+          {required matchText, required supplementalNote}) async {
+        savedNote = true;
+      },
+    );
+
+    await independentService.confirm(
+      jobId: job.id,
+      amount: 20,
+      time: DateTime(2026, 7, 12, 10, 31),
+      supplementalNote: '本次补充',
+      categoryId: 5,
+      categoryRuleGlobal: false,
+      rememberExtractionCorrections: false,
+      rememberCategoryRule: true,
+      rememberNotePreference: false,
+    );
+
+    expect(remembered, isEmpty);
+    expect(savedNote, isFalse);
+    expect(savedCategory, (matchText: '天津海河测试餐厅甲', categoryId: 5, global: false));
+  });
+
+  test('提取修正可单独开启而不记忆分类或备注', () async {
+    final job = await draftJob();
+    var categorySaved = false;
+    var noteSaved = false;
+    final independentService = PendingBillConfirmationService(
+      repo: repo,
+      createTransaction: (_) async => 85,
+      applyCorrection: (correction) async {
+        remembered.add(correction);
+        return const PersonalRuleLifecycleResult(
+          status: PersonalRuleLifecycleStatus.enabled,
+          revision: 1,
+        );
+      },
+      rememberCategory: (
+          {required matchText, required categoryId, required global}) async {
+        categorySaved = true;
+      },
+      rememberNotePreference: (
+          {required matchText, required supplementalNote}) async {
+        noteSaved = true;
+      },
+    );
+
+    await independentService.confirm(
+      jobId: job.id,
+      amount: 20,
+      time: DateTime(2026, 7, 12, 10, 31),
+      supplementalNote: '只用于当前交易',
+      categoryId: 5,
+      rememberExtractionCorrections: true,
+      rememberCategoryRule: false,
+      rememberNotePreference: false,
+    );
+
+    expect(remembered.map((item) => item.field), ['amount', 'time']);
+    expect(categorySaved, isFalse);
+    expect(noteSaved, isFalse);
+  });
+
+  test('备注偏好可单独开启而不学习提取修正或分类', () async {
+    final job = await draftJob();
+    ({String matchText, String supplementalNote})? savedNote;
+    final independentService = PendingBillConfirmationService(
+      repo: repo,
+      createTransaction: (_) async => 86,
+      applyCorrection: (correction) async {
+        remembered.add(correction);
+        return const PersonalRuleLifecycleResult(
+          status: PersonalRuleLifecycleStatus.enabled,
+          revision: 1,
+        );
+      },
+      rememberNotePreference: (
+          {required matchText, required supplementalNote}) async {
+        savedNote = (matchText: matchText, supplementalNote: supplementalNote);
+      },
+    );
+
+    await independentService.confirm(
+      jobId: job.id,
+      amount: 20,
+      time: DateTime(2026, 7, 12, 10, 31),
+      supplementalNote: '以后都加这句',
+      categoryId: 5,
+      rememberExtractionCorrections: false,
+      rememberCategoryRule: false,
+      rememberNotePreference: true,
+    );
+
+    expect(remembered, isEmpty);
+    expect(savedNote, (matchText: '天津海河测试餐厅甲', supplementalNote: '以后都加这句'));
   });
 }

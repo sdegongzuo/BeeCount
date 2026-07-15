@@ -474,6 +474,14 @@ class LocalRepository extends BaseRepository {
       _transactionRepo.getTransactionById(id);
 
   @override
+  Future<List<Transaction>> getPendingClassificationTransactions({
+    required int ledgerId,
+  }) =>
+      _transactionRepo.getPendingClassificationTransactions(
+        ledgerId: ledgerId,
+      );
+
+  @override
   Future<int> insertTransactionCompanion(TransactionsCompanion item) async {
     if (changeTracker == null) {
       return _transactionRepo.insertTransactionCompanion(item);

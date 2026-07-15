@@ -397,6 +397,21 @@ class LocalTransactionRepository implements TransactionRepository {
   }
 
   @override
+  Future<List<Transaction>> getPendingClassificationTransactions({
+    required int ledgerId,
+  }) {
+    return (db.select(db.transactions)
+          ..where((transaction) =>
+              transaction.ledgerId.equals(ledgerId) &
+              transaction.needsClassification.equals(true))
+          ..orderBy([
+            (transaction) => d.OrderingTerm.asc(transaction.happenedAt),
+            (transaction) => d.OrderingTerm.asc(transaction.id),
+          ]))
+        .get();
+  }
+
+  @override
   Future<int> insertTransactionCompanion(TransactionsCompanion item) async {
     // 自动补上 syncId（如果未提供）
     final effective =

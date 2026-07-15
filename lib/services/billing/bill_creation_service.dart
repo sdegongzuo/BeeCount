@@ -408,22 +408,26 @@ class BillCreationService {
             routeEnd: details?['route_end']?.toString(),
           )
         : (result.note ?? note);
+    final detailParts = <String>[];
+    void addDetailPart(String? value) {
+      final normalized = value?.trim();
+      if (normalized == null || normalized.isEmpty) return;
+      if (!detailParts.contains(normalized)) detailParts.add(normalized);
+    }
+
+    addDetailPart(result.detailsText);
+    addDetailPart(detailsMapToText(result.details));
+    if (isImageBilling && note?.trim().isNotEmpty == true) {
+      addDetailPart('补充信息：${note!.trim()}');
+    }
     if (isImageBilling && personalNotePreferences != null) {
       final suffix = await personalNotePreferences!.matchingSuffix(
-        result.merchantFullName ?? result.counterparty ?? result.note,
+        result.merchantFullName ?? result.counterparty,
       );
       if (suffix != null && suffix.trim().isNotEmpty) {
-        finalNote = [
-          if (finalNote?.isNotEmpty == true) finalNote!,
-          suffix.trim()
-        ].join('\n');
+        addDetailPart('补充信息：${suffix.trim()}');
       }
     }
-    final detailParts = <String>[
-      if (result.detailsText ?? detailsMapToText(result.details)
-          case final text?)
-        text,
-    ];
 
     // 9. 使用Repository创建交易
     final finalAmount = result.amount!.abs();

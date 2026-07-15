@@ -39,6 +39,11 @@ abstract class TransactionRepository {
   /// 根据ID获取单条交易
   Future<Transaction?> getTransactionById(int id);
 
+  /// 获取指定账本中仍等待用户补充分类的交易。
+  Future<List<Transaction>> getPendingClassificationTransactions({
+    required int ledgerId,
+  });
+
   /// 获取指定月份的交易记录（带分类信息）
   Stream<List<({Transaction t, Category? category})>>
       watchTransactionsWithCategoryInMonth({
