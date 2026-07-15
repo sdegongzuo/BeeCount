@@ -51,6 +51,7 @@ void main() {
         merchantFullName: '天津海河测试餐厅甲(天津和平测试门店甲)',
         acquirer: '银联',
         detailsText: '订单号:ABC\n商户:天津海河测试餐厅甲\n金额:100.00',
+        needsClassification: true,
         syncId: 'sync-added-1',
       );
 
@@ -79,6 +80,7 @@ void main() {
       expect(local.merchantFullName, '天津海河测试餐厅甲(天津和平测试门店甲)');
       expect(local.acquirer, '银联');
       expect(local.detailsText, '订单号:ABC\n商户:天津海河测试餐厅甲\n金额:100.00');
+      expect(local.needsClassification, isTrue);
     });
 
     test('modified: 更新后本地交易保留全部 6 个元信息字段', () async {
@@ -104,6 +106,7 @@ void main() {
         merchantFullName: '麦当劳(望京店)',
         acquirer: '网联',
         detailsText: '订单号:XYZ\n商户:麦当劳\n金额:88.00',
+        needsClassification: true,
         syncId: 'sync-mod-1',
       );
 
@@ -134,6 +137,7 @@ void main() {
       expect(local.merchantFullName, '麦当劳(望京店)');
       expect(local.acquirer, '网联');
       expect(local.detailsText, '订单号:XYZ\n商户:麦当劳\n金额:88.00');
+      expect(local.needsClassification, isTrue);
     });
 
     test('added: 元信息字段为 null 时不写入', () async {

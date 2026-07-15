@@ -108,8 +108,7 @@ void main() {
     expect(updated!.transactionId, equals(42));
   });
 
-  test('non-null but rejected critical fields still require confirmation',
-      () async {
+  test('rule-quality rejection does not block valid amount and time', () async {
     final txService = FakeTransactionCreationService();
     final processor =
         TransactionStageProcessor(txService: txService, repo: repo);
@@ -129,8 +128,8 @@ void main() {
       PipelineContext(),
     );
 
-    expect(result.awaitingConfirmation, isTrue);
-    expect(txService.called, isFalse);
+    expect(result.success, isTrue);
+    expect(txService.called, isTrue);
   });
 
   test('missing critical field saves a recoverable confirmation draft',
@@ -159,6 +158,30 @@ void main() {
     expect(updated.transactionId, isNull);
     expect(jsonDecode(updated.finalResultJson!)['amount'], 18.0);
     expect(updated.imagePath, '/tmp/unreliable.png');
+  });
+
+  test('non-positive amount remains blocked even when time exists', () async {
+    final txService = FakeTransactionCreationService();
+    final processor =
+        TransactionStageProcessor(txService: txService, repo: repo);
+    final job = await repo.createJob(imagePath: '/tmp/non-positive.png');
+    final candidate = OcrResult(
+      rawText: '支付金额 0.00',
+      allNumbers: const ['0.00'],
+      amount: 0,
+      time: DateTime(2026, 7, 16, 10, 30),
+      fastBillingAccepted: true,
+    );
+    await repo.updateRuleResultJson(job.id, jsonEncode(candidate.toJson()));
+
+    final result = await processor.process(
+      (await repo.findById(job.id))!,
+      DateTime.now().add(const Duration(seconds: 30)),
+      PipelineContext(),
+    );
+
+    expect(result.awaitingConfirmation, isTrue);
+    expect(txService.called, isFalse);
   });
 
   test('skips creation if transaction_id already exists', () async {

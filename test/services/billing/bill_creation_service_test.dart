@@ -81,6 +81,7 @@ void main() {
 
     final transaction = await repo.getTransactionById(transactionId!);
     expect(transaction?.categoryId, foodId);
+    expect(transaction?.needsClassification, isFalse);
     expect(transaction?.note, '商户：天津海河测试餐厅甲\n商品：海河测试饮品甲\n门店：天津和平测试门店甲');
   });
 
@@ -122,6 +123,7 @@ void main() {
 
     final transaction = await repo.getTransactionById(transactionId!);
     expect(transaction, isNotNull);
-    expect(transaction?.detailsText, contains('待分类：是'));
+    expect(transaction?.needsClassification, isTrue);
+    expect(transaction?.detailsText, isNot(contains('待分类：是')));
   });
 }

@@ -175,6 +175,7 @@ Future<String> exportTransactionsJson(BeeDatabase db, int ledgerId) async {
         'acquirer': _sanitizeString(t.acquirer),
       if (t.detailsText != null && t.detailsText!.trim().isNotEmpty)
         'detailsText': _sanitizeDetailsText(t.detailsText),
+      'needsClassification': t.needsClassification,
       if (t.syncId != null) 'syncId': t.syncId,
     };
 
@@ -304,7 +305,7 @@ Future<String> exportTransactionsJson(BeeDatabase db, int ledgerId) async {
   }
 
   final payload = {
-    'version': 7, // 版本升级,新增 paymentChannel/merchantFullName/acquirer/detailsText
+    'version': 8, // v8: 新增 needsClassification 结构化状态
     'exportedAt': DateTime.now().toUtc().toIso8601String(),
     'ledgerId': ledgerId,
     'ledgerName': ledger.name,
@@ -420,6 +421,9 @@ ImportData parseJsonToImportData(String jsonStr) {
         merchantFullName: (it['merchantFullName'] ?? it['merchant_full_name']) as String?,
         acquirer: it['acquirer'] as String?,
         detailsText: (it['detailsText'] ?? it['details_text']) as String?,
+        needsClassification:
+            (it['needsClassification'] ?? it['needs_classification']) as bool? ??
+                false,
         // 账户信息：转账用 fromAccountName/toAccountName，其他用 accountName
         accountName: type != 'transfer' ? it['accountName'] as String? : null,
         fromAccountName:

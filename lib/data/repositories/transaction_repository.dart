@@ -79,6 +79,7 @@ abstract class TransactionRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    bool needsClassification = false,
     String? syncId,
   });
 
@@ -101,6 +102,7 @@ abstract class TransactionRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    dynamic needsClassification,
     DateTime? happenedAt,
     dynamic accountId,
   });
@@ -210,6 +212,7 @@ abstract class TransactionRepository {
     String? merchantFullName,
     String? acquirer,
     String? detailsText,
+    bool needsClassification = false,
   });
 
   /// 根据 syncId 删除交易

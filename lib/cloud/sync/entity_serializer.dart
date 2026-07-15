@@ -44,6 +44,7 @@ class EntitySerializer {
       if (tx.merchantFullName != null) 'merchantFullName': tx.merchantFullName,
       if (tx.acquirer != null) 'acquirer': tx.acquirer,
       if (tx.detailsText != null) 'detailsText': tx.detailsText,
+      'needsClassification': tx.needsClassification,
       if (ledgerSyncId != null && ledgerSyncId.isNotEmpty)
         'ledgerSyncId': ledgerSyncId,
       'categoryName': categoryName,

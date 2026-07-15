@@ -316,6 +316,7 @@ class LocalRepository extends BaseRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    bool needsClassification = false,
     String? syncId,
   }) async {
     final id = await _transactionRepo.addTransaction(
@@ -333,6 +334,7 @@ class LocalRepository extends BaseRepository {
       merchantFullName: merchantFullName,
       acquirer: acquirer,
       detailsText: detailsText,
+      needsClassification: needsClassification,
       syncId: syncId,
     );
     if (changeTracker != null) {
@@ -399,6 +401,7 @@ class LocalRepository extends BaseRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    dynamic needsClassification,
     DateTime? happenedAt,
     dynamic accountId,
   }) async {
@@ -417,6 +420,7 @@ class LocalRepository extends BaseRepository {
           merchantFullName: merchantFullName,
           acquirer: acquirer,
           detailsText: detailsText,
+          needsClassification: needsClassification,
           happenedAt: happenedAt,
           accountId: accountId,
         );
@@ -442,6 +446,7 @@ class LocalRepository extends BaseRepository {
       merchantFullName: merchantFullName,
       acquirer: acquirer,
       detailsText: detailsText,
+      needsClassification: needsClassification,
       happenedAt: happenedAt,
       accountId: accountId,
     );
@@ -630,6 +635,7 @@ class LocalRepository extends BaseRepository {
     String? merchantFullName,
     String? acquirer,
     String? detailsText,
+    bool needsClassification = false,
   }) =>
       _transactionRepo.updateTransactionBySyncId(
         syncId: syncId,
@@ -646,6 +652,7 @@ class LocalRepository extends BaseRepository {
         merchantFullName: merchantFullName,
         acquirer: acquirer,
         detailsText: detailsText,
+        needsClassification: needsClassification,
       );
 
   @override

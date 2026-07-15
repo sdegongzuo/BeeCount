@@ -114,6 +114,9 @@ extension _SyncEngineApply on SyncEngine {
     final merchantFullName = payload['merchantFullName'] as String?;
     final acquirer = payload['acquirer'] as String?;
     final detailsText = payload['detailsText'] as String?;
+    final needsClassification =
+        (payload['needsClassification'] ?? payload['needs_classification']) ==
+            true;
     final categoryName = payload['categoryName'] as String?;
     final categoryKind = payload['categoryKind'] as String?;
     final accountName = payload['accountName'] as String?;
@@ -161,6 +164,7 @@ extension _SyncEngineApply on SyncEngine {
         merchantFullName: d.Value(merchantFullName),
         acquirer: d.Value(acquirer),
         detailsText: d.Value(detailsText),
+        needsClassification: d.Value(needsClassification),
         categoryId: d.Value(categoryId),
         accountId: d.Value(accountId),
         toAccountId: d.Value(toAccountId),
@@ -184,6 +188,7 @@ extension _SyncEngineApply on SyncEngine {
               merchantFullName: d.Value(merchantFullName),
               acquirer: d.Value(acquirer),
               detailsText: d.Value(detailsText),
+              needsClassification: d.Value(needsClassification),
               categoryId: d.Value(categoryId),
               accountId: d.Value(accountId),
               toAccountId: d.Value(toAccountId),

@@ -4,10 +4,18 @@
 // acquirer / detailsText（含换行）的解析正确性。
 
 import 'dart:convert';
+import 'package:beecount/data/db.dart';
+import 'package:beecount/data/repositories/local/local_repository.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:beecount/cloud/transactions_json.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues({});
+
   group('parseJsonToImportData', () {
     test('保留 paymentChannel / merchantFullName / acquirer 字段', () {
       final json = _buildJson(items: [
@@ -95,7 +103,63 @@ void main() {
       expect(tx.merchantFullName, isNull);
       expect(tx.acquirer, isNull);
       expect(tx.detailsText, isNull);
+      expect(tx.needsClassification, isFalse);
     });
+
+    test('保留结构化待分类状态', () {
+      final json = _buildJson(items: [
+        {
+          'type': 'expense',
+          'amount': 12.0,
+          'happenedAt': '2026-07-16T00:00:00.000Z',
+          'needsClassification': true,
+          'syncId': 'sync-pending-1',
+        },
+      ]);
+
+      final tx = parseJsonToImportData(json).transactions.single;
+      expect(tx.needsClassification, isTrue);
+    });
+  });
+
+  test('export preserves the structured pending-classification state',
+      () async {
+    final db = BeeDatabase.forTesting(NativeDatabase.memory());
+    final ledgerId = await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: 'export'),
+        );
+    await db.into(db.transactions).insert(
+          TransactionsCompanion.insert(
+            ledgerId: ledgerId,
+            type: 'expense',
+            amount: 12,
+            needsClassification: const Value(true),
+          ),
+        );
+
+    final exportedJson = await exportTransactionsJson(db, ledgerId);
+    await db.close();
+    final exported = jsonDecode(exportedJson) as Map<String, dynamic>;
+    final item = (exported['items'] as List).single as Map<String, dynamic>;
+    expect(exported['version'], 8);
+    expect(item['needsClassification'], isTrue);
+
+    final targetDb = BeeDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(targetDb.close);
+    final targetLedgerId = await targetDb.into(targetDb.ledgers).insert(
+          LedgersCompanion.insert(name: 'import'),
+        );
+    final result = await importTransactionsJson(
+      LocalRepository(targetDb),
+      targetLedgerId,
+      exportedJson,
+    );
+    expect(result.inserted, 1);
+    expect(
+      (await (targetDb.select(targetDb.transactions)).getSingle())
+          .needsClassification,
+      isTrue,
+    );
   });
 }
 

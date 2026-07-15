@@ -427,6 +427,7 @@ class LocalTagRepository implements TagRepository {
           toAccountId: row.read<int?>('to_account_id'),
           happenedAt: row.read<DateTime>('happened_at'),
           note: row.read<String?>('note'),
+          needsClassification: row.read<bool>('needs_classification'),
           recurringId: row.read<int?>('recurring_id'),
         );
       }).toList();

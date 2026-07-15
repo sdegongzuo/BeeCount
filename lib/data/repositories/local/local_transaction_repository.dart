@@ -186,6 +186,7 @@ class LocalTransactionRepository implements TransactionRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    bool needsClassification = false,
     String? syncId,
   }) async {
     return db.into(db.transactions).insert(TransactionsCompanion.insert(
@@ -203,6 +204,7 @@ class LocalTransactionRepository implements TransactionRepository {
           merchantFullName: d.Value(merchantFullName),
           acquirer: d.Value(acquirer),
           detailsText: d.Value(detailsText),
+          needsClassification: d.Value(needsClassification),
           syncId: d.Value(syncId ?? _uuid.v4()),
         ));
   }
@@ -236,6 +238,7 @@ class LocalTransactionRepository implements TransactionRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    dynamic needsClassification,
     DateTime? happenedAt,
     dynamic accountId,
   }) async {
@@ -296,6 +299,14 @@ class LocalTransactionRepository implements TransactionRepository {
     } else {
       detailsTextValue = d.Value(detailsText as String?);
     }
+    final d.Value<bool> needsClassificationValue;
+    if (needsClassification == null) {
+      needsClassificationValue = const d.Value.absent();
+    } else if (needsClassification is d.Value<bool>) {
+      needsClassificationValue = needsClassification;
+    } else {
+      needsClassificationValue = d.Value(needsClassification as bool);
+    }
 
     await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
       TransactionsCompanion(
@@ -309,6 +320,7 @@ class LocalTransactionRepository implements TransactionRepository {
         merchantFullName: merchantFullNameValue,
         acquirer: acquirerValue,
         detailsText: detailsTextValue,
+        needsClassification: needsClassificationValue,
         happenedAt:
             happenedAt != null ? d.Value(happenedAt) : const d.Value.absent(),
         accountId: accountIdValue,
@@ -866,6 +878,7 @@ class LocalTransactionRepository implements TransactionRepository {
     String? merchantFullName,
     String? acquirer,
     String? detailsText,
+    bool needsClassification = false,
   }) async {
     await (db.update(db.transactions)..where((t) => t.syncId.equals(syncId)))
         .write(TransactionsCompanion(
@@ -882,6 +895,7 @@ class LocalTransactionRepository implements TransactionRepository {
       merchantFullName: d.Value(merchantFullName),
       acquirer: d.Value(acquirer),
       detailsText: d.Value(detailsText),
+      needsClassification: d.Value(needsClassification),
     ));
   }
 

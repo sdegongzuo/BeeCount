@@ -1723,6 +1723,16 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<String> detailsText = GeneratedColumn<String>(
       'details_text', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _needsClassificationMeta =
+      const VerificationMeta('needsClassification');
+  @override
+  late final GeneratedColumn<bool> needsClassification = GeneratedColumn<bool>(
+      'needs_classification', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("needs_classification" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _recurringIdMeta =
       const VerificationMeta('recurringId');
   @override
@@ -1751,6 +1761,7 @@ class $TransactionsTable extends Transactions
         merchantFullName,
         acquirer,
         detailsText,
+        needsClassification,
         recurringId,
         syncId
       ];
@@ -1845,6 +1856,12 @@ class $TransactionsTable extends Transactions
           detailsText.isAcceptableOrUnknown(
               data['details_text']!, _detailsTextMeta));
     }
+    if (data.containsKey('needs_classification')) {
+      context.handle(
+          _needsClassificationMeta,
+          needsClassification.isAcceptableOrUnknown(
+              data['needs_classification']!, _needsClassificationMeta));
+    }
     if (data.containsKey('recurring_id')) {
       context.handle(
           _recurringIdMeta,
@@ -1894,6 +1911,8 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.string, data['${effectivePrefix}acquirer']),
       detailsText: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}details_text']),
+      needsClassification: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool, data['${effectivePrefix}needs_classification'])!,
       recurringId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}recurring_id']),
       syncId: attachedDatabase.typeMapping
@@ -1923,6 +1942,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final String? merchantFullName;
   final String? acquirer;
   final String? detailsText;
+  final bool needsClassification;
   final int? recurringId;
   final String? syncId;
   const Transaction(
@@ -1941,6 +1961,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.merchantFullName,
       this.acquirer,
       this.detailsText,
+      required this.needsClassification,
       this.recurringId,
       this.syncId});
   @override
@@ -1981,6 +2002,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     if (!nullToAbsent || detailsText != null) {
       map['details_text'] = Variable<String>(detailsText);
     }
+    map['needs_classification'] = Variable<bool>(needsClassification);
     if (!nullToAbsent || recurringId != null) {
       map['recurring_id'] = Variable<int>(recurringId);
     }
@@ -2025,6 +2047,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       detailsText: detailsText == null && nullToAbsent
           ? const Value.absent()
           : Value(detailsText),
+      needsClassification: Value(needsClassification),
       recurringId: recurringId == null && nullToAbsent
           ? const Value.absent()
           : Value(recurringId),
@@ -2052,6 +2075,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       merchantFullName: serializer.fromJson<String?>(json['merchantFullName']),
       acquirer: serializer.fromJson<String?>(json['acquirer']),
       detailsText: serializer.fromJson<String?>(json['detailsText']),
+      needsClassification:
+          serializer.fromJson<bool>(json['needsClassification']),
       recurringId: serializer.fromJson<int?>(json['recurringId']),
       syncId: serializer.fromJson<String?>(json['syncId']),
     );
@@ -2075,6 +2100,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'merchantFullName': serializer.toJson<String?>(merchantFullName),
       'acquirer': serializer.toJson<String?>(acquirer),
       'detailsText': serializer.toJson<String?>(detailsText),
+      'needsClassification': serializer.toJson<bool>(needsClassification),
       'recurringId': serializer.toJson<int?>(recurringId),
       'syncId': serializer.toJson<String?>(syncId),
     };
@@ -2096,6 +2122,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<String?> merchantFullName = const Value.absent(),
           Value<String?> acquirer = const Value.absent(),
           Value<String?> detailsText = const Value.absent(),
+          bool? needsClassification,
           Value<int?> recurringId = const Value.absent(),
           Value<String?> syncId = const Value.absent()}) =>
       Transaction(
@@ -2119,6 +2146,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
             : this.merchantFullName,
         acquirer: acquirer.present ? acquirer.value : this.acquirer,
         detailsText: detailsText.present ? detailsText.value : this.detailsText,
+        needsClassification: needsClassification ?? this.needsClassification,
         recurringId: recurringId.present ? recurringId.value : this.recurringId,
         syncId: syncId.present ? syncId.value : this.syncId,
       );
@@ -2151,6 +2179,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       acquirer: data.acquirer.present ? data.acquirer.value : this.acquirer,
       detailsText:
           data.detailsText.present ? data.detailsText.value : this.detailsText,
+      needsClassification: data.needsClassification.present
+          ? data.needsClassification.value
+          : this.needsClassification,
       recurringId:
           data.recurringId.present ? data.recurringId.value : this.recurringId,
       syncId: data.syncId.present ? data.syncId.value : this.syncId,
@@ -2175,6 +2206,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('merchantFullName: $merchantFullName, ')
           ..write('acquirer: $acquirer, ')
           ..write('detailsText: $detailsText, ')
+          ..write('needsClassification: $needsClassification, ')
           ..write('recurringId: $recurringId, ')
           ..write('syncId: $syncId')
           ..write(')'))
@@ -2198,6 +2230,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       merchantFullName,
       acquirer,
       detailsText,
+      needsClassification,
       recurringId,
       syncId);
   @override
@@ -2219,6 +2252,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.merchantFullName == this.merchantFullName &&
           other.acquirer == this.acquirer &&
           other.detailsText == this.detailsText &&
+          other.needsClassification == this.needsClassification &&
           other.recurringId == this.recurringId &&
           other.syncId == this.syncId);
 }
@@ -2239,6 +2273,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String?> merchantFullName;
   final Value<String?> acquirer;
   final Value<String?> detailsText;
+  final Value<bool> needsClassification;
   final Value<int?> recurringId;
   final Value<String?> syncId;
   const TransactionsCompanion({
@@ -2257,6 +2292,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.merchantFullName = const Value.absent(),
     this.acquirer = const Value.absent(),
     this.detailsText = const Value.absent(),
+    this.needsClassification = const Value.absent(),
     this.recurringId = const Value.absent(),
     this.syncId = const Value.absent(),
   });
@@ -2276,6 +2312,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.merchantFullName = const Value.absent(),
     this.acquirer = const Value.absent(),
     this.detailsText = const Value.absent(),
+    this.needsClassification = const Value.absent(),
     this.recurringId = const Value.absent(),
     this.syncId = const Value.absent(),
   })  : ledgerId = Value(ledgerId),
@@ -2297,6 +2334,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? merchantFullName,
     Expression<String>? acquirer,
     Expression<String>? detailsText,
+    Expression<bool>? needsClassification,
     Expression<int>? recurringId,
     Expression<String>? syncId,
   }) {
@@ -2316,6 +2354,8 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (merchantFullName != null) 'merchant_full_name': merchantFullName,
       if (acquirer != null) 'acquirer': acquirer,
       if (detailsText != null) 'details_text': detailsText,
+      if (needsClassification != null)
+        'needs_classification': needsClassification,
       if (recurringId != null) 'recurring_id': recurringId,
       if (syncId != null) 'sync_id': syncId,
     });
@@ -2337,6 +2377,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<String?>? merchantFullName,
       Value<String?>? acquirer,
       Value<String?>? detailsText,
+      Value<bool>? needsClassification,
       Value<int?>? recurringId,
       Value<String?>? syncId}) {
     return TransactionsCompanion(
@@ -2355,6 +2396,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       merchantFullName: merchantFullName ?? this.merchantFullName,
       acquirer: acquirer ?? this.acquirer,
       detailsText: detailsText ?? this.detailsText,
+      needsClassification: needsClassification ?? this.needsClassification,
       recurringId: recurringId ?? this.recurringId,
       syncId: syncId ?? this.syncId,
     );
@@ -2408,6 +2450,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (detailsText.present) {
       map['details_text'] = Variable<String>(detailsText.value);
     }
+    if (needsClassification.present) {
+      map['needs_classification'] = Variable<bool>(needsClassification.value);
+    }
     if (recurringId.present) {
       map['recurring_id'] = Variable<int>(recurringId.value);
     }
@@ -2435,6 +2480,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('merchantFullName: $merchantFullName, ')
           ..write('acquirer: $acquirer, ')
           ..write('detailsText: $detailsText, ')
+          ..write('needsClassification: $needsClassification, ')
           ..write('recurringId: $recurringId, ')
           ..write('syncId: $syncId')
           ..write(')'))
@@ -8236,6 +8282,7 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<String?> merchantFullName,
   Value<String?> acquirer,
   Value<String?> detailsText,
+  Value<bool> needsClassification,
   Value<int?> recurringId,
   Value<String?> syncId,
 });
@@ -8256,6 +8303,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<String?> merchantFullName,
   Value<String?> acquirer,
   Value<String?> detailsText,
+  Value<bool> needsClassification,
   Value<int?> recurringId,
   Value<String?> syncId,
 });
@@ -8315,6 +8363,10 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<String> get detailsText => $composableBuilder(
       column: $table.detailsText, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get needsClassification => $composableBuilder(
+      column: $table.needsClassification,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get recurringId => $composableBuilder(
       column: $table.recurringId, builder: (column) => ColumnFilters(column));
@@ -8381,6 +8433,10 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<String> get detailsText => $composableBuilder(
       column: $table.detailsText, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get needsClassification => $composableBuilder(
+      column: $table.needsClassification,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get recurringId => $composableBuilder(
       column: $table.recurringId, builder: (column) => ColumnOrderings(column));
 
@@ -8442,6 +8498,9 @@ class $$TransactionsTableAnnotationComposer
   GeneratedColumn<String> get detailsText => $composableBuilder(
       column: $table.detailsText, builder: (column) => column);
 
+  GeneratedColumn<bool> get needsClassification => $composableBuilder(
+      column: $table.needsClassification, builder: (column) => column);
+
   GeneratedColumn<int> get recurringId => $composableBuilder(
       column: $table.recurringId, builder: (column) => column);
 
@@ -8490,6 +8549,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> merchantFullName = const Value.absent(),
             Value<String?> acquirer = const Value.absent(),
             Value<String?> detailsText = const Value.absent(),
+            Value<bool> needsClassification = const Value.absent(),
             Value<int?> recurringId = const Value.absent(),
             Value<String?> syncId = const Value.absent(),
           }) =>
@@ -8509,6 +8569,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             merchantFullName: merchantFullName,
             acquirer: acquirer,
             detailsText: detailsText,
+            needsClassification: needsClassification,
             recurringId: recurringId,
             syncId: syncId,
           ),
@@ -8528,6 +8589,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> merchantFullName = const Value.absent(),
             Value<String?> acquirer = const Value.absent(),
             Value<String?> detailsText = const Value.absent(),
+            Value<bool> needsClassification = const Value.absent(),
             Value<int?> recurringId = const Value.absent(),
             Value<String?> syncId = const Value.absent(),
           }) =>
@@ -8547,6 +8609,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             merchantFullName: merchantFullName,
             acquirer: acquirer,
             detailsText: detailsText,
+            needsClassification: needsClassification,
             recurringId: recurringId,
             syncId: syncId,
           ),

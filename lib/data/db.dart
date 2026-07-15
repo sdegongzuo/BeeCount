@@ -86,6 +86,8 @@ class Transactions extends Table {
   TextColumn get merchantFullName => text().nullable()(); // 商户全称
   TextColumn get acquirer => text().nullable()(); // 收单机构/清算机构
   TextColumn get detailsText => text().nullable()(); // 补充明细（key:value 行文本）
+  BoolColumn get needsClassification =>
+      boolean().withDefault(const Constant(false))(); // 等待用户补充分类
   IntColumn get recurringId => integer().nullable()(); // 关联到重复交易模板
   TextColumn get syncId => text().nullable()(); // 跨设备同步唯一标识 (UUID)
 }
@@ -290,7 +292,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 28; // v28: 账单附件稳定来源键
+  int get schemaVersion => 29; // v29: 结构化待分类状态
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -950,6 +952,24 @@ class BeeDatabase extends _$BeeDatabase {
               );
             }
             await customStatement(_billingAttachmentOriginKeyIndexSql);
+          }
+          if (from < 29) {
+            final tableInfo =
+                await customSelect('PRAGMA table_info(transactions)').get();
+            if (tableInfo.isNotEmpty) {
+              if (!tableInfo
+                  .any((row) => row.data['name'] == 'needs_classification')) {
+                await customStatement(
+                  'ALTER TABLE transactions ADD COLUMN '
+                  'needs_classification INTEGER NOT NULL DEFAULT 0;',
+                );
+              }
+              await customStatement('''
+                UPDATE transactions
+                SET needs_classification = 1
+                WHERE details_text LIKE '%待分类：是%';
+              ''');
+            }
           }
         },
         beforeOpen: (_) async {

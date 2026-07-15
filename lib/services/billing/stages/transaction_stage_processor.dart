@@ -105,8 +105,8 @@ class TransactionStageProcessor implements StageProcessor {
         return const StageResult.failure('no_ocr_result');
       }
 
-      if (!ocrResult.fastBillingAccepted ||
-          ocrResult.amount == null ||
+      if (ocrResult.amount == null ||
+          ocrResult.amount! <= 0 ||
           ocrResult.time == null) {
         await ctx.requireOwnedWrite(
           (lease) => repo.updateFinalResultJson(

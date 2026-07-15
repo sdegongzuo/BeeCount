@@ -423,7 +423,6 @@ class BillCreationService {
       if (result.detailsText ?? detailsMapToText(result.details)
           case final text?)
         text,
-      if (isImageBilling && needsClassification) '待分类：是',
     ];
 
     // 9. 使用Repository创建交易
@@ -443,6 +442,7 @@ class BillCreationService {
       merchantFullName: result.merchantFullName,
       acquirer: result.acquirer,
       detailsText: detailParts.isEmpty ? null : detailParts.join('\n'),
+      needsClassification: isImageBilling && needsClassification,
     );
 
     // 10. 自动添加标签（记账方式标签 + AI识别标签）

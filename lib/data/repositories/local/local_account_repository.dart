@@ -587,6 +587,7 @@ class LocalAccountRepository implements AccountRepository {
         happenedAt: DateTime.fromMillisecondsSinceEpoch(
             (row.data['happened_at'] as int) * 1000),
         note: row.data['note'] as String?,
+        needsClassification: (row.data['needs_classification'] as int? ?? 0) != 0,
         recurringId: row.data['recurring_id'] as int?,
         syncId: row.data['sync_id'] as String?,
       );

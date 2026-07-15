@@ -97,6 +97,7 @@ class ImportTransaction {
   final String? merchantFullName; // 商户全称
   final String? acquirer; // 收单机构/清算机构
   final String? detailsText; // 补充明细（key:value 行文本）
+  final bool needsClassification; // 结构化待分类状态
   final String? accountName; // 普通账户（收入/支出）
   final String? fromAccountName; // 转出账户（转账）
   final String? toAccountName; // 转入账户（转账）
@@ -118,6 +119,7 @@ class ImportTransaction {
     this.merchantFullName,
     this.acquirer,
     this.detailsText,
+    this.needsClassification = false,
     this.accountName,
     this.fromAccountName,
     this.toAccountName,
@@ -547,6 +549,7 @@ class DataImportService {
         merchantFullName: d.Value(tx.merchantFullName),
         acquirer: d.Value(tx.acquirer),
         detailsText: d.Value(tx.detailsText),
+        needsClassification: d.Value(tx.needsClassification),
         syncId: d.Value(tx.syncId),
       );
 

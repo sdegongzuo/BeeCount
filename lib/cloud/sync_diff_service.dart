@@ -283,6 +283,9 @@ class SyncDiffService {
     if ((local.detailsText ?? '') != (cloud.detailsText ?? '')) {
       diffs.add('识别明细变更');
     }
+    if (local.needsClassification != cloud.needsClassification) {
+      diffs.add('待分类状态变更');
+    }
 
     return diffs;
   }
@@ -341,6 +344,7 @@ class SyncDiffService {
               merchantFullName: cloud.merchantFullName,
               acquirer: cloud.acquirer,
               detailsText: cloud.detailsText,
+              needsClassification: cloud.needsClassification,
               syncId: cloud.syncId,
             );
 
@@ -378,6 +382,7 @@ class SyncDiffService {
               merchantFullName: cloud.merchantFullName,
               acquirer: cloud.acquirer,
               detailsText: cloud.detailsText,
+              needsClassification: cloud.needsClassification,
             );
 
             // 更新标签
