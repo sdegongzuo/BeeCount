@@ -38,7 +38,7 @@
 
 附件发布模块提供一个深接口：输入源图片、附件身份和当前 lease，返回已存在或新发布的附件。压缩、完整性校验、锁、租约复核、原子重命名和幂等落库都隐藏在模块内部。
 
-普通 `createAttachment` 恢复为始终创建，不再按文件名全局复用。分享账单使用专用的 `createOrGetBillingAttachment(originKey, ...)`，由唯一索引处理跨连接竞争并返回已存在记录。
+普通 `createAttachment` 恢复为始终创建，不再按文件名全局复用。分享账单使用专用的 `upsertBillingAttachment(originKey, ...)`，由唯一索引处理跨连接竞争，并在重建后更新同一记录的文件元数据。
 
 ## 数据库迁移
 
