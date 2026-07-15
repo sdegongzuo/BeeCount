@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:beecount/data/db.dart';
@@ -123,6 +124,75 @@ void main() {
       isNotNull,
     );
   });
+
+  test(
+      'a queued same-token publication rechecks expiry after obtaining the write lock',
+      () async {
+    final fixture = await _PublicationFixture.create();
+    addTearDown(fixture.close);
+    final job =
+        await fixture.jobs1.createJob(imagePath: fixture.firstJpeg.path);
+    final lease = (await fixture.jobs1.claimJobLease(
+      job.id,
+      const Duration(seconds: 1),
+    ))!;
+    final identity = BillingAttachmentIdentity(
+      transactionId: 63,
+      billingJobId: job.id,
+      index: 0,
+    );
+    final first = await fixture.prepared('lease-holder.jpg', fixture.firstJpeg);
+    final queued =
+        await fixture.prepared('queued-after-expiry.jpg', fixture.secondJpeg);
+    final firstActionEntered = Completer<void>();
+    final releaseFirstAction = Completer<void>();
+    var queuedActionEntered = false;
+
+    final firstPublication = fixture.publish(
+      jobs: fixture.jobs1,
+      attachments: fixture.attachments1,
+      identity: identity,
+      lease: lease,
+      prepared: first,
+      beforeUpsert: () async {
+        firstActionEntered.complete();
+        await releaseFirstAction.future;
+      },
+    );
+    await firstActionEntered.future;
+
+    final queuedPublication = fixture
+        .publish(
+          jobs: fixture.jobs2,
+          attachments: fixture.attachments2,
+          identity: identity,
+          lease: lease,
+          prepared: queued,
+          beforeUpsert: () async {
+            queuedActionEntered = true;
+          },
+        )
+        .then<Object?>((value) => value, onError: (Object error) => error);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final untilExpired = lease.leaseUntil.difference(DateTime.now());
+    if (!untilExpired.isNegative) {
+      await Future<void>.delayed(
+        untilExpired + const Duration(milliseconds: 100),
+      );
+    }
+    releaseFirstAction.complete();
+
+    await firstPublication;
+    final queuedResult = await queuedPublication;
+
+    expect(queuedResult, isA<BillingAttachmentPublishLeaseLost>());
+    expect(queuedActionEntered, isFalse);
+    expect(await queued.exists(), isTrue);
+    expect(await fixture.stable(identity).readAsBytes(),
+        await fixture.firstJpeg.readAsBytes());
+    expect(await fixture.attachments1.getAttachmentsByTransaction(63),
+        hasLength(1));
+  });
 }
 
 final class _PublicationFixture {
@@ -202,6 +272,7 @@ final class _PublicationFixture {
     required File prepared,
     String? label,
     List<String>? events,
+    Future<void> Function()? beforeUpsert,
   }) {
     return const BillingAttachmentPublisher().publish(
       identity: identity,
@@ -211,6 +282,7 @@ final class _PublicationFixture {
       runFencedPublication: jobs.runFencedPublication,
       createOrGet: (originKey, publishedFile, metadata) async {
         if (label != null) events!.add('enter:$label');
+        await beforeUpsert?.call();
         if (label != null) {
           await Future<void>.delayed(const Duration(milliseconds: 40));
         }

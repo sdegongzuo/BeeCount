@@ -167,10 +167,28 @@ class LocalBillingJobRepository implements BillingJobRepository {
     Future<T> Function() action,
   ) {
     return db.transaction(() async {
-      // This must remain the transaction's first statement. Besides fencing
-      // the lease token, the no-op UPDATE obtains SQLite's cross-connection
-      // write lock before the publication action can touch the stable file.
-      final updated = await db.customUpdate(
+      // This must remain the transaction's first statement. Match only the
+      // immutable token here: binding a clock value before this UPDATE waits
+      // for SQLite's write lock would leave a stale view of lease expiry.
+      final tokenMatched = await db.customUpdate(
+        '''
+UPDATE billing_jobs
+SET updated_at = updated_at
+WHERE id = ?
+  AND lease_until = ?
+''',
+        variables: [
+          d.Variable<int>(lease.jobId),
+          d.Variable<DateTime>(lease.leaseUntil),
+        ],
+        updates: {db.billingJobs},
+      );
+      if (tokenMatched == 0) throw BillingJobLeaseLost(lease);
+
+      // The first UPDATE has now returned while this transaction owns the
+      // write lock. Capture a fresh clock value only here, then fence expiry
+      // before allowing the publication action to replace a stable file.
+      final stillCurrent = await db.customUpdate(
         '''
 UPDATE billing_jobs
 SET updated_at = updated_at
@@ -185,7 +203,7 @@ WHERE id = ?
         ],
         updates: {db.billingJobs},
       );
-      if (updated == 0) throw BillingJobLeaseLost(lease);
+      if (stillCurrent == 0) throw BillingJobLeaseLost(lease);
       return action();
     });
   }
