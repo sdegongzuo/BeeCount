@@ -4,6 +4,53 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 void main() {
+  test(
+      'v26 without attachment table creates the complete v28 attachment schema',
+      () async {
+    final underlying = sqlite.sqlite3.openInMemory();
+    underlying.execute('''
+      CREATE TABLE billing_jobs (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        stage TEXT NOT NULL
+      );
+      CREATE TABLE legacy_sentinel (
+        id INTEGER NOT NULL PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      INSERT INTO legacy_sentinel (id, value) VALUES (1, 'preserved');
+      PRAGMA user_version = 26;
+    ''');
+
+    final db = BeeDatabase.forTesting(NativeDatabase.opened(underlying));
+    addTearDown(db.close);
+
+    final columns = await db
+        .customSelect("PRAGMA table_info('transaction_attachments')")
+        .get();
+    expect(
+      columns.map((row) => row.data['name']).toSet(),
+      {
+        'id',
+        'transaction_id',
+        'file_name',
+        'origin_key',
+        'original_name',
+        'file_size',
+        'width',
+        'height',
+        'sort_order',
+        'cloud_file_id',
+        'cloud_sha256',
+        'created_at',
+      },
+    );
+    final sentinel = await db
+        .customSelect('SELECT value FROM legacy_sentinel WHERE id = 1')
+        .getSingle();
+    expect(sentinel.read<String>('value'), 'preserved');
+    await _expectOriginKeyUniqueIndex(db);
+  });
+
   test('v27 to v28 preserves attachments and adds the origin key index',
       () async {
     final underlying = sqlite.sqlite3.openInMemory();

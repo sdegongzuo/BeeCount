@@ -8,35 +8,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../data/db.dart';
+import '../data/repositories/billing_job_repository.dart';
 import '../providers.dart';
 import 'billing/billing_attachment_identity.dart';
+import 'billing/billing_attachment_publisher.dart';
 import 'system/logger_service.dart';
 
-Future<({int width, int height})?> decodeCompleteBillingJobAttachmentBytes(
-  Uint8List bytes, {
-  required String extension,
-}) async {
-  if (bytes.isEmpty) return null;
-  try {
-    if (extension.toLowerCase() == '.avif') {
-      final frames = await decodeAvif(bytes);
-      if (frames.isEmpty) return null;
-      final image = frames.first.image;
-      return (width: image.width, height: image.height);
-    }
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    final image = frame.image;
-    final dimensions = (width: image.width, height: image.height);
-    image.dispose();
-    codec.dispose();
-    return dimensions;
-  } catch (_) {
-    return null;
-  }
-}
+export 'billing/billing_attachment_publisher.dart'
+    show decodeCompleteBillingJobAttachmentBytes;
 
 /// 附件服务
 /// 负责图片的选择、压缩、存储和管理
@@ -68,6 +50,8 @@ class AttachmentService {
         .list(followLinks: false)
         .where((entity) => entity is File)
         .map((entity) => path.basename(entity.path))
+        .where((fileName) => BillingAttachmentIdentity.supportedExtensions
+            .contains(path.extension(fileName).toLowerCase()))
         .toSet();
   }
 
@@ -200,7 +184,9 @@ class AttachmentService {
     required Future<int> transactionId,
     required File sourceFile,
     required int index,
-    int? billingJobId,
+    required int billingJobId,
+    required BillingJobLease lease,
+    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
     Set<String>? recoveryFileNames,
   }) async {
     try {
@@ -209,85 +195,74 @@ class AttachmentService {
       // Billing Job retries use one deterministic file key. A rolled-back old
       // owner may leave a file, but the next owner overwrites that same path
       // instead of producing another orphan attachment file.
-      final timestamp =
-          billingJobId ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final timestamp = billingJobId;
       final quality = _attachmentQuality;
       var format = ref.read(smartBillingAttachmentFormatProvider);
       final repo = ref.read(repositoryProvider);
-      BillingAttachmentIdentity? billingIdentity;
-      if (billingJobId != null) {
-        final identity = BillingAttachmentIdentity(
-          transactionId: txId,
-          billingJobId: billingJobId,
-          index: index,
+      final identity = BillingAttachmentIdentity(
+        transactionId: txId,
+        billingJobId: billingJobId,
+        index: index,
+      );
+      final attachments = await repo.getAttachmentsByTransaction(txId);
+      final existing = attachments
+          .where((attachment) => attachment.originKey == identity.originKey)
+          .firstOrNull;
+      if (existing != null) {
+        final existingFile = File('${dir.path}/${existing.fileName}');
+        final imageInfo = await _validateBillingAttachmentFile(
+          dir,
+          existing.fileName,
+          identity,
         );
-        billingIdentity = identity;
-        final attachments = await repo.getAttachmentsByTransaction(txId);
-        final existing = attachments
-            .where((attachment) => attachment.originKey == identity.originKey)
-            .firstOrNull;
-        if (existing != null) {
-          final imageInfo = await _validateBillingAttachmentFile(
-            dir,
-            existing.fileName,
-            identity,
-          );
-          if (imageInfo != null) {
-            logger.info(
-              'AttachmentService',
-              '附件幂等命中: jobId=$billingJobId, file=${existing.fileName}',
-            );
-            return existing;
-          }
-          logger.warning(
-            'AttachmentService',
-            '数据库附件文件缺失或损坏，准备重建: '
-                'jobId=$billingJobId, file=${existing.fileName}',
+        if (imageInfo != null) {
+          return _publishBillingAttachment(
+            identity: identity,
+            preparedFile: existingFile,
+            finalFileName: existing.fileName,
+            sourceFile: sourceFile,
+            lease: lease,
+            isLeaseOwner: isLeaseOwner,
           );
         }
+        logger.warning(
+          'AttachmentService',
+          '数据库附件文件缺失或损坏，准备重建: '
+              'jobId=$billingJobId, file=${existing.fileName}',
+        );
+      }
 
-        // A crash may happen after the stable file was moved but before its DB
-        // row was inserted. Adopt any supported existing extension so changing
-        // the preferred format cannot create a second orphan for this job.
-        final diskFileName = identity.findExisting(
-          recoveryFileNames ?? await indexAttachmentFileNames(),
-        );
-        if (diskFileName != null) {
-          final diskFile = File('${dir.path}/$diskFileName');
-          final imageInfo =
-              await _validateBillingAttachmentFile(dir, diskFileName, identity);
-          if (imageInfo == null) {
-            logger.warning(
-              'AttachmentService',
-              '忽略不完整附件并从原图重建: '
-                  'jobId=$billingJobId, file=$diskFileName',
-            );
-          } else {
-            final id = await repo.upsertBillingAttachment(
-              originKey: identity.originKey,
-              transactionId: txId,
-              fileName: diskFileName,
-              originalName: path.basename(sourceFile.path),
-              fileSize: await diskFile.length(),
-              width: imageInfo.width,
-              height: imageInfo.height,
-              sortOrder: index,
-            );
-            if (path.extension(diskFileName).toLowerCase() == '.avif') {
-              await _generateThumbnailFromSource(sourceFile, diskFileName);
-            }
-            logger.info(
-              'AttachmentService',
-              '附件文件恢复: jobId=$billingJobId, file=$diskFileName',
-            );
-            return repo.getAttachmentById(id);
-          }
+      // A crash may happen after the stable file was moved but before its DB
+      // row was inserted. The publisher adopts it only while holding the
+      // origin-key lock and after revalidating the lease.
+      final diskFileName = identity.findExisting(
+        recoveryFileNames ?? await indexAttachmentFileNames(),
+      );
+      if (diskFileName != null) {
+        final diskFile = File('${dir.path}/$diskFileName');
+        final imageInfo =
+            await _validateBillingAttachmentFile(dir, diskFileName, identity);
+        if (imageInfo != null) {
+          return _publishBillingAttachment(
+            identity: identity,
+            preparedFile: diskFile,
+            finalFileName: diskFileName,
+            sourceFile: sourceFile,
+            lease: lease,
+            isLeaseOwner: isLeaseOwner,
+          );
         }
+        logger.warning(
+          'AttachmentService',
+          '忽略不完整附件并从原图重建: '
+              'jobId=$billingJobId, file=$diskFileName',
+        );
       }
       var tempFileName = _buildPendingAttachmentFileName(
         timestamp,
         index,
         format,
+        lease,
       );
       var tempPath = '${dir.path}/$tempFileName';
 
@@ -313,6 +288,7 @@ class AttachmentService {
           timestamp,
           index,
           format,
+          lease,
         );
         tempPath = '${dir.path}/$tempFileName';
         compressedFile = await _compressImage(
@@ -329,52 +305,22 @@ class AttachmentService {
       }
 
       final fileName = _buildAttachmentFileName(txId, timestamp, index, format);
-      final destPath = '${dir.path}/$fileName';
-      final finalFile = await _moveFile(compressedFile, destPath);
-      final imageInfo = billingIdentity == null
-          ? await _getImageInfo(finalFile.path)
-          : await _validateBillingAttachmentFile(
-              dir,
-              fileName,
-              billingIdentity,
-            );
-      if (billingIdentity != null && imageInfo == null) {
-        logger.error(
-          'AttachmentService',
-          '附件完整性验证失败: jobId=$billingJobId, file=$fileName',
-        );
-        return null;
-      }
-      final fileSize = await finalFile.length();
+      final attachment = await _publishBillingAttachment(
+        identity: identity,
+        preparedFile: compressedFile,
+        finalFileName: fileName,
+        sourceFile: sourceFile,
+        lease: lease,
+        isLeaseOwner: isLeaseOwner,
+      );
 
       if (format == SmartBillingAttachmentFormat.avif) {
         await _generateThumbnailFromSource(sourceFile, fileName);
       }
 
-      final id = billingIdentity == null
-          ? await repo.createAttachment(
-              transactionId: txId,
-              fileName: fileName,
-              originalName: path.basename(sourceFile.path),
-              fileSize: fileSize,
-              width: imageInfo?.width,
-              height: imageInfo?.height,
-              sortOrder: index,
-            )
-          : await repo.upsertBillingAttachment(
-              originKey: billingIdentity.originKey,
-              transactionId: txId,
-              fileName: fileName,
-              originalName: path.basename(sourceFile.path),
-              fileSize: fileSize,
-              width: imageInfo!.width,
-              height: imageInfo.height,
-              sortOrder: index,
-            );
-
       final elapsed = DateTime.now().difference(saveStart).inMilliseconds;
       logger.info('AttachmentService', '附件保存成功: $fileName, elapsedMs=$elapsed');
-      return repo.getAttachmentById(id);
+      return attachment;
     } catch (e, stackTrace) {
       logger.error('AttachmentService', '保存附件失败', e, stackTrace);
       return null;
@@ -579,6 +525,37 @@ class AttachmentService {
     }
   }
 
+  Future<TransactionAttachment> _publishBillingAttachment({
+    required BillingAttachmentIdentity identity,
+    required File preparedFile,
+    required String finalFileName,
+    required File sourceFile,
+    required BillingJobLease lease,
+    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
+  }) {
+    final repo = ref.read(repositoryProvider);
+    return const BillingAttachmentPublisher().publish(
+      identity: identity,
+      preparedFile: preparedFile,
+      finalFileName: finalFileName,
+      lease: lease,
+      isLeaseOwner: isLeaseOwner,
+      createOrGet: (originKey, publishedFile, dimensions) async {
+        final id = await repo.upsertBillingAttachment(
+          originKey: originKey,
+          transactionId: identity.transactionId,
+          fileName: path.basename(publishedFile.path),
+          originalName: path.basename(sourceFile.path),
+          fileSize: await publishedFile.length(),
+          width: dimensions.width,
+          height: dimensions.height,
+          sortOrder: identity.index,
+        );
+        return (await repo.getAttachmentById(id))!;
+      },
+    );
+  }
+
   int get _attachmentQuality {
     return ref.read(smartBillingAttachmentQualityProvider).clamp(5, 100);
   }
@@ -721,18 +698,12 @@ class AttachmentService {
     int timestamp,
     int index,
     SmartBillingAttachmentFormat format,
+    BillingJobLease lease,
   ) {
-    return 'pending_${timestamp}_$index${_extensionForFormat(format)}';
-  }
-
-  Future<File> _moveFile(File source, String targetPath) async {
-    try {
-      return await source.rename(targetPath);
-    } on FileSystemException {
-      final target = await source.copy(targetPath);
-      await source.delete();
-      return target;
-    }
+    return 'pending_${timestamp}_${index}_'
+        '${lease.leaseUntil.microsecondsSinceEpoch}_'
+        '${const Uuid().v4()}'
+        '${_extensionForFormat(format)}';
   }
 
   String _extensionForFormat(SmartBillingAttachmentFormat format) {

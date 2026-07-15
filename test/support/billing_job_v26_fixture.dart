@@ -16,7 +16,7 @@ Future<void> verifyHistoricalV26BillingJobUpgrade(File databaseFile) async {
   final db = BeeDatabase.forTesting(NativeDatabase(databaseFile));
   try {
     final version = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(version.read<int>('user_version'), 27);
+    expect(version.read<int>('user_version'), 28);
 
     final repo = LocalBillingJobRepository(db);
     final migratedDone = (await repo.findById(2601))!;
@@ -110,7 +110,7 @@ Future<void> verifyHistoricalV26BillingJobUpgrade(File databaseFile) async {
 /// 使用 `b70b1b3^`（schema v26）生成代码对应的原始表结构创建夹具。
 ///
 /// 不使用当前 [BeeDatabase] 建表、也不把 v27 数据库伪装成 v26，确保随后打开
-/// 文件时确实走 Drift 的 26 -> 27 `onUpgrade`。
+/// 文件时确实走 Drift 的 26 -> 当前版本 `onUpgrade`。
 void _seedHistoricalV26Database(File file) {
   final oldDb = sqlite.sqlite3.open(file.path);
   try {

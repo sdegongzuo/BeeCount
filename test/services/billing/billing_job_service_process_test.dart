@@ -228,17 +228,28 @@ class _ExistingAttachmentService implements AttachmentSaveServiceInterface {
   }
 
   @override
-  Future<void> saveAttachment(
+  Future<TransactionAttachment> saveAttachment(
     String imagePath,
     Future<int> transactionId, {
-    int? billingJobId,
-    BillingJobLease? lease,
+    required int billingJobId,
+    required BillingJobLease lease,
+    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
     Set<String>? recoveryFileNames,
   }) async {
-    expect(await transactionId, greaterThan(0));
+    final transactionIdValue = await transactionId;
+    expect(transactionIdValue, greaterThan(0));
     expect(billingJobId, isNotNull);
+    expect(await isLeaseOwner(lease), isTrue);
     saveCount++;
     reusedExistingArtifact = true;
+    return TransactionAttachment(
+      id: saveCount,
+      transactionId: transactionIdValue,
+      fileName: 'tx_${transactionIdValue}_${billingJobId}_0.jpg',
+      originKey: 'billing:$billingJobId:0',
+      sortOrder: 0,
+      createdAt: DateTime(2026, 7, 15),
+    );
   }
 }
 

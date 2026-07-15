@@ -549,11 +549,12 @@ class _RealAttachmentService implements AttachmentSaveServiceInterface {
   }
 
   @override
-  Future<void> saveAttachment(
+  Future<TransactionAttachment> saveAttachment(
     String imagePath,
     Future<int> transactionId, {
-    int? billingJobId,
-    BillingJobLease? lease,
+    required int billingJobId,
+    required BillingJobLease lease,
+    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
     Set<String>? recoveryFileNames,
   }) async {
     // AttachmentService 需要 Ref，通过 container 获取 provider 值
@@ -567,8 +568,11 @@ class _RealAttachmentService implements AttachmentSaveServiceInterface {
       sourceFile: File(imagePath),
       index: 0,
       billingJobId: billingJobId,
+      lease: lease,
+      isLeaseOwner: isLeaseOwner,
       recoveryFileNames: recoveryFileNames,
     );
     if (attachment == null) throw StateError('attachment_save_failed');
+    return attachment;
   }
 }

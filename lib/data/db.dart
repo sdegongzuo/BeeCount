@@ -940,9 +940,10 @@ class BeeDatabase extends _$BeeDatabase {
             final tableInfo = await customSelect(
               'PRAGMA table_info(transaction_attachments)',
             ).get();
-            final hasOriginKey =
-                tableInfo.any((row) => row.data['name'] == 'origin_key');
-            if (!hasOriginKey) {
+            if (tableInfo.isEmpty) {
+              await migrator.createTable(transactionAttachments);
+            } else if (!tableInfo
+                .any((row) => row.data['name'] == 'origin_key')) {
               await customStatement(
                 'ALTER TABLE transaction_attachments ADD COLUMN origin_key TEXT;',
               );

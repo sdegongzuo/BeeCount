@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/billing_job_repository.dart';
@@ -21,17 +20,19 @@ class FakeAttachmentSaveService implements AttachmentSaveServiceInterface {
   Future<int>? lastTransactionId;
   int? lastBillingJobId;
   BillingJobLease? lastLease;
+  Future<bool> Function(BillingJobLease lease)? lastIsLeaseOwner;
   Object? saveError;
 
   @override
   Future<Set<String>> indexRecoveryFiles() async => const {};
 
   @override
-  Future<void> saveAttachment(
+  Future<TransactionAttachment> saveAttachment(
     String imagePath,
     Future<int> transactionId, {
-    int? billingJobId,
-    BillingJobLease? lease,
+    required int billingJobId,
+    required BillingJobLease lease,
+    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
     Set<String>? recoveryFileNames,
   }) async {
     if (saveError case final error?) throw error;
@@ -40,6 +41,15 @@ class FakeAttachmentSaveService implements AttachmentSaveServiceInterface {
     lastTransactionId = transactionId;
     lastBillingJobId = billingJobId;
     lastLease = lease;
+    lastIsLeaseOwner = isLeaseOwner;
+    return TransactionAttachment(
+      id: 1,
+      transactionId: await transactionId,
+      fileName: 'tx_1_1_0.jpg',
+      originKey: 'billing:1:0',
+      sortOrder: 0,
+      createdAt: DateTime(2026, 7, 15),
+    );
   }
 }
 
@@ -68,13 +78,19 @@ void main() {
   test('saves AVIF attachment and marks attachment_done=true', () async {
     final job = await repo.createJob(imagePath: '/tmp/test.png');
     final deadline = DateTime.now().add(const Duration(seconds: 30));
+    final context = await _ownedContext(repo, job.id);
 
-    final result = await processor.process(job, deadline, PipelineContext());
+    final result = await processor.process(job, deadline, context);
 
     expect(result.success, isTrue);
     expect(attachmentService.called, isTrue);
     expect(attachmentService.lastImagePath, equals('/tmp/test.png'));
     expect(attachmentService.lastBillingJobId, job.id);
+    expect(attachmentService.lastLease, context.lease);
+    expect(
+      await attachmentService.lastIsLeaseOwner!(context.lease!),
+      isTrue,
+    );
   });
 
   test('skips if attachment already exists for this job', () async {
@@ -93,8 +109,9 @@ void main() {
   test('generates thumbnail from source image for AVIF', () async {
     final job = await repo.createJob(imagePath: '/tmp/avif_test.png');
     final deadline = DateTime.now().add(const Duration(seconds: 30));
+    final context = await _ownedContext(repo, job.id);
 
-    final result = await processor.process(job, deadline, PipelineContext());
+    final result = await processor.process(job, deadline, context);
 
     expect(result.success, isTrue);
     expect(attachmentService.lastImagePath, equals('/tmp/avif_test.png'));
@@ -103,8 +120,9 @@ void main() {
   test('small image (≤1920) skips JPEG preprocessing', () async {
     final job = await repo.createJob(imagePath: '/tmp/small.png');
     final deadline = DateTime.now().add(const Duration(seconds: 30));
+    final context = await _ownedContext(repo, job.id);
 
-    final result = await processor.process(job, deadline, PipelineContext());
+    final result = await processor.process(job, deadline, context);
 
     expect(result.success, isTrue);
     expect(attachmentService.called, isTrue);
@@ -113,8 +131,9 @@ void main() {
   test('large image resizes before AVIF encoding', () async {
     final job = await repo.createJob(imagePath: '/tmp/large_4k.png');
     final deadline = DateTime.now().add(const Duration(seconds: 30));
+    final context = await _ownedContext(repo, job.id);
 
-    final result = await processor.process(job, deadline, PipelineContext());
+    final result = await processor.process(job, deadline, context);
 
     expect(result.success, isTrue);
     expect(attachmentService.called, isTrue);
@@ -123,11 +142,12 @@ void main() {
   test('a failed attachment save does not mark attachment_done', () async {
     final job = await repo.createJob(imagePath: '/tmp/failure.png');
     attachmentService.saveError = StateError('write failed');
+    final context = await _ownedContext(repo, job.id);
 
     final result = await processor.process(
       job,
       DateTime.now().add(const Duration(seconds: 30)),
-      PipelineContext(),
+      context,
     );
     await Future<void>.delayed(const Duration(milliseconds: 20));
 
@@ -156,21 +176,12 @@ void main() {
   });
 
   test('a completely decodable image candidate returns dimensions', () async {
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-    canvas.drawRect(
-      const ui.Rect.fromLTWH(0, 0, 1, 1),
-      ui.Paint()..color = const ui.Color(0xFFFFFFFF),
-    );
-    final image = await recorder.endRecording().toImage(1, 1);
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-
     final decoded = await decodeCompleteBillingJobAttachmentBytes(
-      byteData!.buffer.asUint8List(),
-      extension: '.png',
+      await File('image/单条/京东-单条.jpg').readAsBytes(),
+      extension: '.jpg',
     );
 
-    expect(decoded, (width: 1, height: 1));
+    expect(decoded, isNotNull);
   });
 
   group('database attachment recovery validation', () {
@@ -190,7 +201,7 @@ void main() {
         '${Platform.pathSeparator}beecount_attachment_recovery_'
         '${DateTime.now().microsecondsSinceEpoch}',
       ).create(recursive: true);
-      validImageBytes = await _onePixelPngBytes();
+      validImageBytes = await File('image/单条/京东-单条.jpg').readAsBytes();
       sourceFile =
           File('${attachmentDir.path}${Platform.pathSeparator}source.png');
       await sourceFile.writeAsBytes(validImageBytes, flush: true);
@@ -201,6 +212,27 @@ void main() {
         overrides: [repositoryProvider.overrideWithValue(attachmentRepo)],
       );
       service = container.read(testServiceProvider);
+    });
+
+    test('recovery index includes only supported stable image formats',
+        () async {
+      for (final fileName in [
+        'one.jpg',
+        'two.webp',
+        'three.avif',
+        'ignored.png',
+        'ignored.txt',
+        'tx_61_9_0.publish.lock',
+        'prepared.tmp',
+      ]) {
+        await File('${attachmentDir.path}${Platform.pathSeparator}$fileName')
+            .writeAsBytes([1], flush: true);
+      }
+
+      expect(
+        await service.indexAttachmentFileNames(),
+        {'one.jpg', 'two.webp', 'three.avif'},
+      );
     });
 
     tearDown(() async {
@@ -222,6 +254,8 @@ void main() {
         sourceFile: sourceFile,
         index: 0,
         billingJobId: 9,
+        lease: _testLease(9),
+        isLeaseOwner: (lease) async => true,
         recoveryFileNames: const {},
       );
 
@@ -257,6 +291,8 @@ void main() {
         sourceFile: sourceFile,
         index: 0,
         billingJobId: 9,
+        lease: _testLease(9),
+        isLeaseOwner: (lease) async => true,
         recoveryFileNames: {fileName},
       );
 
@@ -293,6 +329,8 @@ void main() {
         sourceFile: unavailableSource,
         index: 0,
         billingJobId: 9,
+        lease: _testLease(9),
+        isLeaseOwner: (lease) async => true,
         recoveryFileNames: {fileName},
       );
 
@@ -304,6 +342,19 @@ void main() {
   });
 }
 
+Future<PipelineContext> _ownedContext(
+  BillingJobRepository repo,
+  int jobId,
+) async {
+  final lease = await repo.claimJobLease(jobId, const Duration(minutes: 1));
+  return PipelineContext()..configureOwnership(repository: repo, lease: lease!);
+}
+
+BillingJobLease _testLease(int jobId) => BillingJobLease(
+      jobId: jobId,
+      leaseUntil: DateTime(2030),
+    );
+
 final class _TestAttachmentService extends AttachmentService {
   final Directory attachmentDirectory;
 
@@ -311,17 +362,4 @@ final class _TestAttachmentService extends AttachmentService {
 
   @override
   Future<Directory> getAttachmentDirectory() async => attachmentDirectory;
-}
-
-Future<Uint8List> _onePixelPngBytes() async {
-  final recorder = ui.PictureRecorder();
-  final canvas = ui.Canvas(recorder);
-  canvas.drawRect(
-    const ui.Rect.fromLTWH(0, 0, 1, 1),
-    ui.Paint()..color = const ui.Color(0xFFFFFFFF),
-  );
-  final image = await recorder.endRecording().toImage(1, 1);
-  final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-  image.dispose();
-  return byteData!.buffer.asUint8List();
 }

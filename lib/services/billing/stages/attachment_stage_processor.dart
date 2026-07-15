@@ -9,11 +9,12 @@ import '../billing_job_runner.dart';
 abstract class AttachmentSaveServiceInterface {
   Future<Set<String>> indexRecoveryFiles() async => const {};
 
-  Future<void> saveAttachment(
+  Future<TransactionAttachment> saveAttachment(
     String imagePath,
     Future<int> transactionId, {
-    int? billingJobId,
-    BillingJobLease? lease,
+    required int billingJobId,
+    required BillingJobLease lease,
+    required Future<bool> Function(BillingJobLease lease) isLeaseOwner,
     Set<String>? recoveryFileNames,
   });
 }
@@ -46,6 +47,10 @@ class AttachmentStageProcessor
     try {
       ctx.ensureCanStartSideEffect();
       await ctx.ensureJobOwned();
+      final lease = ctx.lease;
+      if (lease == null) {
+        throw const BillingJobExecutionCancelled('billing_job_lease_missing');
+      }
       final txFuture = job.transactionId != null
           ? Future<int>.value(job.transactionId)
           : ctx.transactionIdFuture;
@@ -55,7 +60,8 @@ class AttachmentStageProcessor
           job.imagePath,
           txFuture,
           billingJobId: job.id,
-          lease: ctx.lease,
+          lease: lease,
+          isLeaseOwner: repo.isLeaseOwner,
           recoveryFileNames: ctx.attachmentRecoveryFileNames,
         )
             .then((_) {
