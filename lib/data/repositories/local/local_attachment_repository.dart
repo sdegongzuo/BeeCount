@@ -26,25 +26,58 @@ class LocalAttachmentRepository implements AttachmentRepository {
     String? cloudFileId,
     String? cloudSha256,
   }) async {
-    return db.transaction(() async {
+    return db.into(db.transactionAttachments).insert(
+          TransactionAttachmentsCompanion.insert(
+            transactionId: transactionId,
+            fileName: fileName,
+            originalName: d.Value(originalName),
+            fileSize: d.Value(fileSize),
+            width: d.Value(width),
+            height: d.Value(height),
+            sortOrder: d.Value(sortOrder),
+            cloudFileId: d.Value(cloudFileId),
+            cloudSha256: d.Value(cloudSha256),
+          ),
+        );
+  }
+
+  @override
+  Future<int> upsertBillingAttachment({
+    required String originKey,
+    required int transactionId,
+    required String fileName,
+    String? originalName,
+    int? fileSize,
+    int? width,
+    int? height,
+    int sortOrder = 0,
+  }) async {
+    final attachment = TransactionAttachmentsCompanion.insert(
+      transactionId: transactionId,
+      fileName: fileName,
+      originKey: d.Value(originKey),
+      originalName: d.Value(originalName),
+      fileSize: d.Value(fileSize),
+      width: d.Value(width),
+      height: d.Value(height),
+      sortOrder: d.Value(sortOrder),
+    );
+
+    try {
+      return await db.into(db.transactionAttachments).insert(attachment);
+    } catch (error, stackTrace) {
       final existing = await (db.select(db.transactionAttachments)
-            ..where((t) => t.fileName.equals(fileName)))
+            ..where((row) => row.originKey.equals(originKey)))
           .getSingleOrNull();
-      if (existing != null) return existing.id;
-      return db.into(db.transactionAttachments).insert(
-            TransactionAttachmentsCompanion.insert(
-              transactionId: transactionId,
-              fileName: fileName,
-              originalName: d.Value(originalName),
-              fileSize: d.Value(fileSize),
-              width: d.Value(width),
-              height: d.Value(height),
-              sortOrder: d.Value(sortOrder),
-              cloudFileId: d.Value(cloudFileId),
-              cloudSha256: d.Value(cloudSha256),
-            ),
-          );
-    });
+      if (existing == null) {
+        Error.throwWithStackTrace(error, stackTrace);
+      }
+
+      await (db.update(db.transactionAttachments)
+            ..where((row) => row.id.equals(existing.id)))
+          .write(attachment);
+      return existing.id;
+    }
   }
 
   @override

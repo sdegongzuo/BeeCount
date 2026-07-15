@@ -2187,6 +2187,31 @@ class LocalRepository extends BaseRepository {
   }
 
   @override
+  Future<int> upsertBillingAttachment({
+    required String originKey,
+    required int transactionId,
+    required String fileName,
+    String? originalName,
+    int? fileSize,
+    int? width,
+    int? height,
+    int sortOrder = 0,
+  }) async {
+    final id = await _attachmentRepo.upsertBillingAttachment(
+      originKey: originKey,
+      transactionId: transactionId,
+      fileName: fileName,
+      originalName: originalName,
+      fileSize: fileSize,
+      width: width,
+      height: height,
+      sortOrder: sortOrder,
+    );
+    await _recordTransactionUpdateForAttachmentChange(transactionId);
+    return id;
+  }
+
+  @override
   Future<TransactionAttachment?> getAttachmentById(int id) =>
       _attachmentRepo.getAttachmentById(id);
 

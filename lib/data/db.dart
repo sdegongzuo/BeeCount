@@ -189,6 +189,7 @@ class TransactionAttachments extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get transactionId => integer()(); // 关联的交易ID
   TextColumn get fileName => text()(); // 文件名（不含路径）
+  TextColumn get originKey => text().nullable()(); // 稳定来源键（仅专用导入流程使用）
   TextColumn get originalName => text().nullable()(); // 原始文件名
   IntColumn get fileSize => integer().nullable()(); // 文件大小（bytes）
   IntColumn get width => integer().nullable()(); // 图片宽度
@@ -274,6 +275,12 @@ class BillingJobs extends Table {
   BillingJobs,
 ])
 class BeeDatabase extends _$BeeDatabase {
+  static const _billingAttachmentOriginKeyIndexSql = '''
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_transaction_attachments_origin_key
+    ON transaction_attachments(origin_key)
+    WHERE origin_key IS NOT NULL;
+  ''';
+
   BeeDatabase() : super(_openConnection());
 
   /// 测试专用:直接注入 [QueryExecutor](通常是 NativeDatabase.memory()),
@@ -282,7 +289,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 27; // v27: Billing Job completed 终态
+  int get schemaVersion => 28; // v28: 账单附件稳定来源键
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -929,6 +936,22 @@ class BeeDatabase extends _$BeeDatabase {
             );
             print('[DB Migration] v27: ai_done 已迁移为 completed');
           }
+          if (from < 28) {
+            final tableInfo = await customSelect(
+              'PRAGMA table_info(transaction_attachments)',
+            ).get();
+            final hasOriginKey =
+                tableInfo.any((row) => row.data['name'] == 'origin_key');
+            if (!hasOriginKey) {
+              await customStatement(
+                'ALTER TABLE transaction_attachments ADD COLUMN origin_key TEXT;',
+              );
+            }
+            await customStatement(_billingAttachmentOriginKeyIndexSql);
+          }
+        },
+        beforeOpen: (_) async {
+          await customStatement(_billingAttachmentOriginKeyIndexSql);
         },
       );
 

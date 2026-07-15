@@ -20,6 +20,18 @@ abstract class AttachmentRepository {
     String? cloudSha256,
   });
 
+  /// 按稳定来源键创建或更新账单附件。
+  Future<int> upsertBillingAttachment({
+    required String originKey,
+    required int transactionId,
+    required String fileName,
+    String? originalName,
+    int? fileSize,
+    int? width,
+    int? height,
+    int sortOrder = 0,
+  });
+
   /// 根据ID获取附件
   Future<TransactionAttachment?> getAttachmentById(int id);
 

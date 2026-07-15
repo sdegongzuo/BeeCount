@@ -5177,6 +5177,12 @@ class $TransactionAttachmentsTable extends TransactionAttachments
   late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
       'file_name', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _originKeyMeta =
+      const VerificationMeta('originKey');
+  @override
+  late final GeneratedColumn<String> originKey = GeneratedColumn<String>(
+      'origin_key', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _originalNameMeta =
       const VerificationMeta('originalName');
   @override
@@ -5232,6 +5238,7 @@ class $TransactionAttachmentsTable extends TransactionAttachments
         id,
         transactionId,
         fileName,
+        originKey,
         originalName,
         fileSize,
         width,
@@ -5268,6 +5275,10 @@ class $TransactionAttachmentsTable extends TransactionAttachments
           fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta));
     } else if (isInserting) {
       context.missing(_fileNameMeta);
+    }
+    if (data.containsKey('origin_key')) {
+      context.handle(_originKeyMeta,
+          originKey.isAcceptableOrUnknown(data['origin_key']!, _originKeyMeta));
     }
     if (data.containsKey('original_name')) {
       context.handle(
@@ -5322,6 +5333,8 @@ class $TransactionAttachmentsTable extends TransactionAttachments
           .read(DriftSqlType.int, data['${effectivePrefix}transaction_id'])!,
       fileName: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}file_name'])!,
+      originKey: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}origin_key']),
       originalName: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}original_name']),
       fileSize: attachedDatabase.typeMapping
@@ -5352,6 +5365,7 @@ class TransactionAttachment extends DataClass
   final int id;
   final int transactionId;
   final String fileName;
+  final String? originKey;
   final String? originalName;
   final int? fileSize;
   final int? width;
@@ -5364,6 +5378,7 @@ class TransactionAttachment extends DataClass
       {required this.id,
       required this.transactionId,
       required this.fileName,
+      this.originKey,
       this.originalName,
       this.fileSize,
       this.width,
@@ -5378,6 +5393,9 @@ class TransactionAttachment extends DataClass
     map['id'] = Variable<int>(id);
     map['transaction_id'] = Variable<int>(transactionId);
     map['file_name'] = Variable<String>(fileName);
+    if (!nullToAbsent || originKey != null) {
+      map['origin_key'] = Variable<String>(originKey);
+    }
     if (!nullToAbsent || originalName != null) {
       map['original_name'] = Variable<String>(originalName);
     }
@@ -5406,6 +5424,9 @@ class TransactionAttachment extends DataClass
       id: Value(id),
       transactionId: Value(transactionId),
       fileName: Value(fileName),
+      originKey: originKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originKey),
       originalName: originalName == null && nullToAbsent
           ? const Value.absent()
           : Value(originalName),
@@ -5434,6 +5455,7 @@ class TransactionAttachment extends DataClass
       id: serializer.fromJson<int>(json['id']),
       transactionId: serializer.fromJson<int>(json['transactionId']),
       fileName: serializer.fromJson<String>(json['fileName']),
+      originKey: serializer.fromJson<String?>(json['originKey']),
       originalName: serializer.fromJson<String?>(json['originalName']),
       fileSize: serializer.fromJson<int?>(json['fileSize']),
       width: serializer.fromJson<int?>(json['width']),
@@ -5451,6 +5473,7 @@ class TransactionAttachment extends DataClass
       'id': serializer.toJson<int>(id),
       'transactionId': serializer.toJson<int>(transactionId),
       'fileName': serializer.toJson<String>(fileName),
+      'originKey': serializer.toJson<String?>(originKey),
       'originalName': serializer.toJson<String?>(originalName),
       'fileSize': serializer.toJson<int?>(fileSize),
       'width': serializer.toJson<int?>(width),
@@ -5466,6 +5489,7 @@ class TransactionAttachment extends DataClass
           {int? id,
           int? transactionId,
           String? fileName,
+          Value<String?> originKey = const Value.absent(),
           Value<String?> originalName = const Value.absent(),
           Value<int?> fileSize = const Value.absent(),
           Value<int?> width = const Value.absent(),
@@ -5478,6 +5502,7 @@ class TransactionAttachment extends DataClass
         id: id ?? this.id,
         transactionId: transactionId ?? this.transactionId,
         fileName: fileName ?? this.fileName,
+        originKey: originKey.present ? originKey.value : this.originKey,
         originalName:
             originalName.present ? originalName.value : this.originalName,
         fileSize: fileSize.present ? fileSize.value : this.fileSize,
@@ -5496,6 +5521,7 @@ class TransactionAttachment extends DataClass
           ? data.transactionId.value
           : this.transactionId,
       fileName: data.fileName.present ? data.fileName.value : this.fileName,
+      originKey: data.originKey.present ? data.originKey.value : this.originKey,
       originalName: data.originalName.present
           ? data.originalName.value
           : this.originalName,
@@ -5517,6 +5543,7 @@ class TransactionAttachment extends DataClass
           ..write('id: $id, ')
           ..write('transactionId: $transactionId, ')
           ..write('fileName: $fileName, ')
+          ..write('originKey: $originKey, ')
           ..write('originalName: $originalName, ')
           ..write('fileSize: $fileSize, ')
           ..write('width: $width, ')
@@ -5530,8 +5557,19 @@ class TransactionAttachment extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(id, transactionId, fileName, originalName,
-      fileSize, width, height, sortOrder, cloudFileId, cloudSha256, createdAt);
+  int get hashCode => Object.hash(
+      id,
+      transactionId,
+      fileName,
+      originKey,
+      originalName,
+      fileSize,
+      width,
+      height,
+      sortOrder,
+      cloudFileId,
+      cloudSha256,
+      createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5539,6 +5577,7 @@ class TransactionAttachment extends DataClass
           other.id == this.id &&
           other.transactionId == this.transactionId &&
           other.fileName == this.fileName &&
+          other.originKey == this.originKey &&
           other.originalName == this.originalName &&
           other.fileSize == this.fileSize &&
           other.width == this.width &&
@@ -5554,6 +5593,7 @@ class TransactionAttachmentsCompanion
   final Value<int> id;
   final Value<int> transactionId;
   final Value<String> fileName;
+  final Value<String?> originKey;
   final Value<String?> originalName;
   final Value<int?> fileSize;
   final Value<int?> width;
@@ -5566,6 +5606,7 @@ class TransactionAttachmentsCompanion
     this.id = const Value.absent(),
     this.transactionId = const Value.absent(),
     this.fileName = const Value.absent(),
+    this.originKey = const Value.absent(),
     this.originalName = const Value.absent(),
     this.fileSize = const Value.absent(),
     this.width = const Value.absent(),
@@ -5579,6 +5620,7 @@ class TransactionAttachmentsCompanion
     this.id = const Value.absent(),
     required int transactionId,
     required String fileName,
+    this.originKey = const Value.absent(),
     this.originalName = const Value.absent(),
     this.fileSize = const Value.absent(),
     this.width = const Value.absent(),
@@ -5593,6 +5635,7 @@ class TransactionAttachmentsCompanion
     Expression<int>? id,
     Expression<int>? transactionId,
     Expression<String>? fileName,
+    Expression<String>? originKey,
     Expression<String>? originalName,
     Expression<int>? fileSize,
     Expression<int>? width,
@@ -5606,6 +5649,7 @@ class TransactionAttachmentsCompanion
       if (id != null) 'id': id,
       if (transactionId != null) 'transaction_id': transactionId,
       if (fileName != null) 'file_name': fileName,
+      if (originKey != null) 'origin_key': originKey,
       if (originalName != null) 'original_name': originalName,
       if (fileSize != null) 'file_size': fileSize,
       if (width != null) 'width': width,
@@ -5621,6 +5665,7 @@ class TransactionAttachmentsCompanion
       {Value<int>? id,
       Value<int>? transactionId,
       Value<String>? fileName,
+      Value<String?>? originKey,
       Value<String?>? originalName,
       Value<int?>? fileSize,
       Value<int?>? width,
@@ -5633,6 +5678,7 @@ class TransactionAttachmentsCompanion
       id: id ?? this.id,
       transactionId: transactionId ?? this.transactionId,
       fileName: fileName ?? this.fileName,
+      originKey: originKey ?? this.originKey,
       originalName: originalName ?? this.originalName,
       fileSize: fileSize ?? this.fileSize,
       width: width ?? this.width,
@@ -5655,6 +5701,9 @@ class TransactionAttachmentsCompanion
     }
     if (fileName.present) {
       map['file_name'] = Variable<String>(fileName.value);
+    }
+    if (originKey.present) {
+      map['origin_key'] = Variable<String>(originKey.value);
     }
     if (originalName.present) {
       map['original_name'] = Variable<String>(originalName.value);
@@ -5689,6 +5738,7 @@ class TransactionAttachmentsCompanion
           ..write('id: $id, ')
           ..write('transactionId: $transactionId, ')
           ..write('fileName: $fileName, ')
+          ..write('originKey: $originKey, ')
           ..write('originalName: $originalName, ')
           ..write('fileSize: $fileSize, ')
           ..write('width: $width, ')
@@ -9847,6 +9897,7 @@ typedef $$TransactionAttachmentsTableCreateCompanionBuilder
   Value<int> id,
   required int transactionId,
   required String fileName,
+  Value<String?> originKey,
   Value<String?> originalName,
   Value<int?> fileSize,
   Value<int?> width,
@@ -9861,6 +9912,7 @@ typedef $$TransactionAttachmentsTableUpdateCompanionBuilder
   Value<int> id,
   Value<int> transactionId,
   Value<String> fileName,
+  Value<String?> originKey,
   Value<String?> originalName,
   Value<int?> fileSize,
   Value<int?> width,
@@ -9888,6 +9940,9 @@ class $$TransactionAttachmentsTableFilterComposer
 
   ColumnFilters<String> get fileName => $composableBuilder(
       column: $table.fileName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get originKey => $composableBuilder(
+      column: $table.originKey, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get originalName => $composableBuilder(
       column: $table.originalName, builder: (column) => ColumnFilters(column));
@@ -9933,6 +9988,9 @@ class $$TransactionAttachmentsTableOrderingComposer
   ColumnOrderings<String> get fileName => $composableBuilder(
       column: $table.fileName, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get originKey => $composableBuilder(
+      column: $table.originKey, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get originalName => $composableBuilder(
       column: $table.originalName,
       builder: (column) => ColumnOrderings(column));
@@ -9976,6 +10034,9 @@ class $$TransactionAttachmentsTableAnnotationComposer
 
   GeneratedColumn<String> get fileName =>
       $composableBuilder(column: $table.fileName, builder: (column) => column);
+
+  GeneratedColumn<String> get originKey =>
+      $composableBuilder(column: $table.originKey, builder: (column) => column);
 
   GeneratedColumn<String> get originalName => $composableBuilder(
       column: $table.originalName, builder: (column) => column);
@@ -10036,6 +10097,7 @@ class $$TransactionAttachmentsTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             Value<int> transactionId = const Value.absent(),
             Value<String> fileName = const Value.absent(),
+            Value<String?> originKey = const Value.absent(),
             Value<String?> originalName = const Value.absent(),
             Value<int?> fileSize = const Value.absent(),
             Value<int?> width = const Value.absent(),
@@ -10049,6 +10111,7 @@ class $$TransactionAttachmentsTableTableManager extends RootTableManager<
             id: id,
             transactionId: transactionId,
             fileName: fileName,
+            originKey: originKey,
             originalName: originalName,
             fileSize: fileSize,
             width: width,
@@ -10062,6 +10125,7 @@ class $$TransactionAttachmentsTableTableManager extends RootTableManager<
             Value<int> id = const Value.absent(),
             required int transactionId,
             required String fileName,
+            Value<String?> originKey = const Value.absent(),
             Value<String?> originalName = const Value.absent(),
             Value<int?> fileSize = const Value.absent(),
             Value<int?> width = const Value.absent(),
@@ -10075,6 +10139,7 @@ class $$TransactionAttachmentsTableTableManager extends RootTableManager<
             id: id,
             transactionId: transactionId,
             fileName: fileName,
+            originKey: originKey,
             originalName: originalName,
             fileSize: fileSize,
             width: width,

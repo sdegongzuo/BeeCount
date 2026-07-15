@@ -213,16 +213,18 @@ void main() {
     expect(await repo.isLeaseOwner(active!), isTrue);
   });
 
-  test('concurrent attachment inserts reuse the deterministic file record',
+  test('concurrent billing attachment upserts reuse the source record',
       () async {
     final attachments = LocalAttachmentRepository(db);
 
     final ids = await Future.wait([
-      attachments.createAttachment(
+      attachments.upsertBillingAttachment(
+        originKey: 'billing:9:0',
         transactionId: 61,
         fileName: 'tx_61_9_0.avif',
       ),
-      attachments.createAttachment(
+      attachments.upsertBillingAttachment(
+        originKey: 'billing:9:0',
         transactionId: 61,
         fileName: 'tx_61_9_0.avif',
       ),
