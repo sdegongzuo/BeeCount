@@ -132,7 +132,7 @@ void main() {
     final notePreferences = SqlitePersonalNotePreferenceStore(db);
     await notePreferences.remember(
       matchText: '天津海河测试餐厅甲',
-      supplementalNote: '个人偏好：工作日咖啡',
+      supplementalNote: '同一条补充',
     );
     final service = BillCreationService(
       repo,
@@ -146,16 +146,16 @@ void main() {
         time: DateTime(2026, 7, 16),
         merchantFullName: '天津海河测试餐厅甲',
         note: '不可验证的 AI 备注',
-        detailsText: '交易单号: OCR-123',
+        detailsText: '交易单号: OCR-123\n 补充信息 : 同一条补充 ',
         details: const {
           'product_summary': '海河测试饮品甲',
           'store_name': '天津和平测试门店甲',
-          'supplemental_note': '确认页补充：和朋友聚餐',
+          'supplemental_note': '同一条补充',
         },
         allNumbers: const ['28.00'],
       ),
       ledgerId: ledgerId,
-      note: '用户本次补充：使用优惠券',
+      note: '同一条补充',
       billingTypes: const ['image'],
       autoAddTags: false,
     );
@@ -163,10 +163,11 @@ void main() {
     final transaction = await repo.getTransactionById(transactionId!);
     expect(transaction!.note, '商户：天津海河测试餐厅甲\n商品：海河测试饮品甲\n门店：天津和平测试门店甲');
     expect(transaction.note, isNot(contains('AI 备注')));
-    expect(transaction.note, isNot(contains('工作日咖啡')));
-    expect(transaction.detailsText, contains('交易单号: OCR-123'));
-    expect(transaction.detailsText, contains('确认页补充：和朋友聚餐'));
-    expect(transaction.detailsText, contains('用户本次补充：使用优惠券'));
-    expect(transaction.detailsText, contains('个人偏好：工作日咖啡'));
+    expect(transaction.note, isNot(contains('同一条补充')));
+    expect(transaction.detailsText, contains('交易单号：OCR-123'));
+    expect(
+      RegExp('补充信息：同一条补充').allMatches(transaction.detailsText!).length,
+      1,
+    );
   });
 }

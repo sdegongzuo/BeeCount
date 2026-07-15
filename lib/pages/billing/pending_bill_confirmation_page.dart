@@ -27,7 +27,9 @@ class _PendingBillConfirmationPageState
   final _time = TextEditingController();
   final _supplement = TextEditingController();
   PendingBillDraft? _draft;
-  bool _remember = false;
+  bool _rememberExtractionCorrections = false;
+  bool _rememberCategoryRule = false;
+  bool _rememberNotePreference = false;
   int? _categoryId;
   bool _categoryRuleGlobal = false;
   bool _saving = false;
@@ -106,6 +108,14 @@ class _PendingBillConfirmationPageState
                     border: const OutlineInputBorder(),
                   ),
                 ),
+                SwitchListTile(
+                  key: const Key('rememberExtractionCorrections'),
+                  value: _rememberExtractionCorrections,
+                  title: const Text('记住金额和时间修正'),
+                  onChanged: (value) => setState(
+                    () => _rememberExtractionCorrections = value,
+                  ),
+                ),
                 const SizedBox(height: 20),
                 if (_draft!.categories.isNotEmpty) ...[
                   DropdownButtonFormField<int>(
@@ -126,7 +136,16 @@ class _PendingBillConfirmationPageState
                         .toList(),
                     onChanged: (value) => setState(() => _categoryId = value),
                   ),
-                  if (_remember && _categoryId != null)
+                  SwitchListTile(
+                    key: const Key('rememberCategoryRule'),
+                    value: _rememberCategoryRule,
+                    title: const Text('记住分类'),
+                    onChanged: (value) => setState(() {
+                      _rememberCategoryRule = value;
+                      if (!value) _categoryRuleGlobal = false;
+                    }),
+                  ),
+                  if (_rememberCategoryRule && _categoryId != null)
                     SwitchListTile(
                       key: const Key('globalCategoryRule'),
                       value: _categoryRuleGlobal,
@@ -141,29 +160,19 @@ class _PendingBillConfirmationPageState
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 TextField(
+                  key: const Key('supplementField'),
                   controller: _supplement,
                   decoration: InputDecoration(
                     hintText: l10n.pendingBillSupplementHint,
                     border: const OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 12),
-                RadioGroup<bool>(
-                  groupValue: _remember,
-                  onChanged: (value) {
-                    if (value != null) setState(() => _remember = value);
-                  },
-                  child: Column(
-                    children: [
-                      RadioListTile<bool>(
-                        value: false,
-                        title: Text(l10n.pendingBillCurrentOnly),
-                      ),
-                      RadioListTile<bool>(
-                        value: true,
-                        title: Text(l10n.pendingBillRemember),
-                      ),
-                    ],
+                SwitchListTile(
+                  key: const Key('rememberNotePreference'),
+                  value: _rememberNotePreference,
+                  title: const Text('记住补充备注'),
+                  onChanged: (value) => setState(
+                    () => _rememberNotePreference = value,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -193,9 +202,9 @@ class _PendingBillConfirmationPageState
         amount: amount,
         time: time,
         supplementalNote: _supplement.text,
-        rememberExtractionCorrections: _remember,
-        rememberCategoryRule: _remember,
-        rememberNotePreference: _remember,
+        rememberExtractionCorrections: _rememberExtractionCorrections,
+        rememberCategoryRule: _rememberCategoryRule,
+        rememberNotePreference: _rememberNotePreference,
         categoryId: _categoryId,
         categoryRuleGlobal: _categoryRuleGlobal,
       );
@@ -204,18 +213,20 @@ class _PendingBillConfirmationPageState
           .where((item) => item.status == PersonalRuleLifecycleStatus.enabled)
           .length;
       final l10n = AppLocalizations.of(context);
-      final message = enabled > 0
-          ? l10n.pendingBillRuleEnabled(enabled)
-          : result.ruleResults.any(
-                  (item) => item.status == PersonalRuleLifecycleStatus.conflict)
-              ? l10n.pendingBillRuleConflict
+      final message = result.learningErrors.isNotEmpty
+          ? '账单已创建，但部分记忆失败：${result.learningErrors.map((error) => error.message).join('；')}'
+          : enabled > 0
+              ? l10n.pendingBillRuleEnabled(enabled)
               : result.ruleResults.any((item) =>
-                      item.status ==
-                      PersonalRuleLifecycleStatus.regressionRejected)
-                  ? l10n.pendingBillRuleRejected
-                  : result.ruleResults.isNotEmpty
-                      ? l10n.pendingBillRulePending
-                      : l10n.pendingBillCreated;
+                      item.status == PersonalRuleLifecycleStatus.conflict)
+                  ? l10n.pendingBillRuleConflict
+                  : result.ruleResults.any((item) =>
+                          item.status ==
+                          PersonalRuleLifecycleStatus.regressionRejected)
+                      ? l10n.pendingBillRuleRejected
+                      : result.ruleResults.isNotEmpty
+                          ? l10n.pendingBillRulePending
+                          : l10n.pendingBillCreated;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
       if (Navigator.of(context).canPop()) Navigator.of(context).pop(result);

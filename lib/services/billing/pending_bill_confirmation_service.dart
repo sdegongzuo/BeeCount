@@ -42,10 +42,39 @@ class PendingBillDraft {
 class PendingBillConfirmationResult {
   final int transactionId;
   final List<PersonalRuleLifecycleResult> ruleResults;
+  final List<PendingBillLearningError> learningErrors;
 
   const PendingBillConfirmationResult({
     required this.transactionId,
     required this.ruleResults,
+    this.learningErrors = const [],
+  });
+
+  PendingBillLearningStatus get learningStatus => learningErrors.isEmpty
+      ? PendingBillLearningStatus.completed
+      : PendingBillLearningStatus.partiallyFailed;
+}
+
+enum PendingBillLearningKind {
+  extractionCorrection,
+  categoryRule,
+  notePreference,
+}
+
+enum PendingBillLearningStatus {
+  completed,
+  partiallyFailed,
+}
+
+class PendingBillLearningError {
+  final PendingBillLearningKind kind;
+  final String target;
+  final String message;
+
+  const PendingBillLearningError({
+    required this.kind,
+    required this.target,
+    required this.message,
   });
 }
 
@@ -133,6 +162,7 @@ class PendingBillConfirmationService {
     final rememberCategory = rememberCategoryRule || legacyRememberAll;
     final rememberNote = rememberNotePreference || legacyRememberAll;
     final results = <PersonalRuleLifecycleResult>[];
+    final learningErrors = <PendingBillLearningError>[];
     if (rememberExtraction) {
       final source = _source(job.sourceInfoJson);
       final changedFields = <MapEntry<String, Object>>[];
@@ -143,13 +173,21 @@ class PendingBillConfirmationService {
         changedFields.add(MapEntry('time', time));
       }
       for (final field in changedFields) {
-        results.add(await applyCorrection(PersonalRuleCorrection(
-          field: field.key,
-          confirmedValue: field.value,
-          normalizedOcr: rawText,
-          sourcePackage: source.$1,
-          sourceAppName: source.$2,
-        )));
+        try {
+          results.add(await applyCorrection(PersonalRuleCorrection(
+            field: field.key,
+            confirmedValue: field.value,
+            normalizedOcr: rawText,
+            sourcePackage: source.$1,
+            sourceAppName: source.$2,
+          )));
+        } catch (error) {
+          learningErrors.add(PendingBillLearningError(
+            kind: PendingBillLearningKind.extractionCorrection,
+            target: field.key,
+            message: error.toString(),
+          ));
+        }
       }
     }
     if (rememberCategory || rememberNote) {
@@ -158,25 +196,42 @@ class PendingBillConfirmationService {
           matchText != null &&
           rememberNote &&
           this.rememberNotePreference != null) {
-        await this.rememberNotePreference!(
-          matchText: matchText,
-          supplementalNote: supplement,
-        );
+        try {
+          await this.rememberNotePreference!(
+            matchText: matchText,
+            supplementalNote: supplement,
+          );
+        } catch (error) {
+          learningErrors.add(PendingBillLearningError(
+            kind: PendingBillLearningKind.notePreference,
+            target: matchText,
+            message: error.toString(),
+          ));
+        }
       }
       if (categoryId != null &&
           matchText != null &&
           rememberCategory &&
           this.rememberCategory != null) {
-        await this.rememberCategory!(
-          matchText: matchText,
-          categoryId: categoryId,
-          global: categoryRuleGlobal,
-        );
+        try {
+          await this.rememberCategory!(
+            matchText: matchText,
+            categoryId: categoryId,
+            global: categoryRuleGlobal,
+          );
+        } catch (error) {
+          learningErrors.add(PendingBillLearningError(
+            kind: PendingBillLearningKind.categoryRule,
+            target: matchText,
+            message: error.toString(),
+          ));
+        }
       }
     }
     return PendingBillConfirmationResult(
       transactionId: transactionId,
       ruleResults: results,
+      learningErrors: List.unmodifiable(learningErrors),
     );
   }
 }

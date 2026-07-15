@@ -39,4 +39,20 @@ void main() {
       expect(text, isNull);
     });
   });
+
+  group('mergeDetailsTextParts', () {
+    test('逐行规范冒号和空白并按语义去重', () {
+      final merged = mergeDetailsTextParts(const [
+        ' 交易单号 : OCR-123  \n补充信息： 同一条 ',
+        '交易单号：OCR-123\n补充信息 : 同一条',
+        '\n  无冒号   内容  ',
+        '无冒号 内容',
+      ]);
+
+      expect(
+        merged,
+        '交易单号：OCR-123\n补充信息：同一条\n无冒号 内容',
+      );
+    });
+  });
 }

@@ -64,7 +64,10 @@ void main() {
     final pending = await service.listPending(ledgerId: ledgerId);
 
     expect(pending.map((item) => item.transaction.id), [pendingId]);
-    final draft = await service.loadDraft(pendingId);
+    final draft = await service.loadDraft(
+      ledgerId: ledgerId,
+      transactionId: pendingId,
+    );
     expect(draft, isNotNull);
     expect(draft!.categories.map((category) => category.name),
         containsAll(<String>['其他', '餐饮']));
@@ -79,6 +82,7 @@ void main() {
     final service = PendingTransactionClassificationService(repository);
 
     await service.confirmClassification(
+      ledgerId: ledgerId,
       transactionId: pendingId,
       categoryId: category.id,
       memoryScope: ClassificationMemoryScope.currentTransaction,
@@ -105,6 +109,7 @@ void main() {
       final service = PendingTransactionClassificationService(repository);
 
       await service.confirmClassification(
+        ledgerId: ledgerId,
         transactionId: pendingId,
         categoryId: category.id,
         memoryScope: scope,
@@ -131,6 +136,7 @@ void main() {
 
     await expectLater(
       service.confirmClassification(
+        ledgerId: ledgerId,
         transactionId: pendingId,
         categoryId: category.id,
         memoryScope: ClassificationMemoryScope.currentLedger,
@@ -162,6 +168,7 @@ void main() {
 
     await expectLater(
       PendingTransactionClassificationService(repository).confirmClassification(
+        ledgerId: ledgerId,
         transactionId: noEvidenceId,
         categoryId: category.id,
         memoryScope: ClassificationMemoryScope.currentLedger,
@@ -183,6 +190,7 @@ void main() {
 
     await expectLater(
       PendingTransactionClassificationService(repository).confirmClassification(
+        ledgerId: ledgerId,
         transactionId: pendingId,
         categoryId: incomeCategoryId,
         memoryScope: ClassificationMemoryScope.currentTransaction,
@@ -195,6 +203,33 @@ void main() {
         isTrue);
   });
 
+  test('拒绝有子分类、不可直接记账的父分类', () async {
+    final parentCategoryId =
+        await repository.createCategory(name: '餐饮父类', kind: 'expense');
+    await repository.createSubCategory(
+      parentId: parentCategoryId,
+      name: '咖啡',
+      kind: 'expense',
+    );
+    final beforeChanges = await db.select(db.localChanges).get();
+
+    await expectLater(
+      PendingTransactionClassificationService(repository)
+          .confirmClassification(
+        ledgerId: ledgerId,
+        transactionId: pendingId,
+        categoryId: parentCategoryId,
+        memoryScope: ClassificationMemoryScope.currentTransaction,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    final unchanged = await repository.getTransactionById(pendingId);
+    expect(unchanged!.categoryId, isNull);
+    expect(unchanged.needsClassification, isTrue);
+    expect(await db.select(db.localChanges).get(), hasLength(beforeChanges.length));
+  });
+
   test('记忆规则时拒绝没有稳定 syncId 的分类', () async {
     final category = (await repository.getAllCategories())
         .singleWhere((item) => item.name == '餐饮');
@@ -204,6 +239,7 @@ void main() {
 
     await expectLater(
       PendingTransactionClassificationService(repository).confirmClassification(
+        ledgerId: ledgerId,
         transactionId: pendingId,
         categoryId: category.id,
         memoryScope: ClassificationMemoryScope.global,
@@ -214,6 +250,37 @@ void main() {
     expect(
         (await repository.getTransactionById(pendingId))!.needsClassification,
         isTrue);
+  });
+
+  test('跨账本不能加载或确认待分类交易', () async {
+    final otherLedgerId = await repository.createLedger(name: '越权账本');
+    final category = (await repository.getAllCategories())
+        .singleWhere((item) => item.name == '餐饮');
+    final beforeChanges = await db.select(db.localChanges).get();
+    final service = PendingTransactionClassificationService(repository);
+
+    expect(
+      await service.loadDraft(
+        ledgerId: otherLedgerId,
+        transactionId: pendingId,
+      ),
+      isNull,
+    );
+    await expectLater(
+      service.confirmClassification(
+        ledgerId: otherLedgerId,
+        transactionId: pendingId,
+        categoryId: category.id,
+        memoryScope: ClassificationMemoryScope.currentTransaction,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    final unchanged = await repository.getTransactionById(pendingId);
+    expect(unchanged!.categoryId, isNull);
+    expect(unchanged.needsClassification, isTrue);
+    expect(await db.select(db.localChanges).get(),
+        hasLength(beforeChanges.length));
   });
 }
 

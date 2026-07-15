@@ -412,7 +412,7 @@ class BillCreationService {
     void addDetailPart(String? value) {
       final normalized = value?.trim();
       if (normalized == null || normalized.isEmpty) return;
-      if (!detailParts.contains(normalized)) detailParts.add(normalized);
+      detailParts.add(normalized);
     }
 
     addDetailPart(result.detailsText);
@@ -445,7 +445,7 @@ class BillCreationService {
       paymentChannel: result.paymentChannel,
       merchantFullName: result.merchantFullName,
       acquirer: result.acquirer,
-      detailsText: detailParts.isEmpty ? null : detailParts.join('\n'),
+      detailsText: mergeDetailsTextParts(detailParts),
       needsClassification: isImageBilling && needsClassification,
     );
 

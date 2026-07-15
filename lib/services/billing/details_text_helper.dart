@@ -38,6 +38,39 @@ String? detailsMapToText(Map<String, dynamic>? details) {
   return lines.isEmpty ? null : lines.join('\n');
 }
 
+/// 合并多个明细文本来源，并按“行”的语义去重。
+///
+/// 全角/半角冒号以及冒号两侧、行内连续空白会统一，输出保留首次出现顺序。
+String? mergeDetailsTextParts(Iterable<String?> parts) {
+  final lines = <String>[];
+  final seen = <String>{};
+  for (final part in parts) {
+    if (part == null || part.trim().isEmpty) continue;
+    for (final rawLine in part.split(RegExp(r'\r?\n'))) {
+      final line = _normalizeDetailLine(rawLine);
+      if (line == null || !seen.add(line)) continue;
+      lines.add(line);
+    }
+  }
+  return lines.isEmpty ? null : lines.join('\n');
+}
+
+String? _normalizeDetailLine(String rawLine) {
+  final trimmed = rawLine.trim();
+  if (trimmed.isEmpty) return null;
+  final separator = RegExp(r'[：:]').firstMatch(trimmed);
+  if (separator == null) return _collapseWhitespace(trimmed);
+  final key = _collapseWhitespace(trimmed.substring(0, separator.start));
+  final value = _collapseWhitespace(trimmed.substring(separator.end));
+  if (key.isEmpty || value.startsWith('//')) {
+    return _collapseWhitespace(trimmed);
+  }
+  return value.isEmpty ? '$key：' : '$key：$value';
+}
+
+String _collapseWhitespace(String value) =>
+    value.trim().replaceAll(RegExp(r'\s+'), ' ');
+
 bool _isInternalDetailKey(String key) {
   return key == 'remaining_text' ||
       key == 'ocr_payment_channel' ||

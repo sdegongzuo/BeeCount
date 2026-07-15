@@ -45,26 +45,42 @@ class PendingTransactionClassificationService {
     return Future.wait(transactions.map(_draftFor));
   }
 
-  Future<PendingTransactionClassificationDraft?> loadDraft(
-    int transactionId,
-  ) async {
+  Future<PendingTransactionClassificationDraft?> loadDraft({
+    required int ledgerId,
+    required int transactionId,
+  }) async {
     final transaction = await repository.getTransactionById(transactionId);
-    if (transaction == null || !transaction.needsClassification) return null;
+    if (transaction == null ||
+        transaction.ledgerId != ledgerId ||
+        !transaction.needsClassification) {
+      return null;
+    }
     return _draftFor(transaction);
   }
 
   Future<void> confirmClassification({
+    required int ledgerId,
     required int transactionId,
     required int categoryId,
     required ClassificationMemoryScope memoryScope,
   }) {
     return repository.db.transaction(() async {
       final transaction = await repository.getTransactionById(transactionId);
-      if (transaction == null || !transaction.needsClassification) {
+      if (transaction == null ||
+          transaction.ledgerId != ledgerId ||
+          !transaction.needsClassification) {
         throw StateError('transaction_not_pending_classification');
       }
-      final category = await repository.getCategoryById(categoryId);
-      if (category == null || category.kind != transaction.type) {
+      final availableCategories =
+          await repository.getUsableCategories(transaction.type);
+      Category? category;
+      for (final candidate in availableCategories) {
+        if (candidate.id == categoryId) {
+          category = candidate;
+          break;
+        }
+      }
+      if (category == null) {
         throw StateError('classification_category_not_available');
       }
 

@@ -308,4 +308,67 @@ void main() {
     expect(remembered, isEmpty);
     expect(savedNote, (matchText: '天津海河测试餐厅甲', supplementalNote: '以后都加这句'));
   });
+
+  test('可选学习失败不影响交易和 job 成功，其他学习仍继续并返回错误', () async {
+    final job = await draftJob();
+    final correctedFields = <String>[];
+    var categorySaved = false;
+    var noteSaved = false;
+    final resilientService = PendingBillConfirmationService(
+      repo: repo,
+      createTransaction: (_) async => 87,
+      applyCorrection: (correction) async {
+        correctedFields.add(correction.field);
+        if (correction.field == 'amount') {
+          throw StateError('amount_rule_write_failed');
+        }
+        return const PersonalRuleLifecycleResult(
+          status: PersonalRuleLifecycleStatus.enabled,
+          revision: 1,
+        );
+      },
+      rememberCategory: (
+          {required matchText, required categoryId, required global}) async {
+        categorySaved = true;
+      },
+      rememberNotePreference: (
+          {required matchText, required supplementalNote}) async {
+        noteSaved = true;
+      },
+    );
+
+    final result = await resilientService.confirm(
+      jobId: job.id,
+      amount: 20,
+      time: DateTime(2026, 7, 12, 10, 31),
+      supplementalNote: '需要记住的补充',
+      categoryId: 5,
+      rememberExtractionCorrections: true,
+      rememberCategoryRule: true,
+      rememberNotePreference: true,
+    );
+
+    expect(result.transactionId, 87);
+    expect(result.learningStatus, PendingBillLearningStatus.partiallyFailed);
+    expect(result.learningErrors, hasLength(1));
+    expect(result.learningErrors.single.kind,
+        PendingBillLearningKind.extractionCorrection);
+    expect(result.learningErrors.single.target, 'amount');
+    expect(result.learningErrors.single.message,
+        contains('amount_rule_write_failed'));
+    expect(correctedFields, ['amount', 'time']);
+    expect(categorySaved, isTrue);
+    expect(noteSaved, isTrue);
+    expect((await repo.findById(job.id))!.status, BillingJobStatus.succeeded);
+
+    await expectLater(
+      resilientService.confirm(
+        jobId: job.id,
+        amount: 20,
+        time: DateTime(2026, 7, 12, 10, 31),
+        supplementalNote: '',
+      ),
+      throwsA(isA<StateError>()),
+    );
+  });
 }

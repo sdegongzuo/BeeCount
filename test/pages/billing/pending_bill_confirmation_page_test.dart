@@ -30,13 +30,14 @@ void main() {
           merchantFullName: '天津海河测试餐厅甲',
         ).toJson()));
     await repo.updateStatus(job.id, BillingJobStatus.awaitingConfirmation);
-    var remembered = false;
+    var extractionRemembered = false;
+    var noteRemembered = false;
     ({String matchText, int categoryId, bool global})? rememberedCategory;
     final service = PendingBillConfirmationService(
       repo: repo,
       createTransaction: (_) async => 9,
       applyCorrection: (_) async {
-        remembered = true;
+        extractionRemembered = true;
         return const PersonalRuleLifecycleResult(
           status: PersonalRuleLifecycleStatus.enabled,
         );
@@ -52,6 +53,11 @@ void main() {
           categoryId: categoryId,
           global: global,
         );
+      },
+      rememberNotePreference: (
+          {required matchText, required supplementalNote}) async {
+        noteRemembered = true;
+        throw StateError('note_preference_failed');
       },
     );
 
@@ -75,21 +81,29 @@ void main() {
     await tester.tap(find.byKey(const Key('categoryField')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('餐饮 / 咖啡').last);
-    expect(find.text('仅本次'), findsOneWidget);
-    expect(find.text('对类似账单记住'), findsOneWidget);
+    expect(
+        find.byKey(const Key('rememberExtractionCorrections')), findsOneWidget);
+    expect(find.byKey(const Key('rememberCategoryRule')), findsOneWidget);
+    expect(find.byKey(const Key('rememberNotePreference')), findsOneWidget);
+    expect(find.byKey(const Key('globalCategoryRule')), findsNothing);
 
     await tester.enterText(
         find.byKey(const Key('timeField')), '2026-07-12 10:30');
-    await tester.tap(find.text('对类似账单记住'));
+    await tester.enterText(find.byKey(const Key('supplementField')), '和朋友聚餐');
+    await tester.tap(find.byKey(const Key('rememberCategoryRule')));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('globalCategoryRule')), findsOneWidget);
     await tester.tap(find.byKey(const Key('globalCategoryRule')));
+    await tester.tap(find.byKey(const Key('rememberNotePreference')));
     await tester.tap(find.text('确认并创建账单'));
     await tester.pumpAndSettle();
-    expect(remembered, isTrue);
+    expect(extractionRemembered, isFalse);
+    expect(noteRemembered, isTrue);
     expect(
       rememberedCategory,
       (matchText: '天津海河测试餐厅甲', categoryId: 7, global: true),
     );
-    expect(find.textContaining('个人规则已启用'), findsOneWidget);
+    expect(find.textContaining('账单已创建，但部分记忆失败'), findsOneWidget);
+    expect(find.textContaining('note_preference_failed'), findsOneWidget);
   });
 }
