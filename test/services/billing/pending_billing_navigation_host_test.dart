@@ -135,6 +135,59 @@ void main() {
     expect(first, isNot(second));
   });
 
+  testWidgets('后台直接新增第二条后恢复前台，返回第一页会打开第二页且不重开第一页', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final db = BeeDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = LocalRepository(db);
+    final ledgerId = await repository.createLedger(name: '当前账本');
+    await repository.createCategory(name: '其他', kind: 'expense');
+    await repository.addTransaction(
+      ledgerId: ledgerId,
+      type: 'expense',
+      amount: 10,
+      happenedAt: DateTime(2026, 7, 17, 13),
+      note: '前台已打开的第一条',
+      needsClassification: true,
+    );
+    final container = ProviderContainer(overrides: [
+      databaseProvider.overrideWithValue(db),
+      repositoryProvider.overrideWithValue(repository),
+      currentLedgerIdProvider.overrideWith((_) => ledgerId),
+    ]);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: _testApp(
+        const PendingBillingNavigationHost(
+          child: Scaffold(body: Text('主页')),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('前台已打开的第一条'), findsOneWidget);
+
+    await repository.addTransaction(
+      ledgerId: ledgerId,
+      type: 'expense',
+      amount: 20,
+      happenedAt: DateTime(2026, 7, 17, 13, 1),
+      note: '后台新增的第二条',
+      needsClassification: true,
+    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    Navigator.of(tester.element(find.text('待分类账单'))).pop();
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 10 && find.text('后台新增的第二条').evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(find.text('后台新增的第二条'), findsOneWidget);
+    expect(find.text('前台已打开的第一条'), findsNothing);
+  });
+
   testWidgets('生产 Host 同时发现两类记录时先打开真实关键待确认页面', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final db = BeeDatabase.forTesting(NativeDatabase.memory());

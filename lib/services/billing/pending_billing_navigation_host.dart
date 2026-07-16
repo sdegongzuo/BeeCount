@@ -51,18 +51,26 @@ class _PendingBillingNavigationHostState
     if (!mounted || _initialized) return;
     _initialized = true;
     final coordinator = PendingBillingNavigationCoordinator(
-      findOldestCritical: () async {
+      findOldestCritical: (excludedIds) async {
         final jobs = await ref
             .read(billingJobRepositoryProvider)
             .findAwaitingConfirmationJobs();
-        return jobs.isEmpty ? null : jobs.first.id;
+        for (final job in jobs) {
+          if (!excludedIds.contains(job.id)) return job.id;
+        }
+        return null;
       },
-      findOldestClassification: () async {
+      findOldestClassification: (excludedIds) async {
         final ledgerId = ref.read(currentLedgerIdProvider);
         final pending = await ref
             .read(pendingTransactionClassificationServiceProvider)
             .listPending(ledgerId: ledgerId);
-        return pending.isEmpty ? null : pending.first.transaction.id;
+        for (final draft in pending) {
+          if (!excludedIds.contains(draft.transaction.id)) {
+            return draft.transaction.id;
+          }
+        }
+        return null;
       },
       openCritical: _openCritical,
       openClassification: _openClassification,

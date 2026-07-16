@@ -3,8 +3,8 @@ import 'dart:collection';
 
 import 'package:flutter/widgets.dart';
 
-/// 查询当前最早一条待处理记录的数据库 ID。
-typedef PendingBillingFinder = Future<int?> Function();
+/// 查询当前最早一条、且不在 [excludedIds] 中的待处理记录数据库 ID。
+typedef PendingBillingFinder = Future<int?> Function(Set<int> excludedIds);
 
 /// 打开指定待处理页面，并在页面关闭后完成。
 typedef PendingBillingOpener = Future<void> Function(int id);
@@ -34,6 +34,9 @@ class PendingBillingNavigationCoordinator {
 
   final LinkedHashSet<int> _criticalIds = LinkedHashSet<int>();
   final LinkedHashSet<int> _classificationIds = LinkedHashSet<int>();
+  final LinkedHashSet<int> _criticalDiscoveryExclusions = LinkedHashSet<int>();
+  final LinkedHashSet<int> _classificationDiscoveryExclusions =
+      LinkedHashSet<int>();
   bool _discoverRequested = false;
   bool _running = false;
   int? _activeCriticalId;
@@ -55,9 +58,12 @@ class PendingBillingNavigationCoordinator {
 
   /// 应用启动或回到前台时发现当前账本的遗留记录。
   void discoverOnForeground() {
-    // 页面已打开时的 resumed 往往只是系统生命周期抖动；若记住这次发现，用户
-    // 主动返回未处理页面后会立刻再次打开同一条记录。下一次真正回到前台再查。
-    if (_running) return;
+    // 空闲时代表一次新的前台发现机会，可以重新展示此前被用户返回的记录；
+    // 正在展示页面时则保留排除集，页面关闭后先寻找本轮尚未展示的其他记录。
+    if (!_running) {
+      _criticalDiscoveryExclusions.clear();
+      _classificationDiscoveryExclusions.clear();
+    }
     _discoverRequested = true;
     _schedule();
   }
@@ -77,7 +83,9 @@ class PendingBillingNavigationCoordinator {
 
       if (discoverCritical) {
         try {
-          final id = await findOldestCritical();
+          final id = await findOldestCritical(
+            Set<int>.unmodifiable(_criticalDiscoveryExclusions),
+          );
           if (id != null && id != _activeCriticalId) _criticalIds.add(id);
         } catch (error, stackTrace) {
           onError?.call(error, stackTrace);
@@ -85,7 +93,9 @@ class PendingBillingNavigationCoordinator {
       }
       if (discoverClassification) {
         try {
-          final id = await findOldestClassification();
+          final id = await findOldestClassification(
+            Set<int>.unmodifiable(_classificationDiscoveryExclusions),
+          );
           if (id != null && id != _activeClassificationId) {
             _classificationIds.add(id);
           }
@@ -104,6 +114,7 @@ class PendingBillingNavigationCoordinator {
           } catch (error, stackTrace) {
             onError?.call(error, stackTrace);
           } finally {
+            if (_discoverRequested) _criticalDiscoveryExclusions.add(id);
             _activeCriticalId = null;
           }
           continue;
@@ -117,6 +128,7 @@ class PendingBillingNavigationCoordinator {
         } catch (error, stackTrace) {
           onError?.call(error, stackTrace);
         } finally {
+          if (_discoverRequested) _classificationDiscoveryExclusions.add(id);
           _activeClassificationId = null;
         }
       }

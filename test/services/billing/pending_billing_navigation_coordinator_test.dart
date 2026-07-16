@@ -9,8 +9,8 @@ void main() {
     final opened = <String>[];
     final criticalClosed = Completer<void>();
     final coordinator = PendingBillingNavigationCoordinator(
-      findOldestCritical: () async => 11,
-      findOldestClassification: () async => 22,
+      findOldestCritical: (_) async => 11,
+      findOldestClassification: (_) async => 22,
       openCritical: (id) async {
         opened.add('critical:$id');
         await criticalClosed.future;
@@ -36,8 +36,8 @@ void main() {
     final opened = <int>[];
     final firstClosed = Completer<void>();
     final coordinator = PendingBillingNavigationCoordinator(
-      findOldestCritical: () async => null,
-      findOldestClassification: () async => null,
+      findOldestCritical: (_) async => null,
+      findOldestClassification: (_) async => null,
       openCritical: (_) async {},
       openClassification: (id) async {
         opened.add(id);
@@ -62,8 +62,8 @@ void main() {
     final opened = <String>[];
     final firstClosed = Completer<void>();
     final coordinator = PendingBillingNavigationCoordinator(
-      findOldestCritical: () async => null,
-      findOldestClassification: () async => null,
+      findOldestCritical: (_) async => null,
+      findOldestClassification: (_) async => null,
       openCritical: (id) async => opened.add('critical:$id'),
       openClassification: (id) async {
         opened.add('classification:$id');
@@ -86,11 +86,11 @@ void main() {
     var attempts = 0;
     final errors = <Object>[];
     final coordinator = PendingBillingNavigationCoordinator(
-      findOldestCritical: () async {
+      findOldestCritical: (_) async {
         attempts++;
         throw StateError('database unavailable');
       },
-      findOldestClassification: () async => null,
+      findOldestClassification: (_) async => null,
       openCritical: (_) async {},
       openClassification: (_) async {},
       onError: (error, _) => errors.add(error),
@@ -109,8 +109,9 @@ void main() {
     final opened = <int>[];
     final firstClosed = Completer<void>();
     final coordinator = PendingBillingNavigationCoordinator(
-      findOldestCritical: () async => null,
-      findOldestClassification: () async => 5,
+      findOldestCritical: (_) async => null,
+      findOldestClassification: (excludedIds) async =>
+          excludedIds.contains(5) ? null : 5,
       openCritical: (_) async {},
       openClassification: (id) async {
         opened.add(id);
@@ -136,8 +137,8 @@ void main() {
   testWidgets('生产生命周期在启动或恢复时发现当前账本最早遗留账单', (tester) async {
     final opened = <int>[];
     final coordinator = PendingBillingNavigationCoordinator(
-      findOldestCritical: () async => null,
-      findOldestClassification: () async => 7,
+      findOldestCritical: (_) async => null,
+      findOldestClassification: (_) async => 7,
       openCritical: (_) async {},
       openClassification: (id) async => opened.add(id),
     );
