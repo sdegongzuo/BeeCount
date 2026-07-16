@@ -158,6 +158,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonOther => '其他';
 
   @override
+  String get categoryIncomeOther => '其他收入';
+
+  @override
   String get commonYesterday => '昨天';
 
   @override
@@ -6488,6 +6491,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get commonOther => '其他';
+
+  @override
+  String get categoryIncomeOther => '其他收入';
 
   @override
   String get commonYesterday => '昨天';

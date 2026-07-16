@@ -63,11 +63,13 @@ class DeterministicBillClassifier {
     String? pageCategorySyncId,
     required List<BillCategoryRef> categories,
   }) {
-    final text = '${merchant ?? ''}\n$searchableText'.toLowerCase();
+    // 个人规则只能消费调用方已经确认过来源的商户证据；全文仅供后续
+    // 公共关键词规则使用，避免备注或 OCR 中的次要文字改变个人分类。
+    final personalText = (merchant ?? '').toLowerCase();
     final scopedRules = personalRules
         .where((rule) =>
             (rule.ledgerId == ledgerId || rule.ledgerId == null) &&
-            text.contains(rule.matchText.toLowerCase()))
+            personalText.contains(rule.matchText.toLowerCase()))
         .toList()
       ..sort((a, b) {
         final scope =

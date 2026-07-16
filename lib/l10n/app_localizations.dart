@@ -375,6 +375,12 @@ abstract class AppLocalizations {
   /// **'Other'**
   String get commonOther;
 
+  /// No description provided for @categoryIncomeOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other income'**
+  String get categoryIncomeOther;
+
   /// No description provided for @commonYesterday.
   ///
   /// In en, this message translates to:

@@ -293,7 +293,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 30; // v30: Billing Job 固化创建时账本
+  int get schemaVersion => 31; // v31: 分类稳定标识与显式兜底
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -981,6 +981,9 @@ class BeeDatabase extends _$BeeDatabase {
                 'ALTER TABLE billing_jobs ADD COLUMN ledger_id INTEGER;',
               );
             }
+          }
+          if (from < 31) {
+            await SeedService.repairExistingCategoryInvariants(this);
           }
         },
         beforeOpen: (_) async {

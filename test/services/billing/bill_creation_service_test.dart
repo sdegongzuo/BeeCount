@@ -1,9 +1,15 @@
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/local/local_repository.dart';
 import 'package:beecount/services/billing/bill_creation_service.dart';
+import 'package:beecount/services/billing/fast_billing_rule_service.dart';
 import 'package:beecount/services/billing/ocr_service.dart';
+import 'package:beecount/services/billing/personal_category_rule_store.dart';
 import 'package:beecount/services/billing/personal_note_preference_store.dart';
+import 'package:beecount/services/billing/rules/billing_rule_engine_impl.dart';
+import 'package:beecount/services/billing/rules/billing_rule_models.dart';
+import 'package:beecount/services/billing/rules/billing_rule_repository.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -108,6 +114,134 @@ void main() {
     expect(transaction?.categoryId, foodCategoryId);
   });
 
+  test('TOML 页面规则分类进入图片生产创建链且优先于商户词典', () async {
+    await repo.createCategory(name: '餐饮', kind: 'expense');
+    final travelCategoryId =
+        await repo.createCategory(name: '交通', kind: 'expense');
+    final travelCategory = await repo.getCategoryById(travelCategoryId);
+    final rules = TomlBillingRuleRepository(
+      assetBundle: _StringAssetBundle({
+        TomlBillingRuleRepository.defaultBuiltInAssetPath: '''
+schemaVersion = 1
+rulesVersion = "page-category-test"
+
+[[templates]]
+id = "page_category"
+priority = 100
+baseConfidence = 0.9
+
+[templates.match]
+keywordsAll = ["账单详情", "支付成功"]
+
+[[templates.extract]]
+field = "details.category_sync_id"
+type = "constant"
+value = "${travelCategory!.syncId}"
+confidence = 0.9
+''',
+      }),
+    );
+    final evaluated = await FastBillingRuleService(
+      ruleRepository: rules,
+      ruleEngine: BillingRuleEngineImpl(),
+    ).evaluate(
+      baseResult: OcrResult(
+        rawText: '账单详情\n天津海河测试餐厅甲\n支付成功',
+        amount: -28,
+        time: DateTime(2026, 7, 17),
+        paymentChannel: '微信支付',
+        allNumbers: const ['28'],
+      ),
+    );
+
+    final transactionId = await BillCreationService(repo).createBillTransaction(
+      result: evaluated.result,
+      ledgerId: ledgerId,
+      billingTypes: const ['image'],
+      autoAddTags: false,
+    );
+
+    final transaction = await repo.getTransactionById(transactionId!);
+    expect(transaction?.categoryId, travelCategoryId);
+    expect(transaction?.needsClassification, isFalse);
+  });
+
+  test('图片自动分类不使用任意备注作为个人规则证据', () async {
+    final foodCategoryId =
+        await repo.createCategory(name: '餐饮', kind: 'expense');
+    final foodCategory = await repo.getCategoryById(foodCategoryId);
+    final rules = SqlitePersonalCategoryRuleStore(db);
+    await rules.remember(
+      matchText: '只在备注中的商户',
+      categorySyncId: foodCategory!.syncId!,
+      ledgerId: ledgerId,
+    );
+
+    final transactionId = await BillCreationService(
+      repo,
+      personalCategoryRules: rules,
+    ).createBillTransaction(
+      result: OcrResult(
+        rawText: '支付成功 18.00',
+        amount: -18,
+        time: DateTime(2026, 7, 17),
+        note: '只在备注中的商户',
+        allNumbers: const ['18'],
+      ),
+      ledgerId: ledgerId,
+      billingTypes: const ['image'],
+      autoAddTags: false,
+    );
+
+    final transaction = await repo.getTransactionById(transactionId!);
+    expect(transaction?.categoryId, isNot(foodCategoryId));
+    expect(transaction?.needsClassification, isTrue);
+  });
+
+  test('图片自动分类可使用有页面规则来源的结构化摘要商户', () async {
+    final foodCategoryId =
+        await repo.createCategory(name: '餐饮', kind: 'expense');
+    final foodCategory = await repo.getCategoryById(foodCategoryId);
+    final rules = SqlitePersonalCategoryRuleStore(db);
+    await rules.remember(
+      matchText: '摘要商户',
+      categorySyncId: foodCategory!.syncId!,
+      ledgerId: ledgerId,
+    );
+    const structuredSummary = '商户：摘要商户\n商品：午餐';
+
+    final transactionId = await BillCreationService(
+      repo,
+      personalCategoryRules: rules,
+    ).createBillTransaction(
+      result: OcrResult(
+        rawText: '支付成功 18.00',
+        amount: -18,
+        time: DateTime(2026, 7, 17),
+        note: structuredSummary,
+        billingRuleResult: const BillingRuleResult(
+          matchedTemplateId: 'structured_summary_rule',
+          fields: {
+            'note': BillingRuleFieldResult(
+              field: 'note',
+              value: structuredSummary,
+              confidence: 0.9,
+              extractorType: 'constant',
+            ),
+          },
+        ),
+        allNumbers: const ['18'],
+      ),
+      ledgerId: ledgerId,
+      billingTypes: const ['image'],
+      autoAddTags: false,
+    );
+
+    final transaction = await repo.getTransactionById(transactionId!);
+    expect(transaction?.categoryId, foodCategoryId);
+    expect(transaction?.needsClassification, isFalse);
+  });
+
   test('图片分享无法可靠分类时仍创建到其他并记录待分类', () async {
     final service = BillCreationService(repo);
     final transactionId = await service.createBillTransaction(
@@ -170,4 +304,20 @@ void main() {
       1,
     );
   });
+}
+
+class _StringAssetBundle extends CachingAssetBundle {
+  final Map<String, String> assets;
+
+  _StringAssetBundle(this.assets);
+
+  @override
+  Future<String> loadString(String key, {bool cache = true}) async {
+    final value = assets[key];
+    if (value == null) throw StateError('Missing test asset: $key');
+    return value;
+  }
+
+  @override
+  Future<ByteData> load(String key) => throw UnimplementedError();
 }

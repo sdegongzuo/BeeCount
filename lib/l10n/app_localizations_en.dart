@@ -159,6 +159,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonOther => 'Other';
 
   @override
+  String get categoryIncomeOther => 'Other income';
+
+  @override
   String get commonYesterday => 'Yesterday';
 
   @override

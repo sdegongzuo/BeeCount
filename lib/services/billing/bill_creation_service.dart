@@ -6,7 +6,9 @@ import '../../data/category_node.dart';
 import '../../l10n/app_localizations.dart';
 import '../system/logger_service.dart';
 import '../data/tag_seed_service.dart';
+import '../data/seed_service.dart';
 import 'category_matcher.dart';
+import 'classification_match_evidence.dart';
 import 'details_text_helper.dart';
 import 'deterministic_bill_enrichment.dart';
 import 'personal_category_rule_store.dart';
@@ -31,14 +33,28 @@ class BillCreationService {
   /// 返回匹配的分类ID，如果都失败则返回null
   Future<int?> matchCategory(OcrResult result, List<Category> categories,
       {int? ledgerId, bool allowAiCategory = true}) async {
+    final structuredSummary = buildStructuredBillSummary(
+          merchant: result.merchantFullName ?? result.counterparty,
+          productSummary: result.details?['product_summary']?.toString(),
+          storeName: result.details?['store_name']?.toString(),
+          routeStart: result.details?['route_start']?.toString(),
+          routeEnd: result.details?['route_end']?.toString(),
+        ) ??
+        _ruleExtractedStructuredSummary(result);
+    final personalEvidence = classificationMatchText(
+      merchantFullName: result.merchantFullName,
+      counterparty: result.counterparty,
+      structuredSummary: structuredSummary,
+    );
     if (ledgerId != null &&
         personalCategoryRules != null &&
+        personalEvidence != null &&
         categories.any((c) => c.name == '其他')) {
       final personal = DeterministicBillClassifier(
         personalRules: await personalCategoryRules!.loadActiveRules(),
       ).classify(
         ledgerId: ledgerId,
-        merchant: result.merchantFullName ?? result.counterparty ?? result.note,
+        merchant: personalEvidence,
         searchableText: result.rawText,
         categories: categories
             .map((category) => BillCategoryRef(
@@ -52,7 +68,16 @@ class BillCreationService {
         return personal.category.localId;
       }
     }
-    if (result.suggestedCategoryId != null &&
+
+    // 图片分享的页面规则只读取规则引擎带来源的字段，绝不从 details
+    // 自由文本猜分类。稳定 syncId 优先；旧 TOML 的分类名称仅做精确映射。
+    if (!allowAiCategory) {
+      final pageCategoryId = _pageRuleCategoryId(result, categories);
+      if (pageCategoryId != null) return pageCategoryId;
+    }
+
+    if (allowAiCategory &&
+        result.suggestedCategoryId != null &&
         categories
             .any((category) => category.id == result.suggestedCategoryId)) {
       return result.suggestedCategoryId;
@@ -545,6 +570,16 @@ class BillCreationService {
       List<Category> categories, String transactionType) async {
     if (categories.isEmpty) return null;
 
+    final stableSyncId = SeedService.categorySyncId(transactionType, 'other');
+    final stableFallback = categories
+        .where((category) => category.syncId == stableSyncId)
+        .firstOrNull;
+    if (stableFallback != null) {
+      logger.debug(
+          _tag, '[分类兜底] 使用"${stableFallback.name}"(ID:${stableFallback.id})');
+      return stableFallback.id;
+    }
+
     // 尝试查找"其他"分类（支持多种命名方式）
     final otherKeywords = ['其他', 'other', '其它', '杂项', 'misc'];
     for (final keyword in otherKeywords) {
@@ -559,11 +594,9 @@ class BillCreationService {
       }
     }
 
-    // 如果没有"其他"分类，使用排序最后的分类
-    final lastCategory = categories.last;
-    logger.debug(
-        _tag, '[分类兜底] 使用"${lastCategory.name}"(ID:${lastCategory.id})');
-    return lastCategory.id;
+    // 缺少兜底时宁可保持未分类，也不能把排序最后的普通分类误当兜底。
+    logger.warning(_tag, '[分类兜底] 未找到显式兜底分类');
+    return null;
   }
 
   /// 获取分类列表（按类型）
@@ -581,4 +614,38 @@ class BillCreationService {
     }
     return allCategories;
   }
+}
+
+String? _ruleExtractedStructuredSummary(OcrResult result) {
+  final field = result.billingRuleResult?.fields['note'];
+  final note = result.note?.trim();
+  if (field == null || note == null || note.isEmpty) return null;
+  if (field.value?.toString().trim() != note) return null;
+  return note;
+}
+
+int? _pageRuleCategoryId(OcrResult result, List<Category> categories) {
+  final fields = result.billingRuleResult?.fields;
+  if (fields == null || fields.isEmpty) return null;
+
+  for (final path in const [
+    'details.category_sync_id',
+    'details.bill_category_sync_id',
+  ]) {
+    final value = fields[path]?.value?.toString().trim();
+    if (value == null || value.isEmpty) continue;
+    for (final category in categories) {
+      if (category.syncId == value) return category.id;
+    }
+  }
+
+  final legacyValue = fields['details.bill_category']?.value?.toString().trim();
+  if (legacyValue == null || legacyValue.isEmpty) return null;
+  for (final category in categories) {
+    if (category.syncId == legacyValue) return category.id;
+  }
+  final exactNames = categories
+      .where((category) => category.name.trim() == legacyValue)
+      .toList(growable: false);
+  return exactNames.length == 1 ? exactNames.single.id : null;
 }
