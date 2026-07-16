@@ -1,5 +1,7 @@
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'billing_rule_network_policy.dart';
+
 /// 加载当前安装包版本的可替换边界。
 typedef BillingRuleAppVersionLoader = Future<String> Function();
 
@@ -129,7 +131,8 @@ bool _isTrustedHttpsUri(Uri? uri) {
     return false;
   }
   final host = uri.host.toLowerCase();
-  return host != 'example.com' &&
+  return isSafeBillingRuleHostSyntax(host) &&
+      host != 'example.com' &&
       !host.endsWith('.example.com') &&
       !host.endsWith('.example') &&
       !host.endsWith('.invalid');
@@ -145,9 +148,9 @@ class SemanticVersion implements Comparable<SemanticVersion> {
     r'(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$',
   );
 
-  final int major;
-  final int minor;
-  final int patch;
+  final BigInt major;
+  final BigInt minor;
+  final BigInt patch;
   final List<String> prerelease;
 
   const SemanticVersion._(
@@ -175,16 +178,16 @@ class SemanticVersion implements Comparable<SemanticVersion> {
       return null;
     }
     return SemanticVersion._(
-      int.parse(match.group(1)!),
-      int.parse(match.group(2)!),
-      int.parse(match.group(3)!),
+      BigInt.parse(match.group(1)!),
+      BigInt.parse(match.group(2)!),
+      BigInt.parse(match.group(3)!),
       List.unmodifiable(prerelease),
     );
   }
 
   @override
   int compareTo(SemanticVersion other) {
-    for (final pair in <(int, int)>[
+    for (final pair in <(BigInt, BigInt)>[
       (major, other.major),
       (minor, other.minor),
       (patch, other.patch),
@@ -201,14 +204,14 @@ class SemanticVersion implements Comparable<SemanticVersion> {
     for (var index = 0; index < count; index++) {
       final left = prerelease[index];
       final right = other.prerelease[index];
-      final leftNumber = int.tryParse(left);
-      final rightNumber = int.tryParse(right);
+      final leftIsNumber = _numericIdentifier.hasMatch(left);
+      final rightIsNumber = _numericIdentifier.hasMatch(right);
       int compared;
-      if (leftNumber != null && rightNumber != null) {
-        compared = leftNumber.compareTo(rightNumber);
-      } else if (leftNumber != null) {
+      if (leftIsNumber && rightIsNumber) {
+        compared = _compareDecimalIdentifiers(left, right);
+      } else if (leftIsNumber) {
         compared = -1;
-      } else if (rightNumber != null) {
+      } else if (rightIsNumber) {
         compared = 1;
       } else {
         compared = left.compareTo(right);
@@ -226,4 +229,11 @@ class SemanticVersion implements Comparable<SemanticVersion> {
 
   @override
   int get hashCode => Object.hash(major, minor, patch, prerelease.join('.'));
+}
+
+final RegExp _numericIdentifier = RegExp(r'^\d+$');
+
+int _compareDecimalIdentifiers(String left, String right) {
+  final lengthComparison = left.length.compareTo(right.length);
+  return lengthComparison != 0 ? lengthComparison : left.compareTo(right);
 }
