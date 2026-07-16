@@ -156,11 +156,11 @@ Future<void> _confirmThroughPage(
     find.byKey(const Key('timeField')),
     '2026-07-16 12:34',
   );
-  final choice = find.text(
-    rememberForSimilarBills ? '对类似账单记住' : '仅本次',
-  );
-  await $.tester.ensureVisible(choice);
-  await $.tap(choice);
+  if (rememberForSimilarBills) {
+    final remember = find.byKey(const Key('rememberExtractionCorrections'));
+    await $.tester.ensureVisible(remember);
+    await $.tap(remember);
+  }
   final confirm = find.text('确认并创建账单');
   await $.tester.ensureVisible(confirm);
   await $.tap(confirm);

@@ -111,9 +111,10 @@ void main() {
     expect(find.byKey(const Key('globalCategoryRule')), findsOneWidget);
     await tester.tap(find.byKey(const Key('globalCategoryRule')));
     await tester.tap(find.byKey(const Key('rememberNotePreference')));
+    await tester.tap(find.byKey(const Key('rememberExtractionCorrections')));
     await tester.tap(find.text('确认并创建账单'));
     await tester.pumpAndSettle();
-    expect(extractionRemembered, isFalse);
+    expect(extractionRemembered, isTrue);
     expect(noteRemembered, isTrue);
     expect(createCount, 1);
     expect(
