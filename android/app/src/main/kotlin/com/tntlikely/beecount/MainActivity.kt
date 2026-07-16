@@ -27,7 +27,6 @@ import java.util.UUID
 
 class MainActivity: FlutterFragmentActivity() {
     private var regressionSampleChannel: RegressionSampleChannel? = null
-    private var billingRuleStorageRegistration: BillingRuleDurabilityChannel.Registration? = null
     private val CHANNEL = "notification_channel"
     private val INSTALL_CHANNEL = "com.tntlikely.beecount/install"
     private val SCREENSHOT_CHANNEL = "com.tntlikely.beecount/screenshot"
@@ -150,10 +149,7 @@ class MainActivity: FlutterFragmentActivity() {
             applicationContext,
             flutterEngine.dartExecutor.binaryMessenger,
         )
-        billingRuleStorageRegistration?.close()
-        billingRuleStorageRegistration = BillingRuleDurabilityChannel.register(
-            flutterEngine.dartExecutor.binaryMessenger
-        )
+        BillingRuleEngineStorageBinding.attach(flutterEngine)
 
         android.util.Log.e("MainActivity", "==========================================")
         android.util.Log.e("MainActivity", "configureFlutterEngine 被调用！！！")
@@ -868,8 +864,6 @@ class MainActivity: FlutterFragmentActivity() {
     override fun onDestroy() {
         regressionSampleChannel?.close()
         regressionSampleChannel = null
-        billingRuleStorageRegistration?.close()
-        billingRuleStorageRegistration = null
         super.onDestroy()
         shareBillingReceiver?.let {
             try {

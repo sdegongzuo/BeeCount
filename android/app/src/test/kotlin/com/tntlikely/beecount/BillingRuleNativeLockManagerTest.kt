@@ -14,7 +14,7 @@ import java.util.concurrent.TimeoutException
 
 class BillingRuleNativeLockManagerTest {
     @Test
-    fun `two engine owners cannot enter together and owner close releases lease`() {
+    fun `engine destroy retains lease until held action stops and destroy returns`() {
         val directory = Files.createTempDirectory("billing-rule-native-lock")
         val lockPath = directory.resolve("billing_rules.lock").toString()
         val manager = BillingRuleNativeLockManager()
@@ -39,11 +39,20 @@ class BillingRuleNativeLockManagerTest {
         }
 
         assertFalse(secondAcquired.await(150, TimeUnit.MILLISECONDS))
-        manager.closeOwner("main-engine")
+        manager.beginOwnerShutdown("main-engine")
+        assertFalse(
+            "begin shutdown must retain the lease until the engine stops",
+            secondAcquired.await(150, TimeUnit.MILLISECONDS),
+        )
         allowFirstToFinish.countDown()
+        assertNotNull(first.get(5, TimeUnit.SECONDS))
+        assertFalse(
+            "finishing Dart work alone must not bypass the engine-stop boundary",
+            secondAcquired.await(150, TimeUnit.MILLISECONDS),
+        )
+        manager.closeOwner("main-engine")
         assertTrue(secondAcquired.await(5, TimeUnit.SECONDS))
         assertNotNull(second.get(5, TimeUnit.SECONDS))
-        assertNotNull(first.get(5, TimeUnit.SECONDS))
 
         manager.closeOwner("headless-engine")
         assertNull(manager.currentOwnerForTest())
@@ -72,13 +81,14 @@ class BillingRuleNativeLockManagerTest {
             manager.acquire("destroyed-owner", lockPath, 5_000)
         }
         Thread.sleep(50)
-        manager.closeOwner("destroyed-owner")
+        manager.beginOwnerShutdown("destroyed-owner")
         try {
             waiting.get(5, TimeUnit.SECONDS)
             throw AssertionError("destroyed owner should be cancelled")
         } catch (error: ExecutionException) {
             assertTrue(error.cause is java.util.concurrent.CancellationException)
         }
+        manager.closeOwner("destroyed-owner")
 
         assertTrue(manager.release("holder", holderToken))
         manager.closeOwner("holder")

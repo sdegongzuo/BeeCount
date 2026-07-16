@@ -23,6 +23,7 @@ class BillingRuleNativeLockManager {
     private val stateLock = ReentrantLock(true)
     private val ownerChanged = stateLock.newCondition()
     private val openOwners = mutableSetOf<String>()
+    private val stoppingOwners = mutableSetOf<String>()
     private var activeLease: Lease? = null
 
     fun openOwner(ownerId: String) {
@@ -43,7 +44,7 @@ class BillingRuleNativeLockManager {
         stateLock.lockInterruptibly()
         try {
             while (true) {
-                if (ownerId !in openOwners) {
+                if (ownerId !in openOwners || ownerId in stoppingOwners) {
                     throw CancellationException("lock owner is closed")
                 }
                 if (activeLease == null) {
@@ -82,7 +83,19 @@ class BillingRuleNativeLockManager {
         stateLock.lock()
         try {
             openOwners -= ownerId
+            stoppingOwners -= ownerId
             if (activeLease?.ownerId == ownerId) releaseActiveLease()
+            ownerChanged.signalAll()
+        } finally {
+            stateLock.unlock()
+        }
+    }
+
+    /** Cancels pending acquisition without releasing a lease held by running Dart code. */
+    fun beginOwnerShutdown(ownerId: String) {
+        stateLock.lock()
+        try {
+            if (ownerId in openOwners) stoppingOwners += ownerId
             ownerChanged.signalAll()
         } finally {
             stateLock.unlock()

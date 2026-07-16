@@ -32,6 +32,8 @@ class BillingRuleNativeLockInstrumentationTest {
         }
         assertFalse(secondEntered.await(150, TimeUnit.MILLISECONDS))
 
+        manager.beginOwnerShutdown("instrumented-main-engine")
+        assertFalse(secondEntered.await(150, TimeUnit.MILLISECONDS))
         manager.closeOwner("instrumented-main-engine")
         assertTrue(secondEntered.await(5, TimeUnit.SECONDS))
         manager.release("instrumented-headless-engine", second.get(5, TimeUnit.SECONDS))
