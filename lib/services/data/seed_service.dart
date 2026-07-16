@@ -1047,18 +1047,8 @@ class SeedService {
     }
   }
 
-  /// 修复升级库的分类不变量：保留已有同步标识，只补空值和缺失兜底。
+  /// 修复升级库的分类不变量：默认兜底先赋确定性标识，其余空值再回填。
   static Future<void> repairExistingCategoryInvariants(BeeDatabase db) async {
-    await db.customStatement('''
-      UPDATE categories SET sync_id =
-        lower(hex(randomblob(4))) || '-' ||
-        lower(hex(randomblob(2))) || '-4' ||
-        substr(lower(hex(randomblob(2))),2) || '-' ||
-        substr('89ab', abs(random()) % 4 + 1, 1) ||
-        substr(lower(hex(randomblob(2))),2) || '-' ||
-        lower(hex(randomblob(6)))
-      WHERE sync_id IS NULL OR trim(sync_id) = '';
-    ''');
     final rows = await db.select(db.categories).get();
     final usesChinese = rows.any(
       (category) => RegExp(r'[\u3400-\u9fff]').hasMatch(category.name),
@@ -1087,20 +1077,41 @@ class SeedService {
       ),
     ];
     for (final fallback in fallbacks) {
-      final exists = rows.any((category) =>
-          category.kind == fallback.$1 && fallback.$4.contains(category.name));
-      if (exists) continue;
-      await db.into(db.categories).insert(
-            CategoriesCompanion.insert(
-              name: fallback.$3,
-              kind: fallback.$1,
-              icon: const Value('category'),
-              sortOrder: const Value(1000000),
-              level: const Value(1),
-              syncId: Value(categorySyncId(fallback.$1, fallback.$2)),
-            ),
-          );
+      final existing = rows
+          .where((category) =>
+              category.kind == fallback.$1 &&
+              fallback.$4.contains(category.name))
+          .toList(growable: false);
+      final stableSyncId = categorySyncId(fallback.$1, fallback.$2);
+      if (existing.isNotEmpty) {
+        for (final category in existing) {
+          await (db.update(db.categories)
+                ..where((row) => row.id.equals(category.id)))
+              .write(CategoriesCompanion(syncId: Value(stableSyncId)));
+        }
+      } else {
+        await db.into(db.categories).insert(
+              CategoriesCompanion.insert(
+                name: fallback.$3,
+                kind: fallback.$1,
+                icon: const Value('category'),
+                sortOrder: const Value(1000000),
+                level: const Value(1),
+                syncId: Value(stableSyncId),
+              ),
+            );
+      }
     }
+    await db.customStatement('''
+      UPDATE categories SET sync_id =
+        lower(hex(randomblob(4))) || '-' ||
+        lower(hex(randomblob(2))) || '-4' ||
+        substr(lower(hex(randomblob(2))),2) || '-' ||
+        substr('89ab', abs(random()) % 4 + 1, 1) ||
+        substr(lower(hex(randomblob(2))),2) || '-' ||
+        lower(hex(randomblob(6)))
+      WHERE sync_id IS NULL OR trim(sync_id) = '';
+    ''');
   }
 
   /// 完整的种子数据初始化

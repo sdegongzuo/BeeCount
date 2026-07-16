@@ -61,6 +61,7 @@ class DeterministicBillClassifier {
     required String? merchant,
     required String searchableText,
     String? pageCategorySyncId,
+    required String fallbackCategorySyncId,
     required List<BillCategoryRef> categories,
   }) {
     // 个人规则只能消费调用方已经确认过来源的商户证据；全文仅供后续
@@ -99,8 +100,7 @@ class DeterministicBillClassifier {
       return _matched(keywordMatch, BillCategorySource.keywordRule);
     }
 
-    final fallback =
-        categories.where((category) => category.name == '其他').firstOrNull;
+    final fallback = _bySyncId(categories, fallbackCategorySyncId);
     if (fallback == null) throw StateError('other_category_not_found');
     return DeterministicCategoryResult(
       category: fallback,
@@ -162,8 +162,4 @@ String? buildStructuredBillSummary({
       .map((field) => '${field.$1}：${field.$2!.trim()}')
       .toList();
   return lines.isEmpty ? null : lines.join('\n');
-}
-
-extension<T> on Iterable<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }

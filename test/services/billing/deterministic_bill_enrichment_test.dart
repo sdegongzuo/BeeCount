@@ -26,6 +26,7 @@ void main() {
       merchant: '天津海河测试餐厅甲',
       searchableText: '天津海河测试餐厅甲 咖啡',
       pageCategorySyncId: 'food-sync',
+      fallbackCategorySyncId: 'other-sync',
       categories: categories,
     );
     expect(personal.category.localId, 2);
@@ -36,6 +37,7 @@ void main() {
       merchant: '未知商户',
       searchableText: '咖啡',
       pageCategorySyncId: 'travel-sync',
+      fallbackCategorySyncId: 'other-sync',
       categories: categories,
     );
     expect(page.category.localId, 2);
@@ -61,6 +63,7 @@ void main() {
             ledgerId: 3,
             merchant: '滴滴出行',
             searchableText: '滴滴出行',
+            fallbackCategorySyncId: 'other-sync',
             categories: categories,
           )
           .category
@@ -73,6 +76,7 @@ void main() {
             ledgerId: 4,
             merchant: '滴滴出行',
             searchableText: '滴滴出行',
+            fallbackCategorySyncId: 'other-sync',
             categories: categories,
           )
           .category
@@ -86,6 +90,7 @@ void main() {
       ledgerId: 1,
       merchant: '未知',
       searchableText: '没有命中',
+      fallbackCategorySyncId: 'other-sync',
       categories: categories,
     );
     expect(result.category.localId, 9);

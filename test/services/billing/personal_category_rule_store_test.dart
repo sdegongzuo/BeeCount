@@ -36,6 +36,7 @@ void main() {
       ledgerId: 8,
       merchant: '天津海河测试餐厅甲天津和平测试门店甲',
       searchableText: '天津海河测试餐厅甲 支付成功',
+      fallbackCategorySyncId: 'category-other-sync',
       categories: const [
         BillCategoryRef(
           localId: 3,

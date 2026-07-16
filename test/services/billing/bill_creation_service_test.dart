@@ -8,6 +8,8 @@ import 'package:beecount/services/billing/personal_note_preference_store.dart';
 import 'package:beecount/services/billing/rules/billing_rule_engine_impl.dart';
 import 'package:beecount/services/billing/rules/billing_rule_models.dart';
 import 'package:beecount/services/billing/rules/billing_rule_repository.dart';
+import 'package:beecount/services/data/seed_service.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,7 +27,13 @@ void main() {
     db = BeeDatabase.forTesting(NativeDatabase.memory());
     repo = LocalRepository(db);
     ledgerId = await repo.createLedger(name: 'Bill Creation');
-    await repo.createCategory(name: '其他', kind: 'expense');
+    final expenseFallbackId =
+        await repo.createCategory(name: '其他', kind: 'expense');
+    await (db.update(db.categories)
+          ..where((category) => category.id.equals(expenseFallbackId)))
+        .write(CategoriesCompanion(
+      syncId: Value(SeedService.categorySyncId('expense', 'other')),
+    ));
     await repo.createCategory(name: '其他退费', kind: 'income');
   });
 
@@ -241,6 +249,53 @@ confidence = 0.9
     expect(transaction?.categoryId, foodCategoryId);
     expect(transaction?.needsClassification, isFalse);
   });
+
+  for (final scenario in const [
+    ('英文支出', 'expense', 'Other', -18.0, '支付成功'),
+    ('中文收入', 'income', '其他收入', 18.0, '收款成功'),
+    ('英文收入', 'income', 'Other income', 18.0, '收款成功'),
+  ]) {
+    test('${scenario.$1}稳定兜底身份不阻断图片个人分类', () async {
+      await db.into(db.categories).insert(
+            CategoriesCompanion.insert(
+              name: scenario.$3,
+              kind: scenario.$2,
+              syncId: Value(
+                SeedService.categorySyncId(scenario.$2, 'other'),
+              ),
+            ),
+          );
+      final targetId = await repo.createCategory(
+          name: '目标-${scenario.$1}', kind: scenario.$2);
+      final target = await repo.getCategoryById(targetId);
+      final rules = SqlitePersonalCategoryRuleStore(db);
+      await rules.remember(
+        matchText: '稳定商户',
+        categorySyncId: target!.syncId!,
+        ledgerId: ledgerId,
+      );
+
+      final transactionId = await BillCreationService(
+        repo,
+        personalCategoryRules: rules,
+      ).createBillTransaction(
+        result: OcrResult(
+          rawText: '${scenario.$5} 18.00',
+          amount: scenario.$4,
+          merchantFullName: '稳定商户',
+          time: DateTime(2026, 7, 17),
+          allNumbers: const ['18'],
+        ),
+        ledgerId: ledgerId,
+        billingTypes: const ['image'],
+        autoAddTags: false,
+      );
+
+      final transaction = await repo.getTransactionById(transactionId!);
+      expect(transaction?.categoryId, targetId);
+      expect(transaction?.needsClassification, isFalse);
+    });
+  }
 
   test('图片分享无法可靠分类时仍创建到其他并记录待分类', () async {
     final service = BillCreationService(repo);

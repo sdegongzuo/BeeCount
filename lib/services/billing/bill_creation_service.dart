@@ -46,16 +46,21 @@ class BillCreationService {
       counterparty: result.counterparty,
       structuredSummary: structuredSummary,
     );
+    final fallbackCategorySyncId = categories.isEmpty
+        ? null
+        : SeedService.categorySyncId(categories.first.kind, 'other');
     if (ledgerId != null &&
         personalCategoryRules != null &&
         personalEvidence != null &&
-        categories.any((c) => c.name == '其他')) {
+        fallbackCategorySyncId != null &&
+        categories.any((c) => c.syncId == fallbackCategorySyncId)) {
       final personal = DeterministicBillClassifier(
         personalRules: await personalCategoryRules!.loadActiveRules(),
       ).classify(
         ledgerId: ledgerId,
         merchant: personalEvidence,
         searchableText: result.rawText,
+        fallbackCategorySyncId: fallbackCategorySyncId,
         categories: categories
             .map((category) => BillCategoryRef(
                   localId: category.id,
