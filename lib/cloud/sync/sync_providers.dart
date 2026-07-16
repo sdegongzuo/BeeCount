@@ -32,7 +32,7 @@ final syncEngineProvider = Provider.family<SyncEngine, BeeCountCloudProvider>(
         regressionSamples: const PlatformPersonalRuleRegressionSampleSource(
           RegressionSampleStore(),
         ),
-        loadPublicRules: TomlBillingRuleRepository().loadActiveRuleSet,
+        loadPublicRules: productionBillingRuleRepository().loadActiveRuleSet,
       ).call,
     );
   },

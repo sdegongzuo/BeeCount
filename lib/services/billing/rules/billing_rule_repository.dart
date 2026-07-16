@@ -5,11 +5,102 @@ import 'package:toml/toml.dart';
 
 import 'billing_rule_engine.dart';
 import 'billing_rule_models.dart';
+import 'billing_rule_storage.dart';
 
 typedef BillingRuleFileLoader = Future<String?> Function(File file);
 
 /// 读取当前不可变规则集的延迟加载器。
 typedef BillingRuleSetLoader = Future<BillingRuleSet> Function();
+
+/// 取得公共规则文件布局的延迟加载器。
+typedef BillingRuleStorageLoader = Future<BillingRuleStorage> Function();
+
+/// 生产公共规则仓库：缓存当前不可变快照，并在活动指针切换后显式失效。
+///
+/// 单次图片处理不会反复读取磁盘；更新服务完成原子切换后调用
+/// [invalidateActiveSnapshot]，下一张图片会重新读取 active/previous/built-in
+/// 三级安全链。进程重启时缓存自然为空，因此会读取已激活文件。
+class RuntimeBillingRuleRepository implements BillingRuleRepository {
+  final BillingRuleStorageLoader _storageLoader;
+  final AssetBundle _assetBundle;
+  final String _builtInAssetPath;
+  final File? _debugOverrideRuleFile;
+  final BillingRuleFileLoader _fileLoader;
+
+  Future<TomlBillingRuleRepository>? _delegate;
+  Future<BillingRuleSet>? _activeSnapshot;
+
+  /// 创建一个可测试的运行时仓库。
+  RuntimeBillingRuleRepository({
+    required BillingRuleStorageLoader storageLoader,
+    AssetBundle? assetBundle,
+    String builtInAssetPath = TomlBillingRuleRepository.defaultBuiltInAssetPath,
+    File? debugOverrideRuleFile,
+    BillingRuleFileLoader? fileLoader,
+  })  : _storageLoader = storageLoader,
+        _assetBundle = assetBundle ?? rootBundle,
+        _builtInAssetPath = builtInAssetPath,
+        _debugOverrideRuleFile = debugOverrideRuleFile,
+        _fileLoader = fileLoader ?? _readExistingFile;
+
+  Future<TomlBillingRuleRepository> _repository() =>
+      _delegate ??= _createRepository();
+
+  Future<TomlBillingRuleRepository> _createRepository() async {
+    final storage = await _storageLoader();
+    return TomlBillingRuleRepository(
+      assetBundle: _assetBundle,
+      builtInAssetPath: _builtInAssetPath,
+      activeRuleFile: storage.activeFile,
+      previousRuleFile: storage.previousFile,
+      debugOverrideRuleFile: _debugOverrideRuleFile,
+      fileLoader: _fileLoader,
+    );
+  }
+
+  /// 使当前内存快照失效；下一次读取会加载刚原子激活的文件。
+  void invalidateActiveSnapshot() {
+    _activeSnapshot = null;
+  }
+
+  @override
+  Future<BillingRuleSet> loadActiveRuleSet() {
+    return _activeSnapshot ??= _loadActiveRuleSet();
+  }
+
+  Future<BillingRuleSet> _loadActiveRuleSet() async {
+    try {
+      return await (await _repository()).loadActiveRuleSet();
+    } catch (_) {
+      _activeSnapshot = null;
+      rethrow;
+    }
+  }
+
+  @override
+  Future<BillingRuleSet> loadBuiltInRuleSet() async =>
+      (await _repository()).loadBuiltInRuleSet();
+
+  @override
+  Future<BillingRuleSet?> loadDebugOverrideRuleSet() async =>
+      (await _repository()).loadDebugOverrideRuleSet();
+
+  @override
+  Future<void> validateRuleSet(BillingRuleSet ruleSet) async =>
+      (await _repository()).validateRuleSet(ruleSet);
+}
+
+RuntimeBillingRuleRepository? _productionRuntimeRepository;
+
+/// 返回 OCR、BillingJob 与同步共同使用的进程内生产公共规则仓库。
+RuntimeBillingRuleRepository productionBillingRuleRepository() =>
+    _productionRuntimeRepository ??= RuntimeBillingRuleRepository(
+      storageLoader: productionBillingRuleStorage,
+    );
+
+/// 通知生产仓库活动文件已经完成原子切换。
+void invalidateProductionBillingRuleSnapshot() =>
+    _productionRuntimeRepository?.invalidateActiveSnapshot();
 
 /// 生产活动快照：公共 TOML 与 SQLite 活动个人修订在每次评估前合并。
 class ActiveBillingRuleRepository implements BillingRuleRepository {

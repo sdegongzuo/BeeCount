@@ -181,7 +181,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
         regressionSamples: const PlatformPersonalRuleRegressionSampleSource(
           RegressionSampleStore(),
         ),
-        loadPublicRules: TomlBillingRuleRepository().loadActiveRuleSet,
+        loadPublicRules: productionBillingRuleRepository().loadActiveRuleSet,
       ).call,
     );
 

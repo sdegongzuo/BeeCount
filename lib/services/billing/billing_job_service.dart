@@ -337,7 +337,8 @@ class BillingJobService {
   }) =>
       FastBillingRuleService(
         ruleRepository: ActiveBillingRuleRepository(
-          publicRepository: publicRuleRepository ?? TomlBillingRuleRepository(),
+          publicRepository:
+              publicRuleRepository ?? productionBillingRuleRepository(),
           loadActivePersonalRules:
               SqlitePersonalRuleRevisionStore(database).loadActiveRuleSet,
         ),
@@ -360,9 +361,9 @@ class BillingJobService {
             engine: BillingRuleEngineImpl(),
             revisionStore: SqlitePersonalRuleRevisionStore(database),
             regressionSamples: regressionSamples,
-            publicRules:
-                await (publicRuleRepository ?? TomlBillingRuleRepository())
-                    .loadActiveRuleSet(),
+            publicRules: await (publicRuleRepository ??
+                    productionBillingRuleRepository())
+                .loadActiveRuleSet(),
           );
 
   static ScreenshotSourceInfo? _sourceInfoFromJob(String? jsonText) {

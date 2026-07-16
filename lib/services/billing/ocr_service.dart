@@ -255,7 +255,7 @@ class OcrService {
   })  : _imagePreprocessor = imagePreprocessor ?? const OcrImagePreprocessor(),
         _fastBillingRuleService = fastBillingRuleService ??
             FastBillingRuleService(
-              ruleRepository: TomlBillingRuleRepository(),
+              ruleRepository: productionBillingRuleRepository(),
               ruleEngine: BillingRuleEngineImpl(),
             );
 

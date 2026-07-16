@@ -3,11 +3,10 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
-
 import 'billing_rule_manifest.dart';
 import 'billing_rule_models.dart';
 import 'billing_rule_repository.dart';
+import 'billing_rule_storage.dart';
 
 typedef BillingRuleManifestLoader = Future<String> Function(Uri uri);
 typedef BillingRulePackageDownloader = Future<String> Function(Uri uri);
@@ -68,13 +67,16 @@ class BillingRuleUpdateResult {
 }
 
 class BillingRuleUpdateService {
-  static const activeFileName = 'billing_rules.active.toml';
-  static const previousFileName = 'billing_rules.previous.toml';
-  static const lastCheckFileName = 'billing_rules.last_check.json';
+  static const activeFileName = BillingRuleStorage.activeFileName;
+  static const previousFileName = BillingRuleStorage.previousFileName;
+  static const lastCheckFileName = BillingRuleStorage.lastCheckFileName;
   static const defaultManifestUrl =
       'https://example.com/beecount/billing_rules_manifest.json';
 
   final Directory? storageDirectory;
+
+  /// 与生产读取链共享的规则文件布局；测试可注入隔离目录。
+  final BillingRuleStorage? ruleStorage;
   final Uri manifestUri;
   final BillingRuleManifestLoader manifestLoader;
   final BillingRulePackageDownloader rulePackageDownloader;
@@ -83,10 +85,14 @@ class BillingRuleUpdateService {
   final BillingRulePersonalRegression personalRegression;
   final BillingRulePersonalRuleArchiver personalRuleArchiver;
   final void Function()? beforeAtomicSwitch;
+
+  /// 活动文件完成原子切换或恢复后使运行时内存快照失效。
+  final void Function() onActiveSnapshotChanged;
   final BillingRuleUpdateClock clock;
 
   BillingRuleUpdateService({
     this.storageDirectory,
+    this.ruleStorage,
     Uri? manifestUri,
     BillingRuleManifestLoader? manifestLoader,
     BillingRulePackageDownloader? rulePackageDownloader,
@@ -95,19 +101,23 @@ class BillingRuleUpdateService {
     required this.personalRegression,
     required this.personalRuleArchiver,
     this.beforeAtomicSwitch,
+    void Function()? onActiveSnapshotChanged,
     BillingRuleUpdateClock? clock,
   })  : manifestUri = manifestUri ?? Uri.parse(defaultManifestUrl),
         manifestLoader = manifestLoader ?? _httpGetString,
         rulePackageDownloader = rulePackageDownloader ?? _httpGetString,
         smokeTest = smokeTest ?? _defaultSmokeTest,
-        clock = clock ?? DateTime.now;
+        onActiveSnapshotChanged =
+            onActiveSnapshotChanged ?? invalidateProductionBillingRuleSnapshot,
+        clock = clock ?? DateTime.now,
+        assert(ruleStorage == null || storageDirectory == null);
 
   Future<BillingRuleUpdateResult> checkForUpdateIfDue({
     Duration minInterval = const Duration(days: 1),
   }) async {
-    final directory = await _storageDirectory();
-    await directory.create(recursive: true);
-    final lastCheckFile = File('${directory.path}/$lastCheckFileName');
+    final storage = await _storage();
+    await storage.directory.create(recursive: true);
+    final lastCheckFile = storage.lastCheckFile;
     final now = clock().toUtc();
 
     final lastCheck = await _readLastCheck(lastCheckFile);
@@ -127,10 +137,10 @@ class BillingRuleUpdateService {
   }
 
   Future<BillingRuleUpdateResult> checkForUpdate() async {
-    final directory = await _storageDirectory();
-    await directory.create(recursive: true);
-    final activeFile = File('${directory.path}/$activeFileName');
-    final previousFile = File('${directory.path}/$previousFileName');
+    final storage = await _storage();
+    await storage.directory.create(recursive: true);
+    final activeFile = storage.activeFile;
+    final previousFile = storage.previousFile;
 
     BillingRuleManifest manifest;
     try {
@@ -170,8 +180,7 @@ class BillingRuleUpdateService {
         );
       }
 
-      final candidateFile =
-          File('${directory.path}/billing_rules.candidate.toml');
+      final candidateFile = storage.pendingFile;
       await candidateFile.writeAsString(remoteToml);
       final candidateRuleSet = await _tryLoadRuleSet(candidateFile);
       if (candidateRuleSet == null ||
@@ -206,13 +215,14 @@ class BillingRuleUpdateService {
       }
 
       if (await activeFile.exists()) {
-        final previousPending = File('${previousFile.path}.pending');
+        final previousPending = storage.previousPendingFile;
         await previousPending.writeAsString(await activeFile.readAsString(),
             flush: true);
         await previousPending.rename(previousFile.path);
       }
       beforeAtomicSwitch?.call();
       await candidateFile.rename(activeFile.path);
+      onActiveSnapshotChanged();
       String? activationMessage = regression.conflictExplanation;
       if (regression.equivalentPersonalRuleIds.isNotEmpty) {
         try {
@@ -220,6 +230,7 @@ class BillingRuleUpdateService {
         } catch (e) {
           if (await previousFile.exists()) {
             await _restorePrevious(activeFile, previousFile);
+            onActiveSnapshotChanged();
           }
           return BillingRuleUpdateResult(
             status: BillingRuleUpdateStatus.failed,
@@ -251,9 +262,9 @@ class BillingRuleUpdateService {
   }
 
   Future<BillingRuleUpdateResult> rollback() async {
-    final directory = await _storageDirectory();
-    final activeFile = File('${directory.path}/$activeFileName');
-    final previousFile = File('${directory.path}/$previousFileName');
+    final storage = await _storage();
+    final activeFile = storage.activeFile;
+    final previousFile = storage.previousFile;
     if (!await previousFile.exists()) {
       return const BillingRuleUpdateResult(
         status: BillingRuleUpdateStatus.rollbackUnavailable,
@@ -273,17 +284,21 @@ class BillingRuleUpdateService {
     }
 
     final activeRuleSet = await _tryLoadRuleSet(activeFile);
+    onActiveSnapshotChanged();
     return BillingRuleUpdateResult(
       status: BillingRuleUpdateStatus.rolledBack,
       rulesVersion: activeRuleSet?.rulesVersion,
     );
   }
 
-  Future<Directory> _storageDirectory() async {
-    final injected = storageDirectory;
-    if (injected != null) return injected;
-    final documents = await getApplicationDocumentsDirectory();
-    return Directory('${documents.path}/rules');
+  Future<BillingRuleStorage> _storage() async {
+    final injectedStorage = ruleStorage;
+    if (injectedStorage != null) return injectedStorage;
+    final injectedDirectory = storageDirectory;
+    if (injectedDirectory != null) {
+      return BillingRuleStorage(injectedDirectory);
+    }
+    return productionBillingRuleStorage();
   }
 
   Future<DateTime?> _readLastCheck(File file) async {
