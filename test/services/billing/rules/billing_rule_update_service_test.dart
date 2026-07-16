@@ -485,6 +485,7 @@ BillingRuleUpdateService _service(
         (_) async => const BillingRulePersonalRegressionResult.passed(),
     personalRuleArchiver: personalRuleArchiver ?? (_) async {},
     personalRuleReconciler: personalRuleReconciler,
+    personalRuleReconciliationVerifier: (_, __) async => false,
     beforeAtomicSwitch: beforeAtomicSwitch,
     clock: clock,
   );

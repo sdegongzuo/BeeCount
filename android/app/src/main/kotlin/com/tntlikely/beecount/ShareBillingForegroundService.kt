@@ -166,6 +166,7 @@ class ShareBillingForegroundService : Service() {
 
         val engine = FlutterEngine(applicationContext)
         RapidOcrBridge(applicationContext).setup(engine.dartExecutor.binaryMessenger)
+        BillingRuleDurabilityChannel.register(engine.dartExecutor.binaryMessenger)
         val channel = MethodChannel(
             engine.dartExecutor.binaryMessenger,
             BACKGROUND_CHANNEL

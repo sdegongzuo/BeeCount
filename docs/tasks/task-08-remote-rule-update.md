@@ -134,8 +134,9 @@ dev debug APK：构建成功（`app-dev-debug.apk`）
   完整个人回归裁决、最近尝试/成功时间和稳定错误文本。诊断层可直接读取
   `lastState / activeVersion / previousVersion / error / attempt / success`。
 - [x] 主进程和 Android 分享后台 isolate 在构造生产规则运行时之后、首次 OCR
-  或同步读取之前，先在 Task 1 的规则目录 mutex 内恢复未完成 journal；更新、
-  回滚、启动恢复不会交错。
+  或同步读取之前，先在 Task 1 的规则目录 mutex 内恢复未完成 journal；进程内
+  mutex 外再使用操作系统独占文件锁，更新、回滚、启动恢复不会跨 isolate/
+  进程交错，持锁进程崩溃后由操作系统释放锁。
 - [x] 启动恢复按磁盘哈希判断切换是否实际发生：切换前中断继续使用旧 active；
   切换后中断重放个人裁决并补齐 commit。SQLite 个人裁决以公共版本、归档、
   同步 resolution、冲突解释和活动版本证明幂等，覆盖“数据库已提交但 journal
@@ -149,11 +150,15 @@ dev debug APK：构建成功（`app-dev-debug.apk`）
 - [x] update、rollback 两套七阶段故障注入测试覆盖每个落盘点，包含重复启动
   恢复幂等、损坏 journal、切换前篡改、首次激活失败和 update/rollback mutex
   竞争；不依赖删除临时文件恢复一致性。
+- [x] Android 关键 pending/stable 写入通过原生 channel 对文件和父目录执行
+  `fsync`；候选切换后按 journal 版本与哈希重新读回，个人裁决异常先查询
+  SQLite 提交证明。诊断版本来自实际磁盘快照，损坏或无法解析时显式标记未验证。
 
 验证：
 
 ```text
 focused journal/lifecycle/update/security/runtime/repository：110 tests passed
+Task 4 review focused（含跨 isolate、真实 SQLite、损坏 previous、fsync）：54 tests passed
 500 样本回归：P95 41ms，最坏 46ms
 ```
 

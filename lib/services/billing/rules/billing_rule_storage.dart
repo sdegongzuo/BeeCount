@@ -25,6 +25,9 @@ class BillingRuleStorage {
   static const activationJournalFileName =
       'billing_rules.activation_journal.json';
 
+  /// 跨进程/Isolate 串行规则状态转换的锁文件名。
+  static const lockFileName = 'billing_rules.lock';
+
   /// 规则专用目录。
   final Directory directory;
 
@@ -66,12 +69,39 @@ class BillingRuleStorage {
   File get activationJournalPendingFile =>
       File('${activationJournalFile.path}.pending');
 
+  /// 由操作系统释放语义保护的跨 Isolate 文件锁。
+  File get lockFile => File(path.join(directory.path, lockFileName));
+
   /// 在本进程内按规范化目录串行执行一次规则文件状态转换。
   ///
   /// 即使调用方创建了多个更新服务或多个 [BillingRuleStorage] 实例，只要目录
   /// 相同，更新、激活和回滚就不会交错。
   Future<T> runExclusive<T>(Future<T> Function() action) =>
-      _mutexFor(directory).run(action);
+      _mutexFor(directory).run(() async {
+        await directory.create(recursive: true);
+        final handle = await lockFile.open(mode: FileMode.append);
+        try {
+          await _acquireExclusiveFileLock(handle);
+          return await action();
+        } finally {
+          try {
+            await handle.unlock();
+          } finally {
+            await handle.close();
+          }
+        }
+      });
+}
+
+Future<void> _acquireExclusiveFileLock(RandomAccessFile handle) async {
+  while (true) {
+    try {
+      await handle.lock(FileLock.exclusive);
+      return;
+    } on FileSystemException {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+  }
 }
 
 final Map<String, _BillingRuleStorageMutex> _storageMutexes = {};

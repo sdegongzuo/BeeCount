@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'billing_rule_runtime_evaluator.dart';
+import 'billing_rule_durability.dart';
 import 'billing_rule_storage.dart';
 
 /// 公共规则文件与个人规则裁决之间的可恢复激活阶段。
@@ -28,6 +29,7 @@ class BillingRuleActivationDiagnostics {
   final String? lastError;
   final DateTime lastAttemptAt;
   final DateTime? lastSuccessAt;
+  final bool diskStateVerified;
 
   /// 创建不可变诊断快照。
   const BillingRuleActivationDiagnostics({
@@ -39,6 +41,7 @@ class BillingRuleActivationDiagnostics {
     this.candidateVersion,
     this.lastError,
     this.lastSuccessAt,
+    this.diskStateVerified = false,
   });
 }
 
@@ -117,6 +120,7 @@ class BillingRuleActivationJournal {
         lastError: lastError,
         lastAttemptAt: lastAttemptAt,
         lastSuccessAt: lastSuccessAt,
+        diskStateVerified: false,
       );
 
   Map<String, Object?> toJson() => {
@@ -206,16 +210,23 @@ class BillingRuleActivationJournal {
 /// 以 flush + 同目录原子 rename 持久化 journal，并隔离损坏记录。
 class BillingRuleActivationJournalStore {
   final BillingRuleStorage storage;
+  final BillingRuleDurability durability;
 
   /// 创建绑定到唯一规则目录的 journal 存储。
-  const BillingRuleActivationJournalStore(this.storage);
+  BillingRuleActivationJournalStore(
+    this.storage, {
+    BillingRuleDurability? durability,
+  }) : durability = durability ?? productionBillingRuleDurability();
 
   /// 原子保存一个状态；固定 pending 文件可在下次恢复时安全复用。
   Future<void> write(BillingRuleActivationJournal journal) async {
     await storage.directory.create(recursive: true);
     final pending = storage.activationJournalPendingFile;
     await pending.writeAsString(jsonEncode(journal.toJson()), flush: true);
-    await pending.rename(storage.activationJournalFile.path);
+    await durability.syncFileAndParent(pending);
+    await _renameWithTransientRetry(
+        pending, storage.activationJournalFile.path);
+    await durability.syncFileAndParent(storage.activationJournalFile);
   }
 
   /// 读取 journal；损坏内容会原子移入隔离文件而不是删除。
@@ -226,7 +237,8 @@ class BillingRuleActivationJournalStore {
       if (!await pending.exists()) return null;
       try {
         final recovered = await _decode(pending);
-        await pending.rename(file.path);
+        await _renameWithTransientRetry(pending, file.path);
+        await durability.syncFileAndParent(file);
         return recovered;
       } catch (_) {
         await _quarantine(pending);
@@ -240,7 +252,8 @@ class BillingRuleActivationJournalStore {
       if (await pending.exists()) {
         try {
           final recovered = await _decode(pending);
-          await pending.rename(file.path);
+          await _renameWithTransientRetry(pending, file.path);
+          await durability.syncFileAndParent(file);
           return recovered;
         } catch (_) {
           await _quarantine(pending);
@@ -259,6 +272,18 @@ class BillingRuleActivationJournalStore {
 
   Future<void> _quarantine(File file) async {
     final suffix = DateTime.now().toUtc().microsecondsSinceEpoch;
-    await file.rename('${file.path}.corrupt.$suffix');
+    final quarantined = await file.rename('${file.path}.corrupt.$suffix');
+    await durability.syncFileAndParent(quarantined);
+  }
+
+  Future<File> _renameWithTransientRetry(File source, String target) async {
+    for (var attempt = 0;; attempt++) {
+      try {
+        return await source.rename(target);
+      } on PathAccessException {
+        if (!Platform.isWindows || attempt >= 19) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    }
   }
 }

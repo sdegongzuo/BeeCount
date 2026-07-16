@@ -149,6 +149,9 @@ class MainActivity: FlutterFragmentActivity() {
             applicationContext,
             flutterEngine.dartExecutor.binaryMessenger,
         )
+        BillingRuleDurabilityChannel.register(
+            flutterEngine.dartExecutor.binaryMessenger
+        )
 
         android.util.Log.e("MainActivity", "==========================================")
         android.util.Log.e("MainActivity", "configureFlutterEngine 被调用！！！")

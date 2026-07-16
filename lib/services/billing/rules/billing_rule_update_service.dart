@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'billing_rule_activation_journal.dart';
+import 'billing_rule_durability.dart';
 import 'billing_rule_manifest.dart';
 import 'billing_rule_models.dart';
 import 'billing_rule_repository.dart';
@@ -105,6 +106,7 @@ class BillingRuleUpdateService {
   /// 活动文件完成原子切换或恢复后使运行时内存快照失效。
   final void Function() onActiveSnapshotChanged;
   final BillingRuleUpdateClock clock;
+  final BillingRuleDurability durability;
 
   BillingRuleUpdateService({
     this.storageDirectory,
@@ -123,6 +125,7 @@ class BillingRuleUpdateService {
     this.beforeRollbackAtomicSwitch,
     void Function()? onActiveSnapshotChanged,
     BillingRuleUpdateClock? clock,
+    BillingRuleDurability? durability,
   })  : manifestLoader = manifestLoader ??
             ((uri) => BillingRuleSecureHttpLoader().load(
                   uri,
@@ -141,6 +144,7 @@ class BillingRuleUpdateService {
         onActiveSnapshotChanged =
             onActiveSnapshotChanged ?? invalidateProductionBillingRuleSnapshot,
         clock = clock ?? DateTime.now,
+        durability = durability ?? productionBillingRuleDurability(),
         assert(ruleStorage == null || storageDirectory == null);
 
   /// 当前显式配置的 manifest URI；禁用时可能为空或不可信，仅用于诊断。
@@ -157,8 +161,24 @@ class BillingRuleUpdateService {
     final storage = await _storage();
     return storage.runExclusive(() async {
       try {
-        return (await BillingRuleActivationJournalStore(storage).read())
-            ?.diagnostics;
+        final journal = await _journalStore(storage).read();
+        if (journal == null) return null;
+        final activeExists = await storage.activeFile.exists();
+        final previousExists = await storage.previousFile.exists();
+        final active = await _snapshot(storage.activeFile);
+        final previous = await _snapshot(storage.previousFile);
+        return BillingRuleActivationDiagnostics(
+          state: journal.state,
+          operation: journal.operation,
+          activeVersion: active?.version,
+          previousVersion: previous?.version,
+          candidateVersion: journal.candidateVersion,
+          lastError: journal.lastError,
+          lastAttemptAt: journal.lastAttemptAt,
+          lastSuccessAt: journal.lastSuccessAt,
+          diskStateVerified: (!activeExists || active != null) &&
+              (!previousExists || previous != null),
+        );
       } catch (_) {
         return null;
       }
@@ -212,6 +232,7 @@ class BillingRuleUpdateService {
         }),
         flush: true,
       );
+      await durability.syncFileAndParent(lastCheckFile);
       return result;
     });
   }
@@ -317,9 +338,17 @@ class BillingRuleUpdateService {
       }
 
       final candidateFile = storage.pendingFile;
-      await candidateFile.writeAsString(remoteToml, flush: true);
-      final activeBefore = await _snapshot(activeFile);
-      final previousBefore = await _snapshot(previousFile);
+      await _writeDurable(candidateFile, remoteToml);
+      var activeBefore = await _snapshot(activeFile);
+      var previousBefore = await _snapshot(previousFile);
+      if (await activeFile.exists() && activeBefore == null) {
+        await _quarantineIfExists(activeFile, 'damaged-active');
+      }
+      if (await previousFile.exists() && previousBefore == null) {
+        await _quarantineIfExists(previousFile, 'damaged-previous');
+        previousBefore = null;
+      }
+      activeBefore ??= previousBefore;
       var journal = BillingRuleActivationJournal(
         state: BillingRuleActivationState.downloaded,
         operation: BillingRuleActivationOperation.update,
@@ -381,9 +410,9 @@ class BillingRuleUpdateService {
 
       if (await activeFile.exists()) {
         final previousPending = storage.previousPendingFile;
-        await previousPending.writeAsString(await activeFile.readAsString(),
-            flush: true);
+        await _writeDurable(previousPending, await activeFile.readAsString());
         await previousPending.rename(previousFile.path);
+        await durability.syncFileAndParent(previousFile);
       }
       journal =
           journal.copyWith(state: BillingRuleActivationState.switchPrepared);
@@ -396,8 +425,29 @@ class BillingRuleUpdateService {
         return _abortTransition(storage, journal,
             BillingRuleUpdateStatus.failed, '原子切换准备失败：$error');
       }
+      final candidateNow = await _snapshot(candidateFile);
+      if (candidateNow?.sha256 != journal.candidateSha256 ||
+          candidateNow?.version != journal.candidateVersion) {
+        await _quarantineIfExists(candidateFile, 'candidate-tampered');
+        return _abortTransition(
+          storage,
+          journal,
+          BillingRuleUpdateStatus.failed,
+          '候选规则在评测与切换之间发生变化，已隔离并拒绝激活。',
+        );
+      }
       await candidateFile.rename(activeFile.path);
+      await durability.syncFileAndParent(activeFile);
       onActiveSnapshotChanged();
+      final switched = await _snapshot(activeFile);
+      if (switched?.sha256 != journal.candidateSha256 ||
+          switched?.version != journal.candidateVersion) {
+        return _restoreAfterUncommittedReconciliation(
+          storage,
+          journal,
+          '切换后的 active 无法按候选哈希和版本读取。',
+        );
+      }
       journal =
           journal.copyWith(state: BillingRuleActivationState.activeSwitched);
       await _persistJournal(storage, journal);
@@ -413,21 +463,7 @@ class BillingRuleUpdateService {
                 .call(regression.equivalentPersonalRuleIds);
           }
         } catch (e) {
-          final restoredPrevious = await previousFile.exists();
-          if (restoredPrevious) {
-            await _restorePrevious(storage);
-          } else if (await activeFile.exists()) {
-            await activeFile.rename(storage.pendingFile.path);
-          }
-          onActiveSnapshotChanged();
-          return _abortTransition(
-            storage,
-            journal,
-            BillingRuleUpdateStatus.failed,
-            restoredPrevious
-                ? '个人规则裁决失败，已恢复旧公共快照：$e'
-                : '个人规则裁决失败，已恢复内置快照（built-in snapshot restored）：$e',
-          );
+          return _resolveReconciliationFailure(storage, journal, e);
         }
       }
 
@@ -479,13 +515,13 @@ class BillingRuleUpdateService {
     BillingRuleStorage storage,
     BillingRuleActivationJournal journal,
   ) async {
-    await BillingRuleActivationJournalStore(storage).write(journal);
+    await _journalStore(storage).write(journal);
     afterActivationStatePersisted?.call(journal.state);
   }
 
   Future<BillingRuleUpdateResult> _reconcileInterruptedActivation(
       BillingRuleStorage storage) async {
-    final store = BillingRuleActivationJournalStore(storage);
+    final store = _journalStore(storage);
     BillingRuleActivationJournal? journal;
     try {
       journal = await store.read();
@@ -495,6 +531,9 @@ class BillingRuleUpdateService {
       if (fallback != null) {
         await _atomicCopy(storage.previousFile,
             storage.activeRecoveryPendingFile, storage.activeFile);
+      } else if (await storage.previousFile.exists()) {
+        await _quarantineIfExists(
+            storage.previousFile, 'journal-corrupt-previous');
       }
       onActiveSnapshotChanged();
       final now = clock().toUtc();
@@ -552,6 +591,10 @@ class BillingRuleUpdateService {
         final previous = await _snapshot(storage.previousFile);
         if (previous?.sha256 != currentJournal.activeSha256Before) {
           await _quarantineIfExists(storage.activeFile, 'unproven-active');
+          if (await storage.previousFile.exists() && previous == null) {
+            await _quarantineIfExists(
+                storage.previousFile, 'unproven-previous');
+          }
           onActiveSnapshotChanged();
           final aborted = currentJournal.copyWith(
             state: BillingRuleActivationState.committed,
@@ -595,6 +638,7 @@ class BillingRuleUpdateService {
         }
         await storage.previousRollbackPendingFile
             .rename(storage.previousFile.path);
+        await durability.syncFileAndParent(storage.previousFile);
       }
     }
 
@@ -626,9 +670,31 @@ class BillingRuleUpdateService {
       );
     } catch (error) {
       final verifier = personalRuleReconciliationVerifier;
-      if (verifier != null &&
-          await verifier(
-              currentJournal.regression, currentJournal.candidateVersion)) {
+      if (verifier == null) {
+        final failed =
+            currentJournal.copyWith(lastError: '启动恢复个人规则裁决结果无法证明：$error');
+        await store.write(failed);
+        return BillingRuleUpdateResult(
+          status: BillingRuleUpdateStatus.failed,
+          rulesVersion: currentJournal.candidateVersion,
+          message: failed.lastError,
+        );
+      }
+      bool applied;
+      try {
+        applied = await verifier(
+            currentJournal.regression, currentJournal.candidateVersion);
+      } catch (verificationError) {
+        final failed = currentJournal.copyWith(
+            lastError: '启动恢复个人裁决验证失败：$verificationError');
+        await store.write(failed);
+        return BillingRuleUpdateResult(
+          status: BillingRuleUpdateStatus.failed,
+          rulesVersion: currentJournal.candidateVersion,
+          message: failed.lastError,
+        );
+      }
+      if (applied) {
         final committed = currentJournal.copyWith(
           state: BillingRuleActivationState.committed,
           lastSuccessAt: clock().toUtc(),
@@ -664,6 +730,11 @@ class BillingRuleUpdateService {
           message: restored.lastError,
         );
       }
+      if (await storage.previousFile.exists()) {
+        await _quarantineIfExists(storage.previousFile, 'damaged-previous');
+      }
+      await _quarantineIfExists(storage.activeFile, 'uncommitted-candidate');
+      onActiveSnapshotChanged();
       final failed = currentJournal.copyWith(lastError: '启动恢复个人规则裁决失败：$error');
       await store.write(failed);
       return BillingRuleUpdateResult(
@@ -686,22 +757,18 @@ class BillingRuleUpdateService {
   }
 
   Future<void> _atomicCopy(File source, File pending, File target) async {
-    await pending.writeAsString(await source.readAsString(), flush: true);
+    await _writeDurable(pending, await source.readAsString());
     await pending.rename(target.path);
+    await durability.syncFileAndParent(target);
   }
 
   Future<File?> _quarantineIfExists(File file, String reason) async {
     if (!await file.exists()) return null;
     final quarantined =
         File('${file.path}.$reason.${clock().toUtc().microsecondsSinceEpoch}');
-    return file.rename(quarantined.path);
-  }
-
-  Future<void> _restorePrevious(BillingRuleStorage storage) async {
-    final pending = storage.activeRecoveryPendingFile;
-    await pending.writeAsString(await storage.previousFile.readAsString(),
-        flush: true);
-    await pending.rename(storage.activeFile.path);
+    final result = await file.rename(quarantined.path);
+    await durability.syncFileAndParent(result);
+    return result;
   }
 
   Future<BillingRuleUpdateResult> rollback() async {
@@ -727,6 +794,7 @@ class BillingRuleUpdateService {
     final activeBefore = await _snapshot(activeFile);
     final previousBefore = await _snapshot(previousFile);
     if (previousBefore == null || previousBefore.sha256 != previousHash) {
+      await _quarantineIfExists(previousFile, 'damaged-rollback-previous');
       return const BillingRuleUpdateResult(
         status: BillingRuleUpdateStatus.rollbackUnavailable,
         message: 'previous 规则无法通过解析、schema 与哈希读取校验。',
@@ -734,7 +802,7 @@ class BillingRuleUpdateService {
     }
 
     final rollbackPending = storage.activeRollbackPendingFile;
-    await rollbackPending.writeAsString(previousText, flush: true);
+    await _writeDurable(rollbackPending, previousText);
     var journal = BillingRuleActivationJournal(
       state: BillingRuleActivationState.downloaded,
       operation: BillingRuleActivationOperation.rollback,
@@ -788,8 +856,8 @@ class BillingRuleUpdateService {
     await _persistJournal(storage, journal);
 
     if (await activeFile.exists()) {
-      await storage.previousRollbackPendingFile
-          .writeAsString(await activeFile.readAsString(), flush: true);
+      await _writeDurable(
+          storage.previousRollbackPendingFile, await activeFile.readAsString());
     }
     journal =
         journal.copyWith(state: BillingRuleActivationState.switchPrepared);
@@ -804,8 +872,10 @@ class BillingRuleUpdateService {
           'previous 在回滚验证与切换之间发生变化，已拒绝切换。');
     }
     await rollbackPending.rename(activeFile.path);
+    await durability.syncFileAndParent(activeFile);
     if (activeBefore != null) {
       await storage.previousRollbackPendingFile.rename(previousFile.path);
+      await durability.syncFileAndParent(previousFile);
     }
     onActiveSnapshotChanged();
     journal =
@@ -813,6 +883,15 @@ class BillingRuleUpdateService {
     await _persistJournal(storage, journal);
 
     try {
+      final activated = await _snapshot(activeFile);
+      if (activated?.sha256 != previousHash ||
+          activated?.version != candidate.rulesVersion) {
+        return _restoreAfterUncommittedReconciliation(
+          storage,
+          journal,
+          '回滚切换后的 runtime active 无法按原哈希读取。',
+        );
+      }
       final reconciler = personalRuleReconciler;
       if (reconciler != null) {
         await reconciler(regression, candidate.rulesVersion);
@@ -822,12 +901,6 @@ class BillingRuleUpdateService {
       journal = journal.copyWith(
           state: BillingRuleActivationState.personalReconciled);
       await _persistJournal(storage, journal);
-
-      final activated = await _snapshot(activeFile);
-      if (activated?.sha256 != previousHash ||
-          activated?.version != candidate.rulesVersion) {
-        throw StateError('回滚切换后的 runtime active 无法按原哈希读取');
-      }
       journal = journal.copyWith(
         state: BillingRuleActivationState.committed,
         lastSuccessAt: clock().toUtc(),
@@ -842,17 +915,98 @@ class BillingRuleUpdateService {
     } on BillingRuleActivationInterruption {
       rethrow;
     } catch (error) {
-      if (activeBefore != null && await previousFile.exists()) {
-        final failedCandidate = File(
-            '${activeFile.path}.failed.${clock().toUtc().microsecondsSinceEpoch}');
-        await activeFile.rename(failedCandidate.path);
-        await _atomicCopy(
-            previousFile, storage.activeRecoveryPendingFile, activeFile);
-        onActiveSnapshotChanged();
-      }
-      return _abortTransition(storage, journal, BillingRuleUpdateStatus.failed,
-          '回滚切换后验证或个人裁决失败，已保持原活动规则：$error');
+      return _resolveReconciliationFailure(storage, journal, error);
     }
+  }
+
+  Future<BillingRuleUpdateResult> _resolveReconciliationFailure(
+    BillingRuleStorage storage,
+    BillingRuleActivationJournal journal,
+    Object error,
+  ) async {
+    final verifier = personalRuleReconciliationVerifier;
+    if (verifier == null) {
+      final failed = journal.copyWith(lastError: '个人裁决结果无法证明：$error');
+      await _journalStore(storage).write(failed);
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.failed,
+        rulesVersion: journal.candidateVersion,
+        message: failed.lastError,
+      );
+    }
+    bool applied;
+    try {
+      applied = await verifier(journal.regression, journal.candidateVersion);
+    } catch (verificationError) {
+      final failed =
+          journal.copyWith(lastError: '个人裁决验证失败，保持未提交状态：$verificationError');
+      await _journalStore(storage).write(failed);
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.failed,
+        rulesVersion: journal.candidateVersion,
+        message: failed.lastError,
+      );
+    }
+    if (applied) {
+      var completed = journal.copyWith(
+          state: BillingRuleActivationState.personalReconciled);
+      await _journalStore(storage).write(completed);
+      completed = completed.copyWith(
+        state: BillingRuleActivationState.committed,
+        lastSuccessAt: clock().toUtc(),
+        clearError: true,
+      );
+      await _journalStore(storage).write(completed);
+      onActiveSnapshotChanged();
+      return BillingRuleUpdateResult(
+        status: journal.operation == BillingRuleActivationOperation.rollback
+            ? BillingRuleUpdateStatus.rolledBack
+            : BillingRuleUpdateStatus.activated,
+        rulesVersion: journal.candidateVersion,
+        message: '个人裁决已提交，已补记完成。',
+      );
+    }
+    return _restoreAfterUncommittedReconciliation(
+      storage,
+      journal,
+      '个人裁决未提交，已恢复切换前公共规则：$error',
+    );
+  }
+
+  Future<BillingRuleUpdateResult> _restoreAfterUncommittedReconciliation(
+    BillingRuleStorage storage,
+    BillingRuleActivationJournal journal,
+    String message,
+  ) async {
+    final oldHash = journal.activeSha256Before;
+    final previous = await _snapshot(storage.previousFile);
+    if (oldHash != null && previous?.sha256 != oldHash) {
+      if (await storage.previousFile.exists()) {
+        await _quarantineIfExists(storage.previousFile, 'damaged-previous');
+      }
+      await _quarantineIfExists(storage.activeFile, 'uncommitted-candidate');
+      onActiveSnapshotChanged();
+      final failed = journal.copyWith(
+          lastError: '$message；previous 无法证明为切换前 active，保持未提交。');
+      await _journalStore(storage).write(failed);
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.failed,
+        rulesVersion: journal.candidateVersion,
+        message: failed.lastError,
+      );
+    }
+    await _quarantineIfExists(storage.activeFile, 'uncommitted-candidate');
+    if (oldHash != null) {
+      await _atomicCopy(storage.previousFile, storage.activeRecoveryPendingFile,
+          storage.activeFile);
+    }
+    onActiveSnapshotChanged();
+    return _abortTransition(
+      storage,
+      journal,
+      BillingRuleUpdateStatus.failed,
+      oldHash == null ? '$message（built-in snapshot restored）' : message,
+    );
   }
 
   Future<BillingRuleUpdateResult> _abortTransition(
@@ -861,7 +1015,7 @@ class BillingRuleUpdateService {
     BillingRuleUpdateStatus status,
     String message,
   ) async {
-    await BillingRuleActivationJournalStore(storage).write(journal.copyWith(
+    await _journalStore(storage).write(journal.copyWith(
       state: BillingRuleActivationState.committed,
       lastError: message,
     ));
@@ -870,6 +1024,14 @@ class BillingRuleUpdateService {
       rulesVersion: journal.candidateVersion,
       message: message,
     );
+  }
+
+  BillingRuleActivationJournalStore _journalStore(BillingRuleStorage storage) =>
+      BillingRuleActivationJournalStore(storage, durability: durability);
+
+  Future<void> _writeDurable(File file, String text) async {
+    await file.writeAsString(text, flush: true);
+    await durability.syncFileAndParent(file);
   }
 
   Future<BillingRuleStorage> _storage() async {

@@ -200,6 +200,7 @@ void main() {
         equivalentPersonalRuleIds: ['personal-1'],
       ),
       personalRuleArchiver: (_) async => throw StateError('db busy'),
+      personalRuleReconciliationVerifier: (_, __) async => false,
     );
 
     final result = await updater.checkForUpdate();
@@ -207,7 +208,14 @@ void main() {
     expect(result.status, BillingRuleUpdateStatus.failed);
     expect(result.message, contains('built-in snapshot restored'));
     expect(await storage.activeFile.exists(), isFalse);
-    expect(await storage.pendingFile.exists(), isTrue);
+    expect(await storage.pendingFile.exists(), isFalse);
+    expect(
+      storage.directory
+          .listSync()
+          .whereType<File>()
+          .any((file) => file.path.contains('.uncommitted-candidate.')),
+      isTrue,
+    );
     expect((await repository.loadActiveRuleSet()).rulesVersion, 'built-in');
   });
 }

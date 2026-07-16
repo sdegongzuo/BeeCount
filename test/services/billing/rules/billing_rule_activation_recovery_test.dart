@@ -1,11 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:beecount/services/billing/rules/billing_rule_activation_journal.dart';
 import 'package:beecount/services/billing/rules/billing_rule_storage.dart';
+import 'package:beecount/services/billing/rules/billing_rule_durability.dart';
 import 'package:beecount/services/billing/rules/billing_rule_update_configuration.dart';
 import 'package:beecount/services/billing/rules/billing_rule_update_service.dart';
+import 'package:beecount/data/db.dart';
 import 'package:crypto/crypto.dart';
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -166,6 +171,99 @@ void main() {
       );
     });
 
+    test('OS file lock serializes two real isolates and crash releases it',
+        () async {
+      final events = ReceivePort();
+      final exits = ReceivePort();
+      await Isolate.spawn(
+        _holdStorageLock,
+        [directory.path, 'first', events.sendPort, 300],
+        onExit: exits.sendPort,
+      );
+      final iterator = StreamIterator<Object?>(events);
+      expect(await iterator.moveNext(), isTrue);
+      final firstEvent = iterator.current! as List<Object?>;
+      expect(firstEvent.first, 'first');
+
+      await Isolate.spawn(
+        _holdStorageLock,
+        [directory.path, 'second', events.sendPort, 0],
+        onExit: exits.sendPort,
+      );
+      var secondEntered = false;
+      final secondWait = iterator.moveNext().then((hasValue) {
+        secondEntered = hasValue;
+        return iterator.current! as List<Object?>;
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(secondEntered, isFalse);
+      final secondEvent = await secondWait.timeout(const Duration(seconds: 20));
+      expect(secondEvent.first, 'second');
+      final exitIterator = StreamIterator<Object?>(exits);
+      expect(await exitIterator.moveNext(), isTrue);
+      expect(await exitIterator.moveNext(), isTrue);
+
+      final crashEvents = ReceivePort();
+      final crashExit = ReceivePort();
+      final crashing = await Isolate.spawn(
+        _holdStorageLock,
+        [directory.path, 'crash', crashEvents.sendPort, -1],
+        onExit: crashExit.sendPort,
+      );
+      final crashEvent = await crashEvents.first as List<Object?>;
+      expect(crashEvent.first, 'crash');
+      crashing.kill(priority: Isolate.immediate);
+      await crashExit.first;
+      await BillingRuleStorage(directory)
+          .runExclusive(() async {})
+          .timeout(const Duration(seconds: 20));
+      events.close();
+      exits.close();
+      crashEvents.close();
+      crashExit.close();
+    });
+
+    test('journal durability barriers run pending then stable and fail closed',
+        () async {
+      final storage = BillingRuleStorage(directory);
+      final durability = _RecordingDurability();
+      final store = BillingRuleActivationJournalStore(
+        storage,
+        durability: durability,
+      );
+      final record = BillingRuleActivationJournal(
+        state: BillingRuleActivationState.downloaded,
+        operation: BillingRuleActivationOperation.update,
+        candidateVersion: 'candidate',
+        candidateSha256: 'a' * 64,
+        regression: const BillingRulePersonalRegressionResult.passed(),
+        lastAttemptAt: DateTime.utc(2026, 7, 17),
+      );
+
+      await store.write(record);
+
+      expect(durability.paths, [
+        endsWith('.json.pending'),
+        endsWith('.json'),
+      ]);
+
+      final failedStorage = BillingRuleStorage(
+          await Directory.systemTemp.createTemp('durability_failure_'));
+      addTearDown(() async {
+        if (await failedStorage.directory.exists()) {
+          await failedStorage.directory.delete(recursive: true);
+        }
+      });
+      final failing = _RecordingDurability(failOnCall: 1);
+      await expectLater(
+        BillingRuleActivationJournalStore(failedStorage, durability: failing)
+            .write(record),
+        throwsStateError,
+      );
+      expect(await failedStorage.activationJournalFile.exists(), isFalse);
+      expect(await failedStorage.activationJournalPendingFile.exists(), isTrue);
+    });
+
     test('rollback validates all gates before preserving current active',
         () async {
       await File('${directory.path}/billing_rules.active.toml')
@@ -278,6 +376,151 @@ void main() {
       expect(await active.readAsString(), contains('rulesVersion = "old"'));
     });
 
+    test('damaged previous is quarantined and never restored', () async {
+      final active = File('${directory.path}/billing_rules.active.toml');
+      final previous = File('${directory.path}/billing_rules.previous.toml');
+      await active.writeAsString(_toml('old'));
+      final interrupted = _service(
+        directory,
+        _toml('candidate'),
+        afterActivationStatePersisted: (state) {
+          if (state == BillingRuleActivationState.activeSwitched) {
+            throw const BillingRuleActivationInterruption();
+          }
+        },
+      );
+      await expectLater(interrupted.checkForUpdate(),
+          throwsA(isA<BillingRuleActivationInterruption>()));
+      await previous.writeAsString('damaged', flush: true);
+
+      final result = await _service(
+        directory,
+        _toml('candidate'),
+        personalReconciler: (_, __) async => throw StateError('db failed'),
+        personalReconciliationVerifier: (_, __) async => false,
+      ).reconcileInterruptedActivation();
+
+      expect(result.status, BillingRuleUpdateStatus.failed);
+      expect(await active.exists(), isFalse);
+      expect(await previous.exists(), isFalse);
+      expect(
+        directory
+            .listSync()
+            .whereType<File>()
+            .any((file) => file.path.contains('.damaged-previous.')),
+        isTrue,
+      );
+    });
+
+    test('diagnostics reports verified disk snapshots instead of journal hints',
+        () async {
+      final active = File('${directory.path}/billing_rules.active.toml');
+      final previous = File('${directory.path}/billing_rules.previous.toml');
+      await active.writeAsString(_toml('old'));
+      final service = _service(directory, _toml('candidate'));
+      expect((await service.checkForUpdate()).status,
+          BillingRuleUpdateStatus.activated);
+      await previous.writeAsString('damaged', flush: true);
+
+      final diagnostics = await service.activationDiagnostics();
+
+      expect(diagnostics?.activeVersion, 'candidate');
+      expect(diagnostics?.previousVersion, isNull);
+      expect(diagnostics?.diskStateVerified, isFalse);
+    });
+
+    test('candidate tampered by pre-switch hook is quarantined', () async {
+      final active = File('${directory.path}/billing_rules.active.toml');
+      await active.writeAsString(_toml('old'));
+      final service = _service(
+        directory,
+        _toml('candidate'),
+        beforeAtomicSwitch: () =>
+            File('${directory.path}/billing_rules.pending.toml')
+                .writeAsStringSync(_toml('tampered'), flush: true),
+      );
+
+      final result = await service.checkForUpdate();
+
+      expect(result.status, BillingRuleUpdateStatus.failed);
+      expect(await active.readAsString(), contains('rulesVersion = "old"'));
+      expect(
+          directory
+              .listSync()
+              .whereType<File>()
+              .any((file) => file.path.contains('.candidate-tampered.')),
+          isTrue);
+    });
+
+    test('SQLite commit then Future error is verifier-completed', () async {
+      final database = BeeDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(database.close);
+      await database.customStatement(
+          'CREATE TABLE recovery_marker(id INTEGER PRIMARY KEY)');
+      final service = _service(
+        directory,
+        _toml('candidate'),
+        personalRegression: (_) async =>
+            const BillingRulePersonalRegressionResult.passed(),
+        personalReconciler: (_, __) async {
+          await database.transaction(() => database.customStatement(
+              'INSERT OR IGNORE INTO recovery_marker(id) VALUES (1)'));
+          throw StateError('future failed after commit');
+        },
+        personalReconciliationVerifier: (_, __) async =>
+            (await database
+                    .customSelect(
+                        'SELECT COUNT(*) AS count FROM recovery_marker')
+                    .getSingle())
+                .read<int>('count') ==
+            1,
+      );
+
+      final result = await service.checkForUpdate();
+
+      expect(result.status, BillingRuleUpdateStatus.activated);
+      expect(
+          await File('${directory.path}/billing_rules.active.toml')
+              .readAsString(),
+          contains('rulesVersion = "candidate"'));
+    });
+
+    test('rollback DB commit then Future error is verifier-completed',
+        () async {
+      final database = BeeDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(database.close);
+      await database.customStatement(
+          'CREATE TABLE rollback_marker(id INTEGER PRIMARY KEY)');
+      final active = File('${directory.path}/billing_rules.active.toml');
+      await active.writeAsString(_toml('current'));
+      await File('${directory.path}/billing_rules.previous.toml')
+          .writeAsString(_toml('previous'));
+      final service = _service(
+        directory,
+        _toml('unused'),
+        personalRegression: (_) async =>
+            const BillingRulePersonalRegressionResult.passed(),
+        personalReconciler: (_, __) async {
+          await database.transaction(() => database.customStatement(
+              'INSERT OR IGNORE INTO rollback_marker(id) VALUES (1)'));
+          throw StateError('future failed after commit');
+        },
+        personalReconciliationVerifier: (_, __) async =>
+            (await database
+                    .customSelect(
+                        'SELECT COUNT(*) AS count FROM rollback_marker')
+                    .getSingle())
+                .read<int>('count') ==
+            1,
+      );
+
+      final result = await service.rollback();
+
+      expect(result.status, BillingRuleUpdateStatus.rolledBack);
+      expect(
+          await active.readAsString(), contains('rulesVersion = "previous"'));
+    });
+
     for (final interruptedState in BillingRuleActivationState.values) {
       test('rollback recovers after ${interruptedState.name}', () async {
         final active = File('${directory.path}/billing_rules.active.toml');
@@ -335,6 +578,7 @@ BillingRuleUpdateService _service(
   BillingRulePersonalRegression? personalRegression,
   Future<void> Function()? beforeRollbackAtomicSwitch,
   BillingRulePersonalReconciliationVerifier? personalReconciliationVerifier,
+  void Function()? beforeAtomicSwitch,
 }) {
   return BillingRuleUpdateService(
     storageDirectory: directory,
@@ -361,6 +605,7 @@ BillingRuleUpdateService _service(
             ),
     personalRuleReconciler: personalReconciler,
     personalRuleReconciliationVerifier: personalReconciliationVerifier,
+    beforeAtomicSwitch: beforeAtomicSwitch,
     personalRuleArchiver: (_) async {},
     afterActivationStatePersisted: afterActivationStatePersisted,
     beforeRollbackAtomicSwitch: beforeRollbackAtomicSwitch,
@@ -381,3 +626,31 @@ field = "note"
 type = "constant"
 value = "$version"
 ''';
+
+Future<void> _holdStorageLock(List<Object?> arguments) async {
+  final directory = Directory(arguments[0]! as String);
+  final label = arguments[1]! as String;
+  final events = arguments[2]! as SendPort;
+  final holdMilliseconds = arguments[3]! as int;
+  await BillingRuleStorage(directory).runExclusive(() async {
+    events.send([label]);
+    if (holdMilliseconds < 0) {
+      await Completer<void>().future;
+    } else if (holdMilliseconds > 0) {
+      await Future<void>.delayed(Duration(milliseconds: holdMilliseconds));
+    }
+  });
+}
+
+class _RecordingDurability implements BillingRuleDurability {
+  final int? failOnCall;
+  final List<String> paths = [];
+
+  _RecordingDurability({this.failOnCall});
+
+  @override
+  Future<void> syncFileAndParent(File file) async {
+    paths.add(file.path);
+    if (paths.length == failOnCall) throw StateError('fsync failed');
+  }
+}
