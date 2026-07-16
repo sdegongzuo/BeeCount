@@ -92,7 +92,8 @@ void main() {
     );
   });
 
-  test('Patrol receives the configured adb directory without leaking PATH', () {
+  test('Patrol receives the configured adb directory without leaking PATH',
+      () async {
     final source = runner.readAsStringSync();
     final patrol = source.indexOf('& \$Patrol test');
     final pathPrefix = source.indexOf(r'$env:PATH = "$adbDirectory;');
@@ -101,7 +102,32 @@ void main() {
     expect(pathPrefix, greaterThanOrEqualTo(0));
     expect(pathPrefix, lessThan(patrol));
     expect(pathRestore, greaterThan(patrol));
-    expect(source, contains('Split-Path -LiteralPath \$Adb -Parent'));
+    expect(
+      source,
+      contains('[System.IO.Path]::GetDirectoryName(\$Adb)'),
+    );
+    expect(source, isNot(contains('Split-Path -LiteralPath \$Adb -Parent')));
+    final resolvePatrol =
+        source.indexOf(r'$Patrol = (Resolve-Path -LiteralPath $Patrol).Path');
+    final resolveAdb =
+        source.indexOf(r'$Adb = (Resolve-Path -LiteralPath $Adb).Path');
+    final pushLocation = source.indexOf(r'Push-Location $projectRoot');
+    expect(resolvePatrol, greaterThanOrEqualTo(0));
+    expect(resolveAdb, greaterThan(resolvePatrol));
+    expect(resolveAdb, lessThan(pushLocation));
+
+    final resolved = await Process.run(
+      'powershell',
+      [
+        '-NoProfile',
+        '-Command',
+        r'$adb="D:\app\Android\sdk\platform-tools\adb.exe"; '
+            r'$dir=[System.IO.Path]::GetDirectoryName($adb); '
+            r'if ($dir -ne "D:\app\Android\sdk\platform-tools") { exit 1 }',
+      ],
+    );
+    expect(resolved.exitCode, 0,
+        reason: '${resolved.stdout}\n${resolved.stderr}');
   });
 
   test('unlock, device, boot and fixture policies match the safety contract',

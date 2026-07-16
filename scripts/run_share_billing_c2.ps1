@@ -64,6 +64,8 @@ if (-not (Test-Path -LiteralPath $Patrol -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $Adb -PathType Leaf)) {
     throw "adb executable not found: $Adb"
 }
+$Patrol = (Resolve-Path -LiteralPath $Patrol).Path
+$Adb = (Resolve-Path -LiteralPath $Adb).Path
 
 Push-Location $projectRoot
 try {
@@ -116,7 +118,7 @@ try {
     $patrolFailure = $null
     $recoveryErrors = [System.Collections.Generic.List[string]]::new()
     $originalPath = $env:PATH
-    $adbDirectory = Split-Path -LiteralPath $Adb -Parent
+    $adbDirectory = [System.IO.Path]::GetDirectoryName($Adb)
 
     try {
         $env:PATH = "$adbDirectory;$originalPath"
