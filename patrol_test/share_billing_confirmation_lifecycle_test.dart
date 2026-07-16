@@ -211,14 +211,14 @@ Future<PendingBillConfirmationService> _confirmationService(
   );
   return PendingBillConfirmationService(
     repo: jobs,
-    createTransaction: (result) async {
+    createTransaction: (result, {required int ledgerId}) async {
       final id = await BillCreationService(
         base,
         personalCategoryRules: categoryRules,
         personalNotePreferences: notePreferences,
       ).createBillTransaction(
         result: result,
-        ledgerId: 1,
+        ledgerId: ledgerId,
         billingTypes: const ['image'],
       );
       if (id == null) throw StateError('confirmed_bill_not_created');
