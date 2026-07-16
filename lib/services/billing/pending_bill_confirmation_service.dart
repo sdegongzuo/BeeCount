@@ -6,21 +6,21 @@ import 'classification_match_evidence.dart';
 import 'ocr_service.dart';
 import 'rules/personal_rule_lifecycle_service.dart';
 
-/// Creates a confirmed transaction in the immutable ledger captured by its job.
+/// 在账单任务创建时固化的账本中创建已确认交易。
 typedef ConfirmedBillCreator = Future<int> Function(
   OcrResult result, {
   required int ledgerId,
 });
 
-/// Applies one user-confirmed extraction correction to personal rules.
+/// 将一项用户确认的提取修正应用到个人规则。
 typedef PersonalRuleCorrectionApplier = Future<PersonalRuleLifecycleResult>
     Function(PersonalRuleCorrection correction);
 
-/// Loads categories that can be selected on the confirmation screen.
+/// 加载确认页可选择的分类。
 typedef ConfirmableCategoriesLoader = Future<List<ConfirmableCategory>>
     Function();
 
-/// Remembers a category rule in either the captured ledger or global scope.
+/// 在任务固化的账本或全局作用域中记住分类规则。
 typedef CategoryRuleRememberer = Future<void> Function({
   required String matchText,
   required int categoryId,
@@ -28,13 +28,13 @@ typedef CategoryRuleRememberer = Future<void> Function({
   required int ledgerId,
 });
 
-/// Remembers user-authored supplemental note text independently from OCR rules.
+/// 独立于 OCR 规则记住用户补充信息。
 typedef NotePreferenceRememberer = Future<void> Function({
   required String matchText,
   required String supplementalNote,
 });
 
-/// Receives raw optional-learning failures for diagnostics only.
+/// 接收仅供诊断的可选学习原始错误。
 typedef PendingBillLearningLogger = void Function(
   String component,
   String message,
@@ -51,9 +51,9 @@ class ConfirmableCategory {
 class PendingBillDraft {
   final int jobId;
 
-  /// Ledger captured when this billing job first received its image.
+  /// 账单任务首次接收图片时固化的账本。
   ///
-  /// Null identifies a legacy job that cannot be confirmed safely.
+  /// null 表示无法安全确认的历史任务。
   final int? ledgerId;
   final String imagePath;
   final OcrResult candidate;
@@ -90,7 +90,7 @@ enum PendingBillLearningKind {
   notePreference,
 }
 
-/// Stable, UI-safe reason for an optional learning failure.
+/// 稳定且可安全展示的可选学习失败原因。
 enum PendingBillLearningReason {
   sourceInfoInvalid,
   extractionCorrectionFailed,
@@ -107,7 +107,7 @@ class PendingBillLearningError {
   final PendingBillLearningKind kind;
   final String target;
 
-  /// Stable UI-safe reason; raw exceptions are intentionally excluded.
+  /// 稳定且可安全展示的原因；特意不包含原始异常。
   final PendingBillLearningReason reason;
 
   const PendingBillLearningError({
@@ -117,7 +117,7 @@ class PendingBillLearningError {
   });
 }
 
-/// Stable failure codes for confirmation requests rejected before creation.
+/// 确认请求在建账前被拒绝时使用的稳定错误码。
 enum PendingBillConfirmationErrorCode {
   billingJobNotAwaitingConfirmation,
   billingJobResultMissing,
@@ -125,11 +125,11 @@ enum PendingBillConfirmationErrorCode {
   rememberedCategoryRequired,
 }
 
-/// Typed rejection from [PendingBillConfirmationService.confirm].
+/// [PendingBillConfirmationService.confirm] 的类型化拒绝。
 final class PendingBillConfirmationException implements Exception {
   const PendingBillConfirmationException(this.code);
 
-  /// Stable reason the request was rejected before transaction creation.
+  /// 请求在交易创建前被拒绝的稳定原因。
   final PendingBillConfirmationErrorCode code;
 }
 
@@ -153,6 +153,7 @@ class PendingBillConfirmationService {
     this.logLearningFailure = _logLearningFailure,
   });
 
+  /// 读取仍待确认的账单草稿；任务不存在或状态不可确认时返回 null。
   Future<PendingBillDraft?> loadDraft(int jobId) async {
     final job = await repo.findById(jobId);
     if (job == null ||
@@ -170,6 +171,10 @@ class PendingBillConfirmationService {
     );
   }
 
+  /// 创建确认后的交易，并分别执行用户明确选择的提取、分类和备注学习。
+  ///
+  /// 交易始终写入任务固化的账本；缺少账本身份等前置条件时抛出
+  /// [PendingBillConfirmationException]，可选学习失败则通过结果返回。
   Future<PendingBillConfirmationResult> confirm({
     required int jobId,
     required double amount,
@@ -371,9 +376,8 @@ void _logLearningFailure(
   Object error,
   StackTrace stackTrace,
 ) {
-  // Logging is diagnostic-only and must never turn an optional learning
-  // failure into a failed confirmation (including before Flutter bindings are
-  // available in background/test isolates).
+  // 日志只用于诊断，绝不能把可选学习失败升级为确认失败；这也适用于
+  // 后台或测试 isolate 尚未初始化 Flutter bindings 的场景。
   try {
     logger.error(component, message, error, stackTrace);
   } catch (_) {}

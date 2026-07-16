@@ -38,6 +38,7 @@ class PendingTransactionClassificationService {
     }
   }
 
+  /// 按账本列出所有待分类交易，并附带分类和图片证据。
   Future<List<PendingTransactionClassificationDraft>> listPending({
     required int ledgerId,
   }) async {
@@ -46,6 +47,7 @@ class PendingTransactionClassificationService {
     return Future.wait(transactions.map(_draftFor));
   }
 
+  /// 读取指定账本中的待分类草稿；交易不属于该账本或已完成时返回 null。
   Future<PendingTransactionClassificationDraft?> loadDraft({
     required int ledgerId,
     required int transactionId,
@@ -59,6 +61,7 @@ class PendingTransactionClassificationService {
     return _draftFor(transaction);
   }
 
+  /// 原子补正分类、清除待分类状态并按用户选择记住账本或全局规则。
   Future<void> confirmClassification({
     required int ledgerId,
     required int transactionId,

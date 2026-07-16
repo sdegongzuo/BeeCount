@@ -1,8 +1,6 @@
-/// Returns the most specific stable text that can identify a merchant for a
-/// personal category rule.
+/// 返回可供个人分类规则稳定识别商户的最具体文本。
 ///
-/// Direct OCR fields win over the structured summary. User-authored
-/// supplemental notes are intentionally not accepted by this API.
+/// OCR 直接字段优先于结构化摘要；此接口有意拒绝用户自由补充文本。
 String? classificationMatchText({
   String? merchantFullName,
   String? counterparty,
@@ -19,7 +17,7 @@ String? classificationMatchText({
   return null;
 }
 
-/// Extracts only the `商户` field from a deterministic structured summary.
+/// 只从确定性结构化摘要中提取“商户”字段。
 String? merchantFromStructuredSummary(String? summary) {
   if (summary == null || summary.trim().isEmpty) return null;
   return RegExp(r'(?:^|\n)\s*商户\s*[：:]\s*([^\n]+)')
