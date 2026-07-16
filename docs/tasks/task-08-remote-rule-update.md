@@ -28,13 +28,17 @@
   与新建服务实例立即读取新快照，不为每次识别重复读取磁盘。
 - [x] 进程重启重新读取 active；active 缺失或损坏时依次回退 previous 和内置
   规则，保证旧安全快照仍可用。
+- [x] 同一规则目录的更新、按日检查与回滚在进程内串行执行；即使存在多个
+  service 实例也不会交错覆盖 active/previous/pending 状态。
+- [x] 首次激活尚无 previous 时若个人规则归档失败，撤回 active、保留 pending
+  并恢复内置规则，运行时缓存同步失效。
 - [x] 集成测试覆盖同一服务立即生效、新仓库模拟重启、损坏安全回退，以及
-  BillingJob 生产规则组装链。
+  OCR、BillingJob 和两条同步生产装配共享同一个仓库实例。
 
 验证：
 
 ```text
-flutter test runtime/repository/update/active integration：34 tests passed
+flutter test runtime/repository/update/active/wiring integration：39 tests passed
 flutter analyze 本步涉及文件：No issues found
 ```
 

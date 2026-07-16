@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:path/path.dart' as path;
@@ -38,8 +39,51 @@ class BillingRuleStorage {
   /// 上一版快照原子替换前的临时文件。
   File get previousPendingFile => File('${previousFile.path}.pending');
 
+  /// 归档失败后恢复 active 所使用的原子临时文件。
+  File get activeRecoveryPendingFile =>
+      File('${activeFile.path}.recovery.pending');
+
+  /// 手动回滚 active 所使用的原子临时文件。
+  File get activeRollbackPendingFile =>
+      File('${activeFile.path}.rollback.pending');
+
+  /// 手动回滚 previous 所使用的原子临时文件。
+  File get previousRollbackPendingFile =>
+      File('${previousFile.path}.rollback.pending');
+
   /// 最近更新检查记录。
   File get lastCheckFile => File(path.join(directory.path, lastCheckFileName));
+
+  /// 在本进程内按规范化目录串行执行一次规则文件状态转换。
+  ///
+  /// 即使调用方创建了多个更新服务或多个 [BillingRuleStorage] 实例，只要目录
+  /// 相同，更新、激活和回滚就不会交错。
+  Future<T> runExclusive<T>(Future<T> Function() action) =>
+      _mutexFor(directory).run(action);
+}
+
+final Map<String, _BillingRuleStorageMutex> _storageMutexes = {};
+
+_BillingRuleStorageMutex _mutexFor(Directory directory) {
+  var key = path.normalize(path.absolute(directory.path));
+  if (Platform.isWindows) key = key.toLowerCase();
+  return _storageMutexes.putIfAbsent(key, _BillingRuleStorageMutex.new);
+}
+
+class _BillingRuleStorageMutex {
+  Future<void> _tail = Future<void>.value();
+
+  Future<T> run<T>(Future<T> Function() action) async {
+    final previous = _tail;
+    final released = Completer<void>();
+    _tail = previous.then((_) => released.future);
+    await previous;
+    try {
+      return await action();
+    } finally {
+      released.complete();
+    }
+  }
 }
 
 Future<BillingRuleStorage>? _productionStorage;

@@ -116,28 +116,35 @@ class BillingRuleUpdateService {
     Duration minInterval = const Duration(days: 1),
   }) async {
     final storage = await _storage();
-    await storage.directory.create(recursive: true);
-    final lastCheckFile = storage.lastCheckFile;
-    final now = clock().toUtc();
+    return storage.runExclusive(() async {
+      await storage.directory.create(recursive: true);
+      final lastCheckFile = storage.lastCheckFile;
+      final now = clock().toUtc();
 
-    final lastCheck = await _readLastCheck(lastCheckFile);
-    if (lastCheck != null && now.difference(lastCheck) < minInterval) {
-      return const BillingRuleUpdateResult(
-        status: BillingRuleUpdateStatus.notDue,
-        message:
-            'Update check skipped because the daily interval has not elapsed.',
+      final lastCheck = await _readLastCheck(lastCheckFile);
+      if (lastCheck != null && now.difference(lastCheck) < minInterval) {
+        return const BillingRuleUpdateResult(
+          status: BillingRuleUpdateStatus.notDue,
+          message:
+              'Update check skipped because the daily interval has not elapsed.',
+        );
+      }
+
+      final result = await _checkForUpdate(storage);
+      await lastCheckFile.writeAsString(
+        jsonEncode({'checkedAt': now.toIso8601String()}),
       );
-    }
-
-    final result = await checkForUpdate();
-    await lastCheckFile.writeAsString(
-      jsonEncode({'checkedAt': now.toIso8601String()}),
-    );
-    return result;
+      return result;
+    });
   }
 
   Future<BillingRuleUpdateResult> checkForUpdate() async {
     final storage = await _storage();
+    return storage.runExclusive(() => _checkForUpdate(storage));
+  }
+
+  Future<BillingRuleUpdateResult> _checkForUpdate(
+      BillingRuleStorage storage) async {
     await storage.directory.create(recursive: true);
     final activeFile = storage.activeFile;
     final previousFile = storage.previousFile;
@@ -228,15 +235,19 @@ class BillingRuleUpdateService {
         try {
           await personalRuleArchiver.call(regression.equivalentPersonalRuleIds);
         } catch (e) {
-          if (await previousFile.exists()) {
-            await _restorePrevious(activeFile, previousFile);
-            onActiveSnapshotChanged();
+          final restoredPrevious = await previousFile.exists();
+          if (restoredPrevious) {
+            await _restorePrevious(storage);
+          } else if (await activeFile.exists()) {
+            await activeFile.rename(storage.pendingFile.path);
           }
+          onActiveSnapshotChanged();
           return BillingRuleUpdateResult(
             status: BillingRuleUpdateStatus.failed,
             rulesVersion: candidateRuleSet.rulesVersion,
-            message:
-                'Equivalent personal rule archival failed; old public snapshot restored: $e',
+            message: restoredPrevious
+                ? 'Equivalent personal rule archival failed; old public snapshot restored: $e'
+                : 'Equivalent personal rule archival failed; built-in snapshot restored: $e',
           );
         }
       }
@@ -255,14 +266,19 @@ class BillingRuleUpdateService {
     }
   }
 
-  Future<void> _restorePrevious(File activeFile, File previousFile) async {
-    final pending = File('${activeFile.path}.recovery.pending');
-    await pending.writeAsString(await previousFile.readAsString(), flush: true);
-    await pending.rename(activeFile.path);
+  Future<void> _restorePrevious(BillingRuleStorage storage) async {
+    final pending = storage.activeRecoveryPendingFile;
+    await pending.writeAsString(await storage.previousFile.readAsString(),
+        flush: true);
+    await pending.rename(storage.activeFile.path);
   }
 
   Future<BillingRuleUpdateResult> rollback() async {
     final storage = await _storage();
+    return storage.runExclusive(() => _rollback(storage));
+  }
+
+  Future<BillingRuleUpdateResult> _rollback(BillingRuleStorage storage) async {
     final activeFile = storage.activeFile;
     final previousFile = storage.previousFile;
     if (!await previousFile.exists()) {
@@ -274,11 +290,11 @@ class BillingRuleUpdateService {
     final previousText = await previousFile.readAsString();
     final activeText =
         await activeFile.exists() ? await activeFile.readAsString() : null;
-    final rollbackPending = File('${activeFile.path}.rollback.pending');
+    final rollbackPending = storage.activeRollbackPendingFile;
     await rollbackPending.writeAsString(previousText, flush: true);
     await rollbackPending.rename(activeFile.path);
     if (activeText != null) {
-      final previousPending = File('${previousFile.path}.rollback.pending');
+      final previousPending = storage.previousRollbackPendingFile;
       await previousPending.writeAsString(activeText, flush: true);
       await previousPending.rename(previousFile.path);
     }

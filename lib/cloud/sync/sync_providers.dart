@@ -9,6 +9,10 @@ import '../../services/billing/rules/personal_rule_lifecycle_service.dart';
 import 'change_tracker.dart';
 import 'sync_engine.dart';
 
+/// BeeCount Cloud 同步回归门禁使用的生产公共规则仓库。
+RuntimeBillingRuleRepository productionSyncPublicRuleRepository() =>
+    productionBillingRuleRepository();
+
 /// ChangeTracker provider
 final changeTrackerProvider = Provider<ChangeTracker>((ref) {
   final db = ref.watch(databaseProvider);
@@ -32,7 +36,7 @@ final syncEngineProvider = Provider.family<SyncEngine, BeeCountCloudProvider>(
         regressionSamples: const PlatformPersonalRuleRegressionSampleSource(
           RegressionSampleStore(),
         ),
-        loadPublicRules: productionBillingRuleRepository().loadActiveRuleSet,
+        loadPublicRules: productionSyncPublicRuleRepository().loadActiveRuleSet,
       ).call,
     );
   },

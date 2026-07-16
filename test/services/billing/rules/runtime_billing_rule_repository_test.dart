@@ -44,6 +44,42 @@ void main() {
         storage.pendingFile.path, endsWith(BillingRuleStorage.pendingFileName));
   });
 
+  test('默认生产存储位于 application documents 且默认更新回调立即失效缓存', () async {
+    const channel = MethodChannel('plugins.flutter.io/path_provider');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'getApplicationDocumentsDirectory') {
+        return directory.path;
+      }
+      return null;
+    });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+    final productionStorage = await productionBillingRuleStorage();
+    expect(productionStorage.directory.path,
+        '${directory.path}${Platform.pathSeparator}rules');
+    await productionStorage.directory.create(recursive: true);
+    final repository = productionBillingRuleRepository();
+    expect((await repository.loadActiveRuleSet()).rulesVersion, '2026.07.06.2');
+    final remote = _rules('production-v1', marker: '生产新规则');
+    final updater = BillingRuleUpdateService(
+      manifestLoader: (_) async => _manifest('production-v1', remote),
+      rulePackageDownloader: (_) async => remote,
+      smokeTest: (_) async => true,
+      upgradeEvaluation: (_) async => true,
+      personalRegression: (_) async =>
+          const BillingRulePersonalRegressionResult.passed(),
+      personalRuleArchiver: (_) async {},
+    );
+
+    expect((await updater.checkForUpdate()).status,
+        BillingRuleUpdateStatus.activated);
+    expect(
+        (await repository.loadActiveRuleSet()).rulesVersion, 'production-v1');
+  });
+
   test('活动快照常驻内存，显式失效后下一次读取立即切换', () async {
     await storage.activeFile.writeAsString(_rules('v1', marker: '版本一'));
     final repository = _repository(storage, assets);
@@ -142,7 +178,44 @@ void main() {
         (await updater.rollback()).status, BillingRuleUpdateStatus.rolledBack);
     expect((await repository.loadActiveRuleSet()).rulesVersion, 'v1');
   });
+
+  test('首次激活后个人规则归档失败会恢复无 active 的内置快照', () async {
+    final repository = _repository(storage, assets);
+    expect((await repository.loadActiveRuleSet()).rulesVersion, 'built-in');
+    final remote = _rules('v1', marker: '版本一');
+    final updater = BillingRuleUpdateService(
+      ruleStorage: storage,
+      onActiveSnapshotChanged: repository.invalidateActiveSnapshot,
+      manifestLoader: (_) async => _manifest('v1', remote),
+      rulePackageDownloader: (_) async => remote,
+      smokeTest: (_) async => true,
+      upgradeEvaluation: (_) async => true,
+      personalRegression: (_) async =>
+          const BillingRulePersonalRegressionResult.passed(
+        equivalentPersonalRuleIds: ['personal-1'],
+      ),
+      personalRuleArchiver: (_) async => throw StateError('db busy'),
+    );
+
+    final result = await updater.checkForUpdate();
+
+    expect(result.status, BillingRuleUpdateStatus.failed);
+    expect(result.message, contains('built-in snapshot restored'));
+    expect(await storage.activeFile.exists(), isFalse);
+    expect(await storage.pendingFile.exists(), isTrue);
+    expect((await repository.loadActiveRuleSet()).rulesVersion, 'built-in');
+  });
 }
+
+String _manifest(String version, String toml) => jsonEncode({
+      'latest': {
+        'schemaVersion': 1,
+        'rulesVersion': version,
+        'minAppVersion': '0.0.1',
+        'url': 'https://example.com/$version.toml',
+        'sha256': sha256.convert(utf8.encode(toml)).toString(),
+      },
+    });
 
 RuntimeBillingRuleRepository _repository(
         BillingRuleStorage storage, AssetBundle assets) =>

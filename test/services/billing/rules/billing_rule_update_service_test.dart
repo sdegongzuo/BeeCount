@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -230,6 +231,91 @@ void main() {
       expect(await active.readAsString(), contains('rulesVersion = "active"'));
     });
 
+    test('two updater instances sharing storage never interleave', () async {
+      final firstEntered = Completer<void>();
+      final releaseFirst = Completer<void>();
+      var secondEntered = false;
+      final firstToml = _validToml(rulesVersion: 'first');
+      final secondToml = _validToml(rulesVersion: 'second');
+      final first = _serviceForVersion(
+        tempDir,
+        version: 'first',
+        remoteToml: firstToml,
+        manifestLoader: (_) async {
+          firstEntered.complete();
+          await releaseFirst.future;
+          return _manifestJsonFor('first', _sha256(firstToml));
+        },
+      );
+      final second = _serviceForVersion(
+        tempDir,
+        version: 'second',
+        remoteToml: secondToml,
+        manifestLoader: (_) async {
+          secondEntered = true;
+          return _manifestJsonFor('second', _sha256(secondToml));
+        },
+      );
+
+      final firstFuture = first.checkForUpdate();
+      await firstEntered.future;
+      final secondFuture = second.checkForUpdate();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(secondEntered, isFalse,
+          reason: 'shared storage must serialize separate service instances');
+      releaseFirst.complete();
+      expect((await firstFuture).status, BillingRuleUpdateStatus.activated);
+      expect((await secondFuture).status, BillingRuleUpdateStatus.activated);
+      expect(secondEntered, isTrue);
+      expect(
+        await File('${tempDir.path}/billing_rules.active.toml').readAsString(),
+        contains('rulesVersion = "second"'),
+      );
+    });
+
+    test('rollback waits for an in-flight update on the same storage',
+        () async {
+      final active = File('${tempDir.path}/billing_rules.active.toml');
+      final previous = File('${tempDir.path}/billing_rules.previous.toml');
+      await active.writeAsString(_validToml(rulesVersion: 'active'));
+      await previous.writeAsString(_validToml(rulesVersion: 'previous'));
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final remote = _validToml(rulesVersion: 'remote');
+      final updater = _serviceForVersion(
+        tempDir,
+        version: 'remote',
+        remoteToml: remote,
+        manifestLoader: (_) async {
+          entered.complete();
+          await release.future;
+          return _manifestJsonFor('remote', _sha256(remote));
+        },
+      );
+      final rollbackService = _service(
+        tempDir,
+        manifest: _manifestJson(sha256: '0' * 64),
+        remoteToml: '',
+      );
+
+      final updateFuture = updater.checkForUpdate();
+      await entered.future;
+      var rollbackCompleted = false;
+      final rollbackFuture = rollbackService.rollback().then((result) {
+        rollbackCompleted = true;
+        return result;
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(rollbackCompleted, isFalse);
+      expect(await active.readAsString(), contains('rulesVersion = "active"'));
+      release.complete();
+      expect((await updateFuture).status, BillingRuleUpdateStatus.activated);
+      expect((await rollbackFuture).status, BillingRuleUpdateStatus.rolledBack);
+      expect(await active.readAsString(), contains('rulesVersion = "active"'));
+    });
+
     test('activates valid remote rules and preserves previous rules', () async {
       final active = File('${tempDir.path}/billing_rules.active.toml');
       await active.writeAsString(_validToml(rulesVersion: 'active'));
@@ -319,6 +405,23 @@ void main() {
   });
 }
 
+BillingRuleUpdateService _serviceForVersion(
+  Directory tempDir, {
+  required String version,
+  required String remoteToml,
+  required BillingRuleManifestLoader manifestLoader,
+}) =>
+    BillingRuleUpdateService(
+      storageDirectory: tempDir,
+      manifestLoader: manifestLoader,
+      rulePackageDownloader: (_) async => remoteToml,
+      smokeTest: (_) async => true,
+      upgradeEvaluation: (_) async => true,
+      personalRegression: (_) async =>
+          const BillingRulePersonalRegressionResult.passed(),
+      personalRuleArchiver: (_) async {},
+    );
+
 BillingRuleUpdateService _service(
   Directory tempDir, {
   required String manifest,
@@ -359,6 +462,16 @@ String _manifestJson({required String sha256}) {
     },
   });
 }
+
+String _manifestJsonFor(String version, String sha256) => jsonEncode({
+      'latest': {
+        'schemaVersion': 1,
+        'rulesVersion': version,
+        'minAppVersion': '0.0.1',
+        'url': 'https://example.com/$version.toml',
+        'sha256': sha256,
+      },
+    });
 
 String _sha256(String value) => sha256.convert(utf8.encode(value)).toString();
 

@@ -253,11 +253,18 @@ class OcrService {
     OcrImagePreprocessor? imagePreprocessor,
     FastBillingRuleService? fastBillingRuleService,
   })  : _imagePreprocessor = imagePreprocessor ?? const OcrImagePreprocessor(),
-        _fastBillingRuleService = fastBillingRuleService ??
-            FastBillingRuleService(
-              ruleRepository: productionBillingRuleRepository(),
-              ruleEngine: BillingRuleEngineImpl(),
-            );
+        _fastBillingRuleService =
+            fastBillingRuleService ?? createProductionRuleService();
+
+  /// 创建 OCR 默认使用的生产公共规则服务。
+  ///
+  /// 该显式装配接缝让测试能够证明 OCR 与 BillingJob、同步读取同一个运行时
+  /// 公共快照，而不需要执行平台 OCR。
+  static FastBillingRuleService createProductionRuleService() =>
+      FastBillingRuleService(
+        ruleRepository: productionBillingRuleRepository(),
+        ruleEngine: BillingRuleEngineImpl(),
+      );
 
   /// 识别图片中的文本并提取支付信息
   ///

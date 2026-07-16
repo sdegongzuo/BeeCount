@@ -32,6 +32,10 @@ import 'tag_providers.dart';
 import 'ui_state_providers.dart';
 import 'statistics_providers.dart';
 
+/// App 同步服务回归门禁使用的生产公共规则仓库。
+RuntimeBillingRuleRepository productionSyncPublicRuleRepository() =>
+    productionBillingRuleRepository();
+
 // 同步状态（根据 ledgerId 与刷新 tick 缓存），避免因 UI 重建重复拉取
 final syncStatusProvider =
     FutureProvider.family<SyncStatus, int>((ref, ledgerId) async {
@@ -181,7 +185,7 @@ final syncServiceProvider = Provider<SyncService>((ref) {
         regressionSamples: const PlatformPersonalRuleRegressionSampleSource(
           RegressionSampleStore(),
         ),
-        loadPublicRules: productionBillingRuleRepository().loadActiveRuleSet,
+        loadPublicRules: productionSyncPublicRuleRepository().loadActiveRuleSet,
       ).call,
     );
 
