@@ -15,6 +15,34 @@ class SeedService {
         'beecount:default-category:$kind:$key',
       );
 
+  /// 严格的默认兜底别名，仅用于兼容 v31 之前已存在的本地化分类。
+  static Set<String> fallbackCategoryAliases(String kind) => kind == 'income'
+      ? const {'其他收入', '其它收入', 'Other income'}
+      : const {'其他', '其它', 'Other', 'Misc'};
+
+  /// 解析当前分类集里的兜底身份：确定性 v5 优先，历史别名保留其实际身份。
+  static String? resolveFallbackCategorySyncId(
+    String kind,
+    Iterable<Category> categories,
+  ) {
+    final stable = categorySyncId(kind, 'other');
+    for (final category in categories) {
+      if (category.kind == kind && category.syncId == stable) return stable;
+    }
+    for (final alias in fallbackCategoryAliases(kind)) {
+      for (final category in categories) {
+        final syncId = category.syncId?.trim();
+        if (category.kind == kind &&
+            category.name == alias &&
+            syncId != null &&
+            syncId.isNotEmpty) {
+          return syncId;
+        }
+      }
+    }
+    return null;
+  }
+
   // ========== 一级分类模式的默认分类 key ==========
 
   /// 默认支出分类 key 列表（一级分类模式）
@@ -1058,22 +1086,13 @@ class SeedService {
         'expense',
         'other',
         usesChinese ? '其他' : 'Other',
-        {
-          '其他',
-          '其它',
-          'Other',
-          'Misc',
-        }
+        fallbackCategoryAliases('expense')
       ),
       (
         'income',
         'other',
         usesChinese ? '其他收入' : 'Other income',
-        {
-          '其他收入',
-          '其它收入',
-          'Other income',
-        }
+        fallbackCategoryAliases('income')
       ),
     ];
     for (final fallback in fallbacks) {
@@ -1083,13 +1102,21 @@ class SeedService {
               fallback.$4.contains(category.name))
           .toList(growable: false);
       final stableSyncId = categorySyncId(fallback.$1, fallback.$2);
-      if (existing.isNotEmpty) {
-        for (final category in existing) {
-          await (db.update(db.categories)
-                ..where((row) => row.id.equals(category.id)))
-              .write(CategoriesCompanion(syncId: Value(stableSyncId)));
+      final alreadyStable =
+          existing.any((category) => category.syncId == stableSyncId);
+      Category? blank;
+      for (final category in existing) {
+        if (category.syncId?.trim().isEmpty != false) {
+          blank = category;
+          break;
         }
-      } else {
+      }
+      if (!alreadyStable && blank != null) {
+        final blankId = blank.id;
+        await (db.update(db.categories)
+              ..where((row) => row.id.equals(blankId)))
+            .write(CategoriesCompanion(syncId: Value(stableSyncId)));
+      } else if (existing.isEmpty) {
         await db.into(db.categories).insert(
               CategoriesCompanion.insert(
                 name: fallback.$3,

@@ -87,6 +87,7 @@ void main() {
       VALUES ('Dining', 'expense', NULL),
              ('Salary', 'income', NULL),
              ('Other', 'expense', NULL),
+             ('Misc', 'expense', NULL),
              ('Other income', 'income', NULL);
       PRAGMA user_version = 30;
     ''');
@@ -105,5 +106,90 @@ void main() {
           .syncId,
       SeedService.categorySyncId('income', 'other'),
     );
+    expect(
+      categories.singleWhere((category) => category.name == 'Misc').syncId,
+      isNot(SeedService.categorySyncId('expense', 'other')),
+    );
+  });
+
+  test('v31 保留既有 fallback 云身份及个人规则和待上传修订引用', () async {
+    final underlying = sqlite.sqlite3.openInMemory();
+    underlying.execute('''
+      CREATE TABLE categories (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        icon TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        parent_id INTEGER,
+        level INTEGER NOT NULL DEFAULT 1,
+        icon_type TEXT NOT NULL DEFAULT 'material',
+        custom_icon_path TEXT,
+        community_icon_id TEXT,
+        sync_id TEXT
+      );
+      CREATE TABLE transaction_attachments (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        transaction_id INTEGER NOT NULL,
+        file_name TEXT NOT NULL,
+        origin_key TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+      );
+      CREATE TABLE personal_category_rules (
+        match_text TEXT NOT NULL,
+        category_sync_id TEXT NOT NULL,
+        ledger_id INTEGER,
+        scope_key TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE personal_rule_sync_revisions (
+        revision_id TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        sync_state TEXT NOT NULL
+      );
+      INSERT INTO categories (name, kind, sync_id)
+      VALUES ('Other', 'expense', 'legacy-expense'),
+             ('Misc', 'expense', 'legacy-misc'),
+             ('Other income', 'income', 'legacy-income');
+      INSERT INTO personal_category_rules
+        (match_text, category_sync_id, scope_key, updated_at)
+      VALUES ('coffee', 'legacy-expense', 'global', 1);
+      INSERT INTO personal_rule_sync_revisions
+        (revision_id, payload_json, sync_state)
+      VALUES ('r1', '{"category_sync_id":"legacy-income"}', 'pending_upload');
+      PRAGMA user_version = 30;
+    ''');
+
+    final db = BeeDatabase.forTesting(NativeDatabase.opened(underlying));
+    addTearDown(db.close);
+
+    final categories = await db.select(db.categories).get();
+    expect(
+      categories.singleWhere((category) => category.name == 'Other').syncId,
+      'legacy-expense',
+    );
+    expect(
+      categories.singleWhere((category) => category.name == 'Misc').syncId,
+      'legacy-misc',
+    );
+    expect(
+      categories
+          .singleWhere((category) => category.name == 'Other income')
+          .syncId,
+      'legacy-income',
+    );
+    final rule = await db
+        .customSelect(
+          'SELECT category_sync_id FROM personal_category_rules',
+        )
+        .getSingle();
+    expect(rule.read<String>('category_sync_id'), 'legacy-expense');
+    final queued = await db
+        .customSelect(
+          'SELECT payload_json FROM personal_rule_sync_revisions',
+        )
+        .getSingle();
+    expect(queued.read<String>('payload_json'), contains('legacy-income'));
   });
 }

@@ -48,7 +48,10 @@ class BillCreationService {
     );
     final fallbackCategorySyncId = categories.isEmpty
         ? null
-        : SeedService.categorySyncId(categories.first.kind, 'other');
+        : SeedService.resolveFallbackCategorySyncId(
+            categories.first.kind,
+            categories,
+          );
     if (ledgerId != null &&
         personalCategoryRules != null &&
         personalEvidence != null &&
@@ -575,28 +578,15 @@ class BillCreationService {
       List<Category> categories, String transactionType) async {
     if (categories.isEmpty) return null;
 
-    final stableSyncId = SeedService.categorySyncId(transactionType, 'other');
-    final stableFallback = categories
-        .where((category) => category.syncId == stableSyncId)
+    final fallbackSyncId =
+        SeedService.resolveFallbackCategorySyncId(transactionType, categories);
+    final resolvedFallback = categories
+        .where((category) => category.syncId == fallbackSyncId)
         .firstOrNull;
-    if (stableFallback != null) {
-      logger.debug(
-          _tag, '[分类兜底] 使用"${stableFallback.name}"(ID:${stableFallback.id})');
-      return stableFallback.id;
-    }
-
-    // 尝试查找"其他"分类（支持多种命名方式）
-    final otherKeywords = ['其他', 'other', '其它', '杂项', 'misc'];
-    for (final keyword in otherKeywords) {
-      final otherCategory = categories
-          .where((c) => c.name.toLowerCase().contains(keyword.toLowerCase()))
-          .toList()
-          .firstOrNull;
-      if (otherCategory != null) {
-        logger.debug(
-            _tag, '[分类兜底] 使用"${otherCategory.name}"(ID:${otherCategory.id})');
-        return otherCategory.id;
-      }
+    if (resolvedFallback != null) {
+      logger.debug(_tag,
+          '[分类兜底] 使用"${resolvedFallback.name}"(ID:${resolvedFallback.id})');
+      return resolvedFallback.id;
     }
 
     // 缺少兜底时宁可保持未分类，也不能把排序最后的普通分类误当兜底。

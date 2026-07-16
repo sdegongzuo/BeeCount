@@ -251,18 +251,18 @@ confidence = 0.9
   });
 
   for (final scenario in const [
-    ('英文支出', 'expense', 'Other', -18.0, '支付成功'),
-    ('中文收入', 'income', '其他收入', 18.0, '收款成功'),
-    ('英文收入', 'income', 'Other income', 18.0, '收款成功'),
+    ('英文支出', 'expense', 'Other', -18.0, '支付成功', false),
+    ('中文收入', 'income', '其他收入', 18.0, '收款成功', true),
+    ('英文收入', 'income', 'Other income', 18.0, '收款成功', true),
   ]) {
     test('${scenario.$1}稳定兜底身份不阻断图片个人分类', () async {
       await db.into(db.categories).insert(
             CategoriesCompanion.insert(
               name: scenario.$3,
               kind: scenario.$2,
-              syncId: Value(
-                SeedService.categorySyncId(scenario.$2, 'other'),
-              ),
+              syncId: Value(scenario.$6
+                  ? SeedService.categorySyncId(scenario.$2, 'other')
+                  : 'legacy-expense-fallback'),
             ),
           );
       final targetId = await repo.createCategory(
