@@ -1,9 +1,15 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/widgets.dart';
 
+/// 查询当前最早一条待处理记录的数据库 ID。
 typedef PendingBillingFinder = Future<int?> Function();
+
+/// 打开指定待处理页面，并在页面关闭后完成。
 typedef PendingBillingOpener = Future<void> Function(int id);
+
+/// 接收发现或导航失败；错误只上报，不触发自动重试。
 typedef PendingBillingNavigationErrorHandler = void Function(
     Object error, StackTrace stackTrace);
 
@@ -26,8 +32,8 @@ class PendingBillingNavigationCoordinator {
   final PendingBillingOpener openClassification;
   final PendingBillingNavigationErrorHandler? onError;
 
-  int? _criticalId;
-  int? _classificationId;
+  final LinkedHashSet<int> _criticalIds = LinkedHashSet<int>();
+  final LinkedHashSet<int> _classificationIds = LinkedHashSet<int>();
   bool _discoverRequested = false;
   bool _running = false;
   int? _activeCriticalId;
@@ -35,20 +41,23 @@ class PendingBillingNavigationCoordinator {
 
   /// 通知协调器有新的关键待确认 Billing Job。
   void notifyCritical(int jobId) {
-    if (_activeCriticalId != jobId) _criticalId = jobId;
+    if (_activeCriticalId != jobId) _criticalIds.add(jobId);
     _schedule();
   }
 
   /// 通知协调器主 Flutter engine 刚创建了待分类交易。
   void notifyClassificationCreated(int transactionId) {
     if (_activeClassificationId != transactionId) {
-      _classificationId = transactionId;
+      _classificationIds.add(transactionId);
     }
     _schedule();
   }
 
   /// 应用启动或回到前台时发现当前账本的遗留记录。
   void discoverOnForeground() {
+    // 页面已打开时的 resumed 往往只是系统生命周期抖动；若记住这次发现，用户
+    // 主动返回未处理页面后会立刻再次打开同一条记录。下一次真正回到前台再查。
+    if (_running) return;
     _discoverRequested = true;
     _schedule();
   }
@@ -61,37 +70,62 @@ class PendingBillingNavigationCoordinator {
 
   Future<void> _drain() async {
     try {
-      var mayDiscover = _discoverRequested || _classificationId != null;
+      final discoverClassification = _discoverRequested;
+      final discoverCritical =
+          _discoverRequested || _classificationIds.isNotEmpty;
       _discoverRequested = false;
 
-      final criticalId =
-          _criticalId ?? (mayDiscover ? await findOldestCritical() : null);
-      _criticalId = null;
-      if (criticalId != null) {
-        _activeCriticalId = criticalId;
-        await openCritical(criticalId);
-        _activeCriticalId = null;
-        // 关键页面关闭后继续处理期间收到的显式待分类通知，但不在同一轮
-        // 再次发现同一个仍未处理的关键任务。
-        mayDiscover = false;
+      if (discoverCritical) {
+        try {
+          final id = await findOldestCritical();
+          if (id != null && id != _activeCriticalId) _criticalIds.add(id);
+        } catch (error, stackTrace) {
+          onError?.call(error, stackTrace);
+        }
+      }
+      if (discoverClassification) {
+        try {
+          final id = await findOldestClassification();
+          if (id != null && id != _activeClassificationId) {
+            _classificationIds.add(id);
+          }
+        } catch (error, stackTrace) {
+          onError?.call(error, stackTrace);
+        }
       }
 
-      final classificationId = _classificationId ??
-          (mayDiscover ? await findOldestClassification() : null);
-      _classificationId = null;
-      if (classificationId != null) {
-        _activeClassificationId = classificationId;
-        await openClassification(classificationId);
-        _activeClassificationId = null;
+      while (_criticalIds.isNotEmpty || _classificationIds.isNotEmpty) {
+        if (_criticalIds.isNotEmpty) {
+          final id = _criticalIds.first;
+          _criticalIds.remove(id);
+          _activeCriticalId = id;
+          try {
+            await openCritical(id);
+          } catch (error, stackTrace) {
+            onError?.call(error, stackTrace);
+          } finally {
+            _activeCriticalId = null;
+          }
+          continue;
+        }
+
+        final id = _classificationIds.first;
+        _classificationIds.remove(id);
+        _activeClassificationId = id;
+        try {
+          await openClassification(id);
+        } catch (error, stackTrace) {
+          onError?.call(error, stackTrace);
+        } finally {
+          _activeClassificationId = null;
+        }
       }
-    } catch (error, stackTrace) {
-      onError?.call(error, stackTrace);
     } finally {
       _activeCriticalId = null;
       _activeClassificationId = null;
       _running = false;
-      if (_criticalId != null ||
-          _classificationId != null ||
+      if (_criticalIds.isNotEmpty ||
+          _classificationIds.isNotEmpty ||
           _discoverRequested) {
         _schedule();
       }
@@ -101,6 +135,7 @@ class PendingBillingNavigationCoordinator {
 
 /// 把应用启动和恢复前台事件转成待处理账单发现请求。
 class PendingBillingForegroundObserver with WidgetsBindingObserver {
+  /// 创建把生命周期事件转交给 [coordinator] 的观察器。
   PendingBillingForegroundObserver(this.coordinator);
 
   final PendingBillingNavigationCoordinator coordinator;

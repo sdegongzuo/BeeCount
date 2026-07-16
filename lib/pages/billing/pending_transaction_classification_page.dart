@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../../services/billing/pending_transaction_classification_service.dart';
 
+/// 把数据库附件文件名解析为设备上的可读取路径。
 typedef AttachmentPathResolver = Future<String> Function(String fileName);
 
 /// 对已成功创建、但分类证据不足的图片账单进行轻量补正。
 class PendingTransactionClassificationPage extends StatefulWidget {
+  /// 创建指定交易的待分类补正页面。
   const PendingTransactionClassificationPage({
     super.key,
     required this.ledgerId,
@@ -16,9 +18,16 @@ class PendingTransactionClassificationPage extends StatefulWidget {
     required this.resolveAttachmentPath,
   });
 
+  /// 交易创建时所属的账本，不随当前账本切换而改变。
   final int ledgerId;
+
+  /// 需要补正分类的交易 ID。
   final int transactionId;
+
+  /// 读取证据并原子确认分类的领域服务。
   final PendingTransactionClassificationService service;
+
+  /// 解析图片证据路径的设备边界。
   final AttachmentPathResolver resolveAttachmentPath;
 
   @override
@@ -33,6 +42,8 @@ class _PendingTransactionClassificationPageState
   ClassificationMemoryScope? _scope;
   bool _saving = false;
   bool _missing = false;
+  bool _loading = true;
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -41,116 +52,148 @@ class _PendingTransactionClassificationPageState
   }
 
   Future<void> _load() async {
-    final draft = await widget.service.loadDraft(
-      ledgerId: widget.ledgerId,
-      transactionId: widget.transactionId,
-    );
-    if (!mounted) return;
-    setState(() {
-      _draft = draft;
-      _missing = draft == null;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _loadFailed = false;
+      });
+    }
+    try {
+      final draft = await widget.service.loadDraft(
+        ledgerId: widget.ledgerId,
+        transactionId: widget.transactionId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _draft = draft;
+        _missing = draft == null;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadFailed = true;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('待分类账单')),
-      body: _missing
-          ? const Center(child: Text('此账单已完成分类或已不存在'))
-          : _draft == null
+      body: _loadFailed
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('账单加载失败，请稍后重试'),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    key: const Key('retryClassificationLoad'),
+                    onPressed: _load,
+                    child: const Text('重试'),
+                  ),
+                ],
+              ),
+            )
+          : _loading
               ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    if (_draft!.attachments.isNotEmpty) ...[
-                      Text('图片证据',
-                          style: Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 180,
-                        child: FutureBuilder<String>(
-                          future: widget.resolveAttachmentPath(
-                              _draft!.attachments.first.fileName),
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData) {
-                              return const Center(
-                                  child: CircularProgressIndicator());
-                            }
-                            return Image.file(
-                              File(snapshot.data!),
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const ColoredBox(
-                                color: Color(0x11000000),
-                                child: Center(
-                                  child: Icon(Icons.receipt_long, size: 48),
-                                ),
-                              ),
-                            );
-                          },
+              : _missing
+                  ? const Center(child: Text('此账单已完成分类或已不存在'))
+                  : ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        if (_draft!.attachments.isNotEmpty) ...[
+                          Text('图片证据',
+                              style: Theme.of(context).textTheme.titleMedium),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 180,
+                            child: FutureBuilder<String>(
+                              future: widget.resolveAttachmentPath(
+                                  _draft!.attachments.first.fileName),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState !=
+                                    ConnectionState.done) {
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                }
+                                if (snapshot.hasError || !snapshot.hasData) {
+                                  return const _AttachmentPlaceholder();
+                                }
+                                return Image.file(
+                                  File(snapshot.data!),
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, __, ___) =>
+                                      const _AttachmentPlaceholder(),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                        ],
+                        Text('结构化摘要',
+                            style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        Text(
+                            _draft!.structuredSummary?.trim().isNotEmpty == true
+                                ? _draft!.structuredSummary!
+                                : '暂无可验证的摘要'),
+                        const SizedBox(height: 16),
+                        Row(children: [
+                          Expanded(
+                              child: _EvidenceTile(
+                                  label: '金额',
+                                  value:
+                                      '¥${_draft!.transaction.amount.toStringAsFixed(2)}')),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              child: _EvidenceTile(
+                                  label: '时间',
+                                  value: _formatTime(
+                                      _draft!.transaction.happenedAt))),
+                        ]),
+                        const SizedBox(height: 24),
+                        Text('选择分类',
+                            style: Theme.of(context).textTheme.titleMedium),
+                        RadioGroup<int>(
+                          groupValue: _categoryId,
+                          onChanged: (value) =>
+                              setState(() => _categoryId = value),
+                          child: Column(
+                            children: _draft!.categories
+                                .map((category) => RadioListTile<int>(
+                                      value: category.id,
+                                      title: Text(category.name),
+                                    ))
+                                .toList(),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                    Text('结构化摘要',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    Text(_draft!.structuredSummary?.trim().isNotEmpty == true
-                        ? _draft!.structuredSummary!
-                        : '暂无可验证的摘要'),
-                    const SizedBox(height: 16),
-                    Row(children: [
-                      Expanded(
-                          child: _EvidenceTile(
-                              label: '金额',
-                              value:
-                                  '¥${_draft!.transaction.amount.toStringAsFixed(2)}')),
-                      const SizedBox(width: 12),
-                      Expanded(
-                          child: _EvidenceTile(
-                              label: '时间',
-                              value:
-                                  _formatTime(_draft!.transaction.happenedAt))),
-                    ]),
-                    const SizedBox(height: 24),
-                    Text('选择分类',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    RadioGroup<int>(
-                      groupValue: _categoryId,
-                      onChanged: (value) => setState(() => _categoryId = value),
-                      child: Column(
-                        children: _draft!.categories
-                            .map((category) => RadioListTile<int>(
-                                  value: category.id,
-                                  title: Text(category.name),
-                                ))
-                            .toList(),
-                      ),
+                        const SizedBox(height: 12),
+                        Text('这次选择如何生效',
+                            style: Theme.of(context).textTheme.titleMedium),
+                        RadioGroup<ClassificationMemoryScope>(
+                          groupValue: _scope,
+                          onChanged: (value) => setState(() => _scope = value),
+                          child: Column(
+                            children: ClassificationMemoryScope.values
+                                .map((scope) =>
+                                    RadioListTile<ClassificationMemoryScope>(
+                                      value: scope,
+                                      title: Text(_scopeText(scope)),
+                                    ))
+                                .toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          key: const Key('confirmClassification'),
+                          onPressed: _saving ? null : _confirm,
+                          child: const Text('确认分类'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                    Text('这次选择如何生效',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    RadioGroup<ClassificationMemoryScope>(
-                      groupValue: _scope,
-                      onChanged: (value) => setState(() => _scope = value),
-                      child: Column(
-                        children: ClassificationMemoryScope.values
-                            .map((scope) =>
-                                RadioListTile<ClassificationMemoryScope>(
-                                  value: scope,
-                                  title: Text(_scopeText(scope)),
-                                ))
-                            .toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      key: const Key('confirmClassification'),
-                      onPressed: _saving ? null : _confirm,
-                      child: const Text('确认分类'),
-                    ),
-                  ],
-                ),
     );
   }
 
@@ -177,6 +220,9 @@ class _PendingTransactionClassificationPageState
     } on StateError catch (error) {
       if (!mounted) return;
       _showMessage(_classificationErrorText(error.message));
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('分类更新失败，请稍后重试');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -186,6 +232,25 @@ class _PendingTransactionClassificationPageState
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
+}
+
+class _AttachmentPlaceholder extends StatelessWidget {
+  const _AttachmentPlaceholder();
+
+  @override
+  Widget build(BuildContext context) => const ColoredBox(
+        color: Color(0x11000000),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.receipt_long, size: 48),
+              SizedBox(height: 8),
+              Text('图片暂时无法显示'),
+            ],
+          ),
+        ),
+      );
 }
 
 class _EvidenceTile extends StatelessWidget {
