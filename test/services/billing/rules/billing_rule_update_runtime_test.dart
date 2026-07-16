@@ -29,5 +29,6 @@ void main() {
     final regression = await service.personalRegression(invalidCandidate);
     expect(regression.isPassed, isFalse);
     expect(service.personalRuleReconciler, isNotNull);
+    expect(service.personalRuleReconciliationVerifier, isNotNull);
   });
 }

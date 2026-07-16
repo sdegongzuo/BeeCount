@@ -646,6 +646,13 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
                   'SELECT active_version FROM personal_rule_state WHERE singleton = 1')
               .getSingle())
           .data['active_version'] as int?;
+      if (await _isPublicReconciliationApplied(
+        result,
+        publicRulesVersion: publicRulesVersion,
+        actualVersion: actualVersion,
+      )) {
+        return actualVersion;
+      }
       if (actualVersion != result.expectedPersonalRulesVersion) {
         throw const PersonalRuleActivationConflict();
       }
@@ -706,6 +713,70 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
       }
       return nextVersion;
     });
+  }
+
+  /// 判断指定公共版本的整组个人裁决是否已由先前事务完整提交。
+  ///
+  /// 该证明用于激活 journal 在“SQLite 已提交、journal 尚未推进”崩溃窗口中
+  /// 幂等重放；只要任一归档、同步 resolution、冲突解释或活动快照不匹配，
+  /// 就返回 false 并由 CAS 拒绝猜测完成。
+  Future<bool> isPublicReconciliationApplied(
+    BillingRulePersonalRegressionResult result, {
+    required String publicRulesVersion,
+  }) async {
+    await ensureSchema();
+    final actualVersion = await activeVersion();
+    return _isPublicReconciliationApplied(
+      result,
+      publicRulesVersion: publicRulesVersion,
+      actualVersion: actualVersion,
+    );
+  }
+
+  Future<bool> _isPublicReconciliationApplied(
+    BillingRulePersonalRegressionResult result, {
+    required String publicRulesVersion,
+    required int? actualVersion,
+  }) async {
+    final equivalentIds = result.equivalentPersonalRuleIds.toSet();
+    final conflicts = result.conflicts;
+    if (equivalentIds.isEmpty && conflicts.isEmpty) return true;
+
+    final current = await loadActiveRuleSet();
+    final activeIds = current.templates.map((rule) => rule.id).toSet();
+    if (equivalentIds.any(activeIds.contains)) return false;
+    if (equivalentIds.isNotEmpty &&
+        actualVersion == result.expectedPersonalRulesVersion) {
+      return false;
+    }
+    for (final id in equivalentIds) {
+      final archive = await db.customSelect(
+        '''SELECT 1 FROM personal_rule_archives
+           WHERE rule_id = ? AND public_rules_version = ? LIMIT 1''',
+        variables: [Variable(id), Variable(publicRulesVersion)],
+      ).getSingleOrNull();
+      final resolution = await db.customSelect(
+        '''SELECT 1 FROM personal_rule_public_archive_resolutions
+           WHERE rule_id = ? AND public_rules_version = ? LIMIT 1''',
+        variables: [Variable(id), Variable(publicRulesVersion)],
+      ).getSingleOrNull();
+      if (archive == null || resolution == null) return false;
+    }
+    for (final conflict in conflicts) {
+      if (!activeIds.contains(conflict.personalRuleId)) return false;
+      final decision = await db.customSelect(
+        '''SELECT 1 FROM personal_rule_public_decisions
+           WHERE rule_id = ? AND public_rules_version = ?
+             AND decision = 'retained_conflict' AND explanation = ? LIMIT 1''',
+        variables: [
+          Variable(conflict.personalRuleId),
+          Variable(publicRulesVersion),
+          Variable(conflict.explanation),
+        ],
+      ).getSingleOrNull();
+      if (decision == null) return false;
+    }
+    return true;
   }
 
   Future<void> _recordSyncArchiveResolutions(

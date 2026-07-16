@@ -23,6 +23,8 @@ import 'services/platform/image_share_handler_service.dart';
 import 'services/platform/share_billing_background_service.dart';
 import 'services/platform/app_link_service.dart';
 import 'services/system/logger_service.dart';
+import 'services/billing/rules/billing_rule_update_configuration.dart';
+import 'services/billing/rules/billing_rule_update_runtime.dart';
 import 'l10n/app_localizations.dart';
 import 'widget/widget_manager.dart';
 import 'package:home_widget/home_widget.dart';
@@ -91,6 +93,20 @@ Future<void> main() async {
   // 初始化应用模式（需要在生成重复交易之前，确保模式正确）
   // 直接从 SharedPreferences 读取并设置到 appModeProvider
   await _initializeAppMode(container);
+
+  // 任何 OCR/同步运行时读取公共规则前，先在规则目录互斥区完成上次中断的
+  // 文件切换与个人规则裁决。失败时禁止带着半状态继续启动。
+  try {
+    final ruleUpdateConfiguration =
+        await BillingRuleUpdateConfiguration.loadProduction();
+    await initializeProductionBillingRuleUpdateService(
+      configuration: ruleUpdateConfiguration,
+      database: container.read(databaseProvider),
+    );
+  } catch (error, stackTrace) {
+    logger.error('BillingRules', '公共规则启动恢复失败', error, stackTrace);
+    rethrow;
+  }
 
   // 注意：不再在启动时生成重复交易
   // 周期交易生成已移至 appSplashInitProvider 中（等待数据库完全初始化后执行）

@@ -281,6 +281,55 @@ void main() {
     expect(second, 2);
   });
 
+  test('公共裁决提交后重放只证明完成，不重复归档或写冲突', () async {
+    final first = await revisions.activate(
+      _candidate('equivalent', '金额', 'amount'),
+      expectedActiveVersion: null,
+    );
+    final second = await revisions.activate(
+      _candidate('conflicting', '时间', 'time'),
+      expectedActiveVersion: first,
+    );
+    final result = BillingRulePersonalRegressionResult.passed(
+      equivalentPersonalRuleIds: const ['equivalent'],
+      expectedPersonalRulesVersion: second,
+      conflicts: const [
+        BillingRulePersonalConflict(
+          personalRuleId: 'conflicting',
+          explanation: '保留个人时间结果',
+        ),
+      ],
+    );
+
+    final appliedVersion = await revisions.reconcilePublicRules(
+      result,
+      publicRulesVersion: 'public-replay',
+    );
+    final replayedVersion = await revisions.reconcilePublicRules(
+      result,
+      publicRulesVersion: 'public-replay',
+    );
+
+    expect(replayedVersion, appliedVersion);
+    expect(
+      await revisions.isPublicReconciliationApplied(
+        result,
+        publicRulesVersion: 'public-replay',
+      ),
+      isTrue,
+    );
+    for (final table in [
+      'personal_rule_archives',
+      'personal_rule_public_archive_resolutions',
+      'personal_rule_public_decisions',
+    ]) {
+      final row = await db
+          .customSelect('SELECT COUNT(*) AS count FROM $table')
+          .getSingle();
+      expect(row.read<int>('count'), 1, reason: table);
+    }
+  });
+
   test('评测后的个人活动版本变化时整个公共裁决不落库', () async {
     final version = await revisions.activate(
       _candidate('retained', '金额', 'amount'),

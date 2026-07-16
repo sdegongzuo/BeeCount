@@ -31,5 +31,23 @@ BillingRuleUpdateService createProductionBillingRuleUpdateService({
       result,
       publicRulesVersion: publicRulesVersion,
     ),
+    personalRuleReconciliationVerifier: (result, publicRulesVersion) =>
+        personalRevisions.isPublicReconciliationApplied(
+      result,
+      publicRulesVersion: publicRulesVersion,
+    ),
   );
+}
+
+/// 组装生产更新服务并在任何检查、回滚或运行时读取前恢复未完成状态机。
+Future<BillingRuleUpdateService> initializeProductionBillingRuleUpdateService({
+  required BillingRuleUpdateConfiguration configuration,
+  required BeeDatabase database,
+}) async {
+  final service = createProductionBillingRuleUpdateService(
+    configuration: configuration,
+    database: database,
+  );
+  await service.reconcileInterruptedActivation();
+  return service;
 }

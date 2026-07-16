@@ -124,6 +124,42 @@ dev debug APK：构建成功（`app-dev-debug.apk`）
 
 激活 journal、启动/每日/手动触发和诊断 UI 仍由后续 tracer task 完成。
 
+### Tracer Task 4：可恢复激活 journal 与安全回滚（已完成）
+
+- [x] 激活和回滚统一使用持久状态机：`downloaded → validated → evaluated →
+  switchPrepared → activeSwitched → personalReconciled → committed`。每次阶段
+  变化先把完整 JSON 写入同目录 pending 文件并 flush，再原子 rename 到稳定
+  journal；成功 journal 不删除，继续作为诊断快照。
+- [x] journal 记录操作类型、候选/旧 active/旧 previous 的版本与 SHA-256、
+  完整个人回归裁决、最近尝试/成功时间和稳定错误文本。诊断层可直接读取
+  `lastState / activeVersion / previousVersion / error / attempt / success`。
+- [x] 主进程和 Android 分享后台 isolate 在构造生产规则运行时之后、首次 OCR
+  或同步读取之前，先在 Task 1 的规则目录 mutex 内恢复未完成 journal；更新、
+  回滚、启动恢复不会交错。
+- [x] 启动恢复按磁盘哈希判断切换是否实际发生：切换前中断继续使用旧 active；
+  切换后中断重放个人裁决并补齐 commit。SQLite 个人裁决以公共版本、归档、
+  同步 resolution、冲突解释和活动版本证明幂等，覆盖“数据库已提交但 journal
+  尚未推进”的崩溃窗口。
+- [x] 首次激活无法完成个人裁决时隔离 candidate 并恢复内置规则；有旧安全
+  active 时从经 journal 哈希证明的 previous 恢复。损坏 journal、candidate、
+  recovery 文件均原子改名隔离或复用，不盲删文件，并留下中文诊断。
+- [x] 手动回滚不再直接交换文件：previous 必须依次通过解析/schema、smoke、
+  黄金语料和个人样本回归；准备和切换前再次比较 SHA-256，切换后从 runtime
+  active 按原哈希/版本读回。任一门禁失败保持当前 active。
+- [x] update、rollback 两套七阶段故障注入测试覆盖每个落盘点，包含重复启动
+  恢复幂等、损坏 journal、切换前篡改、首次激活失败和 update/rollback mutex
+  竞争；不依赖删除临时文件恢复一致性。
+
+验证：
+
+```text
+focused journal/lifecycle/update/security/runtime/repository：110 tests passed
+500 样本回归：P95 41ms，最坏 46ms
+```
+
+每日/手动触发入口和诊断 UI 属于 Task 5；本步只提供可靠状态机、生产启动恢复
+和持久诊断模型。
+
 1. 添加 manifest 解析测试，覆盖 `latest.schemaVersion`、`rulesVersion`、`minAppVersion`、`url` 和 `sha256`。
 2. 添加 hash 不匹配、未知 schema version、无效 TOML、smoke test 失败和回滚测试。
 3. 实现启动时或每日更新检查，更新失败时不得影响当前激活规则。

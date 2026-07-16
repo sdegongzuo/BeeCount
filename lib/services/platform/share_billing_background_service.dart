@@ -7,6 +7,8 @@ import '../../providers/cloud_mode_providers.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/smart_billing_providers.dart';
 import '../billing/billing_job_service.dart';
+import '../billing/rules/billing_rule_update_configuration.dart';
+import '../billing/rules/billing_rule_update_runtime.dart';
 import '../system/logger_service.dart';
 import 'share_billing_request_coordinator.dart';
 import 'share_billing_delivery.dart';
@@ -101,6 +103,10 @@ class ShareBillingBackgroundService {
     final container = c2Runtime?.container ?? ProviderContainer();
     if (fixture == null) {
       await _initializeAppMode(container);
+      await initializeProductionBillingRuleUpdateService(
+        configuration: await BillingRuleUpdateConfiguration.loadProduction(),
+        database: container.read(databaseProvider),
+      );
       await _initializeSmartBilling(container);
     }
 

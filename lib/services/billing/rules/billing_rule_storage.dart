@@ -21,6 +21,10 @@ class BillingRuleStorage {
   /// 最近检查时间文件名。
   static const lastCheckFileName = 'billing_rules.last_check.json';
 
+  /// 可恢复激活状态机及最近一次更新诊断。
+  static const activationJournalFileName =
+      'billing_rules.activation_journal.json';
+
   /// 规则专用目录。
   final Directory directory;
 
@@ -53,6 +57,14 @@ class BillingRuleStorage {
 
   /// 最近更新检查记录。
   File get lastCheckFile => File(path.join(directory.path, lastCheckFileName));
+
+  /// 可恢复激活 journal。成功后也保留 committed 快照供诊断区读取。
+  File get activationJournalFile =>
+      File(path.join(directory.path, activationJournalFileName));
+
+  /// journal 原子替换使用的固定临时路径。
+  File get activationJournalPendingFile =>
+      File('${activationJournalFile.path}.pending');
 
   /// 在本进程内按规范化目录串行执行一次规则文件状态转换。
   ///
