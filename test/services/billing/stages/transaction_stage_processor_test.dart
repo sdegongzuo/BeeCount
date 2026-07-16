@@ -178,7 +178,7 @@ void main() {
     expect(updated.imagePath, '/tmp/unreliable.png');
   });
 
-  test('non-positive amount remains blocked even when time exists', () async {
+  test('zero amount remains blocked even when time exists', () async {
     final txService = FakeTransactionCreationService();
     final processor =
         TransactionStageProcessor(txService: txService, repo: repo);
@@ -200,6 +200,32 @@ void main() {
 
     expect(result.awaitingConfirmation, isTrue);
     expect(txService.called, isFalse);
+  });
+
+  test('signed expense amount with reliable time creates a transaction',
+      () async {
+    final txService = FakeTransactionCreationService();
+    final processor =
+        TransactionStageProcessor(txService: txService, repo: repo);
+    final job = await repo.createJob(imagePath: '/tmp/signed-expense.png');
+    final candidate = OcrResult(
+      rawText: '账单详情\n-18.50\n支付时间\n2026-07-16 12:34:56',
+      allNumbers: const ['18.50'],
+      amount: -18.5,
+      time: DateTime(2026, 7, 16, 12, 34, 56),
+      fastBillingAccepted: true,
+    );
+    await repo.updateRuleResultJson(job.id, jsonEncode(candidate.toJson()));
+
+    final result = await processor.process(
+      (await repo.findById(job.id))!,
+      DateTime.now().add(const Duration(seconds: 30)),
+      PipelineContext(),
+    );
+
+    expect(result.success, isTrue);
+    expect(txService.called, isTrue);
+    expect((await repo.findById(job.id))!.transactionId, 42);
   });
 
   test('skips creation if transaction_id already exists', () async {

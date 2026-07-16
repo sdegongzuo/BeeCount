@@ -120,7 +120,7 @@ class TransactionStageProcessor implements StageProcessor {
       }
 
       if (ocrResult.amount == null ||
-          ocrResult.amount! <= 0 ||
+          ocrResult.amount!.abs() <= 0 ||
           ocrResult.time == null) {
         await ctx.requireOwnedWrite(
           (lease) => repo.updateFinalResultJson(
