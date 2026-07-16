@@ -1,15 +1,31 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/repositories/local/local_repository.dart';
 import '../services/billing/bill_creation_service.dart';
 import '../services/billing/billing_job_service.dart';
 import '../services/billing/pending_bill_confirmation_service.dart';
+import '../services/billing/pending_transaction_classification_service.dart';
 import '../services/billing/personal_category_rule_store.dart';
 import '../services/billing/personal_note_preference_store.dart';
 import 'database_providers.dart';
 
 /// Android 分享入口发现待确认账单后设置；根页面消费并打开校正界面。
 final pendingBillConfirmationJobIdProvider = StateProvider<int?>((ref) => null);
+
+/// 主 Flutter engine 创建待分类交易后设置；根页面消费并打开补正界面。
+final pendingTransactionClassificationIdProvider =
+    StateProvider<int?>((ref) => null);
+
+/// 待分类查询与原子补正的生产服务。
+final pendingTransactionClassificationServiceProvider =
+    Provider<PendingTransactionClassificationService>((ref) {
+  final repository = ref.watch(repositoryProvider);
+  if (repository is! LocalRepository) {
+    throw StateError('pending_classification_requires_local_repository');
+  }
+  return PendingTransactionClassificationService(repository);
+});
 
 final pendingBillConfirmationServiceProvider =
     FutureProvider<PendingBillConfirmationService>((ref) async {

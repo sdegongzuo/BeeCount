@@ -53,6 +53,7 @@ class ImageShareHandlerService {
             : ShareBillingTransactionSummary(
                 amount: transaction.amount,
                 note: transaction.note,
+                needsClassification: transaction.needsClassification,
               );
       },
       invokeMethod: (method, arguments) =>
@@ -69,6 +70,11 @@ class ImageShareHandlerService {
       onAwaitingConfirmation: (jobId) async {
         _container.read(pendingBillConfirmationJobIdProvider.notifier).state =
             jobId;
+      },
+      onPendingClassification: (transactionId) async {
+        _container
+            .read(pendingTransactionClassificationIdProvider.notifier)
+            .state = transactionId;
       },
     );
     _setupMethodCallHandler();

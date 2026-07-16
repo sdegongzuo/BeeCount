@@ -5,6 +5,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
 
 void main() {
+  test('主 engine 完成分享建账后立即发布待分类交易', () async {
+    final pendingIds = <int>[];
+    final job = BillingJob(
+      id: 8,
+      kind: 'image_share',
+      imagePath: '/isolated/classify.png',
+      status: BillingJobStatus.succeeded,
+      stage: BillingJobStage.completed,
+      attemptCount: 1,
+      transactionId: 71,
+      attachmentDone: true,
+      createdAt: DateTime(2026, 7, 16),
+      updatedAt: DateTime(2026, 7, 16),
+    );
+    final coordinator = ShareBillingRequestCoordinator(
+      processImage: (_, {sourceInfo}) async => 71,
+      findJob: (_) async => job,
+      loadTransaction: (_) async => const ShareBillingTransactionSummary(
+        amount: 18,
+        needsClassification: true,
+      ),
+      invokeMethod: (_, __) async {},
+      onPendingClassification: (id) async => pendingIds.add(id),
+      pollInterval: Duration.zero,
+    );
+
+    await coordinator.process('/isolated/classify.png');
+
+    expect(pendingIds, [71]);
+  });
+
   test('main-engine processing renews its delivery lease while work is running',
       () async {
     final processing = Completer<int?>();

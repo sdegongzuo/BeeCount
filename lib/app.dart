@@ -33,6 +33,9 @@ import 'providers/security_providers.dart';
 import 'styles/tokens.dart';
 import 'providers/avatar_providers.dart';
 import 'pages/billing/pending_bill_confirmation_page.dart';
+import 'pages/billing/pending_transaction_classification_page.dart';
+import 'services/attachment_service.dart';
+import 'services/billing/pending_billing_navigation_coordinator.dart';
 
 class BeeApp extends ConsumerStatefulWidget {
   const BeeApp({super.key});
@@ -62,6 +65,9 @@ class _BeeAppState extends ConsumerState<BeeApp>
   // AppLink 监听订阅
   ProviderSubscription<AppLinkAction?>? _appLinkSubscription;
   ProviderSubscription<int?>? _pendingBillSubscription;
+  ProviderSubscription<int?>? _pendingClassificationSubscription;
+  PendingBillingNavigationCoordinator? _pendingBillingCoordinator;
+  PendingBillingForegroundObserver? _pendingBillingForegroundObserver;
 
   // 快捷操作服务
   final QuickActionsService _quickActionsService = QuickActionsService();
@@ -98,31 +104,80 @@ class _BeeAppState extends ConsumerState<BeeApp>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupAppLinkListener();
       _setupQuickActions();
-      _setupPendingBillListener();
+      _setupPendingBillingNavigation();
     });
   }
 
-  void _setupPendingBillListener() {
+  void _setupPendingBillingNavigation() {
+    _pendingBillingCoordinator = PendingBillingNavigationCoordinator(
+      findOldestCritical: () async {
+        final jobs = await ref
+            .read(billingJobRepositoryProvider)
+            .findAwaitingConfirmationJobs();
+        return jobs.isEmpty ? null : jobs.first.id;
+      },
+      findOldestClassification: () async {
+        final ledgerId = ref.read(currentLedgerIdProvider);
+        final pending = await ref
+            .read(pendingTransactionClassificationServiceProvider)
+            .listPending(ledgerId: ledgerId);
+        return pending.isEmpty ? null : pending.first.transaction.id;
+      },
+      openCritical: (jobId) async {
+        if (!mounted) return;
+        final service =
+            await ref.read(pendingBillConfirmationServiceProvider.future);
+        if (!mounted) return;
+        final confirmation = Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => PendingBillConfirmationPage(
+            jobId: jobId,
+            service: service,
+          ),
+        ));
+        await ShareBillingConfirmationHandoff.acknowledgeOpened(jobId);
+        await confirmation;
+      },
+      openClassification: (transactionId) async {
+        if (!mounted) return;
+        final transaction = await ref
+            .read(repositoryProvider)
+            .getTransactionById(transactionId);
+        if (!mounted || transaction == null) return;
+        await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => PendingTransactionClassificationPage(
+            ledgerId: transaction.ledgerId,
+            transactionId: transactionId,
+            service: ref.read(pendingTransactionClassificationServiceProvider),
+            resolveAttachmentPath:
+                ref.read(attachmentServiceProvider).getAttachmentPath,
+          ),
+        ));
+      },
+      onError: (error, stackTrace) => logger.error(
+        'PendingBilling',
+        '打开待处理账单失败',
+        error,
+        stackTrace,
+      ),
+    );
+    _pendingBillingForegroundObserver =
+        PendingBillingForegroundObserver(_pendingBillingCoordinator!)..start();
     _pendingBillSubscription = ref.listenManual<int?>(
       pendingBillConfirmationJobIdProvider,
-      (previous, jobId) async {
-        if (jobId == null || !mounted) return;
+      (previous, jobId) {
+        if (jobId == null) return;
         ref.read(pendingBillConfirmationJobIdProvider.notifier).state = null;
-        try {
-          final service =
-              await ref.read(pendingBillConfirmationServiceProvider.future);
-          if (!mounted) return;
-          final confirmation = Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => PendingBillConfirmationPage(
-              jobId: jobId,
-              service: service,
-            ),
-          ));
-          await ShareBillingConfirmationHandoff.acknowledgeOpened(jobId);
-          await confirmation;
-        } catch (error, stackTrace) {
-          logger.error('PendingBill', '打开待确认账单失败', error, stackTrace);
-        }
+        _pendingBillingCoordinator?.notifyCritical(jobId);
+      },
+      fireImmediately: true,
+    );
+    _pendingClassificationSubscription = ref.listenManual<int?>(
+      pendingTransactionClassificationIdProvider,
+      (previous, transactionId) {
+        if (transactionId == null) return;
+        ref.read(pendingTransactionClassificationIdProvider.notifier).state =
+            null;
+        _pendingBillingCoordinator?.notifyClassificationCreated(transactionId);
       },
       fireImmediately: true,
     );
@@ -322,6 +377,8 @@ class _BeeAppState extends ConsumerState<BeeApp>
   @override
   void dispose() {
     _pendingBillSubscription?.close();
+    _pendingClassificationSubscription?.close();
+    _pendingBillingForegroundObserver?.dispose();
     _resumeWidgetUpdateTimer?.cancel();
     _appLinkSubscription?.close();
     _removeOverlay();

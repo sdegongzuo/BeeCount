@@ -65,6 +65,7 @@ class ShareBillingBackgroundService {
               : ShareBillingTransactionSummary(
                   amount: transaction.amount,
                   note: transaction.note,
+                  needsClassification: transaction.needsClassification,
                 );
         },
         invokeMethod: (method, values) =>

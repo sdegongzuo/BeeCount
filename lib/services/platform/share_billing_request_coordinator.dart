@@ -17,12 +17,19 @@ typedef ShareBillingJobFinder = Future<BillingJob?> Function(String imagePath);
 typedef ShareBillingTransactionLoader = Future<ShareBillingTransactionSummary?>
     Function(int transactionId);
 typedef ShareBillingAwaitingHandler = Future<void> Function(int jobId);
+typedef ShareBillingPendingClassificationHandler = Future<void> Function(
+    int transactionId);
 
 class ShareBillingTransactionSummary {
   final double? amount;
   final String? note;
+  final bool needsClassification;
 
-  const ShareBillingTransactionSummary({this.amount, this.note});
+  const ShareBillingTransactionSummary({
+    this.amount,
+    this.note,
+    this.needsClassification = false,
+  });
 }
 
 /// One orchestration path shared by the foreground and headless Flutter engines.
@@ -37,6 +44,7 @@ class ShareBillingRequestCoordinator {
   final Future<void> Function()? initialize;
   final Duration deliveryLeaseHeartbeatInterval;
   final ShareBillingAwaitingHandler? onAwaitingConfirmation;
+  final ShareBillingPendingClassificationHandler? onPendingClassification;
   final Duration pollInterval;
   final int maxPolls;
 
@@ -50,6 +58,7 @@ class ShareBillingRequestCoordinator {
     this.initialize,
     this.deliveryLeaseHeartbeatInterval = shareBillingHeartbeatInterval,
     this.onAwaitingConfirmation,
+    this.onPendingClassification,
     this.pollInterval = const Duration(milliseconds: 500),
     this.maxPolls = 180,
   });
@@ -99,6 +108,9 @@ class ShareBillingRequestCoordinator {
 
         if (transactionId != null) {
           final transaction = await loadTransaction(transactionId);
+          if (transaction?.needsClassification == true) {
+            await onPendingClassification?.call(transactionId);
+          }
           await _invoke('completeShareBilling', requestId, ownerToken, owner, {
             'amount': transaction?.amount,
             'note': transaction?.note,
