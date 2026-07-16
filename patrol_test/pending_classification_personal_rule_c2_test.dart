@@ -22,6 +22,7 @@ import 'package:patrol/patrol.dart';
 
 const _tracer = MethodChannel('com.tntlikely.beecount/share_c2_tracer');
 const _merchant = '极光测试实验室';
+const expectedStructuredNote = '商户：极光测试实验室';
 
 void main() {
   patrolTest(
@@ -78,6 +79,8 @@ void main() {
       expect(firstBefore.amount, closeTo(18.50, 0.001));
       expect(firstBefore.happenedAt, DateTime(2026, 7, 17, 12, 34, 56));
       expect(firstBefore.merchantFullName, _merchant);
+      expect(firstBefore.note, expectedStructuredNote);
+      _expectLoyalStructuredNote(firstBefore.note);
 
       await _waitForWidget(
           $, find.byType(PendingTransactionClassificationPage));
@@ -99,6 +102,8 @@ void main() {
           await repository.getTransactionById(firstJob.transactionId!);
       expect(firstAfter, isNotNull);
       expect(firstAfter!.needsClassification, isFalse);
+      expect(firstAfter.note, expectedStructuredNote);
+      _expectLoyalStructuredNote(firstAfter.note);
       final selectedCategory =
           await repository.getCategoryById(firstAfter.categoryId!);
       expect(selectedCategory?.name, '餐饮');
@@ -125,6 +130,8 @@ void main() {
           await repository.getTransactionById(secondJob.transactionId!);
       expect(second, isNotNull);
       expect(second!.needsClassification, isFalse);
+      expect(second.note, expectedStructuredNote);
+      _expectLoyalStructuredNote(second.note);
       expect(second.categoryId, selectedCategory.id);
       expect(second.amount, closeTo(29.90, 0.001));
       final secondOcr = OcrResult.fromJson(
@@ -138,6 +145,14 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 4)),
   );
+}
+
+void _expectLoyalStructuredNote(String? note) {
+  expect(note, isNotNull);
+  expect(note, isNot(contains('补充信息：')),
+      reason: '没有用户补充时，结构化摘要不得混入自由文本');
+  expect(note, isNot(contains('待分类')),
+      reason: '分类状态必须保存在结构化字段，不得注入备注');
 }
 
 Future<void> _send(String caseId, String text) async {

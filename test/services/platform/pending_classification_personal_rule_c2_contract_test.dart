@@ -26,6 +26,12 @@ void main() {
     expect(source, contains('PendingTransactionClassificationPage'));
     expect(source, contains("find.text('记住到当前账本')"));
     expect(source, contains("fallback?.name, '其他'"));
+    expect(source, contains("const expectedStructuredNote = '商户：极光测试实验室'"));
+    expect(source, contains('firstBefore.note, expectedStructuredNote'));
+    expect(source, contains('firstAfter.note, expectedStructuredNote'));
+    expect(source, contains('second.note, expectedStructuredNote'));
+    expect(source, contains("isNot(contains('补充信息：'))"));
+    expect(source, contains("isNot(contains('待分类'))"));
     expect(source, contains('second!.needsClassification, isFalse'));
     expect(source, contains("'locateActionSend'"));
   });
