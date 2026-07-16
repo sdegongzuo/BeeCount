@@ -44,6 +44,44 @@ flutter analyze 本步涉及文件：No issues found
 
 以下下载、调度、诊断与完整更新状态机仍由后续 tracer task 完成。
 
+### Tracer Task 2：可信配置与兼容/下载安全门（已完成）
+
+- [x] 删除占位 manifest 默认地址；生产入口只接受显式
+  `BEECOUNT_BILLING_RULE_MANIFEST_URL`，缺失、HTTP、`example.com` 等占位地址
+  均安全禁用，返回中文诊断且不发起网络请求。
+- [x] manifest 与 TOML 包只允许 HTTPS。规则包默认与 manifest 同源；确需
+  CDN 时通过 `BEECOUNT_BILLING_RULE_TRUSTED_HOSTS` 逐 host 放行，不能由远程
+  manifest 自行扩展信任边界。
+- [x] 默认 HTTP 下载器关闭自动重定向，拒绝所有 3xx，并核对响应最终 URI；
+  请求有整体超时，manifest 与规则包分别以流式累计字节数执行响应体上限。
+- [x] 用安装包 `PackageInfo.version` 与 manifest `minAppVersion` 做严格 SemVer
+  比较，包含 prerelease 数字/文本标识优先级；不兼容时不下载、不激活。
+- [x] 保留 sha256、manifest schema、TOML 结构和既有评测门。
+- [x] 日检状态拆分为 `lastAttemptAt` 与 `lastSuccessAt`：失败绝不写成功时间，
+  仅进入默认 15 分钟短退避；成功检查才启用 24 小时间隔。旧 `checkedAt`
+  只按失败尝试迁移，避免旧断网记录继续压住一天重试。
+
+生产构建示例：
+
+```text
+--dart-define=BEECOUNT_BILLING_RULE_MANIFEST_URL=https://rules.example.org/manifest.json
+--dart-define=BEECOUNT_BILLING_RULE_TRUSTED_HOSTS=cdn.example.org
+```
+
+`BEECOUNT_BILLING_RULE_SAME_ORIGIN` 默认为 `true`。关闭它时必须至少配置一个
+可信规则包 host，否则整套远程更新保持禁用。flavor 可以注入上述 define，运行时
+仍统一经过 `BillingRuleUpdateConfiguration` 校验。
+
+验证：
+
+```text
+flutter test update/security/runtime focused：40 tests passed
+flutter analyze 本步涉及文件：No issues found
+```
+
+激活 journal、个人样本回归的生产实现、启动/手动触发和诊断 UI 仍由后续
+tracer task 完成。
+
 1. 添加 manifest 解析测试，覆盖 `latest.schemaVersion`、`rulesVersion`、`minAppVersion`、`url` 和 `sha256`。
 2. 添加 hash 不匹配、未知 schema version、无效 TOML、smoke test 失败和回滚测试。
 3. 实现启动时或每日更新检查，更新失败时不得影响当前激活规则。

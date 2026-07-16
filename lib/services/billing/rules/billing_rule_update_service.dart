@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:http/http.dart' as http;
 import 'billing_rule_manifest.dart';
 import 'billing_rule_models.dart';
 import 'billing_rule_repository.dart';
+import 'billing_rule_secure_http_loader.dart';
 import 'billing_rule_storage.dart';
+import 'billing_rule_update_configuration.dart';
+
+export 'billing_rule_secure_http_loader.dart';
 
 typedef BillingRuleManifestLoader = Future<String> Function(Uri uri);
 typedef BillingRulePackageDownloader = Future<String> Function(Uri uri);
@@ -40,9 +44,14 @@ class BillingRulePersonalRegressionResult {
 }
 
 enum BillingRuleUpdateStatus {
+  disabled,
   activated,
   alreadyLatest,
   notDue,
+  securityPolicyRejected,
+  incompatibleAppVersion,
+  responseTooLarge,
+  timedOut,
   hashMismatch,
   invalidManifest,
   invalidRulePackage,
@@ -70,14 +79,12 @@ class BillingRuleUpdateService {
   static const activeFileName = BillingRuleStorage.activeFileName;
   static const previousFileName = BillingRuleStorage.previousFileName;
   static const lastCheckFileName = BillingRuleStorage.lastCheckFileName;
-  static const defaultManifestUrl =
-      'https://example.com/beecount/billing_rules_manifest.json';
 
   final Directory? storageDirectory;
 
   /// 与生产读取链共享的规则文件布局；测试可注入隔离目录。
   final BillingRuleStorage? ruleStorage;
-  final Uri manifestUri;
+  final BillingRuleUpdateConfiguration configuration;
   final BillingRuleManifestLoader manifestLoader;
   final BillingRulePackageDownloader rulePackageDownloader;
   final BillingRuleSmokeTest smokeTest;
@@ -93,7 +100,7 @@ class BillingRuleUpdateService {
   BillingRuleUpdateService({
     this.storageDirectory,
     this.ruleStorage,
-    Uri? manifestUri,
+    required this.configuration,
     BillingRuleManifestLoader? manifestLoader,
     BillingRulePackageDownloader? rulePackageDownloader,
     BillingRuleSmokeTest? smokeTest,
@@ -103,42 +110,79 @@ class BillingRuleUpdateService {
     this.beforeAtomicSwitch,
     void Function()? onActiveSnapshotChanged,
     BillingRuleUpdateClock? clock,
-  })  : manifestUri = manifestUri ?? Uri.parse(defaultManifestUrl),
-        manifestLoader = manifestLoader ?? _httpGetString,
-        rulePackageDownloader = rulePackageDownloader ?? _httpGetString,
+  })  : manifestLoader = manifestLoader ??
+            ((uri) => BillingRuleSecureHttpLoader().load(
+                  uri,
+                  timeout: configuration.requestTimeout,
+                  maxBytes: configuration.maxManifestBytes,
+                )),
+        rulePackageDownloader = rulePackageDownloader ??
+            ((uri) => BillingRuleSecureHttpLoader().load(
+                  uri,
+                  timeout: configuration.requestTimeout,
+                  maxBytes: configuration.maxRulePackageBytes,
+                )),
         smokeTest = smokeTest ?? _defaultSmokeTest,
         onActiveSnapshotChanged =
             onActiveSnapshotChanged ?? invalidateProductionBillingRuleSnapshot,
         clock = clock ?? DateTime.now,
         assert(ruleStorage == null || storageDirectory == null);
 
+  /// 当前显式配置的 manifest URI；禁用时可能为空或不可信，仅用于诊断。
+  Uri? get manifestUri => configuration.manifestUri;
+
   Future<BillingRuleUpdateResult> checkForUpdateIfDue({
     Duration minInterval = const Duration(days: 1),
   }) async {
+    final disabled = _disabledResult();
+    if (disabled != null) return disabled;
     final storage = await _storage();
     return storage.runExclusive(() async {
       await storage.directory.create(recursive: true);
       final lastCheckFile = storage.lastCheckFile;
       final now = clock().toUtc();
 
-      final lastCheck = await _readLastCheck(lastCheckFile);
-      if (lastCheck != null && now.difference(lastCheck) < minInterval) {
+      final state = await _readCheckState(lastCheckFile);
+      if (state.lastSuccessAt != null &&
+          now.difference(state.lastSuccessAt!) < minInterval) {
         return const BillingRuleUpdateResult(
           status: BillingRuleUpdateStatus.notDue,
           message:
               'Update check skipped because the daily interval has not elapsed.',
         );
       }
+      final lastAttempt = state.lastAttemptAt;
+      final lastAttemptFailed = lastAttempt != null &&
+          (state.lastSuccessAt == null ||
+              lastAttempt.isAfter(state.lastSuccessAt!));
+      if (lastAttemptFailed &&
+          now.difference(lastAttempt) < configuration.failureRetryInterval) {
+        return const BillingRuleUpdateResult(
+          status: BillingRuleUpdateStatus.notDue,
+          message: '上次更新失败，尚未到短退避重试时间。',
+        );
+      }
 
       final result = await _checkForUpdate(storage);
+      final isSuccess = result.status == BillingRuleUpdateStatus.activated ||
+          result.status == BillingRuleUpdateStatus.alreadyLatest;
       await lastCheckFile.writeAsString(
-        jsonEncode({'checkedAt': now.toIso8601String()}),
+        jsonEncode({
+          'lastAttemptAt': now.toIso8601String(),
+          if (isSuccess)
+            'lastSuccessAt': now.toIso8601String()
+          else if (state.lastSuccessAt != null)
+            'lastSuccessAt': state.lastSuccessAt!.toIso8601String(),
+        }),
+        flush: true,
       );
       return result;
     });
   }
 
   Future<BillingRuleUpdateResult> checkForUpdate() async {
+    final disabled = _disabledResult();
+    if (disabled != null) return disabled;
     final storage = await _storage();
     return storage.runExclusive(() => _checkForUpdate(storage));
   }
@@ -149,10 +193,29 @@ class BillingRuleUpdateService {
     final activeFile = storage.activeFile;
     final previousFile = storage.previousFile;
 
+    final manifestUri = configuration.manifestUri!;
     BillingRuleManifest manifest;
     try {
+      final manifestText = await manifestLoader(manifestUri)
+          .timeout(configuration.requestTimeout);
+      _enforceTextLimit(manifestText, configuration.maxManifestBytes);
       manifest = BillingRuleManifest.fromJson(
-        jsonDecode(await manifestLoader(manifestUri)) as Map<String, dynamic>,
+        jsonDecode(manifestText) as Map<String, dynamic>,
+      );
+    } on BillingRuleResponseTooLargeException catch (e) {
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.responseTooLarge,
+        message: e.toString(),
+      );
+    } on TimeoutException catch (e) {
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.timedOut,
+        message: e.toString(),
+      );
+    } on BillingRuleRedirectRejectedException catch (e) {
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.securityPolicyRejected,
+        message: e.toString(),
       );
     } on BillingRuleManifestException catch (e) {
       return BillingRuleUpdateResult(
@@ -163,6 +226,30 @@ class BillingRuleUpdateService {
       return BillingRuleUpdateResult(
         status: BillingRuleUpdateStatus.failed,
         message: e.toString(),
+      );
+    }
+
+    if (!configuration.allowsRulePackage(manifest.latest.url)) {
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.securityPolicyRejected,
+        rulesVersion: manifest.latest.rulesVersion,
+        message: '规则包 URL 不满足 HTTPS 与同源/可信 host 策略：${manifest.latest.url}',
+      );
+    }
+    final minimumVersion =
+        SemanticVersion.tryParse(manifest.latest.minAppVersion);
+    if (minimumVersion == null) {
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.invalidManifest,
+        rulesVersion: manifest.latest.rulesVersion,
+        message: 'minAppVersion 不是有效的语义版本：${manifest.latest.minAppVersion}',
+      );
+    }
+    if (configuration.currentAppVersion! < minimumVersion) {
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.incompatibleAppVersion,
+        rulesVersion: manifest.latest.rulesVersion,
+        message: '当前 App 版本低于规则包最低版本 ${manifest.latest.minAppVersion}',
       );
     }
 
@@ -177,7 +264,9 @@ class BillingRuleUpdateService {
     }
 
     try {
-      final remoteToml = await rulePackageDownloader(manifest.latest.url);
+      final remoteToml = await rulePackageDownloader(manifest.latest.url)
+          .timeout(configuration.requestTimeout);
+      _enforceTextLimit(remoteToml, configuration.maxRulePackageBytes);
       final remoteHash = sha256.convert(utf8.encode(remoteToml)).toString();
       if (remoteHash.toLowerCase() != manifest.latest.sha256.toLowerCase()) {
         return BillingRuleUpdateResult(
@@ -257,6 +346,24 @@ class BillingRuleUpdateService {
         rulesVersion: candidateRuleSet.rulesVersion,
         message: activationMessage,
       );
+    } on BillingRuleResponseTooLargeException catch (e) {
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.responseTooLarge,
+        rulesVersion: manifest.latest.rulesVersion,
+        message: e.toString(),
+      );
+    } on TimeoutException catch (e) {
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.timedOut,
+        rulesVersion: manifest.latest.rulesVersion,
+        message: e.toString(),
+      );
+    } on BillingRuleRedirectRejectedException catch (e) {
+      return BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.securityPolicyRejected,
+        rulesVersion: manifest.latest.rulesVersion,
+        message: e.toString(),
+      );
     } catch (e) {
       return BillingRuleUpdateResult(
         status: BillingRuleUpdateStatus.failed,
@@ -317,17 +424,32 @@ class BillingRuleUpdateService {
     return productionBillingRuleStorage();
   }
 
-  Future<DateTime?> _readLastCheck(File file) async {
+  Future<_BillingRuleCheckState> _readCheckState(File file) async {
     try {
-      if (!await file.exists()) return null;
+      if (!await file.exists()) return const _BillingRuleCheckState();
       final json = jsonDecode(await file.readAsString());
-      if (json is! Map) return null;
-      final checkedAt = json['checkedAt'];
-      if (checkedAt is! String) return null;
-      return DateTime.tryParse(checkedAt)?.toUtc();
+      if (json is! Map) return const _BillingRuleCheckState();
+      DateTime? parse(String key) {
+        final value = json[key];
+        return value is String ? DateTime.tryParse(value)?.toUtc() : null;
+      }
+
+      // 兼容旧版本：旧 checkedAt 只代表一次尝试，不能再视为成功而压住 24h。
+      return _BillingRuleCheckState(
+        lastAttemptAt: parse('lastAttemptAt') ?? parse('checkedAt'),
+        lastSuccessAt: parse('lastSuccessAt'),
+      );
     } catch (_) {
-      return null;
+      return const _BillingRuleCheckState();
     }
+  }
+
+  BillingRuleUpdateResult? _disabledResult() {
+    if (configuration.isEnabled) return null;
+    return BillingRuleUpdateResult(
+      status: BillingRuleUpdateStatus.disabled,
+      message: configuration.disabledReason,
+    );
   }
 
   Future<BillingRuleSet?> _tryLoadRuleSet(File file) async {
@@ -342,12 +464,20 @@ class BillingRuleUpdateService {
   }
 }
 
-Future<String> _httpGetString(Uri uri) async {
-  final response = await http.get(uri);
-  if (response.statusCode < 200 || response.statusCode >= 300) {
-    throw HttpException('HTTP ${response.statusCode}: $uri');
+class _BillingRuleCheckState {
+  final DateTime? lastAttemptAt;
+  final DateTime? lastSuccessAt;
+
+  const _BillingRuleCheckState({this.lastAttemptAt, this.lastSuccessAt});
+}
+
+void _enforceTextLimit(String value, int maxBytes) {
+  final length = utf8.encode(value).length;
+  if (length > maxBytes) {
+    throw BillingRuleResponseTooLargeException(
+      '响应体 $length 字节，超过上限 $maxBytes',
+    );
   }
-  return response.body;
 }
 
 Future<bool> _defaultSmokeTest(BillingRuleSet ruleSet) async {

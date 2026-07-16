@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:beecount/services/billing/rules/billing_rule_manifest.dart';
+import 'package:beecount/services/billing/rules/billing_rule_update_configuration.dart';
 import 'package:beecount/services/billing/rules/billing_rule_update_service.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,7 +16,7 @@ void main() {
           'schemaVersion': 1,
           'rulesVersion': '2026.07.04.1',
           'minAppVersion': '0.0.1',
-          'url': 'https://example.com/rules.toml',
+          'url': 'https://rules.test/rules.toml',
           'sha256': 'a' * 64,
         },
       });
@@ -23,7 +24,7 @@ void main() {
       expect(manifest.latest.schemaVersion, 1);
       expect(manifest.latest.rulesVersion, '2026.07.04.1');
       expect(manifest.latest.minAppVersion, '0.0.1');
-      expect(manifest.latest.url.toString(), 'https://example.com/rules.toml');
+      expect(manifest.latest.url.toString(), 'https://rules.test/rules.toml');
       expect(manifest.latest.sha256, 'a' * 64);
     });
 
@@ -34,7 +35,7 @@ void main() {
             'schemaVersion': 2,
             'rulesVersion': '2026.07.04.1',
             'minAppVersion': '0.0.1',
-            'url': 'https://example.com/rules.toml',
+            'url': 'https://rules.test/rules.toml',
             'sha256': 'a' * 64,
           },
         }),
@@ -218,6 +219,7 @@ void main() {
       await active.writeAsString(_validToml(rulesVersion: 'active'));
       final service = BillingRuleUpdateService(
         storageDirectory: tempDir,
+        configuration: _testConfiguration,
         manifestLoader: (_) async => throw const SocketException('offline'),
         upgradeEvaluation: (_) async => true,
         personalRegression: (_) async =>
@@ -413,6 +415,7 @@ BillingRuleUpdateService _serviceForVersion(
 }) =>
     BillingRuleUpdateService(
       storageDirectory: tempDir,
+      configuration: _testConfiguration,
       manifestLoader: manifestLoader,
       rulePackageDownloader: (_) async => remoteToml,
       smokeTest: (_) async => true,
@@ -436,6 +439,7 @@ BillingRuleUpdateService _service(
 }) {
   return BillingRuleUpdateService(
     storageDirectory: tempDir,
+    configuration: _testConfiguration,
     manifestLoader: (_) async {
       onManifestLoad?.call();
       return manifest;
@@ -457,7 +461,7 @@ String _manifestJson({required String sha256}) {
       'schemaVersion': 1,
       'rulesVersion': 'remote',
       'minAppVersion': '0.0.1',
-      'url': 'https://example.com/remote.toml',
+      'url': 'https://rules.test/remote.toml',
       'sha256': sha256,
     },
   });
@@ -468,12 +472,17 @@ String _manifestJsonFor(String version, String sha256) => jsonEncode({
         'schemaVersion': 1,
         'rulesVersion': version,
         'minAppVersion': '0.0.1',
-        'url': 'https://example.com/$version.toml',
+        'url': 'https://rules.test/$version.toml',
         'sha256': sha256,
       },
     });
 
 String _sha256(String value) => sha256.convert(utf8.encode(value)).toString();
+
+final _testConfiguration = BillingRuleUpdateConfiguration.fromValues(
+  manifestUrl: 'https://rules.test/manifest.json',
+  currentAppVersion: '1.0.0',
+);
 
 String _validToml({required String rulesVersion}) => '''
 schemaVersion = 1

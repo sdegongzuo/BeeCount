@@ -8,6 +8,7 @@ import 'package:beecount/services/billing/ocr_service.dart';
 import 'package:beecount/services/billing/rules/billing_rule_repository.dart';
 import 'package:beecount/services/billing/rules/billing_rule_storage.dart';
 import 'package:beecount/services/billing/rules/billing_rule_update_service.dart';
+import 'package:beecount/services/billing/rules/billing_rule_update_configuration.dart';
 import 'package:crypto/crypto.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
@@ -65,6 +66,7 @@ void main() {
     expect((await repository.loadActiveRuleSet()).rulesVersion, '2026.07.06.2');
     final remote = _rules('production-v1', marker: '生产新规则');
     final updater = BillingRuleUpdateService(
+      configuration: _testUpdateConfiguration,
       manifestLoader: (_) async => _manifest('production-v1', remote),
       rulePackageDownloader: (_) async => remote,
       smokeTest: (_) async => true,
@@ -135,13 +137,14 @@ void main() {
     final remote = _rules('v2', marker: '版本二');
     final updater = BillingRuleUpdateService(
       ruleStorage: storage,
+      configuration: _testUpdateConfiguration,
       onActiveSnapshotChanged: repository.invalidateActiveSnapshot,
       manifestLoader: (_) async => jsonEncode({
         'latest': {
           'schemaVersion': 1,
           'rulesVersion': 'v2',
           'minAppVersion': '0.0.1',
-          'url': 'https://example.com/v2.toml',
+          'url': 'https://rules.test/v2.toml',
           'sha256': sha256.convert(utf8.encode(remote)).toString(),
         },
       }),
@@ -167,6 +170,7 @@ void main() {
 
     final updater = BillingRuleUpdateService(
       ruleStorage: storage,
+      configuration: _testUpdateConfiguration,
       onActiveSnapshotChanged: repository.invalidateActiveSnapshot,
       upgradeEvaluation: (_) async => true,
       personalRegression: (_) async =>
@@ -185,6 +189,7 @@ void main() {
     final remote = _rules('v1', marker: '版本一');
     final updater = BillingRuleUpdateService(
       ruleStorage: storage,
+      configuration: _testUpdateConfiguration,
       onActiveSnapshotChanged: repository.invalidateActiveSnapshot,
       manifestLoader: (_) async => _manifest('v1', remote),
       rulePackageDownloader: (_) async => remote,
@@ -212,10 +217,15 @@ String _manifest(String version, String toml) => jsonEncode({
         'schemaVersion': 1,
         'rulesVersion': version,
         'minAppVersion': '0.0.1',
-        'url': 'https://example.com/$version.toml',
+        'url': 'https://rules.test/$version.toml',
         'sha256': sha256.convert(utf8.encode(toml)).toString(),
       },
     });
+
+final _testUpdateConfiguration = BillingRuleUpdateConfiguration.fromValues(
+  manifestUrl: 'https://rules.test/manifest.json',
+  currentAppVersion: '1.0.0',
+);
 
 RuntimeBillingRuleRepository _repository(
         BillingRuleStorage storage, AssetBundle assets) =>
