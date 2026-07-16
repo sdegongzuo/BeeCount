@@ -26,6 +26,7 @@ class ShareBillingForegroundService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var backgroundEngine: FlutterEngine? = null
     private var backgroundChannel: MethodChannel? = null
+    private var billingRuleStorageRegistration: BillingRuleDurabilityChannel.Registration? = null
     private val pendingBackgroundPayloads = ArrayDeque<Bundle>()
     private val requestTracker = ShareBillingRequestTracker()
     private val pendingPayloadStore by lazy { ShareBillingPendingPayloadStore(this) }
@@ -151,6 +152,8 @@ class ShareBillingForegroundService : Service() {
         handler.removeCallbacks(timeoutRunnable)
         backgroundChannel?.setMethodCallHandler(null)
         backgroundChannel = null
+        billingRuleStorageRegistration?.close()
+        billingRuleStorageRegistration = null
         pendingBackgroundPayloads.clear()
         backgroundEngine?.destroy()
         backgroundEngine = null
@@ -166,7 +169,8 @@ class ShareBillingForegroundService : Service() {
 
         val engine = FlutterEngine(applicationContext)
         RapidOcrBridge(applicationContext).setup(engine.dartExecutor.binaryMessenger)
-        BillingRuleDurabilityChannel.register(engine.dartExecutor.binaryMessenger)
+        billingRuleStorageRegistration =
+            BillingRuleDurabilityChannel.register(engine.dartExecutor.binaryMessenger)
         val channel = MethodChannel(
             engine.dartExecutor.binaryMessenger,
             BACKGROUND_CHANNEL

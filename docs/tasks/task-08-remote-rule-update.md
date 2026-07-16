@@ -134,9 +134,10 @@ dev debug APK：构建成功（`app-dev-debug.apk`）
   完整个人回归裁决、最近尝试/成功时间和稳定错误文本。诊断层可直接读取
   `lastState / activeVersion / previousVersion / error / attempt / success`。
 - [x] 主进程和 Android 分享后台 isolate 在构造生产规则运行时之后、首次 OCR
-  或同步读取之前，先在 Task 1 的规则目录 mutex 内恢复未完成 journal；进程内
-  mutex 外再使用操作系统独占文件锁，更新、回滚、启动恢复不会跨 isolate/
-  进程交错，持锁进程崩溃后由操作系统释放锁。
+  或同步读取之前，先恢复未完成 journal。Android 由主/后台 FlutterEngine 共享
+  的 Kotlin 单例以 owner token 串行同进程请求，并同时持有 `FileChannel` 文件锁
+  阻止其他进程；engine 销毁会取消等待并释放 owner，进程崩溃则由操作系统释放
+  文件锁。桌面端继续使用 Dart 进程内 mutex 与操作系统文件锁。
 - [x] 启动恢复按磁盘哈希判断切换是否实际发生：切换前中断继续使用旧 active；
   切换后中断重放个人裁决并补齐 commit。SQLite 个人裁决以公共版本、归档、
   同步 resolution、冲突解释和活动版本证明幂等，覆盖“数据库已提交但 journal
@@ -159,6 +160,7 @@ dev debug APK：构建成功（`app-dev-debug.apk`）
 ```text
 focused journal/lifecycle/update/security/runtime/repository：110 tests passed
 Task 4 review focused（含跨 isolate、真实 SQLite、损坏 previous、fsync）：54 tests passed
+Android native lock：2 JVM tests passed，instrumentation Kotlin 编译通过（真机执行留 C2）
 500 样本回归：P95 41ms，最坏 46ms
 ```
 

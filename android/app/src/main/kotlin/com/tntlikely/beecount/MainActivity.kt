@@ -27,6 +27,7 @@ import java.util.UUID
 
 class MainActivity: FlutterFragmentActivity() {
     private var regressionSampleChannel: RegressionSampleChannel? = null
+    private var billingRuleStorageRegistration: BillingRuleDurabilityChannel.Registration? = null
     private val CHANNEL = "notification_channel"
     private val INSTALL_CHANNEL = "com.tntlikely.beecount/install"
     private val SCREENSHOT_CHANNEL = "com.tntlikely.beecount/screenshot"
@@ -149,7 +150,8 @@ class MainActivity: FlutterFragmentActivity() {
             applicationContext,
             flutterEngine.dartExecutor.binaryMessenger,
         )
-        BillingRuleDurabilityChannel.register(
+        billingRuleStorageRegistration?.close()
+        billingRuleStorageRegistration = BillingRuleDurabilityChannel.register(
             flutterEngine.dartExecutor.binaryMessenger
         )
 
@@ -866,6 +868,8 @@ class MainActivity: FlutterFragmentActivity() {
     override fun onDestroy() {
         regressionSampleChannel?.close()
         regressionSampleChannel = null
+        billingRuleStorageRegistration?.close()
+        billingRuleStorageRegistration = null
         super.onDestroy()
         shareBillingReceiver?.let {
             try {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -79,6 +80,9 @@ class BillingRuleStorage {
   Future<T> runExclusive<T>(Future<T> Function() action) =>
       _mutexFor(directory).run(() async {
         await directory.create(recursive: true);
+        if (Platform.isAndroid) {
+          return _runAndroidNativeExclusive(lockFile, action);
+        }
         final handle = await lockFile.open(mode: FileMode.append);
         try {
           await _acquireExclusiveFileLock(handle);
@@ -91,6 +95,33 @@ class BillingRuleStorage {
           }
         }
       });
+}
+
+const MethodChannel _billingRuleStorageChannel =
+    MethodChannel('com.tntlikely.beecount/billing_rule_durability');
+
+Future<T> _runAndroidNativeExclusive<T>(
+  File lockFile,
+  Future<T> Function() action,
+) async {
+  final token = await _billingRuleStorageChannel.invokeMethod<String>(
+    'acquireStorageLock',
+    <String, Object>{
+      'path': lockFile.path,
+      'timeoutMillis': 30000,
+    },
+  );
+  if (token == null || token.isEmpty) {
+    throw StateError('Android billing-rule storage lock returned no token');
+  }
+  try {
+    return await action();
+  } finally {
+    await _billingRuleStorageChannel.invokeMethod<void>(
+      'releaseStorageLock',
+      <String, Object>{'token': token},
+    );
+  }
 }
 
 Future<void> _acquireExclusiveFileLock(RandomAccessFile handle) async {
