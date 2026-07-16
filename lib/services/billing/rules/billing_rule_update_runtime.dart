@@ -48,6 +48,9 @@ Future<BillingRuleUpdateService> initializeProductionBillingRuleUpdateService({
     configuration: configuration,
     database: database,
   );
-  await service.reconcileInterruptedActivation();
+  final recovery = await service.reconcileInterruptedActivation();
+  if (recovery.status == BillingRuleUpdateStatus.failed) {
+    throw StateError(recovery.message ?? '公共规则启动恢复失败');
+  }
   return service;
 }
