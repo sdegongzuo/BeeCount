@@ -85,6 +85,23 @@ void main() {
         'flutter build apk --debug --flavor dev -t lib/main.dart',
       )),
     );
+    expect(
+      source,
+      contains('[AllowEmptyCollection()]'),
+      reason: 'The first recovery step must accept an empty error list.',
+    );
+  });
+
+  test('Patrol receives the configured adb directory without leaking PATH', () {
+    final source = runner.readAsStringSync();
+    final patrol = source.indexOf('& \$Patrol test');
+    final pathPrefix = source.indexOf(r'$env:PATH = "$adbDirectory;');
+    final pathRestore = source.indexOf(r'$env:PATH = $originalPath');
+
+    expect(pathPrefix, greaterThanOrEqualTo(0));
+    expect(pathPrefix, lessThan(patrol));
+    expect(pathRestore, greaterThan(patrol));
+    expect(source, contains('Split-Path -LiteralPath \$Adb -Parent'));
   });
 
   test('unlock, device, boot and fixture policies match the safety contract',

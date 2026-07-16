@@ -43,6 +43,7 @@ function Invoke-RecoveryStep {
         [Parameter(Mandatory = $true)]
         [scriptblock]$Action,
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.List[string]]$Errors
     )
 
@@ -114,8 +115,11 @@ try {
     $originalBundleHash = Get-Sha256Hex $originalBundle
     $patrolFailure = $null
     $recoveryErrors = [System.Collections.Generic.List[string]]::new()
+    $originalPath = $env:PATH
+    $adbDirectory = Split-Path -LiteralPath $Adb -Parent
 
     try {
+        $env:PATH = "$adbDirectory;$originalPath"
         & $Patrol test `
             --no-uninstall `
             --target patrol_test/share_billing_confirmation_lifecycle_test.dart `
@@ -132,6 +136,7 @@ try {
         $patrolFailure = $_.Exception.Message
     }
     finally {
+        $env:PATH = $originalPath
         Invoke-RecoveryStep -Name "bundle-bytes-and-markers" -Errors $recoveryErrors -Action {
             [System.IO.File]::WriteAllBytes($bundlePath, $originalBundle)
             & $bundleAssertion -Expected image-eval -Path $bundlePath
