@@ -1,6 +1,7 @@
 import '../../data/db.dart';
 import '../../data/repositories/local/local_repository.dart';
 import 'personal_category_rule_store.dart';
+import 'classification_match_evidence.dart';
 
 enum ClassificationMemoryScope {
   currentTransaction,
@@ -86,7 +87,11 @@ class PendingTransactionClassificationService {
 
       String? matchText;
       if (memoryScope != ClassificationMemoryScope.currentTransaction) {
-        matchText = _classificationMatchText(transaction);
+        matchText = classificationMatchText(
+          merchantFullName: transaction.merchantFullName,
+          counterparty: transaction.counterparty,
+          structuredSummary: transaction.note,
+        );
         if (matchText == null) {
           throw StateError('classification_rule_evidence_missing');
         }
@@ -128,22 +133,4 @@ class PendingTransactionClassificationService {
       attachments: attachments,
     );
   }
-}
-
-String? _classificationMatchText(Transaction transaction) {
-  for (final candidate in <String?>[
-    transaction.merchantFullName,
-    transaction.counterparty,
-    _merchantFromStructuredSummary(transaction.note),
-  ]) {
-    final normalized = candidate?.trim();
-    if (normalized != null && normalized.isNotEmpty) return normalized;
-  }
-  return null;
-}
-
-String? _merchantFromStructuredSummary(String? summary) {
-  if (summary == null || summary.trim().isEmpty) return null;
-  final match = RegExp(r'(?:^|\n)\s*商户\s*[：:]\s*([^\n]+)').firstMatch(summary);
-  return match?.group(1)?.trim();
 }

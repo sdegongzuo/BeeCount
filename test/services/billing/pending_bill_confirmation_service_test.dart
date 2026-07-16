@@ -25,8 +25,11 @@ void main() {
 
   tearDown(() => db.close());
 
-  Future<BillingJob> draftJob() async {
-    final job = await repo.createJob(imagePath: '/tmp/shared.png');
+  Future<BillingJob> draftJob({int? ledgerId = 7}) async {
+    final job = await repo.createJob(
+      imagePath: '/tmp/shared.png',
+      ledgerId: ledgerId,
+    );
     await repo.updateSourceInfoJson(
         job.id,
         jsonEncode({
@@ -49,7 +52,7 @@ void main() {
 
   PendingBillConfirmationService service() => PendingBillConfirmationService(
         repo: repo,
-        createTransaction: (result) async {
+        createTransaction: (result, {required ledgerId}) async {
           createdBill = result;
           return 81;
         },
@@ -61,6 +64,41 @@ void main() {
           );
         },
       );
+
+  test('confirmation creates and learns against the ledger captured by the job',
+      () async {
+    final job = await draftJob(ledgerId: 7);
+    int? transactionLedgerId;
+    int? categoryLedgerId;
+    final scopedService = PendingBillConfirmationService(
+      repo: repo,
+      createTransaction: (result, {required ledgerId}) async {
+        transactionLedgerId = ledgerId;
+        return 80;
+      },
+      applyCorrection: service().applyCorrection,
+      rememberCategory: ({
+        required matchText,
+        required categoryId,
+        required global,
+        required ledgerId,
+      }) async {
+        categoryLedgerId = ledgerId;
+      },
+    );
+
+    await scopedService.confirm(
+      jobId: job.id,
+      amount: 18,
+      time: DateTime(2026, 7, 12, 10, 30),
+      supplementalNote: '',
+      categoryId: 5,
+      rememberCategoryRule: true,
+    );
+
+    expect(transactionLedgerId, 7);
+    expect(categoryLedgerId, 7);
+  });
 
   test('仅本次确认创建交易且不生成个人候选规则', () async {
     final job = await draftJob();
@@ -94,7 +132,7 @@ void main() {
       amount: 18,
       time: DateTime(2026, 7, 12, 10, 30),
       supplementalNote: '',
-      rememberForSimilarBills: true,
+      rememberExtractionCorrections: true,
     );
 
     expect(remembered.map((item) => item.field), ['time']);
@@ -108,7 +146,7 @@ void main() {
       amount: 20,
       time: DateTime(2026, 7, 12, 10, 30),
       supplementalNote: '图片外补充',
-      rememberForSimilarBills: true,
+      rememberExtractionCorrections: true,
     );
 
     expect(remembered.map((item) => item.field), ['amount', 'time']);
@@ -126,13 +164,16 @@ void main() {
     ({String matchText, int categoryId, bool global})? saved;
     final categoryService = PendingBillConfirmationService(
       repo: repo,
-      createTransaction: (result) async {
+      createTransaction: (result, {required ledgerId}) async {
         createdBill = result;
         return 82;
       },
       applyCorrection: service().applyCorrection,
       rememberCategory: (
-          {required matchText, required categoryId, required global}) async {
+          {required matchText,
+          required categoryId,
+          required global,
+          required ledgerId}) async {
         saved = (matchText: matchText, categoryId: categoryId, global: global);
       },
     );
@@ -142,7 +183,7 @@ void main() {
       amount: 18,
       time: DateTime(2026, 7, 12, 10, 30),
       supplementalNote: '',
-      rememberForSimilarBills: true,
+      rememberCategoryRule: true,
       categoryId: 5,
       categoryRuleGlobal: true,
     );
@@ -156,7 +197,7 @@ void main() {
     final localStore = SqlitePersonalNotePreferenceStore(db);
     final noteService = PendingBillConfirmationService(
       repo: repo,
-      createTransaction: (_) async => 83,
+      createTransaction: (_, {required ledgerId}) async => 83,
       applyCorrection: service().applyCorrection,
       rememberNotePreference: localStore.remember,
     );
@@ -166,7 +207,7 @@ void main() {
       amount: 18,
       time: DateTime(2026, 7, 12, 10, 30),
       supplementalNote: '和朋友聚餐',
-      rememberForSimilarBills: true,
+      rememberNotePreference: true,
     );
 
     final outgoing = await PersonalRuleSyncRepository(db).pendingUpload();
@@ -199,7 +240,7 @@ void main() {
     var savedNote = false;
     final independentService = PendingBillConfirmationService(
       repo: repo,
-      createTransaction: (_) async => 84,
+      createTransaction: (_, {required ledgerId}) async => 84,
       applyCorrection: (correction) async {
         remembered.add(correction);
         return const PersonalRuleLifecycleResult(
@@ -208,7 +249,10 @@ void main() {
         );
       },
       rememberCategory: (
-          {required matchText, required categoryId, required global}) async {
+          {required matchText,
+          required categoryId,
+          required global,
+          required ledgerId}) async {
         savedCategory =
             (matchText: matchText, categoryId: categoryId, global: global);
       },
@@ -241,7 +285,7 @@ void main() {
     var noteSaved = false;
     final independentService = PendingBillConfirmationService(
       repo: repo,
-      createTransaction: (_) async => 85,
+      createTransaction: (_, {required ledgerId}) async => 85,
       applyCorrection: (correction) async {
         remembered.add(correction);
         return const PersonalRuleLifecycleResult(
@@ -250,7 +294,10 @@ void main() {
         );
       },
       rememberCategory: (
-          {required matchText, required categoryId, required global}) async {
+          {required matchText,
+          required categoryId,
+          required global,
+          required ledgerId}) async {
         categorySaved = true;
       },
       rememberNotePreference: (
@@ -280,7 +327,7 @@ void main() {
     ({String matchText, String supplementalNote})? savedNote;
     final independentService = PendingBillConfirmationService(
       repo: repo,
-      createTransaction: (_) async => 86,
+      createTransaction: (_, {required ledgerId}) async => 86,
       applyCorrection: (correction) async {
         remembered.add(correction);
         return const PersonalRuleLifecycleResult(
@@ -316,7 +363,7 @@ void main() {
     var noteSaved = false;
     final resilientService = PendingBillConfirmationService(
       repo: repo,
-      createTransaction: (_) async => 87,
+      createTransaction: (_, {required ledgerId}) async => 87,
       applyCorrection: (correction) async {
         correctedFields.add(correction.field);
         if (correction.field == 'amount') {
@@ -328,7 +375,10 @@ void main() {
         );
       },
       rememberCategory: (
-          {required matchText, required categoryId, required global}) async {
+          {required matchText,
+          required categoryId,
+          required global,
+          required ledgerId}) async {
         categorySaved = true;
       },
       rememberNotePreference: (
@@ -354,8 +404,10 @@ void main() {
     expect(result.learningErrors.single.kind,
         PendingBillLearningKind.extractionCorrection);
     expect(result.learningErrors.single.target, 'amount');
-    expect(result.learningErrors.single.message,
-        contains('amount_rule_write_failed'));
+    expect(
+      result.learningErrors.single.reason,
+      PendingBillLearningReason.extractionCorrectionFailed,
+    );
     expect(correctedFields, ['amount', 'time']);
     expect(categorySaved, isTrue);
     expect(noteSaved, isTrue);
@@ -368,7 +420,126 @@ void main() {
         time: DateTime(2026, 7, 12, 10, 31),
         supplementalNote: '',
       ),
-      throwsA(isA<StateError>()),
+      throwsA(isA<PendingBillConfirmationException>().having(
+        (error) => error.code,
+        'code',
+        PendingBillConfirmationErrorCode.billingJobNotAwaitingConfirmation,
+      )),
     );
+  });
+
+  test('损坏的来源 JSON 只报告提取学习错误并继续备注和分类学习', () async {
+    final job = await draftJob();
+    await repo.updateSourceInfoJson(job.id, '{not-json');
+    var extractionCalled = false;
+    var categorySaved = false;
+    var noteSaved = false;
+    final resilientService = PendingBillConfirmationService(
+      repo: repo,
+      createTransaction: (_, {required ledgerId}) async => 88,
+      applyCorrection: (_) async {
+        extractionCalled = true;
+        return const PersonalRuleLifecycleResult(
+          status: PersonalRuleLifecycleStatus.enabled,
+        );
+      },
+      rememberCategory: ({
+        required matchText,
+        required categoryId,
+        required global,
+        required ledgerId,
+      }) async {
+        categorySaved = true;
+      },
+      rememberNotePreference: ({
+        required matchText,
+        required supplementalNote,
+      }) async {
+        noteSaved = true;
+      },
+    );
+
+    final result = await resilientService.confirm(
+      jobId: job.id,
+      amount: 20,
+      time: DateTime(2026, 7, 12, 10, 31),
+      supplementalNote: '以后都加这句',
+      categoryId: 5,
+      rememberExtractionCorrections: true,
+      rememberCategoryRule: true,
+      rememberNotePreference: true,
+    );
+
+    expect(result.transactionId, 88);
+    expect(extractionCalled, isFalse);
+    expect(categorySaved, isTrue);
+    expect(noteSaved, isTrue);
+    expect(result.learningErrors, hasLength(1));
+    expect(
+      result.learningErrors.single.reason,
+      PendingBillLearningReason.sourceInfoInvalid,
+    );
+  });
+
+  test(
+      'requesting category memory without a category is typed and creates no bill',
+      () async {
+    final job = await draftJob();
+    var createCount = 0;
+    final guardedService = PendingBillConfirmationService(
+      repo: repo,
+      createTransaction: (_, {required ledgerId}) async {
+        createCount++;
+        return 89;
+      },
+      applyCorrection: service().applyCorrection,
+    );
+
+    await expectLater(
+      guardedService.confirm(
+        jobId: job.id,
+        amount: 18,
+        time: DateTime(2026, 7, 12, 10, 30),
+        supplementalNote: '',
+        rememberCategoryRule: true,
+      ),
+      throwsA(isA<PendingBillConfirmationException>().having(
+        (error) => error.code,
+        'code',
+        PendingBillConfirmationErrorCode.rememberedCategoryRequired,
+      )),
+    );
+    expect(createCount, 0);
+  });
+
+  test(
+      'legacy job without a ledger remains visible but cannot guess on confirm',
+      () async {
+    final job = await draftJob(ledgerId: null);
+    var createCount = 0;
+    final guardedService = PendingBillConfirmationService(
+      repo: repo,
+      createTransaction: (_, {required ledgerId}) async {
+        createCount++;
+        return 90;
+      },
+      applyCorrection: service().applyCorrection,
+    );
+
+    expect((await guardedService.loadDraft(job.id))!.ledgerId, null);
+    await expectLater(
+      guardedService.confirm(
+        jobId: job.id,
+        amount: 18,
+        time: DateTime(2026, 7, 12, 10, 30),
+        supplementalNote: '',
+      ),
+      throwsA(isA<PendingBillConfirmationException>().having(
+        (error) => error.code,
+        'code',
+        PendingBillConfirmationErrorCode.billingJobLedgerMissing,
+      )),
+    );
+    expect(createCount, 0);
   });
 }

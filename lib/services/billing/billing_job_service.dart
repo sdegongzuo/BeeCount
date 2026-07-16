@@ -41,6 +41,7 @@ class BillingJobService {
   final BillingJobRunner _runner;
   final OcrService? _ocrService;
   final SuccessfulRegressionSampleRecorder? _regressionSampleRecorder;
+  final int? Function()? _currentLedgerId;
   final Duration _processingDeadline;
   final Duration _terminalPollInterval;
 
@@ -49,12 +50,14 @@ class BillingJobService {
     required BillingJobRunner runner,
     OcrService? ocrService,
     SuccessfulRegressionSampleRecorder? regressionSampleRecorder,
+    int? Function()? currentLedgerId,
     Duration processingDeadline = billingJobProcessingDeadline,
     Duration terminalPollInterval = const Duration(milliseconds: 50),
   })  : _repo = repo,
         _runner = runner,
         _ocrService = ocrService,
         _regressionSampleRecorder = regressionSampleRecorder,
+        _currentLedgerId = currentLedgerId,
         _processingDeadline = processingDeadline,
         _terminalPollInterval = terminalPollInterval;
 
@@ -63,10 +66,12 @@ class BillingJobService {
     required BillingJobRunner runner,
     Duration processingDeadline = billingJobProcessingDeadline,
     Duration terminalPollInterval = const Duration(milliseconds: 50),
+    int? Function()? currentLedgerId,
   }) =>
       BillingJobService._(
         repo: repo,
         runner: runner,
+        currentLedgerId: currentLedgerId,
         processingDeadline: processingDeadline,
         terminalPollInterval: terminalPollInterval,
       );
@@ -89,8 +94,6 @@ class BillingJobService {
     const ruleProcessor = RuleStageProcessor();
 
     // ledgerId 从 provider 读取，fallback 到 SharedPreferences
-    final ledgerId = _resolveLedgerId(container);
-
     final baseRepo = container.read(repositoryProvider);
     final billCreation = BillCreationService(
       baseRepo,
@@ -104,7 +107,7 @@ class BillingJobService {
     final txProcessor = TransactionStageProcessor(
       txService: AtomicBillingJobTransactionCreationService(
         database: database,
-        delegate: _BillCreationAdapter(billCreation, ledgerId),
+        delegate: _BillCreationAdapter(billCreation),
       ),
       repo: repo,
     );
@@ -157,6 +160,7 @@ class BillingJobService {
               },
             )
           : null,
+      currentLedgerId: () => _resolveLedgerId(container),
     );
   }
 
@@ -203,7 +207,10 @@ class BillingJobService {
     }
 
     ensureDeliveryOwned?.call();
-    final job = await _repo.createJob(imagePath: imagePath);
+    final job = await _repo.createJob(
+      imagePath: imagePath,
+      ledgerId: _currentLedgerId?.call(),
+    );
     if (sourceInfo != null) {
       ensureDeliveryOwned?.call();
       await _repo.updateSourceInfoJson(job.id, jsonEncode(sourceInfo.toJson()));
@@ -313,11 +320,11 @@ class BillingJobService {
     }
   }
 
-  static int _resolveLedgerId(ProviderContainer container) {
+  static int? _resolveLedgerId(ProviderContainer container) {
     try {
       return container.read(currentLedgerIdProvider);
     } catch (_) {
-      return 1;
+      return null;
     }
   }
 
@@ -407,17 +414,24 @@ class _OcrServiceAdapter implements OcrServiceInterface {
 }
 
 /// 包装 BillCreationService：接收 OcrResult，创建交易。
-class _BillCreationAdapter implements TransactionCreationService {
+class _BillCreationAdapter implements LedgerScopedTransactionCreationService {
   final BillCreationService _billCreation;
-  final int _ledgerId;
 
-  _BillCreationAdapter(this._billCreation, this._ledgerId);
+  _BillCreationAdapter(this._billCreation);
 
   @override
   Future<int> createTransaction(OcrResult ocrResult) async {
+    throw StateError('billing_job_ledger_required');
+  }
+
+  @override
+  Future<int> createTransactionInLedger(
+    OcrResult ocrResult,
+    int ledgerId,
+  ) async {
     final txId = await _billCreation.createBillTransaction(
       result: ocrResult,
-      ledgerId: _ledgerId,
+      ledgerId: ledgerId,
       billingTypes: const ['image'],
     );
     if (txId == null) {

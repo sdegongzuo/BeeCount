@@ -20,10 +20,9 @@ final pendingBillConfirmationServiceProvider =
       await BillingJobService.createProductionPersonalRuleLifecycle(database);
   final categoryRuleStore = SqlitePersonalCategoryRuleStore(database);
   final notePreferenceStore = SqlitePersonalNotePreferenceStore(database);
-  final ledgerId = ref.read(currentLedgerIdProvider);
   return PendingBillConfirmationService(
     repo: repo,
-    createTransaction: (result) async {
+    createTransaction: (result, {required ledgerId}) async {
       final id = await BillCreationService(
         baseRepository,
         personalCategoryRules: categoryRuleStore,
@@ -52,7 +51,10 @@ final pendingBillConfirmationServiceProvider =
       return all;
     },
     rememberCategory: (
-        {required matchText, required categoryId, required global}) async {
+        {required matchText,
+        required categoryId,
+        required global,
+        required ledgerId}) async {
       final category = await baseRepository.getCategoryById(categoryId);
       final syncId = category?.syncId;
       if (syncId == null || syncId.isEmpty) {

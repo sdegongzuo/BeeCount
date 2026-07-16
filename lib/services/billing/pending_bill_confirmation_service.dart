@@ -1,23 +1,46 @@
 import 'dart:convert';
 
 import '../../data/repositories/billing_job_repository.dart';
+import '../system/logger_service.dart';
+import 'classification_match_evidence.dart';
 import 'ocr_service.dart';
 import 'rules/personal_rule_lifecycle_service.dart';
 
-typedef ConfirmedBillCreator = Future<int> Function(OcrResult result);
+/// Creates a confirmed transaction in the immutable ledger captured by its job.
+typedef ConfirmedBillCreator = Future<int> Function(
+  OcrResult result, {
+  required int ledgerId,
+});
+
+/// Applies one user-confirmed extraction correction to personal rules.
 typedef PersonalRuleCorrectionApplier = Future<PersonalRuleLifecycleResult>
     Function(PersonalRuleCorrection correction);
+
+/// Loads categories that can be selected on the confirmation screen.
 typedef ConfirmableCategoriesLoader = Future<List<ConfirmableCategory>>
     Function();
+
+/// Remembers a category rule in either the captured ledger or global scope.
 typedef CategoryRuleRememberer = Future<void> Function({
   required String matchText,
   required int categoryId,
   required bool global,
+  required int ledgerId,
 });
+
+/// Remembers user-authored supplemental note text independently from OCR rules.
 typedef NotePreferenceRememberer = Future<void> Function({
   required String matchText,
   required String supplementalNote,
 });
+
+/// Receives raw optional-learning failures for diagnostics only.
+typedef PendingBillLearningLogger = void Function(
+  String component,
+  String message,
+  Object error,
+  StackTrace stackTrace,
+);
 
 class ConfirmableCategory {
   final int id;
@@ -27,12 +50,18 @@ class ConfirmableCategory {
 
 class PendingBillDraft {
   final int jobId;
+
+  /// Ledger captured when this billing job first received its image.
+  ///
+  /// Null identifies a legacy job that cannot be confirmed safely.
+  final int? ledgerId;
   final String imagePath;
   final OcrResult candidate;
   final List<ConfirmableCategory> categories;
 
   const PendingBillDraft({
     required this.jobId,
+    required this.ledgerId,
     required this.imagePath,
     required this.candidate,
     this.categories = const [],
@@ -61,6 +90,14 @@ enum PendingBillLearningKind {
   notePreference,
 }
 
+/// Stable, UI-safe reason for an optional learning failure.
+enum PendingBillLearningReason {
+  sourceInfoInvalid,
+  extractionCorrectionFailed,
+  categoryRuleFailed,
+  notePreferenceFailed,
+}
+
 enum PendingBillLearningStatus {
   completed,
   partiallyFailed,
@@ -69,13 +106,31 @@ enum PendingBillLearningStatus {
 class PendingBillLearningError {
   final PendingBillLearningKind kind;
   final String target;
-  final String message;
+
+  /// Stable UI-safe reason; raw exceptions are intentionally excluded.
+  final PendingBillLearningReason reason;
 
   const PendingBillLearningError({
     required this.kind,
     required this.target,
-    required this.message,
+    required this.reason,
   });
+}
+
+/// Stable failure codes for confirmation requests rejected before creation.
+enum PendingBillConfirmationErrorCode {
+  billingJobNotAwaitingConfirmation,
+  billingJobResultMissing,
+  billingJobLedgerMissing,
+  rememberedCategoryRequired,
+}
+
+/// Typed rejection from [PendingBillConfirmationService.confirm].
+final class PendingBillConfirmationException implements Exception {
+  const PendingBillConfirmationException(this.code);
+
+  /// Stable reason the request was rejected before transaction creation.
+  final PendingBillConfirmationErrorCode code;
 }
 
 /// 待确认账单的公开功能边界：读取 OCR 候选、创建当前交易并按用户选择学习规则。
@@ -86,6 +141,7 @@ class PendingBillConfirmationService {
   final ConfirmableCategoriesLoader? loadCategories;
   final CategoryRuleRememberer? rememberCategory;
   final NotePreferenceRememberer? rememberNotePreference;
+  final PendingBillLearningLogger logLearningFailure;
 
   const PendingBillConfirmationService({
     required this.repo,
@@ -94,6 +150,7 @@ class PendingBillConfirmationService {
     this.loadCategories,
     this.rememberCategory,
     this.rememberNotePreference,
+    this.logLearningFailure = _logLearningFailure,
   });
 
   Future<PendingBillDraft?> loadDraft(int jobId) async {
@@ -106,6 +163,7 @@ class PendingBillConfirmationService {
     final json = jsonDecode(job.finalResultJson!) as Map<String, dynamic>;
     return PendingBillDraft(
       jobId: job.id,
+      ledgerId: job.ledgerId,
       imagePath: job.imagePath,
       candidate: OcrResult.fromJson(json),
       categories: await loadCategories?.call() ?? const [],
@@ -127,7 +185,30 @@ class PendingBillConfirmationService {
   }) async {
     final job = await repo.findById(jobId);
     if (job == null || job.status != BillingJobStatus.awaitingConfirmation) {
-      throw StateError('billing_job_not_awaiting_confirmation');
+      throw const PendingBillConfirmationException(
+        PendingBillConfirmationErrorCode.billingJobNotAwaitingConfirmation,
+      );
+    }
+    if (job.finalResultJson == null) {
+      throw const PendingBillConfirmationException(
+        PendingBillConfirmationErrorCode.billingJobResultMissing,
+      );
+    }
+    final ledgerId = job.ledgerId;
+    if (ledgerId == null) {
+      throw const PendingBillConfirmationException(
+        PendingBillConfirmationErrorCode.billingJobLedgerMissing,
+      );
+    }
+    final legacyRememberAll = rememberForSimilarBills ?? false;
+    final rememberExtraction =
+        rememberExtractionCorrections || legacyRememberAll;
+    final rememberCategory = rememberCategoryRule || legacyRememberAll;
+    final rememberNote = rememberNotePreference || legacyRememberAll;
+    if (rememberCategory && categoryId == null) {
+      throw const PendingBillConfirmationException(
+        PendingBillConfirmationErrorCode.rememberedCategoryRequired,
+      );
     }
     final stored = jsonDecode(job.finalResultJson!) as Map<String, dynamic>;
     final original = OcrResult.fromJson(stored);
@@ -150,21 +231,34 @@ class PendingBillConfirmationService {
       'note': original.note,
     };
     final confirmed = OcrResult.fromJson(transactionJson);
-    final transactionId = await createTransaction(confirmed);
+    final transactionId = await createTransaction(
+      confirmed,
+      ledgerId: ledgerId,
+    );
     await repo.updateFinalResultJson(job.id, jsonEncode(confirmedJson));
     await repo.updateTransactionId(job.id, transactionId);
     await repo.updateStage(job.id, BillingJobStage.completed);
     await repo.markSucceeded(job.id);
 
-    final legacyRememberAll = rememberForSimilarBills ?? false;
-    final rememberExtraction =
-        rememberExtractionCorrections || legacyRememberAll;
-    final rememberCategory = rememberCategoryRule || legacyRememberAll;
-    final rememberNote = rememberNotePreference || legacyRememberAll;
     final results = <PersonalRuleLifecycleResult>[];
     final learningErrors = <PendingBillLearningError>[];
     if (rememberExtraction) {
-      final source = _source(job.sourceInfoJson);
+      (String?, String?)? source;
+      try {
+        source = _source(job.sourceInfoJson);
+      } catch (error, stackTrace) {
+        logLearningFailure(
+          'PendingBillConfirmation',
+          '解析可选来源证据失败',
+          error,
+          stackTrace,
+        );
+        learningErrors.add(const PendingBillLearningError(
+          kind: PendingBillLearningKind.extractionCorrection,
+          target: 'source_info',
+          reason: PendingBillLearningReason.sourceInfoInvalid,
+        ));
+      }
       final changedFields = <MapEntry<String, Object>>[];
       if (original.amount != amount) {
         changedFields.add(MapEntry('amount', amount));
@@ -172,26 +266,39 @@ class PendingBillConfirmationService {
       if (original.time != time) {
         changedFields.add(MapEntry('time', time));
       }
-      for (final field in changedFields) {
+      final parsedSource = source;
+      for (final field in parsedSource == null
+          ? const <MapEntry<String, Object>>[]
+          : changedFields) {
         try {
           results.add(await applyCorrection(PersonalRuleCorrection(
             field: field.key,
             confirmedValue: field.value,
             normalizedOcr: rawText,
-            sourcePackage: source.$1,
-            sourceAppName: source.$2,
+            sourcePackage: parsedSource!.$1,
+            sourceAppName: parsedSource.$2,
           )));
-        } catch (error) {
+        } catch (error, stackTrace) {
+          logLearningFailure(
+            'PendingBillConfirmation',
+            '保存提取修正失败',
+            error,
+            stackTrace,
+          );
           learningErrors.add(PendingBillLearningError(
             kind: PendingBillLearningKind.extractionCorrection,
             target: field.key,
-            message: error.toString(),
+            reason: PendingBillLearningReason.extractionCorrectionFailed,
           ));
         }
       }
     }
     if (rememberCategory || rememberNote) {
-      final matchText = _ruleMatchText(original);
+      final matchText = classificationMatchText(
+        merchantFullName: original.merchantFullName,
+        counterparty: original.counterparty,
+        structuredSummary: original.note,
+      );
       if (supplement.isNotEmpty &&
           matchText != null &&
           rememberNote &&
@@ -201,11 +308,17 @@ class PendingBillConfirmationService {
             matchText: matchText,
             supplementalNote: supplement,
           );
-        } catch (error) {
+        } catch (error, stackTrace) {
+          logLearningFailure(
+            'PendingBillConfirmation',
+            '保存备注偏好失败',
+            error,
+            stackTrace,
+          );
           learningErrors.add(PendingBillLearningError(
             kind: PendingBillLearningKind.notePreference,
             target: matchText,
-            message: error.toString(),
+            reason: PendingBillLearningReason.notePreferenceFailed,
           ));
         }
       }
@@ -218,12 +331,19 @@ class PendingBillConfirmationService {
             matchText: matchText,
             categoryId: categoryId,
             global: categoryRuleGlobal,
+            ledgerId: ledgerId,
           );
-        } catch (error) {
+        } catch (error, stackTrace) {
+          logLearningFailure(
+            'PendingBillConfirmation',
+            '保存分类规则失败',
+            error,
+            stackTrace,
+          );
           learningErrors.add(PendingBillLearningError(
             kind: PendingBillLearningKind.categoryRule,
             target: matchText,
-            message: error.toString(),
+            reason: PendingBillLearningReason.categoryRuleFailed,
           ));
         }
       }
@@ -245,22 +365,16 @@ class PendingBillConfirmationService {
   );
 }
 
-String? _ruleMatchText(OcrResult result) {
-  for (final candidate in <String?>[
-    result.merchantFullName,
-    result.counterparty,
-    _merchantFromStructuredSummary(result.note),
-  ]) {
-    final normalized = candidate?.trim();
-    if (normalized != null && normalized.isNotEmpty) return normalized;
-  }
-  return null;
-}
-
-String? _merchantFromStructuredSummary(String? summary) {
-  if (summary == null || summary.trim().isEmpty) return null;
-  return RegExp(r'(?:^|\n)\s*商户\s*[：:]\s*([^\n]+)')
-      .firstMatch(summary)
-      ?.group(1)
-      ?.trim();
+void _logLearningFailure(
+  String component,
+  String message,
+  Object error,
+  StackTrace stackTrace,
+) {
+  // Logging is diagnostic-only and must never turn an optional learning
+  // failure into a failed confirmation (including before Flutter bindings are
+  // available in background/test isolates).
+  try {
+    logger.error(component, message, error, stackTrace);
+  } catch (_) {}
 }

@@ -20,7 +20,7 @@ void main() {
     final db = BeeDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     final repo = LocalBillingJobRepository(db);
-    final job = await repo.createJob(imagePath: '/tmp/shared.png');
+    final job = await repo.createJob(imagePath: '/tmp/shared.png', ledgerId: 7);
     await repo.updateFinalResultJson(
         job.id,
         jsonEncode(OcrResult(
@@ -32,10 +32,14 @@ void main() {
     await repo.updateStatus(job.id, BillingJobStatus.awaitingConfirmation);
     var extractionRemembered = false;
     var noteRemembered = false;
+    var createCount = 0;
     ({String matchText, int categoryId, bool global})? rememberedCategory;
     final service = PendingBillConfirmationService(
       repo: repo,
-      createTransaction: (_) async => 9,
+      createTransaction: (_, {required ledgerId}) async {
+        createCount++;
+        return 9;
+      },
       applyCorrection: (_) async {
         extractionRemembered = true;
         return const PersonalRuleLifecycleResult(
@@ -47,7 +51,10 @@ void main() {
         ConfirmableCategory(8, '其他'),
       ],
       rememberCategory: (
-          {required matchText, required categoryId, required global}) async {
+          {required matchText,
+          required categoryId,
+          required global,
+          required ledgerId}) async {
         rememberedCategory = (
           matchText: matchText,
           categoryId: categoryId,
@@ -59,6 +66,7 @@ void main() {
         noteRemembered = true;
         throw StateError('note_preference_failed');
       },
+      logLearningFailure: (_, __, ___, ____) {},
     );
 
     await tester.pumpWidget(MaterialApp(
@@ -78,6 +86,16 @@ void main() {
     expect(find.text('图片证据字段'), findsOneWidget);
     expect(find.text('账单补充信息（仅本次）'), findsOneWidget);
     expect(find.text('18.00'), findsOneWidget);
+    await tester.enterText(
+        find.byKey(const Key('timeField')), '2026-07-12 10:30');
+    await tester.tap(find.byKey(const Key('rememberCategoryRule')));
+    await tester.tap(find.text('确认并创建账单'));
+    await tester.pumpAndSettle();
+    expect(find.text('请先选择分类，再开启“记住分类”'), findsOneWidget);
+    expect(createCount, 0);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('rememberCategoryRule')));
     await tester.tap(find.byKey(const Key('categoryField')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('餐饮 / 咖啡').last);
@@ -87,8 +105,6 @@ void main() {
     expect(find.byKey(const Key('rememberNotePreference')), findsOneWidget);
     expect(find.byKey(const Key('globalCategoryRule')), findsNothing);
 
-    await tester.enterText(
-        find.byKey(const Key('timeField')), '2026-07-12 10:30');
     await tester.enterText(find.byKey(const Key('supplementField')), '和朋友聚餐');
     await tester.tap(find.byKey(const Key('rememberCategoryRule')));
     await tester.pumpAndSettle();
@@ -99,11 +115,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(extractionRemembered, isFalse);
     expect(noteRemembered, isTrue);
+    expect(createCount, 1);
     expect(
       rememberedCategory,
       (matchText: '天津海河测试餐厅甲', categoryId: 7, global: true),
     );
-    expect(find.textContaining('账单已创建，但部分记忆失败'), findsOneWidget);
-    expect(find.textContaining('note_preference_failed'), findsOneWidget);
+    expect(find.textContaining('账单已创建，但部分记忆未完成'), findsOneWidget);
+    expect(find.textContaining('备注偏好保存失败'), findsOneWidget);
+    expect(find.textContaining('note_preference_failed'), findsNothing);
   });
 }

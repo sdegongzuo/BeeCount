@@ -47,8 +47,16 @@ typedef BillingJobPublicationGate = Future<T> Function<T>(
 );
 
 abstract class BillingJobRepository {
-  Future<BillingJob> createJob(
-      {required String imagePath, String kind = 'image_share'});
+  /// Persists a job together with the ledger selected when its image arrived.
+  ///
+  /// [ledgerId] may be null only for legacy/imported jobs. Production callers
+  /// must capture and provide it instead of consulting mutable current-ledger
+  /// state when the job is resumed or confirmed later.
+  Future<BillingJob> createJob({
+    required String imagePath,
+    int? ledgerId,
+    String kind = 'image_share',
+  });
   Future<BillingJob?> findById(int id);
   Future<List<BillingJob>> findPendingJobs();
   Future<List<BillingJob>> findAttachmentRecoveryJobs();

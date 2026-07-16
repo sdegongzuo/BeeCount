@@ -19,6 +19,17 @@ void main() {
     await db.close();
   });
 
+  test('billing job preserves the ledger captured when the image arrived',
+      () async {
+    final job = await repo.createJob(
+      imagePath: '/tmp/original-ledger.png',
+      ledgerId: 42,
+    );
+
+    expect(job.ledgerId, 42);
+    expect((await repo.findById(job.id))!.ledgerId, 42);
+  });
+
   test('create job with initial stage=received', () async {
     final job = await repo.createJob(imagePath: '/tmp/test.png');
 

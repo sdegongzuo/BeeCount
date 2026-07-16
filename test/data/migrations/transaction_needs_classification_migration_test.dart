@@ -5,6 +5,53 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 void main() {
+  test('v29 to v30 leaves legacy billing jobs unscoped instead of guessing',
+      () async {
+    final underlying = sqlite.sqlite3.openInMemory();
+    underlying.execute('''
+      CREATE TABLE billing_jobs (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        kind TEXT NOT NULL DEFAULT 'image_share',
+        status TEXT NOT NULL DEFAULT 'pending',
+        stage TEXT NOT NULL DEFAULT 'received',
+        transaction_id INTEGER,
+        image_path TEXT NOT NULL,
+        raw_text TEXT,
+        ocr_engine TEXT,
+        source_info_json TEXT,
+        rule_result_json TEXT,
+        final_result_json TEXT,
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT,
+        lease_until INTEGER,
+        attachment_done INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        completed_at INTEGER
+      );
+      CREATE TABLE transaction_attachments (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        transaction_id INTEGER NOT NULL,
+        file_name TEXT NOT NULL,
+        origin_key TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+      );
+      INSERT INTO billing_jobs (image_path) VALUES ('/tmp/legacy.png');
+      PRAGMA user_version = 29;
+    ''');
+
+    final db = BeeDatabase.forTesting(NativeDatabase.opened(underlying));
+    addTearDown(db.close);
+
+    final row = await db
+        .customSelect(
+          'SELECT ledger_id FROM billing_jobs WHERE id = 1',
+        )
+        .getSingle();
+    expect(row.data['ledger_id'], null);
+  });
+
   test('v28 to v29 backfills the legacy pending-classification marker',
       () async {
     final underlying = sqlite.sqlite3.openInMemory();
@@ -54,7 +101,7 @@ void main() {
     expect(rows.first.detailsText, '商户：未知\n待分类：是');
   });
 
-  test('new v29 transactions default to not needing classification', () async {
+  test('new transactions default to not needing classification', () async {
     final db = BeeDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
 

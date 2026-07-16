@@ -195,6 +195,18 @@ class _PendingBillConfirmationPageState
       );
       return;
     }
+    if (_rememberCategoryRule && _categoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先选择分类，再开启“记住分类”')),
+      );
+      return;
+    }
+    if (_draft?.ledgerId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('此历史账单缺少账本信息，无法安全创建')),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       final result = await widget.service.confirm(
@@ -214,7 +226,7 @@ class _PendingBillConfirmationPageState
           .length;
       final l10n = AppLocalizations.of(context);
       final message = result.learningErrors.isNotEmpty
-          ? '账单已创建，但部分记忆失败：${result.learningErrors.map((error) => error.message).join('；')}'
+          ? '账单已创建，但部分记忆未完成：${result.learningErrors.map(_learningErrorText).join('；')}'
           : enabled > 0
               ? l10n.pendingBillRuleEnabled(enabled)
               : result.ruleResults.any((item) =>
@@ -230,11 +242,36 @@ class _PendingBillConfirmationPageState
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
       if (Navigator.of(context).canPop()) Navigator.of(context).pop(result);
+    } on PendingBillConfirmationException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_confirmationErrorText(error.code))),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 }
+
+String _learningErrorText(PendingBillLearningError error) =>
+    switch (error.reason) {
+      PendingBillLearningReason.sourceInfoInvalid => '图片来源信息已损坏，未学习提取修正',
+      PendingBillLearningReason.extractionCorrectionFailed => '提取修正保存失败',
+      PendingBillLearningReason.categoryRuleFailed => '分类规则保存失败',
+      PendingBillLearningReason.notePreferenceFailed => '备注偏好保存失败',
+    };
+
+String _confirmationErrorText(PendingBillConfirmationErrorCode code) =>
+    switch (code) {
+      PendingBillConfirmationErrorCode.billingJobNotAwaitingConfirmation =>
+        '此账单已处理或不再等待确认',
+      PendingBillConfirmationErrorCode.billingJobResultMissing =>
+        '账单识别结果缺失，请重新分享图片',
+      PendingBillConfirmationErrorCode.billingJobLedgerMissing =>
+        '此历史账单缺少账本信息，无法安全创建',
+      PendingBillConfirmationErrorCode.rememberedCategoryRequired =>
+        '请先选择分类，再开启“记住分类”',
+    };
 
 String _formatTime(DateTime? value) => value == null
     ? ''

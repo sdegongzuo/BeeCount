@@ -129,6 +129,22 @@ void main() {
     expect(await _jobCount(db), 0);
   });
 
+  test('new job captures the current ledger exactly once at image receipt',
+      () async {
+    var currentLedgerId = 7;
+    final service = BillingJobService.forTesting(
+      repo: repo,
+      runner: _runner(repo, transactionId: 705),
+      currentLedgerId: () => currentLedgerId,
+    );
+
+    await service.processImage('/same/captured-ledger.png');
+    currentLedgerId = 9;
+
+    final job = await repo.findByImagePath('/same/captured-ledger.png');
+    expect(job!.ledgerId, 7);
+  });
+
   test('startup resumes an existing attachment artifact and marks it done',
       () async {
     final job = await repo.createJob(imagePath: '/same/restart.png');

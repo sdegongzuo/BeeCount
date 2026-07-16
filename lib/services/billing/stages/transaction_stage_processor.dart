@@ -12,6 +12,13 @@ abstract class TransactionCreationService {
   Future<int> createTransaction(OcrResult ocrResult);
 }
 
+/// Transaction creation capability that requires an explicit immutable ledger.
+abstract class LedgerScopedTransactionCreationService
+    implements TransactionCreationService {
+  /// Creates [ocrResult] in [ledgerId], never from mutable app selection state.
+  Future<int> createTransactionInLedger(OcrResult ocrResult, int ledgerId);
+}
+
 abstract class BillingJobAtomicTransactionCreationService
     implements TransactionCreationService {
   Future<int> createTransactionForJob({
@@ -60,7 +67,14 @@ class AtomicBillingJobTransactionCreationService
         throw const BillingJobExecutionCancelled('billing_job_lease_lost');
       }
 
-      final transactionId = await delegate.createTransaction(ocrResult);
+      final ledgerId = current.ledgerId;
+      if (ledgerId == null) {
+        throw StateError('billing_job_ledger_missing');
+      }
+      final transactionId = delegate is LedgerScopedTransactionCreationService
+          ? await (delegate as LedgerScopedTransactionCreationService)
+              .createTransactionInLedger(ocrResult, ledgerId)
+          : await delegate.createTransaction(ocrResult);
       final committed = await jobRepository.updateTransactionId(
         jobId,
         transactionId,
@@ -119,6 +133,27 @@ class TransactionStageProcessor implements StageProcessor {
           (lease) => repo.updateStatus(
             job.id,
             BillingJobStatus.awaitingConfirmation,
+            lease: lease,
+            releaseLease: true,
+          ),
+        );
+        return const StageResult.awaitingConfirmation();
+      }
+
+      if (txService is BillingJobAtomicTransactionCreationService &&
+          job.ledgerId == null) {
+        await ctx.requireOwnedWrite(
+          (lease) => repo.updateFinalResultJson(
+            job.id,
+            jsonEncode(ocrResult.toJson()),
+            lease: lease,
+          ),
+        );
+        await ctx.requireOwnedWrite(
+          (lease) => repo.updateStatus(
+            job.id,
+            BillingJobStatus.awaitingConfirmation,
+            lastError: 'billing_job_ledger_missing',
             lease: lease,
             releaseLease: true,
           ),

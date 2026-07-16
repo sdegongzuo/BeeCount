@@ -241,6 +241,7 @@ class Budgets extends Table {
 
 class BillingJobs extends Table {
   IntColumn get id => integer().autoIncrement()();
+  IntColumn get ledgerId => integer().nullable()();
   TextColumn get kind => text().withDefault(const Constant('image_share'))();
   TextColumn get status => text().withDefault(const Constant('pending'))();
   TextColumn get stage => text().withDefault(const Constant('received'))();
@@ -292,7 +293,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 29; // v29: 结构化待分类状态
+  int get schemaVersion => 30; // v30: Billing Job 固化创建时账本
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -969,6 +970,16 @@ class BeeDatabase extends _$BeeDatabase {
                 SET needs_classification = 1
                 WHERE details_text LIKE '%待分类：是%';
               ''');
+            }
+          }
+          if (from < 30) {
+            final tableInfo =
+                await customSelect('PRAGMA table_info(billing_jobs)').get();
+            if (tableInfo.isNotEmpty &&
+                !tableInfo.any((row) => row.data['name'] == 'ledger_id')) {
+              await customStatement(
+                'ALTER TABLE billing_jobs ADD COLUMN ledger_id INTEGER;',
+              );
             }
           }
         },

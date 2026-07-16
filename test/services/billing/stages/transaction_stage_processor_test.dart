@@ -69,6 +69,24 @@ class _MarkerTransactionCreationService implements TransactionCreationService {
   }
 }
 
+class _LedgerCapturingTransactionCreationService
+    implements LedgerScopedTransactionCreationService {
+  int? ledgerId;
+
+  @override
+  Future<int> createTransaction(OcrResult ocrResult) =>
+      throw StateError('ledger scope required');
+
+  @override
+  Future<int> createTransactionInLedger(
+    OcrResult ocrResult,
+    int ledgerId,
+  ) async {
+    this.ledgerId = ledgerId;
+    return 903;
+  }
+}
+
 void main() {
   late BeeDatabase db;
   late BillingJobRepository repo;
@@ -250,7 +268,10 @@ void main() {
     await db.customStatement(
       'CREATE TABLE atomic_tx_marker (id INTEGER PRIMARY KEY)',
     );
-    final job = await repo.createJob(imagePath: '/tmp/atomic-rollback.png');
+    final job = await repo.createJob(
+      imagePath: '/tmp/atomic-rollback.png',
+      ledgerId: 7,
+    );
     final candidate = OcrResult(
       rawText: '付款 9.01',
       allNumbers: const ['9.01'],
@@ -294,7 +315,10 @@ void main() {
     await db.customStatement(
       'CREATE TABLE atomic_tx_marker (id INTEGER PRIMARY KEY)',
     );
-    final job = await repo.createJob(imagePath: '/tmp/atomic-concurrent.png');
+    final job = await repo.createJob(
+      imagePath: '/tmp/atomic-concurrent.png',
+      ledgerId: 7,
+    );
     final lease =
         (await repo.claimJobLease(job.id, const Duration(seconds: 5)))!;
     final candidate = OcrResult(
@@ -332,6 +356,72 @@ void main() {
         )
         .getSingle();
     expect(markerCount.read<int>('count'), 1);
+  });
+
+  test('production atomic creator uses the ledger persisted on the job',
+      () async {
+    final job = await repo.createJob(
+      imagePath: '/tmp/captured-ledger.png',
+      ledgerId: 7,
+    );
+    final lease =
+        (await repo.claimJobLease(job.id, const Duration(seconds: 5)))!;
+    final delegate = _LedgerCapturingTransactionCreationService();
+    final creator = AtomicBillingJobTransactionCreationService(
+      database: db,
+      delegate: delegate,
+    );
+
+    final transactionId = await creator.createTransactionForJob(
+      jobId: job.id,
+      lease: lease,
+      ocrResult: OcrResult(
+        rawText: '付款 9.03',
+        allNumbers: const ['9.03'],
+        amount: 9.03,
+        time: DateTime(2026, 7, 14, 2, 3, 6),
+      ),
+    );
+
+    expect(transactionId, 903);
+    expect(delegate.ledgerId, 7);
+  });
+
+  test('legacy atomic job without ledger pauses safely before any transaction',
+      () async {
+    final job = await repo.createJob(imagePath: '/tmp/legacy-no-ledger.png');
+    final candidate = OcrResult(
+      rawText: '付款 9.04',
+      allNumbers: const ['9.04'],
+      amount: 9.04,
+      time: DateTime(2026, 7, 14, 2, 3, 7),
+    );
+    await repo.updateRuleResultJson(job.id, jsonEncode(candidate.toJson()));
+    final lease =
+        (await repo.claimJobLease(job.id, const Duration(seconds: 5)))!;
+    final context = PipelineContext()
+      ..configureOwnership(repository: repo, lease: lease);
+    final delegate = _LedgerCapturingTransactionCreationService();
+    final processor = TransactionStageProcessor(
+      txService: AtomicBillingJobTransactionCreationService(
+        database: db,
+        delegate: delegate,
+      ),
+      repo: repo,
+    );
+
+    final result = await processor.process(
+      (await repo.findById(job.id))!,
+      DateTime.now().add(const Duration(seconds: 5)),
+      context,
+    );
+
+    expect(result.awaitingConfirmation, isTrue);
+    expect(delegate.ledgerId, null);
+    final updated = (await repo.findById(job.id))!;
+    expect(updated.status, BillingJobStatus.awaitingConfirmation);
+    expect(updated.lastError, 'billing_job_ledger_missing');
+    expect(updated.transactionId, null);
   });
 
   test('deduplicates by time+amount within same second', () async {

@@ -9,11 +9,15 @@ class LocalBillingJobRepository implements BillingJobRepository {
   LocalBillingJobRepository(this.db);
 
   @override
-  Future<BillingJob> createJob(
-      {required String imagePath, String kind = 'image_share'}) async {
+  Future<BillingJob> createJob({
+    required String imagePath,
+    int? ledgerId,
+    String kind = 'image_share',
+  }) async {
     final id = await db.into(db.billingJobs).insert(
           BillingJobsCompanion.insert(
             imagePath: imagePath,
+            ledgerId: d.Value(ledgerId),
             kind: d.Value(kind),
           ),
         );

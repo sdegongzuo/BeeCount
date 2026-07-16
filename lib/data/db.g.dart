@@ -6631,6 +6631,12 @@ class $BillingJobsTable extends BillingJobs
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _ledgerIdMeta =
+      const VerificationMeta('ledgerId');
+  @override
+  late final GeneratedColumn<int> ledgerId = GeneratedColumn<int>(
+      'ledger_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
   static const VerificationMeta _kindMeta = const VerificationMeta('kind');
   @override
   late final GeneratedColumn<String> kind = GeneratedColumn<String>(
@@ -6749,6 +6755,7 @@ class $BillingJobsTable extends BillingJobs
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        ledgerId,
         kind,
         status,
         stage,
@@ -6779,6 +6786,10 @@ class $BillingJobsTable extends BillingJobs
     final data = instance.toColumns(true);
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('ledger_id')) {
+      context.handle(_ledgerIdMeta,
+          ledgerId.isAcceptableOrUnknown(data['ledger_id']!, _ledgerIdMeta));
     }
     if (data.containsKey('kind')) {
       context.handle(
@@ -6877,6 +6888,8 @@ class $BillingJobsTable extends BillingJobs
     return BillingJob(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      ledgerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}ledger_id']),
       kind: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
       status: attachedDatabase.typeMapping
@@ -6922,6 +6935,7 @@ class $BillingJobsTable extends BillingJobs
 
 class BillingJob extends DataClass implements Insertable<BillingJob> {
   final int id;
+  final int? ledgerId;
   final String kind;
   final String status;
   final String stage;
@@ -6941,6 +6955,7 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
   final DateTime? completedAt;
   const BillingJob(
       {required this.id,
+      this.ledgerId,
       required this.kind,
       required this.status,
       required this.stage,
@@ -6962,6 +6977,9 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
+    if (!nullToAbsent || ledgerId != null) {
+      map['ledger_id'] = Variable<int>(ledgerId);
+    }
     map['kind'] = Variable<String>(kind);
     map['status'] = Variable<String>(status);
     map['stage'] = Variable<String>(stage);
@@ -7003,6 +7021,9 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
   BillingJobsCompanion toCompanion(bool nullToAbsent) {
     return BillingJobsCompanion(
       id: Value(id),
+      ledgerId: ledgerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ledgerId),
       kind: Value(kind),
       status: Value(status),
       stage: Value(stage),
@@ -7046,6 +7067,7 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return BillingJob(
       id: serializer.fromJson<int>(json['id']),
+      ledgerId: serializer.fromJson<int?>(json['ledgerId']),
       kind: serializer.fromJson<String>(json['kind']),
       status: serializer.fromJson<String>(json['status']),
       stage: serializer.fromJson<String>(json['stage']),
@@ -7070,6 +7092,7 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
+      'ledgerId': serializer.toJson<int?>(ledgerId),
       'kind': serializer.toJson<String>(kind),
       'status': serializer.toJson<String>(status),
       'stage': serializer.toJson<String>(stage),
@@ -7092,6 +7115,7 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
 
   BillingJob copyWith(
           {int? id,
+          Value<int?> ledgerId = const Value.absent(),
           String? kind,
           String? status,
           String? stage,
@@ -7111,6 +7135,7 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
           Value<DateTime?> completedAt = const Value.absent()}) =>
       BillingJob(
         id: id ?? this.id,
+        ledgerId: ledgerId.present ? ledgerId.value : this.ledgerId,
         kind: kind ?? this.kind,
         status: status ?? this.status,
         stage: stage ?? this.stage,
@@ -7137,6 +7162,7 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
   BillingJob copyWithCompanion(BillingJobsCompanion data) {
     return BillingJob(
       id: data.id.present ? data.id.value : this.id,
+      ledgerId: data.ledgerId.present ? data.ledgerId.value : this.ledgerId,
       kind: data.kind.present ? data.kind.value : this.kind,
       status: data.status.present ? data.status.value : this.status,
       stage: data.stage.present ? data.stage.value : this.stage,
@@ -7175,6 +7201,7 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
   String toString() {
     return (StringBuffer('BillingJob(')
           ..write('id: $id, ')
+          ..write('ledgerId: $ledgerId, ')
           ..write('kind: $kind, ')
           ..write('status: $status, ')
           ..write('stage: $stage, ')
@@ -7199,6 +7226,7 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
   @override
   int get hashCode => Object.hash(
       id,
+      ledgerId,
       kind,
       status,
       stage,
@@ -7221,6 +7249,7 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
       identical(this, other) ||
       (other is BillingJob &&
           other.id == this.id &&
+          other.ledgerId == this.ledgerId &&
           other.kind == this.kind &&
           other.status == this.status &&
           other.stage == this.stage &&
@@ -7242,6 +7271,7 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
 
 class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
   final Value<int> id;
+  final Value<int?> ledgerId;
   final Value<String> kind;
   final Value<String> status;
   final Value<String> stage;
@@ -7261,6 +7291,7 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
   final Value<DateTime?> completedAt;
   const BillingJobsCompanion({
     this.id = const Value.absent(),
+    this.ledgerId = const Value.absent(),
     this.kind = const Value.absent(),
     this.status = const Value.absent(),
     this.stage = const Value.absent(),
@@ -7281,6 +7312,7 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
   });
   BillingJobsCompanion.insert({
     this.id = const Value.absent(),
+    this.ledgerId = const Value.absent(),
     this.kind = const Value.absent(),
     this.status = const Value.absent(),
     this.stage = const Value.absent(),
@@ -7301,6 +7333,7 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
   }) : imagePath = Value(imagePath);
   static Insertable<BillingJob> custom({
     Expression<int>? id,
+    Expression<int>? ledgerId,
     Expression<String>? kind,
     Expression<String>? status,
     Expression<String>? stage,
@@ -7321,6 +7354,7 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (ledgerId != null) 'ledger_id': ledgerId,
       if (kind != null) 'kind': kind,
       if (status != null) 'status': status,
       if (stage != null) 'stage': stage,
@@ -7343,6 +7377,7 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
 
   BillingJobsCompanion copyWith(
       {Value<int>? id,
+      Value<int?>? ledgerId,
       Value<String>? kind,
       Value<String>? status,
       Value<String>? stage,
@@ -7362,6 +7397,7 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
       Value<DateTime?>? completedAt}) {
     return BillingJobsCompanion(
       id: id ?? this.id,
+      ledgerId: ledgerId ?? this.ledgerId,
       kind: kind ?? this.kind,
       status: status ?? this.status,
       stage: stage ?? this.stage,
@@ -7387,6 +7423,9 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<int>(id.value);
+    }
+    if (ledgerId.present) {
+      map['ledger_id'] = Variable<int>(ledgerId.value);
     }
     if (kind.present) {
       map['kind'] = Variable<String>(kind.value);
@@ -7446,6 +7485,7 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
   String toString() {
     return (StringBuffer('BillingJobsCompanion(')
           ..write('id: $id, ')
+          ..write('ledgerId: $ledgerId, ')
           ..write('kind: $kind, ')
           ..write('status: $status, ')
           ..write('stage: $stage, ')
@@ -10649,6 +10689,7 @@ typedef $$SyncStateTableProcessedTableManager = ProcessedTableManager<
 typedef $$BillingJobsTableCreateCompanionBuilder = BillingJobsCompanion
     Function({
   Value<int> id,
+  Value<int?> ledgerId,
   Value<String> kind,
   Value<String> status,
   Value<String> stage,
@@ -10670,6 +10711,7 @@ typedef $$BillingJobsTableCreateCompanionBuilder = BillingJobsCompanion
 typedef $$BillingJobsTableUpdateCompanionBuilder = BillingJobsCompanion
     Function({
   Value<int> id,
+  Value<int?> ledgerId,
   Value<String> kind,
   Value<String> status,
   Value<String> stage,
@@ -10700,6 +10742,9 @@ class $$BillingJobsTableFilterComposer
   });
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get kind => $composableBuilder(
       column: $table.kind, builder: (column) => ColumnFilters(column));
@@ -10768,6 +10813,9 @@ class $$BillingJobsTableOrderingComposer
   });
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get kind => $composableBuilder(
       column: $table.kind, builder: (column) => ColumnOrderings(column));
@@ -10838,6 +10886,9 @@ class $$BillingJobsTableAnnotationComposer
   });
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get ledgerId =>
+      $composableBuilder(column: $table.ledgerId, builder: (column) => column);
 
   GeneratedColumn<String> get kind =>
       $composableBuilder(column: $table.kind, builder: (column) => column);
@@ -10915,6 +10966,7 @@ class $$BillingJobsTableTableManager extends RootTableManager<
               $$BillingJobsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int?> ledgerId = const Value.absent(),
             Value<String> kind = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<String> stage = const Value.absent(),
@@ -10935,6 +10987,7 @@ class $$BillingJobsTableTableManager extends RootTableManager<
           }) =>
               BillingJobsCompanion(
             id: id,
+            ledgerId: ledgerId,
             kind: kind,
             status: status,
             stage: stage,
@@ -10955,6 +11008,7 @@ class $$BillingJobsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
+            Value<int?> ledgerId = const Value.absent(),
             Value<String> kind = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<String> stage = const Value.absent(),
@@ -10975,6 +11029,7 @@ class $$BillingJobsTableTableManager extends RootTableManager<
           }) =>
               BillingJobsCompanion.insert(
             id: id,
+            ledgerId: ledgerId,
             kind: kind,
             status: status,
             stage: stage,
