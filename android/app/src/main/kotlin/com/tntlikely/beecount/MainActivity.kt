@@ -282,13 +282,33 @@ class MainActivity: FlutterFragmentActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             SHARE_C2_TRACER_CHANNEL
         ).setMethodCallHandler { call, result ->
-            if (call.method != "sendActionSend") {
-                result.notImplemented()
-                return@setMethodCallHandler
-            }
             try {
+                val isDebug =
+                    applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+                if (call.method == "locateActionSend") {
+                    val key = ShareBillingC2TraceKey.parse(
+                        isDebug = isDebug,
+                        fixtureId = call.argument<String>("fixtureId"),
+                        caseId = call.argument<String>("caseId")
+                    )
+                    val path = ShareBillingC2TraceRegistry.locate(key)
+                    result.success(
+                        path?.let {
+                            mapOf(
+                                "fixtureId" to key.fixtureId,
+                                "caseId" to key.caseId,
+                                "cacheImagePath" to it
+                            )
+                        }
+                    )
+                    return@setMethodCallHandler
+                }
+                if (call.method != "sendActionSend") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
                 val request = ShareBillingC2ActionSendRequest.parse(
-                    isDebug = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
+                    isDebug = isDebug,
                     fixtureId = call.argument<String>("fixtureId"),
                     caseId = call.argument<String>("caseId"),
                     pngBytes = call.argument<ByteArray>("pngBytes")
@@ -311,6 +331,7 @@ class MainActivity: FlutterFragmentActivity() {
                     clipData = ClipData.newUri(contentResolver, request.caseId, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     putExtra(ShareBillingActivity.EXTRA_C2_FIXTURE_ID, request.fixtureId)
+                    putExtra(ShareBillingActivity.EXTRA_C2_CASE_ID, request.caseId)
                 })
                 result.success(
                     mapOf(

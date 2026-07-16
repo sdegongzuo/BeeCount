@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("image-eval", "share-c2")]
+    [ValidateSet("image-eval", "share-c2", "classification-c2")]
     [string]$Expected,
 
     [string]$Path = "patrol_test/test_bundle.dart"
@@ -19,6 +19,10 @@ $targets = @{
         "import 'share_billing_confirmation_lifecycle_test.dart' as __share_billing_confirmation_lifecycle_test;",
         "group('.share_billing_confirmation_lifecycle_test', __share_billing_confirmation_lifecycle_test.main);"
     )
+    "classification-c2" = @(
+        "import 'pending_classification_personal_rule_c2_test.dart' as __pending_classification_personal_rule_c2_test;",
+        "group('.pending_classification_personal_rule_c2_test', __pending_classification_personal_rule_c2_test.main);"
+    )
 }
 
 foreach ($marker in $targets[$Expected]) {
@@ -27,10 +31,11 @@ foreach ($marker in $targets[$Expected]) {
     }
 }
 
-$unexpected = if ($Expected -eq "image-eval") { "share-c2" } else { "image-eval" }
-foreach ($marker in $targets[$unexpected]) {
-    if ($content.Contains($marker)) {
-        throw "Patrol test bundle still contains unexpected $unexpected marker: $marker"
+foreach ($unexpected in $targets.Keys | Where-Object { $_ -ne $Expected }) {
+    foreach ($marker in $targets[$unexpected]) {
+        if ($content.Contains($marker)) {
+            throw "Patrol test bundle still contains unexpected $unexpected marker: $marker"
+        }
     }
 }
 

@@ -58,16 +58,31 @@ class ShareBillingActivity : Activity() {
         try {
             val cacheFile = copySharedImageToCache(imageUri, intent.type, receivedAtMillis)
             val metadata = readOriginalImageMetadata(imageUri)
+            val isDebug =
+                applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+            val c2FixtureId = ShareBillingC2RuntimeCorrelation.accept(
+                isDebug,
+                intent.getStringExtra(EXTRA_C2_FIXTURE_ID)
+            )
+            val c2CaseId = intent.getStringExtra(EXTRA_C2_CASE_ID)
+            if (c2FixtureId != null || c2CaseId != null) {
+                val traceKey = ShareBillingC2TraceKey.parse(
+                    isDebug = isDebug,
+                    fixtureId = c2FixtureId,
+                    caseId = c2CaseId
+                )
+                ShareBillingC2TraceRegistry.recordAccepted(
+                    traceKey,
+                    cacheFile.absolutePath
+                )
+            }
             val payload = ShareBillingPayload(
                 cacheImagePath = cacheFile.absolutePath,
                 originalUri = imageUri.toString(),
                 mimeType = intent.type,
                 receivedAtMillis = receivedAtMillis,
                 metadata = metadata,
-                c2FixtureId = ShareBillingC2RuntimeCorrelation.accept(
-                    applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0,
-                    intent.getStringExtra(EXTRA_C2_FIXTURE_ID)
-                )
+                c2FixtureId = c2FixtureId
             )
 
             val started = startBillingForegroundService(payload)
@@ -326,6 +341,7 @@ class ShareBillingActivity : Activity() {
 
     companion object {
         const val EXTRA_C2_FIXTURE_ID = "com.tntlikely.beecount.extra.SHARE_C2_FIXTURE_ID"
+        const val EXTRA_C2_CASE_ID = "com.tntlikely.beecount.extra.SHARE_C2_CASE_ID"
         private const val TAG = "ShareBillingActivity"
         private const val CACHE_DIR_NAME = "share_billing"
         private const val REQUEST_POST_NOTIFICATIONS = 2404

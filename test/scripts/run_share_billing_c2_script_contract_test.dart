@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   final runner = File('scripts/run_share_billing_c2.ps1');
+  final bundleAssertion = File('scripts/assert_patrol_test_bundle.ps1');
   final fixturePolicy =
       File('lib/services/platform/share_billing_c2_fixture.dart');
 
@@ -64,6 +65,7 @@ void main() {
     expect(source, contains('.codex_tmp\\c2-recovery'));
     expect(source, contains(r'$recoveryApk'));
     expect(source, contains('Recovery APK hash does not match'));
+    expect(source, contains('Prebuilt production recovery APK SHA256:'));
   });
 
   test('every restoration action is isolated inside finally', () {
@@ -157,5 +159,35 @@ void main() {
     expect(source, isNot(contains('remove-item')));
     expect(source, isNot(contains('del ')));
     expect(source, isNot(matches(RegExp(r'(?<!no-)--uninstall(?:\s|$)'))));
+  });
+
+  test('runner has an explicit Issue 7 classification C2 target', () {
+    final source = runner.readAsStringSync();
+
+    expect(source, contains('[ValidateSet("confirmation", "classification")]'));
+    expect(source, contains(r'[string]$Scenario = "confirmation"'));
+    expect(
+      source,
+      contains('patrol_test/pending_classification_personal_rule_c2_test.dart'),
+    );
+    expect(source, contains('classification-c2'));
+    expect(source, contains(r'--target $patrolTarget'));
+    expect(source, contains(r'-Expected $patrolBundleMarker'));
+  });
+
+  test(
+      'bundle assertion recognizes classification C2 and rejects mixed targets',
+      () {
+    final source = bundleAssertion.readAsStringSync();
+
+    expect(
+      source,
+      contains('[ValidateSet("image-eval", "share-c2", "classification-c2")]'),
+    );
+    expect(
+      source,
+      contains("import 'pending_classification_personal_rule_c2_test.dart'"),
+    );
+    expect(source, contains(r'$targets.Keys | Where-Object'));
   });
 }

@@ -1,3 +1,4 @@
+import 'package:beecount/data/db.dart';
 import 'package:beecount/providers/database_providers.dart';
 import 'package:beecount/services/attachment_service.dart';
 import 'package:beecount/services/platform/share_billing_c2_container.dart';
@@ -34,6 +35,20 @@ void main() {
     );
     expect(await runtime.container.read(repositoryProvider).getAllLedgers(),
         hasLength(1));
+    final categories =
+        await runtime.container.read(repositoryProvider).getAllCategories();
+    expect(
+      categories.where((category) => category.name == '其他'),
+      hasLength(1),
+      reason: 'C2 必须复用 production 中文 fallback 分类，不能在测试中伪造规则',
+    );
+    expect(
+      categories,
+      everyElement(predicate<Category>(
+        (category) => category.syncId?.trim().isNotEmpty == true,
+        'production seed 分类具有稳定 syncId',
+      )),
+    );
     expect(
       runtime.container.read(databaseProvider),
       same(runtime.database),

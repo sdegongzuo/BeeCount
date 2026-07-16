@@ -9,7 +9,10 @@ param(
     [switch]$UserConfirmedUnlocked,
 
     [string]$Patrol = "C:\Users\example\AppData\Local\Pub\Cache\bin\patrol.bat",
-    [string]$Adb = "D:\app\Android\sdk\platform-tools\adb.exe"
+    [string]$Adb = "D:\app\Android\sdk\platform-tools\adb.exe",
+
+    [ValidateSet("confirmation", "classification")]
+    [string]$Scenario = "confirmation"
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,6 +28,18 @@ $mainActivity = "$packageId/com.tntlikely.beecount.MainActivity"
 $sentinelPath = "files/codex_data_sentinel"
 $productionApk = Join-Path $projectRoot "build\app\outputs\flutter-apk\app-dev-debug.apk"
 $recoveryRoot = Join-Path $projectRoot ".codex_tmp\c2-recovery"
+$patrolTarget = if ($Scenario -eq "classification") {
+    "patrol_test/pending_classification_personal_rule_c2_test.dart"
+}
+else {
+    "patrol_test/share_billing_confirmation_lifecycle_test.dart"
+}
+$patrolBundleMarker = if ($Scenario -eq "classification") {
+    "classification-c2"
+}
+else {
+    "share-c2"
+}
 
 function Get-Sha256Hex([byte[]]$Bytes) {
     $sha256 = [System.Security.Cryptography.SHA256]::Create()
@@ -112,6 +127,7 @@ try {
         throw "Recovery APK hash does not match the prebuilt production APK"
     }
     Write-Host "Prebuilt production recovery APK retained at: $recoveryApk"
+    Write-Host "Prebuilt production recovery APK SHA256: $recoveryApkHash"
 
     $originalBundle = [System.IO.File]::ReadAllBytes($bundlePath)
     $originalBundleHash = Get-Sha256Hex $originalBundle
@@ -124,15 +140,15 @@ try {
         $env:PATH = "$adbDirectory;$originalPath"
         & $Patrol test `
             --no-uninstall `
-            --target patrol_test/share_billing_confirmation_lifecycle_test.dart `
+            --target $patrolTarget `
             -d $DeviceId `
             --flavor dev `
             --dart-define "BEECOUNT_SHARE_C2_FIXTURE_ID=$FixtureId"
         if ($LASTEXITCODE -ne 0) {
             throw "Patrol C2 failed with exit code $LASTEXITCODE"
         }
-        & $bundleAssertion -Expected share-c2 -Path $bundlePath
-        Write-Host "Patrol C2 completed for fixture: $FixtureId"
+        & $bundleAssertion -Expected $patrolBundleMarker -Path $bundlePath
+        Write-Host "Patrol $Scenario C2 completed for fixture: $FixtureId"
     }
     catch {
         $patrolFailure = $_.Exception.Message
