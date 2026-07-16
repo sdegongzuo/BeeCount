@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:uuid/uuid.dart';
 
 import '../../../data/db.dart';
@@ -491,6 +492,15 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
       created_at INTEGER NOT NULL
     )''');
     await db.customStatement(
+        '''CREATE TABLE IF NOT EXISTS personal_rule_public_archive_resolutions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_id TEXT NOT NULL,
+      resolved_revision_id TEXT NOT NULL,
+      public_rules_version TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(rule_id, resolved_revision_id, public_rules_version)
+    )''');
+    await db.customStatement(
         'INSERT OR IGNORE INTO personal_rule_state(singleton, active_version) VALUES (1, NULL)');
   }
 
@@ -597,6 +607,11 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
           [rule.id, publicRulesVersion, now],
         );
       }
+      await _recordSyncArchiveResolutions(
+        ids,
+        publicRulesVersion: publicRulesVersion,
+        createdAt: now,
+      );
       await db.customStatement(
         'INSERT INTO personal_rule_revisions(rule_json, created_at) VALUES (?, ?)',
         [jsonEncode(retained.map((rule) => rule.toJson()).toList()), now],
@@ -649,6 +664,11 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
             [id, publicRulesVersion, now],
           );
         }
+        await _recordSyncArchiveResolutions(
+          equivalentIds,
+          publicRulesVersion: publicRulesVersion,
+          createdAt: now,
+        );
         final retained = current.templates
             .where((rule) => !equivalentIds.contains(rule.id))
             .map((rule) => rule.toJson())
@@ -686,6 +706,39 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
       }
       return nextVersion;
     });
+  }
+
+  Future<void> _recordSyncArchiveResolutions(
+    Set<String> ruleIds, {
+    required String publicRulesVersion,
+    required int createdAt,
+  }) async {
+    if (ruleIds.isEmpty) return;
+    final syncTable = await db
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'personal_rule_sync_revisions'",
+        )
+        .getSingleOrNull();
+    if (syncTable == null) return;
+    for (final ruleId in ruleIds) {
+      final revisions = await db.customSelect(
+        'SELECT revision_id FROM personal_rule_sync_revisions WHERE rule_id = ?',
+        variables: [Variable.withString(ruleId)],
+      ).get();
+      for (final revision in revisions) {
+        await db.customStatement(
+          '''INSERT OR IGNORE INTO personal_rule_public_archive_resolutions(
+            rule_id, resolved_revision_id, public_rules_version, created_at
+          ) VALUES (?, ?, ?, ?)''',
+          [
+            ruleId,
+            revision.read<String>('revision_id'),
+            publicRulesVersion,
+            createdAt,
+          ],
+        );
+      }
+    }
   }
 
   @override

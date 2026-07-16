@@ -25,6 +25,7 @@ void main() {
         id: 'golden-1',
         normalizedOcr: '账单\n金额\n12.30\n时间\n2026-07-17 09:30:00',
         expectedFields: const {
+          'matchedTemplateId': 'public-bill',
           'amount': 12.3,
           'time': '2026-07-17T09:30:00.000',
         },
@@ -35,6 +36,17 @@ void main() {
         builtIn: _rules('built-in', amountLabel: '金额', timeLabel: '时间'),
       );
 
+      expect(
+        await evaluator.evaluateGolden(
+          _rules(
+            'candidate',
+            amountLabel: '金额',
+            timeLabel: '时间',
+            templateId: 'wrong-template',
+          ),
+        ),
+        isFalse,
+      );
       expect(
         await evaluator.evaluateGolden(
           _rules('candidate', amountLabel: '总额', timeLabel: '时间'),
@@ -169,6 +181,47 @@ void main() {
       expect(conflictResult.conflicts.single.personalRuleId, 'personal-amount');
       expect(conflictResult.conflictExplanation, contains('personal-amount'));
     });
+
+    test('逐条比较个人规则，不受另一条更具体个人规则遮蔽', () async {
+      final generic = _rules(
+        'one',
+        amountLabel: '金额',
+        templateId: 'personal-generic',
+        origin: BillingRuleOrigin.personal,
+      ).templates.single;
+      const specific = BillingRuleTemplate(
+        id: 'personal-specific',
+        origin: BillingRuleOrigin.personal,
+        match: BillingRuleTemplateMatch(keywordsAll: ['账单', '金额']),
+        extractors: [
+          BillingFieldExtractorRule(
+            field: 'note',
+            type: 'constant',
+            value: '更具体备注',
+          ),
+        ],
+      );
+      final evaluator = _evaluator(
+        samples: _PagedSamples([
+          _sample('shadow', expectedFields: const {}),
+        ]),
+        activePersonal: BillingRuleSet(
+          schemaVersion: 1,
+          rulesVersion: 'personal-2',
+          paymentChannels: const [],
+          templates: [generic, specific],
+        ),
+      );
+
+      final result = await evaluator.evaluatePersonal(
+        _rules('candidate', amountLabel: '金额'),
+      );
+
+      expect(result.isPassed, isTrue);
+      expect(result.equivalentPersonalRuleIds, ['personal-generic']);
+      expect(result.conflicts.map((item) => item.personalRuleId),
+          ['personal-specific']);
+    });
   });
 }
 
@@ -239,10 +292,14 @@ class _PagedSamples implements RegressionSamplePageSource {
   }
 }
 
-DecryptedRegressionSample _sample(String id) => DecryptedRegressionSample(
+DecryptedRegressionSample _sample(
+  String id, {
+  Map<Object?, Object?> expectedFields = const {'amount': 12.3},
+}) =>
+    DecryptedRegressionSample(
       id: id,
       normalizedOcr: '账单\n金额\n12.30',
-      expectedFields: const {'amount': 12.3},
+      expectedFields: expectedFields,
       sensitiveEvidence: const {},
       exactFingerprint: id,
       structureFingerprint: 'structure-$id',

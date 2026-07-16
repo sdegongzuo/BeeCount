@@ -1,6 +1,7 @@
 package com.tntlikely.beecount.regression
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -9,6 +10,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -89,6 +91,59 @@ class EncryptedRegressionSampleStoreTest {
     }
 
     @Test
+    fun pagedSnapshotReadsEverySameMillisecondRowOnceAndReusesDataKey() {
+        val ids = (0 until 120).map { index ->
+            store.save(sample("paged-$index", "paged-$index", SampleProtection.CORRECTION)).sampleId!!
+        }
+        ids.forEach { store.setCreatedAtForTesting(it, 1_000L) }
+
+        val samples = readAllPages(limit = 17)
+
+        assertEquals(120, samples.size)
+        assertEquals(120, samples.map { it.id }.toSet().size)
+        assertEquals(1, store.readKeyUnwrapCountForTesting())
+    }
+
+    @Test
+    fun insertOrEquivalentOverwriteDuringPagedSnapshotFailsClosed() {
+        repeat(4) { index ->
+            store.save(sample("base-$index", "base-$index", SampleProtection.CORRECTION))
+        }
+        val first = store.readDecryptablePage(2, null)
+        store.save(sample("inserted", "inserted", SampleProtection.CORRECTION))
+        assertThrows(RegressionSampleSnapshotChangedException::class.java) {
+            store.readDecryptablePage(2, first.nextCursor)
+        }
+
+        val restart = store.readDecryptablePage(2, null)
+        store.save(sample("replacement-old", "same-structure", SampleProtection.NONE))
+        val replacementScan = store.readDecryptablePage(2, null)
+        store.save(sample("replacement-new", "same-structure", SampleProtection.NONE))
+        assertThrows(RegressionSampleSnapshotChangedException::class.java) {
+            store.readDecryptablePage(2, replacementScan.nextCursor)
+        }
+        assertTrue(restart.samples.isNotEmpty())
+    }
+
+    @Test
+    fun corruptionIsReportedAndMidScanCorruptionInvalidatesSnapshot() {
+        val corrupt = store.save(sample("corrupt-first", "corrupt-first", SampleProtection.CORRECTION))
+        store.corruptCiphertextForTesting(corrupt.sampleId!!)
+        val unreadable = store.readDecryptablePage(10, null)
+        assertEquals(listOf(corrupt.sampleId), unreadable.unreadableSampleIds)
+
+        repeat(4) { index ->
+            store.save(sample("later-$index", "later-$index", SampleProtection.CORRECTION))
+        }
+        val first = store.readDecryptablePage(2, null)
+        val target = store.readDecryptableBatch().samples.last().id
+        store.corruptCiphertextForTesting(target)
+        assertThrows(RegressionSampleSnapshotChangedException::class.java) {
+            store.readDecryptablePage(2, first.nextCursor)
+        }
+    }
+
+    @Test
     fun regressionCiphertextAndWrappedKeyHaveExplicitBackupExclusions() {
         val legacy = readXml(R.xml.backup_rules)
         val modern = readXml(R.xml.data_extraction_rules)
@@ -120,6 +175,43 @@ class EncryptedRegressionSampleStoreTest {
         assertEquals(500, measurements.first().samples.size)
         assertEquals(1, measurements.first().keyUnwrapCount)
         assertTrue("500-sample P95 was ${p95}ms", p95 <= 200.0)
+    }
+
+    @Test
+    fun fiveHundredSamplePagedProductionScanMeetsBudget() {
+        repeat(500) { index ->
+            store.save(sample("paged-performance-$index", "paged-performance-$index", SampleProtection.NONE))
+        }
+        repeat(3) { readAllPages() }
+
+        val totals = List(20) {
+            val started = SystemClock.elapsedRealtimeNanos()
+            assertEquals(500, readAllPages().size)
+            (SystemClock.elapsedRealtimeNanos() - started) / 1_000_000.0
+        }
+        val sorted = totals.sorted()
+        val p95 = sorted[((sorted.size * 0.95).toInt() - 1).coerceAtLeast(0)]
+        val worst = sorted.last()
+        Log.i(
+            "RegressionSamplePerf",
+            "pagedCount=500 p95TotalMs=$p95 worstTotalMs=$worst keyUnwrapCount=${store.readKeyUnwrapCountForTesting()}",
+        )
+
+        assertTrue("500-sample paged P95 was ${p95}ms", p95 <= 500.0)
+        assertTrue("500-sample paged worst was ${worst}ms", worst <= 1_000.0)
+        assertEquals(1, store.readKeyUnwrapCountForTesting())
+    }
+
+    private fun readAllPages(limit: Int = 50): List<DecryptedRegressionSample> {
+        val samples = mutableListOf<DecryptedRegressionSample>()
+        var cursor: String? = null
+        do {
+            val page = store.readDecryptablePage(limit, cursor)
+            assertTrue(page.unreadableSampleIds.isEmpty())
+            samples += page.samples
+            cursor = page.nextCursor
+        } while (cursor != null)
+        return samples
     }
 
     private fun sample(text: String, structure: String, protection: SampleProtection) =

@@ -241,6 +241,7 @@ class BillingRuleRuntimeEvaluator {
         personalRules: personal,
       );
       final equivalentSeen = <String>{};
+      final notEquivalent = <String>{};
       final conflicting = <String, BillingRulePersonalConflict>{};
       String? cursor;
       var processed = 0;
@@ -298,16 +299,24 @@ class BillingRuleRuntimeEvaluator {
               paymentChannels: personal.paymentChannels,
               templates: [rule],
             );
-            final personalResult = await _evaluate(
-                personalOnly, sample.normalizedOcr, source.$1, source.$2);
+            final currentRuleSnapshot = BillingRuleSet.activeSnapshot(
+              publicRules: activePublic,
+              personalRules: personalOnly,
+            );
+            final personalResult = await _evaluate(currentRuleSnapshot,
+                sample.normalizedOcr, source.$1, source.$2);
             if (personalResult.matchedTemplateId != rule.id ||
-                publicOnly.matchedTemplateId == null) {
+                rule.extractors.isEmpty) {
               continue;
             }
-            if (_sameBehavior(publicOnly, proposedResult)) {
+            if (publicOnly.matchedTemplateId == null) {
+              notEquivalent.add(rule.id);
+              continue;
+            }
+            if (_sameRuleControlledBehavior(rule, publicOnly, personalResult)) {
               equivalentSeen.add(rule.id);
             } else {
-              equivalentSeen.remove(rule.id);
+              notEquivalent.add(rule.id);
               conflicting[rule.id] = BillingRulePersonalConflict(
                 personalRuleId: rule.id,
                 explanation:
@@ -320,7 +329,7 @@ class BillingRuleRuntimeEvaluator {
         }
         cursor = page.nextCursor;
       } while (cursor != null);
-      equivalentSeen.removeAll(conflicting.keys);
+      equivalentSeen.removeAll(notEquivalent);
       final equivalent = equivalentSeen.toList()..sort();
       final conflicts = conflicting.values.toList()
         ..sort((left, right) =>
@@ -364,6 +373,12 @@ bool _passesGolden({
   required BillingRuleResult builtIn,
   required Map<String, Object?> expected,
 }) {
+  final expectedTemplate = expected['matchedTemplateId'];
+  if (expectedTemplate == null) {
+    if (candidate.matchedTemplateId != null) return false;
+  } else if (candidate.matchedTemplateId != expectedTemplate.toString()) {
+    return false;
+  }
   for (final entry in expected.entries) {
     if (entry.key == 'matchedTemplateId') continue;
     final actual = _field(candidate, entry.key);
@@ -413,19 +428,13 @@ bool _preservesPersonalBehavior(BillingRuleResult proposed,
   return true;
 }
 
-bool _sameBehavior(BillingRuleResult left, BillingRuleResult right) {
-  for (final field in const [
-    'amount',
-    'time',
-    'note',
-    'paymentChannel',
-    'paymentMethod',
-    'counterparty',
-    'merchantFullName',
-    'acquirer',
-    'detailsText',
-  ]) {
-    if (!_same(_field(left, field), _field(right, field))) return false;
+bool _sameRuleControlledBehavior(BillingRuleTemplate rule,
+    BillingRuleResult candidate, BillingRuleResult currentPersonal) {
+  final fields = rule.extractors.map((extractor) => extractor.field).toSet();
+  for (final field in fields) {
+    if (!_same(_field(candidate, field), _field(currentPersonal, field))) {
+      return false;
+    }
   }
   return true;
 }

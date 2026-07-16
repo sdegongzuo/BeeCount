@@ -41,6 +41,22 @@ class PersonalRuleSyncRepository {
         '''CREATE TABLE IF NOT EXISTS personal_rule_sync_pauses (
       match_key TEXT PRIMARY KEY
     )''');
+    await db
+        .customStatement('''CREATE TABLE IF NOT EXISTS personal_rule_archives (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_id TEXT NOT NULL,
+      public_rules_version TEXT NOT NULL,
+      archived_at INTEGER NOT NULL
+    )''');
+    await db.customStatement(
+        '''CREATE TABLE IF NOT EXISTS personal_rule_public_archive_resolutions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_id TEXT NOT NULL,
+      resolved_revision_id TEXT NOT NULL,
+      public_rules_version TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      UNIQUE(rule_id, resolved_revision_id, public_rules_version)
+    )''');
   }
 
   Future<void> saveLocal(PersonalRuleRevision revision) async {
@@ -83,11 +99,15 @@ class PersonalRuleSyncRepository {
 
   Future<List<PersonalRuleRevision>> pendingUpload() async {
     await ensureSchema();
-    final rows = await db
-        .customSelect(
-          "SELECT * FROM personal_rule_sync_revisions WHERE sync_state = 'pending_upload' ORDER BY revision_id",
-        )
-        .get();
+    final rows = await db.customSelect(
+      """SELECT r.* FROM personal_rule_sync_revisions r
+             WHERE r.sync_state = 'pending_upload'
+               AND NOT EXISTS (
+                 SELECT 1 FROM personal_rule_public_archive_resolutions a
+                 WHERE a.resolved_revision_id = r.revision_id
+               )
+             ORDER BY r.revision_id""",
+    ).get();
     final result = <PersonalRuleRevision>[];
     for (final row in rows) {
       var revision = _fromRow(row.data);
@@ -127,10 +147,33 @@ class PersonalRuleSyncRepository {
           )
           .get();
       final all = rows.map((row) => _fromRow(row.data)).toList();
-      final result = await PersonalRuleSyncService(
+      final archivedRows = await db
+          .customSelect(
+            'SELECT DISTINCT resolved_revision_id FROM personal_rule_public_archive_resolutions',
+          )
+          .get();
+      final archivedRevisionIds = archivedRows
+          .map((row) => row.read<String>('resolved_revision_id'))
+          .toSet();
+      final eligible = all
+          .where(
+              (revision) => !archivedRevisionIds.contains(revision.revisionId))
+          .toList(growable: false);
+      final merged = await PersonalRuleSyncService(
         localDeviceId: localDeviceId,
         regressionGate: regressionGate,
-      ).merge(all);
+      ).merge(eligible);
+      final result = PersonalRuleSyncResult(
+        revisions: List.unmodifiable(all),
+        states: Map.unmodifiable({
+          ...merged.states,
+          for (final revision in all)
+            if (revision.kind == PersonalRuleSyncKind.extraction &&
+                archivedRevisionIds.contains(revision.revisionId))
+              revision.revisionId: PersonalRuleRevisionState.archivedEquivalent,
+        }),
+        pausedMatchKeys: merged.pausedMatchKeys,
+      );
       await db.customStatement('DELETE FROM personal_rule_sync_state');
       await db.customStatement('DELETE FROM personal_rule_sync_pauses');
       for (final entry in result.states.entries) {

@@ -3,6 +3,8 @@ import 'package:beecount/services/billing/personal_category_rule_store.dart';
 import 'package:beecount/services/billing/rules/personal_rule_sync_repository.dart';
 import 'package:beecount/services/billing/rules/personal_rule_sync_service.dart';
 import 'package:beecount/services/billing/rules/personal_rule_lifecycle_service.dart';
+import 'package:beecount/services/billing/rules/billing_rule_models.dart';
+import 'package:beecount/services/billing/rules/billing_rule_runtime_evaluator.dart';
 import 'package:drift/native.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -165,5 +167,60 @@ void main() {
     final active =
         await SqlitePersonalRuleRevisionStore(db).loadActiveRuleSet();
     expect(active.templates, isEmpty);
+  });
+
+  test('公共等价归档成为物化抑制状态，远端旧修订重放也不会复活', () async {
+    const template = BillingRuleTemplate(
+      id: 'archived-amount',
+      match: BillingRuleTemplateMatch(keywordsAll: ['账单']),
+      extractors: [
+        BillingFieldExtractorRule(
+          field: 'amount',
+          type: 'labelNextLine',
+          label: '金额',
+          parser: 'amount',
+        ),
+      ],
+    );
+    final remote = PersonalRuleRevision(
+      revisionId: 'old-remote-revision',
+      ruleId: template.id,
+      originDeviceId: 'origin-device',
+      originVersion: 1,
+      kind: PersonalRuleSyncKind.extraction,
+      scopeKey: '[]',
+      conditionKey: 'amount-label',
+      payload: {'template': template.toJson()},
+    );
+    await repository.mergeRemote(
+      [remote],
+      localDeviceId: 'origin-device',
+    );
+    final revisions = SqlitePersonalRuleRevisionStore(db);
+    final activeVersion = await revisions.activeVersion();
+    expect((await revisions.loadActiveRuleSet()).templates, hasLength(1));
+    await revisions.reconcilePublicRules(
+      BillingRulePersonalRegressionResult.passed(
+        equivalentPersonalRuleIds: [template.id],
+        expectedPersonalRulesVersion: activeVersion,
+      ),
+      publicRulesVersion: 'public-2',
+    );
+    final resolution = await db
+        .customSelect(
+          'SELECT resolved_revision_id FROM personal_rule_public_archive_resolutions',
+        )
+        .getSingle();
+    expect(resolution.read<String>('resolved_revision_id'), remote.revisionId);
+
+    final replay = await repository.mergeRemote(
+      [remote],
+      localDeviceId: 'different-device',
+      regressionGate: (_) async => LocalRegressionVerdict.passed,
+    );
+
+    expect(replay.stateFor(remote.revisionId),
+        PersonalRuleRevisionState.archivedEquivalent);
+    expect((await revisions.loadActiveRuleSet()).templates, isEmpty);
   });
 }

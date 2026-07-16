@@ -346,6 +346,13 @@ void main() {
         )
         .getSingle();
     expect(table.read<String>('name'), 'personal_rule_public_decisions');
+    final resolutionTable = await legacyDb
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'personal_rule_public_archive_resolutions'",
+        )
+        .getSingle();
+    expect(resolutionTable.read<String>('name'),
+        'personal_rule_public_archive_resolutions');
     final historical = await legacyDb
         .customSelect('SELECT rule_id FROM personal_rule_archives')
         .getSingle();

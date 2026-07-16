@@ -63,6 +63,10 @@ data class RegressionSamplePage(
     val nextCursor: String?,
 )
 
+class RegressionSampleSnapshotChangedException : IllegalStateException(
+    "Regression sample content changed during paged scan",
+)
+
 class EncryptedRegressionSampleStore(
     context: Context,
     databaseName: String? = DATABASE_NAME,
@@ -72,6 +76,7 @@ class EncryptedRegressionSampleStore(
     private val crypto = AndroidRegressionSampleCrypto(context, keyAlias)
     private var saveDataKey: UnwrappedDataKey? = null
     private var readDataKey: UnwrappedDataKey? = null
+    private var readKeyUnwrapCount = 0
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -90,9 +95,12 @@ class EncryptedRegressionSampleStore(
             )""".trimIndent(),
         )
         db.execSQL("CREATE INDEX regression_samples_structure ON regression_samples(structure_fingerprint)")
+        createMetadataSchema(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) createMetadataSchema(db)
+    }
 
     fun save(input: RegressionSampleInput): SaveSampleResult {
         val exact = RegressionSampleFingerprint.exact(
@@ -151,6 +159,7 @@ class EncryptedRegressionSampleStore(
                 update("regression_samples", values, "id = ?", arrayOf(id))
             }
             enforceOrdinaryLimit(this)
+            incrementContentGeneration(this)
         }
         return SaveSampleResult(equivalentStructureId == null, id, exact, structure)
     }
@@ -234,16 +243,32 @@ class EncryptedRegressionSampleStore(
 
     fun readDecryptablePage(limit: Int, cursor: String?): RegressionSamplePage {
         require(limit in 1..100) { "Page limit must be between 1 and 100" }
+        val db = readableDatabase
         val parsedCursor = cursor?.let(::parseCursor)
-        val selection = if (parsedCursor == null) {
-            ""
-        } else {
-            "WHERE created_at > ? OR (created_at = ? AND id > ?)"
+        val generation = currentContentGeneration(db)
+        if (parsedCursor != null && parsedCursor.generation != generation) {
+            throw RegressionSampleSnapshotChangedException()
         }
-        val args = if (parsedCursor == null) emptyArray() else arrayOf(
-            parsedCursor.first.toString(), parsedCursor.first.toString(), parsedCursor.second,
-        )
-        val rows = readableDatabase.rawQuery(
+        val upperBound = parsedCursor?.upperBound ?: newestPosition(db)
+            ?: return RegressionSamplePage(emptyList(), emptyList(), null)
+        val lastPosition = parsedCursor?.lastPosition
+        val selection = if (lastPosition == null) {
+            "WHERE (created_at < ? OR (created_at = ? AND id <= ?))"
+        } else {
+            """WHERE (created_at > ? OR (created_at = ? AND id > ?))
+               AND (created_at < ? OR (created_at = ? AND id <= ?))""".trimIndent()
+        }
+        val args = if (lastPosition == null) {
+            arrayOf(
+                upperBound.createdAt.toString(), upperBound.createdAt.toString(), upperBound.id,
+            )
+        } else {
+            arrayOf(
+                lastPosition.createdAt.toString(), lastPosition.createdAt.toString(), lastPosition.id,
+                upperBound.createdAt.toString(), upperBound.createdAt.toString(), upperBound.id,
+            )
+        }
+        val rows = db.rawQuery(
             """SELECT id, exact_fingerprint, structure_fingerprint, protection,
                       nonce, ciphertext, key_version, created_at
                FROM regression_samples $selection
@@ -265,12 +290,17 @@ class EncryptedRegressionSampleStore(
         val pageRows = rows.take(limit)
         if (pageRows.isEmpty()) return RegressionSamplePage(emptyList(), emptyList(), null)
         val dataKey = try {
-            readDataKey ?: crypto.loadDataKey().also { readDataKey = it }
+            readDataKey ?: crypto.loadDataKey().also {
+                readDataKey = it
+                readKeyUnwrapCount++
+            }
         } catch (error: Exception) {
             pageRows.forEach { markUnreadable(it.id, error) }
             return RegressionSamplePage(
                 emptyList(), pageRows.map { it.id },
-                if (rows.size > limit) cursorFor(pageRows.last()) else null,
+                if (rows.size > limit) cursorFor(
+                    generation, upperBound, positionOf(pageRows.last()),
+                ) else null,
             )
         }
         val unreadable = mutableListOf<String>()
@@ -295,10 +325,15 @@ class EncryptedRegressionSampleStore(
                 null
             }
         }
+        if (currentContentGeneration(db) != generation) {
+            throw RegressionSampleSnapshotChangedException()
+        }
         return RegressionSamplePage(
             samples,
             unreadable,
-            if (rows.size > limit) cursorFor(pageRows.last()) else null,
+            if (rows.size > limit) cursorFor(
+                generation, upperBound, positionOf(pageRows.last()),
+            ) else null,
         )
     }
 
@@ -328,11 +363,23 @@ class EncryptedRegressionSampleStore(
     }
 
     fun corruptCiphertextForTesting(id: String) {
+        writableDatabase.transaction {
+            execSQL(
+                "UPDATE regression_samples SET ciphertext = ? WHERE id = ?",
+                arrayOf(byteArrayOf(1, 2, 3), id),
+            )
+            incrementContentGeneration(this)
+        }
+    }
+
+    fun setCreatedAtForTesting(id: String, createdAt: Long) {
         writableDatabase.execSQL(
-            "UPDATE regression_samples SET ciphertext = ? WHERE id = ?",
-            arrayOf(byteArrayOf(1, 2, 3), id),
+            "UPDATE regression_samples SET created_at = ? WHERE id = ?",
+            arrayOf<Any>(createdAt, id),
         )
     }
+
+    fun readKeyUnwrapCountForTesting(): Int = readKeyUnwrapCount
 
     private fun markAllUnreadableAfterKeyFailure(
         totalStart: Long,
@@ -402,6 +449,14 @@ class EncryptedRegressionSampleStore(
         val createdAt: Long = 0,
     )
 
+    private data class RowPosition(val createdAt: Long, val id: String)
+
+    private data class PageCursor(
+        val generation: Long,
+        val upperBound: RowPosition,
+        val lastPosition: RowPosition,
+    )
+
     private fun markUnreadable(id: String, error: Exception) {
         writableDatabase.execSQL(
             "UPDATE regression_samples SET unreadable = 1, unreadable_reason = ? WHERE id = ?",
@@ -409,12 +464,64 @@ class EncryptedRegressionSampleStore(
         )
     }
 
-    private fun cursorFor(row: StoredRow) = "${row.createdAt}|${row.id}"
+    private fun positionOf(row: StoredRow) = RowPosition(row.createdAt, row.id)
 
-    private fun parseCursor(cursor: String): Pair<Long, String> {
-        val separator = cursor.indexOf('|')
-        require(separator > 0 && separator < cursor.lastIndex) { "Invalid page cursor" }
-        return cursor.substring(0, separator).toLong() to cursor.substring(separator + 1)
+    private fun cursorFor(
+        generation: Long,
+        upperBound: RowPosition,
+        lastPosition: RowPosition,
+    ) = listOf(
+        generation,
+        upperBound.createdAt,
+        upperBound.id,
+        lastPosition.createdAt,
+        lastPosition.id,
+    ).joinToString("|")
+
+    private fun parseCursor(cursor: String): PageCursor {
+        val parts = cursor.split('|')
+        require(parts.size == 5 && parts[2].isNotEmpty() && parts[4].isNotEmpty()) {
+            "Invalid page cursor"
+        }
+        return PageCursor(
+            generation = parts[0].toLong(),
+            upperBound = RowPosition(parts[1].toLong(), parts[2]),
+            lastPosition = RowPosition(parts[3].toLong(), parts[4]),
+        )
+    }
+
+    private fun newestPosition(db: SQLiteDatabase): RowPosition? = db.rawQuery(
+        "SELECT created_at, id FROM regression_samples ORDER BY created_at DESC, id DESC LIMIT 1",
+        emptyArray(),
+    ).use { cursor ->
+        if (cursor.moveToFirst()) RowPosition(cursor.getLong(0), cursor.getString(1)) else null
+    }
+
+    private fun currentContentGeneration(db: SQLiteDatabase): Long {
+        createMetadataSchema(db)
+        return db.rawQuery(
+            "SELECT content_generation FROM regression_sample_metadata WHERE singleton = 1",
+            emptyArray(),
+        ).use { cursor -> cursor.moveToFirst(); cursor.getLong(0) }
+    }
+
+    private fun incrementContentGeneration(db: SQLiteDatabase) {
+        createMetadataSchema(db)
+        db.execSQL(
+            "UPDATE regression_sample_metadata SET content_generation = content_generation + 1 WHERE singleton = 1",
+        )
+    }
+
+    private fun createMetadataSchema(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS regression_sample_metadata (
+                singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+                content_generation INTEGER NOT NULL
+            )""".trimIndent(),
+        )
+        db.execSQL(
+            "INSERT OR IGNORE INTO regression_sample_metadata(singleton, content_generation) VALUES (1, 0)",
+        )
     }
 
     private inline fun <T> SQLiteDatabase.transaction(block: SQLiteDatabase.() -> T): T {
@@ -429,7 +536,7 @@ class EncryptedRegressionSampleStore(
     companion object {
         const val DATABASE_NAME = "regression_samples.db"
         const val DEFAULT_ORDINARY_LIMIT = 500
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
         private fun nanosToMs(nanos: Long) = nanos / 1_000_000.0
     }
 }
