@@ -12,6 +12,7 @@ import '../../utils/notification_factory.dart';
 import '../ai/ai_settings_page.dart';
 import '../automation/auto_billing_settings_page.dart';
 import 'shortcuts_guide_page.dart';
+import 'billing_rule_update_page.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Google Play 版本(CI 注入)。截屏自动记账依赖 READ_MEDIA_IMAGES,在 Google
@@ -342,6 +343,24 @@ class SmartBillingPage extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                SectionCard(
+                  margin: EdgeInsets.zero,
+                  child: AppListTile(
+                    leading: Icons.rule_folder_outlined,
+                    title: '公共识别规则',
+                    subtitle: '查看版本、检查安全更新或回滚',
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const BillingRuleUpdatePage(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
                 // AI设置卡片
                 SectionCard(
                   margin: EdgeInsets.zero,

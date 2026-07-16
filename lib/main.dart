@@ -25,6 +25,7 @@ import 'services/platform/app_link_service.dart';
 import 'services/system/logger_service.dart';
 import 'services/billing/rules/billing_rule_update_configuration.dart';
 import 'services/billing/rules/billing_rule_update_runtime.dart';
+import 'services/billing/rules/billing_rule_update_service.dart';
 import 'l10n/app_localizations.dart';
 import 'widget/widget_manager.dart';
 import 'package:home_widget/home_widget.dart';
@@ -99,10 +100,13 @@ Future<void> main() async {
   try {
     final ruleUpdateConfiguration =
         await BillingRuleUpdateConfiguration.loadProduction();
-    await initializeProductionBillingRuleUpdateService(
+    final ruleUpdateService =
+        await initializeProductionBillingRuleUpdateService(
       configuration: ruleUpdateConfiguration,
       database: container.read(databaseProvider),
     );
+    // 启动检查不得延迟首帧；服务会持久化日检/短退避状态并在失败时保留旧快照。
+    unawaited(_checkBillingRuleUpdateIfDue(ruleUpdateService));
   } catch (error, stackTrace) {
     logger.error('BillingRules', '公共规则启动恢复失败', error, stackTrace);
     rethrow;
@@ -166,6 +170,23 @@ Future<void> main() async {
     observers: const [_WidgetUpdateObserver()],
     child: const MainApp(),
   ));
+}
+
+Future<void> _checkBillingRuleUpdateIfDue(
+  BillingRuleUpdateService service,
+) async {
+  try {
+    final result = await service.checkForUpdateIfDue();
+    if (result.status != BillingRuleUpdateStatus.notDue &&
+        result.status != BillingRuleUpdateStatus.disabled) {
+      logger.info(
+        'BillingRules',
+        '启动规则检查完成: ${result.status.name}, version=${result.rulesVersion}',
+      );
+    }
+  } catch (error, stackTrace) {
+    logger.error('BillingRules', '启动规则检查异常，继续使用旧安全快照', error, stackTrace);
+  }
 }
 
 /// Provider observer to update widget on app start

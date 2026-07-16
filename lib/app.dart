@@ -92,6 +92,11 @@ class _BeeAppState extends ConsumerState<BeeApp>
 
     // 后台刷新账本同步状态
     _refreshLedgersStatusInBackground();
+    // 非阻塞恢复并执行每日公共规则安全检查。服务内部会先恢复任何未完成的
+    // 激活 journal；失败只进入诊断状态，不阻塞首帧或改动旧安全快照。
+    unawaited(
+      ref.read(billingRuleUpdateControllerProvider.notifier).checkIfDue(),
+    );
     // 延迟监听 AppLink，确保 context 可用
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupAppLinkListener();
@@ -479,6 +484,10 @@ class _BeeAppState extends ConsumerState<BeeApp>
       _checkAppLockOnResume();
       // 当app从后台恢复到前台时，延迟更新小组件，避免和首帧/输入法恢复抢主线程。
       _scheduleWidgetUpdateOnResume();
+      // 多次 resume 会在控制器内合并，日检退避仍由更新服务统一判断。
+      unawaited(
+        ref.read(billingRuleUpdateControllerProvider.notifier).checkIfDue(),
+      );
     }
   }
 

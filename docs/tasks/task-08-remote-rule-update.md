@@ -167,6 +167,31 @@ Android native lock：2 JVM tests passed，instrumentation Kotlin 编译通过�
 每日/手动触发入口和诊断 UI 属于 Task 5；本步只提供可靠状态机、生产启动恢复
 和持久诊断模型。
 
+### Tracer Task 5：生产触发与诊断/回滚入口（已完成）
+
+- [x] 主入口完成 journal 恢复后，以非阻塞任务执行每日检查；检查失败只记录
+  诊断并继续使用旧安全快照，不延迟首帧。
+- [x] App 回到前台时再次请求日检；控制器合并并发 resume 请求，更新服务继续
+  统一执行 24 小时成功间隔和 15 分钟失败退避。
+- [x] 智能记账设置增加“公共识别规则”诊断页，展示当前/上一版本、可信更新
+  host、持久状态机阶段、最近尝试/成功、磁盘验证状态与稳定错误。
+- [x] 手动检查与自动日检、回滚共用串行控制器；手动检查仍完整经过网络、
+  schema、smoke、黄金样本和本机个人样本门禁。
+- [x] 只有上一版存在且磁盘状态已验证时才允许回滚；用户二次确认后，上一版
+  仍须重新通过全部评测门禁，成功后下一张图片立即使用回滚版本。
+- [x] 未配置可信 HTTPS manifest 时明确显示禁用原因且不发起网络请求，仍允许
+  查看本机活动版本并在存在安全 previous 时回滚。
+
+验证：
+
+```text
+控制器与诊断页 focused tests：6/6 通过
+Task 5 定向 flutter analyze：No issues found
+```
+
+Task 6 仍需在隔离真机 fixture 上验证实际 HTTPS 更新、失败保留、崩溃恢复、
+回滚、跨 FlutterEngine 互斥和 500 样本原生性能后，才能关闭 Issue #8。
+
 1. 添加 manifest 解析测试，覆盖 `latest.schemaVersion`、`rulesVersion`、`minAppVersion`、`url` 和 `sha256`。
 2. 添加 hash 不匹配、未知 schema version、无效 TOML、smoke test 失败和回滚测试。
 3. 实现启动时或每日更新检查，更新失败时不得影响当前激活规则。
