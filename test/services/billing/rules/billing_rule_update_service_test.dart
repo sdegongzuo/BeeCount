@@ -174,6 +174,39 @@ void main() {
       expect(archived, ['personal-amount']);
     });
 
+    test('激活后在同一更新互斥区落实归档和冲突解释', () async {
+      final remoteToml = _validToml(rulesVersion: 'remote');
+      BillingRulePersonalRegressionResult? reconciled;
+      String? publicVersion;
+      final service = _service(
+        tempDir,
+        manifest: _manifestJson(sha256: _sha256(remoteToml)),
+        remoteToml: remoteToml,
+        personalRegression: (_) async =>
+            const BillingRulePersonalRegressionResult.passed(
+          expectedPersonalRulesVersion: 7,
+          equivalentPersonalRuleIds: ['personal-amount'],
+          conflicts: [
+            BillingRulePersonalConflict(
+              personalRuleId: 'personal-time',
+              explanation: '保留个人时间规则',
+            ),
+          ],
+        ),
+        personalRuleReconciler: (result, version) async {
+          reconciled = result;
+          publicVersion = version;
+        },
+      );
+
+      final result = await service.checkForUpdate();
+
+      expect(result.status, BillingRuleUpdateStatus.activated);
+      expect(result.message, contains('保留个人时间规则'));
+      expect(reconciled?.expectedPersonalRulesVersion, 7);
+      expect(publicVersion, 'remote');
+    });
+
     test('restores old public snapshot when equivalent archival fails',
         () async {
       final active = File('${tempDir.path}/billing_rules.active.toml');
@@ -433,6 +466,7 @@ BillingRuleUpdateService _service(
   BillingRuleUpgradeEvaluation? upgradeEvaluation,
   BillingRulePersonalRegression? personalRegression,
   BillingRulePersonalRuleArchiver? personalRuleArchiver,
+  BillingRulePersonalRuleReconciler? personalRuleReconciler,
   void Function()? beforeAtomicSwitch,
   BillingRuleUpdateClock? clock,
   void Function()? onManifestLoad,
@@ -450,6 +484,7 @@ BillingRuleUpdateService _service(
     personalRegression: personalRegression ??
         (_) async => const BillingRulePersonalRegressionResult.passed(),
     personalRuleArchiver: personalRuleArchiver ?? (_) async {},
+    personalRuleReconciler: personalRuleReconciler,
     beforeAtomicSwitch: beforeAtomicSwitch,
     clock: clock,
   );

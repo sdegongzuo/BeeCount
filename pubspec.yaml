@@ -121,6 +121,8 @@ flutter:
     - assets/icons/
     - assets/images/
     - assets/rules/
+    - tool/rule_eval/samples/
+    - tool/rule_eval/expected/
     - image/单条/
     - tool/image_billing_golden.json
   # 字体已移动到可选依赖，使用系统字体以减少应用体积

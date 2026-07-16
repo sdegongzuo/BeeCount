@@ -7,6 +7,7 @@ import '../regression_sample_store.dart';
 import 'billing_rule_engine.dart';
 import 'billing_rule_extractors.dart';
 import 'billing_rule_models.dart';
+import 'billing_rule_runtime_evaluator.dart';
 import 'personal_rule_sync_repository.dart';
 import 'personal_rule_sync_service.dart';
 
@@ -481,6 +482,15 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
       archived_at INTEGER NOT NULL
     )''');
     await db.customStatement(
+        '''CREATE TABLE IF NOT EXISTS personal_rule_public_decisions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_id TEXT NOT NULL,
+      public_rules_version TEXT NOT NULL,
+      decision TEXT NOT NULL,
+      explanation TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )''');
+    await db.customStatement(
         'INSERT OR IGNORE INTO personal_rule_state(singleton, active_version) VALUES (1, NULL)');
   }
 
@@ -600,6 +610,81 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
         [version],
       );
       return version;
+    });
+  }
+
+  /// 在同一 SQLite 事务中落实公共规则评测裁决。
+  ///
+  /// 活动个人版本必须仍等于评测时的版本；否则整个归档和冲突解释均不写入，
+  /// 让外层公共规则更新恢复旧安全快照后重新评测。
+  Future<int?> reconcilePublicRules(
+    BillingRulePersonalRegressionResult result, {
+    required String publicRulesVersion,
+  }) async {
+    await ensureSchema();
+    if (!result.isPassed) {
+      throw ArgumentError('不能落实未通过的个人规则回归裁决');
+    }
+    return db.transaction(() async {
+      final actualVersion = (await db
+              .customSelect(
+                  'SELECT active_version FROM personal_rule_state WHERE singleton = 1')
+              .getSingle())
+          .data['active_version'] as int?;
+      if (actualVersion != result.expectedPersonalRulesVersion) {
+        throw const PersonalRuleActivationConflict();
+      }
+      final current = await loadActiveRuleSet();
+      final activeIds = current.templates.map((rule) => rule.id).toSet();
+      final equivalentIds = result.equivalentPersonalRuleIds.toSet();
+      if (!activeIds.containsAll(equivalentIds)) {
+        throw StateError('等价归档裁决引用了非活动个人规则');
+      }
+      final now = DateTime.now().millisecondsSinceEpoch;
+      int? nextVersion = actualVersion;
+      if (equivalentIds.isNotEmpty) {
+        for (final id in equivalentIds) {
+          await db.customStatement(
+            'INSERT INTO personal_rule_archives(rule_id, public_rules_version, archived_at) VALUES (?, ?, ?)',
+            [id, publicRulesVersion, now],
+          );
+        }
+        final retained = current.templates
+            .where((rule) => !equivalentIds.contains(rule.id))
+            .map((rule) => rule.toJson())
+            .toList(growable: false);
+        await db.customStatement(
+          'INSERT INTO personal_rule_revisions(rule_json, created_at) VALUES (?, ?)',
+          [jsonEncode(retained), now],
+        );
+        nextVersion = (await db
+                .customSelect('SELECT last_insert_rowid() AS id')
+                .getSingle())
+            .read<int>('id');
+        await db.customStatement(
+          'UPDATE personal_rule_state SET active_version = ? WHERE singleton = 1',
+          [nextVersion],
+        );
+      }
+      for (final conflict in result.conflicts) {
+        if (!activeIds.contains(conflict.personalRuleId) ||
+            equivalentIds.contains(conflict.personalRuleId)) {
+          throw StateError('冲突裁决引用了无效个人规则');
+        }
+        await db.customStatement(
+          '''INSERT INTO personal_rule_public_decisions(
+            rule_id, public_rules_version, decision, explanation, created_at
+          ) VALUES (?, ?, ?, ?, ?)''',
+          [
+            conflict.personalRuleId,
+            publicRulesVersion,
+            'retained_conflict',
+            conflict.explanation,
+            now,
+          ],
+        );
+      }
+      return nextVersion;
     });
   }
 

@@ -2,6 +2,7 @@ import 'package:beecount/data/db.dart';
 import 'package:beecount/services/billing/regression_sample_store.dart';
 import 'package:beecount/services/billing/rules/billing_rule_engine_impl.dart';
 import 'package:beecount/services/billing/rules/billing_rule_models.dart';
+import 'package:beecount/services/billing/rules/billing_rule_runtime_evaluator.dart';
 import 'package:beecount/services/billing/rules/personal_rule_lifecycle_service.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -241,6 +242,114 @@ void main() {
         .getSingle();
     expect(audit.read<String>('rule_id'), 'equivalent');
     expect(audit.read<String>('public_rules_version'), 'public-2');
+  });
+
+  test('公共规则激活裁决原子归档等价规则并记录冲突解释', () async {
+    final first = await revisions.activate(
+      _candidate('equivalent', '金额', 'amount'),
+      expectedActiveVersion: null,
+    );
+    final second = await revisions.activate(
+      _candidate('conflicting', '时间', 'time'),
+      expectedActiveVersion: first,
+    );
+    const result = BillingRulePersonalRegressionResult.passed(
+      equivalentPersonalRuleIds: ['equivalent'],
+      expectedPersonalRulesVersion: 2,
+      conflicts: [
+        BillingRulePersonalConflict(
+          personalRuleId: 'conflicting',
+          explanation: '公共候选时间不同，保留个人结果。',
+        ),
+      ],
+    );
+
+    await revisions.reconcilePublicRules(
+      result,
+      publicRulesVersion: 'public-3',
+    );
+
+    expect((await revisions.loadActiveRuleSet()).templates.map((e) => e.id),
+        ['conflicting']);
+    final decision =
+        await db.customSelect('''SELECT rule_id, public_rules_version,
+          decision, explanation FROM personal_rule_public_decisions''').getSingle();
+    expect(decision.read<String>('rule_id'), 'conflicting');
+    expect(decision.read<String>('public_rules_version'), 'public-3');
+    expect(decision.read<String>('decision'), 'retained_conflict');
+    expect(decision.read<String>('explanation'), contains('保留个人结果'));
+    expect(second, 2);
+  });
+
+  test('评测后的个人活动版本变化时整个公共裁决不落库', () async {
+    final version = await revisions.activate(
+      _candidate('retained', '金额', 'amount'),
+      expectedActiveVersion: null,
+    );
+    const stale = BillingRulePersonalRegressionResult.passed(
+      equivalentPersonalRuleIds: ['retained'],
+      expectedPersonalRulesVersion: null,
+      conflicts: [
+        BillingRulePersonalConflict(
+          personalRuleId: 'retained',
+          explanation: 'stale',
+        ),
+      ],
+    );
+
+    await expectLater(
+      revisions.reconcilePublicRules(stale, publicRulesVersion: 'public-4'),
+      throwsA(isA<PersonalRuleActivationConflict>()),
+    );
+
+    expect(await revisions.activeVersion(), version);
+    expect((await revisions.loadActiveRuleSet()).templates, hasLength(1));
+    final count = await db
+        .customSelect(
+            'SELECT COUNT(*) AS count FROM personal_rule_public_decisions')
+        .getSingle();
+    expect(count.read<int>('count'), 0);
+  });
+
+  test('旧版个人规则三表升级时新增冲突裁决表且保留历史归档', () async {
+    await db.close();
+    final legacyDb = BeeDatabase.forTesting(NativeDatabase.memory());
+    db = legacyDb;
+    await legacyDb.customStatement('''CREATE TABLE personal_rule_revisions (
+      version INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )''');
+    await legacyDb.customStatement('''CREATE TABLE personal_rule_state (
+      singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+      active_version INTEGER REFERENCES personal_rule_revisions(version)
+    )''');
+    await legacyDb.customStatement('''CREATE TABLE personal_rule_archives (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_id TEXT NOT NULL,
+      public_rules_version TEXT NOT NULL,
+      archived_at INTEGER NOT NULL
+    )''');
+    await legacyDb.customStatement(
+      'INSERT INTO personal_rule_state(singleton, active_version) VALUES (1, NULL)',
+    );
+    await legacyDb.customStatement(
+      'INSERT INTO personal_rule_archives(rule_id, public_rules_version, archived_at) VALUES (?, ?, ?)',
+      ['historical', 'public-1', 1],
+    );
+
+    await SqlitePersonalRuleRevisionStore(legacyDb).ensureSchema();
+
+    final table = await legacyDb
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'personal_rule_public_decisions'",
+        )
+        .getSingle();
+    expect(table.read<String>('name'), 'personal_rule_public_decisions');
+    final historical = await legacyDb
+        .customSelect('SELECT rule_id FROM personal_rule_archives')
+        .getSingle();
+    expect(historical.read<String>('rule_id'), 'historical');
   });
 }
 

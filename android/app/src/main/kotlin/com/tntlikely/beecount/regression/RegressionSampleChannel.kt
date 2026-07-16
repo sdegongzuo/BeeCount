@@ -25,6 +25,9 @@ class RegressionSampleChannel(
             "readBatch" -> executor.execute {
                 respond(result) { readBatch() }
             }
+            "readPage" -> executor.execute {
+                respond(result) { readPage(call) }
+            }
             else -> result.notImplemented()
         }
     }
@@ -78,6 +81,32 @@ class RegressionSampleChannel(
             ),
         )
     }
+
+    private fun readPage(call: MethodCall): Map<String, Any?> {
+        val arguments = requireNotNull(call.arguments as? Map<*, *>)
+        val limit = requireNotNull(arguments["limit"] as? Int)
+        val page = store.readDecryptablePage(limit, arguments["cursor"] as? String)
+        return mapOf(
+            "samples" to page.samples.map(::sampleToChannelValue),
+            "unreadableSampleIds" to page.unreadableSampleIds,
+            "nextCursor" to page.nextCursor,
+        )
+    }
+
+    private fun sampleToChannelValue(sample: DecryptedRegressionSample) = mapOf(
+        "id" to sample.id,
+        "normalizedOcr" to sample.normalizedOcr,
+        "expectedFields" to RegressionSampleChannelJson.toChannelValue(
+            JSONObject(sample.expectedFieldsJson),
+        ),
+        "sensitiveEvidence" to RegressionSampleChannelJson.toChannelValue(
+            JSONObject(sample.sensitiveEvidenceJson),
+        ),
+        "exactFingerprint" to sample.exactFingerprint,
+        "structureFingerprint" to sample.structureFingerprint,
+        "protection" to sample.protection.storageValue,
+        "keyVersion" to sample.keyVersion,
+    )
 
     private fun respond(result: MethodChannel.Result, block: () -> Any) {
         try {

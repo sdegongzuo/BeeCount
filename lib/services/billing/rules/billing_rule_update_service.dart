@@ -6,11 +6,14 @@ import 'package:crypto/crypto.dart';
 import 'billing_rule_manifest.dart';
 import 'billing_rule_models.dart';
 import 'billing_rule_repository.dart';
+import 'billing_rule_runtime_evaluator.dart';
 import 'billing_rule_secure_http_loader.dart';
 import 'billing_rule_storage.dart';
 import 'billing_rule_update_configuration.dart';
 
 export 'billing_rule_secure_http_loader.dart';
+export 'billing_rule_runtime_evaluator.dart'
+    show BillingRulePersonalConflict, BillingRulePersonalRegressionResult;
 
 typedef BillingRuleManifestLoader = Future<String> Function(Uri uri);
 typedef BillingRulePackageDownloader = Future<String> Function(Uri uri);
@@ -22,26 +25,11 @@ typedef BillingRulePersonalRegression
         BillingRuleSet ruleSet);
 typedef BillingRulePersonalRuleArchiver = Future<void> Function(
     List<String> ruleIds);
+typedef BillingRulePersonalRuleReconciler = Future<void> Function(
+  BillingRulePersonalRegressionResult result,
+  String publicRulesVersion,
+);
 typedef BillingRuleUpdateClock = DateTime Function();
-
-class BillingRulePersonalRegressionResult {
-  final bool isPassed;
-  final List<String> equivalentPersonalRuleIds;
-  final String? explanation;
-  final String? conflictExplanation;
-
-  const BillingRulePersonalRegressionResult.passed({
-    this.equivalentPersonalRuleIds = const [],
-    this.conflictExplanation,
-  })  : isPassed = true,
-        explanation = null;
-
-  const BillingRulePersonalRegressionResult.rejected({
-    required this.explanation,
-  })  : isPassed = false,
-        equivalentPersonalRuleIds = const [],
-        conflictExplanation = null;
-}
 
 enum BillingRuleUpdateStatus {
   disabled,
@@ -91,6 +79,7 @@ class BillingRuleUpdateService {
   final BillingRuleUpgradeEvaluation upgradeEvaluation;
   final BillingRulePersonalRegression personalRegression;
   final BillingRulePersonalRuleArchiver personalRuleArchiver;
+  final BillingRulePersonalRuleReconciler? personalRuleReconciler;
   final void Function()? beforeAtomicSwitch;
 
   /// 活动文件完成原子切换或恢复后使运行时内存快照失效。
@@ -106,7 +95,8 @@ class BillingRuleUpdateService {
     BillingRuleSmokeTest? smokeTest,
     required this.upgradeEvaluation,
     required this.personalRegression,
-    required this.personalRuleArchiver,
+    BillingRulePersonalRuleArchiver? personalRuleArchiver,
+    this.personalRuleReconciler,
     this.beforeAtomicSwitch,
     void Function()? onActiveSnapshotChanged,
     BillingRuleUpdateClock? clock,
@@ -123,6 +113,8 @@ class BillingRuleUpdateService {
                   maxBytes: configuration.maxRulePackageBytes,
                 )),
         smokeTest = smokeTest ?? _defaultSmokeTest,
+        personalRuleArchiver =
+            personalRuleArchiver ?? _missingPersonalRuleArchiver,
         onActiveSnapshotChanged =
             onActiveSnapshotChanged ?? invalidateProductionBillingRuleSnapshot,
         clock = clock ?? DateTime.now,
@@ -320,9 +312,16 @@ class BillingRuleUpdateService {
       await candidateFile.rename(activeFile.path);
       onActiveSnapshotChanged();
       String? activationMessage = regression.conflictExplanation;
-      if (regression.equivalentPersonalRuleIds.isNotEmpty) {
+      if (personalRuleReconciler != null ||
+          regression.equivalentPersonalRuleIds.isNotEmpty) {
         try {
-          await personalRuleArchiver.call(regression.equivalentPersonalRuleIds);
+          final reconciler = personalRuleReconciler;
+          if (reconciler != null) {
+            await reconciler(regression, candidateRuleSet.rulesVersion);
+          } else {
+            await personalRuleArchiver
+                .call(regression.equivalentPersonalRuleIds);
+          }
         } catch (e) {
           final restoredPrevious = await previousFile.exists();
           if (restoredPrevious) {
@@ -482,4 +481,10 @@ void _enforceTextLimit(String value, int maxBytes) {
 
 Future<bool> _defaultSmokeTest(BillingRuleSet ruleSet) async {
   return ruleSet.templates.isNotEmpty;
+}
+
+Future<void> _missingPersonalRuleArchiver(List<String> ruleIds) async {
+  if (ruleIds.isNotEmpty) {
+    throw StateError('缺少个人规则归档实现，公共候选不能安全激活');
+  }
 }

@@ -62,4 +62,29 @@ void main() {
     expect(batch.keyUnwrapCount, 1);
     expect(batch.timings.totalMs, 10);
   });
+
+  test('分页读取把页大小与游标传给本机加密存储', () async {
+    MethodCall? received;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      received = call;
+      return {
+        'samples': <Object?>[],
+        'unreadableSampleIds': <String>[],
+        'nextCursor': '200|sample-2',
+      };
+    });
+
+    final page = await const RegressionSampleStore().readPage(
+      limit: 50,
+      cursor: '100|sample-1',
+    );
+
+    expect(received?.method, 'readPage');
+    expect(received?.arguments, {
+      'limit': 50,
+      'cursor': '100|sample-1',
+    });
+    expect(page.nextCursor, '200|sample-2');
+  });
 }

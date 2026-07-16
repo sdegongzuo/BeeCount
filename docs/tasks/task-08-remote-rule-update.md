@@ -82,6 +82,37 @@ flutter analyze 本步涉及文件：No issues found
 激活 journal、个人样本回归的生产实现、启动/手动触发和诊断 UI 仍由后续
 tracer task 完成。
 
+### Tracer Task 3：生产黄金评测与本机个人样本回归（已完成）
+
+- [x] 将 `tool/rule_eval/samples` 与 `tool/rule_eval/expected` 的 20 份人工真值
+  随安装包发布；生产运行时读取与 CLI 相同的固定语料，不另造测试真值。
+- [x] 候选公共规则逐样本对比候选、当前活动和内置规则；全部期望字段必须
+  正确，金额与时间等关键字段不得相对旧安全基线降级。
+- [x] `RegressionSampleStore` 和 Android 加密存储增加稳定游标分页。默认每页
+  50 条、最多 100 条；Dart 处理完一页即可释放该页 OCR 明文，不再一次持有
+  500 条完整 OCR。数据密钥在本机存储实例内复用，单条密文损坏会标记且使
+  本次候选安全失败。
+- [x] 回归支持墙钟超时和主动取消；500 条真实规则引擎循环的测试预算为 5 秒，
+  同时保留个人规则生命周期原有的 1 秒门禁（本次验证 P95 38ms、最坏 40ms）。
+- [x] 候选与活动个人规则行为等价时，通过 SQLite 不可变新修订移出活动快照，
+  并保留归档审计；行为冲突时保留回归通过的个人安全结果，将公共版本、个人
+  规则标识和中文解释追加写入 `personal_rule_public_decisions`，不删除历史。
+- [x] 评测记录个人活动版本，激活后的归档/冲突写入使用 CAS 且位于公共规则
+  更新的同一存储互斥区。并发变化或落库失败会让更新恢复旧公共快照。
+- [x] `createProductionBillingRuleUpdateService` 默认接入真实随包黄金语料、生产
+  公共规则仓库、Android 加密样本存储和 SQLite 个人规则生命周期，不再要求
+  生产调用方提供“永远通过”的测试回调。
+
+验证：
+
+```text
+focused Flutter tests：43 tests passed
+flutter analyze（Task 3 涉及的 10 个 Dart 文件）：No issues found
+flutter build apk --debug --flavor dev：成功（含 Kotlin 分页通道编译）
+```
+
+激活 journal、启动/每日/手动触发和诊断 UI 仍由后续 tracer task 完成。
+
 1. 添加 manifest 解析测试，覆盖 `latest.schemaVersion`、`rulesVersion`、`minAppVersion`、`url` 和 `sha256`。
 2. 添加 hash 不匹配、未知 schema version、无效 TOML、smoke test 失败和回滚测试。
 3. 实现启动时或每日更新检查，更新失败时不得影响当前激活规则。

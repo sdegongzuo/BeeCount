@@ -211,8 +211,43 @@ class RegressionSampleBatch {
       );
 }
 
+/// 分页解密回归样本，避免一次在 Dart 堆中持有全部 OCR 明文。
+class RegressionSamplePage {
+  final List<DecryptedRegressionSample> samples;
+  final List<String> unreadableSampleIds;
+  final String? nextCursor;
+
+  /// 创建一页解密样本；[nextCursor] 为空表示已到末页。
+  const RegressionSamplePage({
+    required this.samples,
+    required this.unreadableSampleIds,
+    required this.nextCursor,
+  });
+
+  /// 从 Android 平台通道结果创建一页样本。
+  factory RegressionSamplePage.fromMap(Map<Object?, Object?> map) =>
+      RegressionSamplePage(
+        samples: (map['samples'] as List<Object?>)
+            .cast<Map<Object?, Object?>>()
+            .map(DecryptedRegressionSample.fromMap)
+            .toList(growable: false),
+        unreadableSampleIds:
+            (map['unreadableSampleIds'] as List<Object?>).cast<String>(),
+        nextCursor: map['nextCursor'] as String?,
+      );
+}
+
+/// 运行时规则评测读取加密样本的分页边界。
+abstract class RegressionSamplePageSource {
+  /// 解密读取一页；调用方处理完后即可释放本页全部 OCR 明文。
+  Future<RegressionSamplePage> readPage({
+    required int limit,
+    String? cursor,
+  });
+}
+
 /// Android 本机加密个人规则回归样本存储入口。
-class RegressionSampleStore {
+class RegressionSampleStore implements RegressionSamplePageSource {
   /// Flutter 与 Android 共用的平台通道名称。
   static const channelName = 'com.tntlikely.beecount/regression_samples';
   static const _channel = MethodChannel(channelName);
@@ -234,5 +269,17 @@ class RegressionSampleStore {
     final result =
         await _channel.invokeMapMethod<Object?, Object?>('readBatch');
     return RegressionSampleBatch.fromMap(result!);
+  }
+
+  @override
+  Future<RegressionSamplePage> readPage({
+    required int limit,
+    String? cursor,
+  }) async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      'readPage',
+      {'limit': limit, if (cursor != null) 'cursor': cursor},
+    );
+    return RegressionSamplePage.fromMap(result!);
   }
 }
