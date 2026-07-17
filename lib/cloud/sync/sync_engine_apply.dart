@@ -6,6 +6,33 @@ part of 'sync_engine.dart';
 /// 这里所有方法都是 private(以 `_` 开头),只在主 library 内被 `_pull` 调
 /// 用,所以 extension 可以保持 private。
 extension _SyncEngineApply on SyncEngine {
+  /// 将同一 pull 页中的个人规则修订一次性合并，避免每到一条分类或备注修订
+  /// 都重复对全部远端提取规则执行本机 500 样本回归。
+  Future<int> _applyRemotePersonalRuleChanges(
+    Iterable<BeeCountCloudSyncChange> changes,
+  ) async {
+    final syncDeviceId = await _getDeviceId();
+    final revisions = <PersonalRuleRevision>[];
+    for (final change in changes) {
+      if (change.updatedByDeviceId == syncDeviceId ||
+          change.action == 'delete' ||
+          change.payload == null) {
+        continue;
+      }
+      revisions.add(PersonalRuleRevision.fromSyncJson(
+        Map<String, Object?>.from(change.payload!),
+      ));
+    }
+    if (revisions.isEmpty) return 0;
+    final repository = PersonalRuleSyncRepository(db);
+    await repository.mergeRemote(
+      revisions,
+      localDeviceId: await repository.localDeviceId(),
+      regressionGate: personalRuleRegressionGate,
+    );
+    return revisions.length;
+  }
+
   /// 应用单条远程变更到本地数据库
   /// 返回 true 表示已应用，false 表示跳过
   Future<bool> _applyRemoteChange(BeeCountCloudSyncChange change) async {

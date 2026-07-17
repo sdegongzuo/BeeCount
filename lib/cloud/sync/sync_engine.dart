@@ -607,10 +607,16 @@ class SyncEngine implements app.SyncService {
       // 的状态好，下一次 sync 会再拉一次（server cursor 只在全部成功时 advance）。
       final pageApplied = await db.transaction<int>(() async {
         int pageCount = 0;
-        for (final change in result.changes) {
+        final personalRuleChanges = result.changes
+            .where((change) => change.entityType == 'personal_rule_revision')
+            .toList(growable: false);
+        for (final change in result.changes.where(
+          (change) => change.entityType != 'personal_rule_revision',
+        )) {
           final applied = await _applyRemoteChange(change);
           if (applied) pageCount++;
         }
+        pageCount += await _applyRemotePersonalRuleChanges(personalRuleChanges);
         return pageCount;
       });
       totalPulled += pageApplied;

@@ -171,16 +171,21 @@ void main() {
         hasMore: false,
       ),
     );
+    var regressionGateCalls = 0;
     final engine = SyncEngine(
       db: db,
       provider: provider,
       changeTracker: ChangeTracker(db),
       repo: LocalRepository(db),
-      personalRuleRegressionGate: (_) async =>
-          LocalRegressionVerdict.insufficient,
+      personalRuleRegressionGate: (_) async {
+        regressionGateCalls++;
+        return LocalRegressionVerdict.insufficient;
+      },
     );
 
     expect(await engine.replayAllChanges(), 3);
+    expect(regressionGateCalls, 1,
+        reason: '同一同步页必须批量合并个人修订，不能因分类/备注到达重复跑 500 样本回归');
     expect(
       (await SqlitePersonalRuleRevisionStore(db).loadActiveRuleSet()).templates,
       isEmpty,
