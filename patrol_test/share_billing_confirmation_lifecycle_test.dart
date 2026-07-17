@@ -111,8 +111,10 @@ void main() {
           jsonDecode(future.finalResultJson!) as Map<String, dynamic>;
       final futureResult = OcrResult.fromJson(futureJson);
       expect(futureResult.amount, correctedAmount);
+      final futureRuleJson =
+          jsonDecode(future.ruleResultJson!) as Map<String, dynamic>;
       final futureTrace =
-          futureJson['billing_rule_trace'] as Map<String, dynamic>?;
+          futureRuleJson['billing_rule_trace'] as Map<String, dynamic>?;
       expect(
         futureTrace?['matched_rules'],
         contains(predicate<Map<String, dynamic>>(
