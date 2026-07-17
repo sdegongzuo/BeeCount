@@ -107,12 +107,14 @@ void main() {
         await _transactionCount(runtime.database),
         transactionCountBeforeFuture,
       );
-      final futureResult = OcrResult.fromJson(
-        jsonDecode(future.finalResultJson!) as Map<String, dynamic>,
-      );
+      final futureJson =
+          jsonDecode(future.finalResultJson!) as Map<String, dynamic>;
+      final futureResult = OcrResult.fromJson(futureJson);
       expect(futureResult.amount, correctedAmount);
+      final futureTrace =
+          futureJson['billing_rule_trace'] as Map<String, dynamic>?;
       expect(
-        futureResult.billingRuleTrace?.matchedRules,
+        futureTrace?['matched_rules'],
         contains(predicate<Map<String, dynamic>>(
           (rule) => rule['origin'] == 'personal',
         )),
