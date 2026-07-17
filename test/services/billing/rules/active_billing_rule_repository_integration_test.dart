@@ -115,6 +115,45 @@ void main() {
     ).loadActiveRuleSet();
     expect(snapshot.templates.map((rule) => rule.id), ['public-amount']);
   });
+
+  test('提取冲突范围即使公共规则可命中也强制待确认', () async {
+    final db = BeeDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final sync = PersonalRuleSyncRepository(db);
+    final first = _syncRevision('conflict-public-a', _personalRule,
+        scopeKey: 'same', conditionKey: 'same');
+    final second = _syncRevision(
+      'conflict-public-b',
+      _conflictingPersonalRule,
+      scopeKey: 'same',
+      conditionKey: 'same',
+    );
+    await sync.mergeRemote(
+      [first, second],
+      localDeviceId: 'new-device',
+      regressionGate: (_) async => LocalRegressionVerdict.insufficient,
+    );
+    final service = BillingJobService.createProductionRuleService(
+      db,
+      publicRuleRepository: const _Rules(_publicRules),
+    );
+
+    final evaluated = await service.evaluate(
+      baseResult: OcrResult(
+        rawText: '公共账单\n总额\n12.00\n专属金额\n18.50',
+        allNumbers: const ['12.00', '18.50'],
+        time: DateTime(2026, 7, 17),
+        paymentChannel: '测试',
+      ),
+    );
+
+    expect(evaluated.result.amount, 12);
+    expect(
+      evaluated.result.fastBillingRejectReasons,
+      contains('sync_extraction_conflict'),
+    );
+    expect(evaluated.accepted, isFalse);
+  });
 }
 
 PersonalRuleRevision _syncRevision(
@@ -179,6 +218,23 @@ const _pendingRule = BillingRuleTemplate(
       field: 'amount',
       type: 'labelNextLine',
       label: '待验证金额',
+      parser: 'amount',
+      confidence: 0.99,
+    ),
+  ],
+);
+
+const _conflictingPersonalRule = BillingRuleTemplate(
+  id: 'conflicting-personal-amount',
+  origin: BillingRuleOrigin.personal,
+  match: BillingRuleTemplateMatch(
+    keywordsAll: ['公共账单', '专属金额'],
+  ),
+  extractors: [
+    BillingFieldExtractorRule(
+      field: 'amount',
+      type: 'regex',
+      pattern: r'总额\s+(\d+(?:\.\d{1,2})?)',
       parser: 'amount',
       confidence: 0.99,
     ),

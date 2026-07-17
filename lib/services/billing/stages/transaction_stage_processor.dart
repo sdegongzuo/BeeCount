@@ -121,7 +121,9 @@ class TransactionStageProcessor implements StageProcessor {
 
       if (ocrResult.amount == null ||
           ocrResult.amount!.abs() <= 0 ||
-          ocrResult.time == null) {
+          ocrResult.time == null ||
+          ocrResult.fastBillingRejectReasons
+              .contains('sync_extraction_conflict')) {
         await ctx.requireOwnedWrite(
           (lease) => repo.updateFinalResultJson(
             job.id,

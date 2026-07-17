@@ -12,6 +12,12 @@ abstract class PersonalCategoryRuleStore {
   });
 
   Future<List<PersonalCategoryRule>> loadActiveRules();
+
+  Future<bool> isMatchPaused({
+    required int ledgerId,
+    required String matchText,
+  }) async =>
+      false;
 }
 
 /// 个人分类规则的 SQLite 权威存储。
@@ -101,4 +107,14 @@ class SqlitePersonalCategoryRuleStore implements PersonalCategoryRuleStore {
             ))
         .toList(growable: false);
   }
+
+  @override
+  Future<bool> isMatchPaused({
+    required int ledgerId,
+    required String matchText,
+  }) =>
+      PersonalRuleSyncRepository(db).isCategoryMatchPaused(
+        ledgerId: ledgerId,
+        matchText: matchText,
+      );
 }

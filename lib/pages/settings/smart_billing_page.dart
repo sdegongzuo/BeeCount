@@ -13,6 +13,10 @@ import '../ai/ai_settings_page.dart';
 import '../automation/auto_billing_settings_page.dart';
 import 'shortcuts_guide_page.dart';
 import 'billing_rule_update_page.dart';
+import 'personal_rule_conflicts_page.dart';
+import '../../providers/database_providers.dart';
+import '../../cloud/sync/sync_providers.dart';
+import '../../services/billing/rules/personal_rule_sync_repository.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Google Play 版本(CI 注入)。截屏自动记账依赖 READ_MEDIA_IMAGES,在 Google
@@ -345,17 +349,42 @@ class SmartBillingPage extends ConsumerWidget {
               children: [
                 SectionCard(
                   margin: EdgeInsets.zero,
-                  child: AppListTile(
-                    leading: Icons.rule_folder_outlined,
-                    title: '公共识别规则',
-                    subtitle: '查看版本、检查安全更新或回滚',
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const BillingRuleUpdatePage(),
-                        ),
-                      );
-                    },
+                  child: Column(
+                    children: [
+                      AppListTile(
+                        leading: Icons.rule_folder_outlined,
+                        title: '公共识别规则',
+                        subtitle: '查看版本、检查安全更新或回滚',
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const BillingRuleUpdatePage(),
+                            ),
+                          );
+                        },
+                      ),
+                      BeeTokens.cardDivider(context),
+                      AppListTile(
+                        leading: Icons.rule_outlined,
+                        title: '个人规则冲突',
+                        subtitle: '查看暂停范围并选择要保留的版本',
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PersonalRuleConflictsPage(
+                                repository: PersonalRuleSyncRepository(
+                                  ref.read(databaseProvider),
+                                  conflictResolutionRegressionGate:
+                                      productionPersonalRuleSyncRegressionGate(
+                                    ref.read(databaseProvider),
+                                  ).call,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
 

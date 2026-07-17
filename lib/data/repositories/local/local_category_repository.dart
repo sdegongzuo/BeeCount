@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../db.dart';
 import '../../category_node.dart';
 import '../../../services/system/logger_service.dart';
+import '../../../services/billing/rules/personal_rule_sync_repository.dart';
 import '../category_repository.dart';
 
 /// 本地分类Repository实现
@@ -444,6 +445,10 @@ class LocalCategoryRepository implements CategoryRepository {
         'UPDATE personal_category_rules SET category_sync_id = ? WHERE category_sync_id = ?',
         [target.syncId, source.syncId],
       );
+      await PersonalRuleSyncRepository(db).migrateCategoryReferences(
+        fromCategorySyncId: source.syncId!,
+        toCategorySyncId: target.syncId!,
+      );
       final remaining = await _getReferenceSummary(fromCategoryId);
       if (remaining.totalCount != 0) {
         throw StateError('分类迁移后仍存在 ${remaining.totalCount} 个引用');
@@ -489,10 +494,23 @@ class LocalCategoryRepository implements CategoryRepository {
           [categoryId]),
       personalCategoryRuleCount: category?.syncId == null
           ? 0
-          : await count(
-              'SELECT COUNT(*) AS count FROM personal_category_rules WHERE category_sync_id = ?',
-              [category!.syncId]),
+          : await _personalCategoryReferenceCount(category!.syncId!, count),
     );
+  }
+
+  Future<int> _personalCategoryReferenceCount(
+    String categorySyncId,
+    Future<int> Function(String sql, List<Object?> variables) count,
+  ) async {
+    final materialized = await count(
+      'SELECT COUNT(*) AS count FROM personal_category_rules WHERE category_sync_id = ?',
+      [categorySyncId],
+    );
+    final immutable = await PersonalRuleSyncRepository(db)
+        .countUnresolvedCategoryReferences(categorySyncId);
+    // 同一逻辑规则通常同时存在于物化表和不可变修订表，只计较大的集合，
+    // 避免迁移预览把一条用户规则重复显示为两条引用。
+    return materialized > immutable ? materialized : immutable;
   }
 
   @override

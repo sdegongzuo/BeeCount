@@ -144,6 +144,229 @@ void main() {
         await SqlitePersonalCategoryRuleStore(db).loadActiveRules(), isEmpty);
   });
 
+  test('冲突可查询并由用户选择候选后立即恢复且生成待上传解决修订', () async {
+    PersonalRuleRevision category(String id, String device, String target) =>
+        PersonalRuleRevision(
+          revisionId: id,
+          ruleId: 'merchant-coffee',
+          originDeviceId: device,
+          originVersion: 1,
+          kind: PersonalRuleSyncKind.category,
+          scopeKey: 'global',
+          conditionKey: '天津海河测试餐厅甲',
+          payload: {'match_text': '天津海河测试餐厅甲', 'category_sync_id': target},
+        );
+    final originals = [
+      category('food-revision', 'device-a', 'food'),
+      category('travel-revision', 'device-b', 'travel'),
+    ];
+    await repository.mergeRemote(
+      originals,
+      localDeviceId: 'local-device',
+    );
+
+    final conflicts = await repository.listConflicts();
+    expect(conflicts, hasLength(1));
+    expect(conflicts.single.matchKey, 'category|global|天津海河测试餐厅甲');
+    expect(
+      conflicts.single.revisions.map((item) => item.revisionId),
+      ['food-revision', 'travel-revision'],
+    );
+
+    final resolved = await repository.resolveConflict(
+      matchKey: conflicts.single.matchKey,
+      chosenRevisionId: 'food-revision',
+    );
+
+    expect(resolved.pausedMatchKeys, isEmpty);
+    expect((await repository.listConflicts()), isEmpty);
+    expect(
+      (await SqlitePersonalCategoryRuleStore(db).loadActiveRules())
+          .single
+          .categorySyncId,
+      'food',
+    );
+    final pending = await repository.pendingUpload();
+    expect(pending, hasLength(1));
+    expect(
+      pending.single.resolvedRevisionIds,
+      containsAll(['food-revision', 'travel-revision']),
+    );
+
+    final remoteDb = BeeDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(remoteDb.close);
+    final remoteRepository = PersonalRuleSyncRepository(remoteDb);
+    expect(
+      (await remoteRepository.mergeRemote(
+        originals,
+        localDeviceId: 'other-device',
+      ))
+          .requiresConfirmation,
+      isTrue,
+    );
+    final converged = await remoteRepository.mergeRemote(
+      [pending.single],
+      localDeviceId: 'other-device',
+    );
+    expect(converged.pausedMatchKeys, isEmpty);
+    expect(
+      (await SqlitePersonalCategoryRuleStore(remoteDb).loadActiveRules())
+          .single
+          .categorySyncId,
+      'food',
+    );
+  });
+
+  test('冲突解决物化失败时不遗留半成品解决修订', () async {
+    final revisions = [
+      PersonalRuleRevision(
+        revisionId: 'atomic-a',
+        ruleId: 'atomic-a',
+        originDeviceId: 'device-a',
+        originVersion: 1,
+        kind: PersonalRuleSyncKind.category,
+        scopeKey: 'global',
+        conditionKey: '天津海河测试餐厅甲',
+        payload: const {
+          'match_text': '天津海河测试餐厅甲',
+          'category_sync_id': 'daily',
+        },
+      ),
+      PersonalRuleRevision(
+        revisionId: 'atomic-b',
+        ruleId: 'atomic-b',
+        originDeviceId: 'device-b',
+        originVersion: 1,
+        kind: PersonalRuleSyncKind.category,
+        scopeKey: 'global',
+        conditionKey: '天津海河测试餐厅甲',
+        payload: const {
+          'match_text': '天津海河测试餐厅甲',
+          'category_sync_id': 'food',
+        },
+      ),
+    ];
+    await repository.mergeRemote(
+      revisions,
+      localDeviceId: await repository.localDeviceId(),
+    );
+    await db.customStatement('''CREATE TRIGGER reject_food_resolution
+      BEFORE INSERT ON personal_category_rules
+      WHEN NEW.category_sync_id = 'food'
+      BEGIN
+        SELECT RAISE(ABORT, 'injected materialization failure');
+      END''');
+
+    await expectLater(
+      repository.resolveConflict(
+        matchKey: revisions.first.matchKey,
+        chosenRevisionId: 'atomic-b',
+      ),
+      throwsA(anything),
+    );
+
+    expect(await repository.pendingUpload(), isEmpty);
+    expect(await repository.listConflicts(), hasLength(1));
+  });
+
+  test('远端提取冲突必须先通过本机回归才能由用户采用', () async {
+    const template = BillingRuleTemplate(
+      id: 'remote-amount',
+      match: BillingRuleTemplateMatch(
+        sourcePackages: ['com.example.pay'],
+        keywordsAll: ['金额'],
+      ),
+      extractors: [
+        BillingFieldExtractorRule(
+          field: 'amount',
+          type: 'labelNextLine',
+          label: '金额',
+          parser: 'amount',
+        ),
+      ],
+    );
+    final remote = PersonalRuleRevision(
+      revisionId: 'remote-extraction',
+      ruleId: 'remote-amount',
+      originDeviceId: 'remote-device',
+      originVersion: 1,
+      kind: PersonalRuleSyncKind.extraction,
+      scopeKey: '["com.example.pay"]',
+      conditionKey: '{"required_keywords":["金额"]}',
+      payload: {'template': template.toJson()},
+    );
+    await repository.mergeRemote(
+      [remote],
+      localDeviceId: await repository.localDeviceId(),
+    );
+
+    final conflict = (await repository.listConflicts()).single;
+    await expectLater(
+      repository.resolveConflict(
+        matchKey: conflict.matchKey,
+        chosenRevisionId: remote.revisionId,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect((await repository.listConflicts()), hasLength(1));
+
+    final resolved = await repository.resolveConflict(
+      matchKey: conflict.matchKey,
+      chosenRevisionId: remote.revisionId,
+      regressionGate: (_) async => LocalRegressionVerdict.passed,
+    );
+    expect(resolved.pausedMatchKeys, isEmpty);
+    expect(
+      resolved.states.values,
+      contains(PersonalRuleRevisionState.active),
+    );
+  });
+
+  test('冲突监听会在远端合并和本机解决后立即刷新', () async {
+    final snapshots = <List<PersonalRuleSyncConflict>>[];
+    final subscription = repository.watchConflicts().listen(snapshots.add);
+    addTearDown(subscription.cancel);
+    await Future<void>.delayed(Duration.zero);
+
+    await repository.mergeRemote(
+      [
+        PersonalRuleRevision(
+          revisionId: 'watch-a',
+          ruleId: 'watch-a',
+          originDeviceId: 'device-a',
+          originVersion: 1,
+          kind: PersonalRuleSyncKind.category,
+          scopeKey: 'global',
+          conditionKey: '便利店',
+          payload: const {
+            'match_text': '便利店',
+            'category_sync_id': 'daily',
+          },
+        ),
+        PersonalRuleRevision(
+          revisionId: 'watch-b',
+          ruleId: 'watch-b',
+          originDeviceId: 'device-b',
+          originVersion: 1,
+          kind: PersonalRuleSyncKind.category,
+          scopeKey: 'global',
+          conditionKey: '便利店',
+          payload: const {
+            'match_text': '便利店',
+            'category_sync_id': 'food',
+          },
+        ),
+      ],
+      localDeviceId: await repository.localDeviceId(),
+    );
+
+    await expectLater(
+      repository.watchConflicts().first,
+      completion(hasLength(1)),
+    );
+    expect(snapshots.last, hasLength(1));
+  });
+
   test('新设备提取修订保持待验证且不写入活动快照', () async {
     final remote = PersonalRuleRevision(
       revisionId: 'remote-extraction',

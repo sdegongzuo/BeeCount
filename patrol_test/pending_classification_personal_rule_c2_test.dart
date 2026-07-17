@@ -11,6 +11,8 @@ import 'package:beecount/providers/database_providers.dart';
 import 'package:beecount/services/billing/ocr_service.dart';
 import 'package:beecount/services/billing/pending_billing_navigation_host.dart';
 import 'package:beecount/services/billing/pending_transaction_classification_service.dart';
+import 'package:beecount/services/billing/rules/personal_rule_sync_repository.dart';
+import 'package:beecount/services/billing/rules/personal_rule_sync_service.dart';
 import 'package:beecount/services/platform/image_share_handler_service.dart';
 import 'package:beecount/services/platform/share_billing_c2_container.dart';
 import 'package:beecount/services/platform/share_billing_c2_fixture.dart';
@@ -150,10 +152,80 @@ void main() {
       expect(secondOcr.merchantFullName, _merchant);
       expect(secondOcr.suggestedCategoryId, isNull,
           reason: '第二张不能靠页面规则或测试注入分类，只能命中刚记住的个人规则');
+
+      final otherCategory = await (runtime.database.select(
+        runtime.database.categories,
+      )..where((category) => category.name.equals('交通')))
+          .getSingle();
+      expect(otherCategory.syncId?.trim(), isNotEmpty);
+      final syncRepository = PersonalRuleSyncRepository(runtime.database);
+      final localDeviceId = await syncRepository.localDeviceId();
+      final rememberedRevision = (await syncRepository.pendingUpload())
+          .singleWhere((revision) =>
+              revision.kind == PersonalRuleSyncKind.category &&
+              revision.conditionKey == _merchant);
+      await syncRepository.mergeRemote(
+        [
+          PersonalRuleRevision(
+            revisionId: 'remote-conflict-$fixtureId',
+            ruleId: rememberedRevision.ruleId,
+            originDeviceId: 'remote-device',
+            originVersion: 1,
+            kind: PersonalRuleSyncKind.category,
+            scopeKey: rememberedRevision.scopeKey,
+            conditionKey: rememberedRevision.conditionKey,
+            payload: {
+              ...rememberedRevision.payload,
+              'category_sync_id': otherCategory.syncId!,
+            },
+          ),
+        ],
+        localDeviceId: localDeviceId,
+      );
+      final conflicts = await syncRepository.listConflicts();
+      expect(conflicts, hasLength(1));
+      expect(conflicts.single.kind, PersonalRuleSyncKind.category);
+
+      await _send('classification-conflict', _conflictingBillText);
+      final conflictJob = await _waitForCaseJob(
+        runtime,
+        caseId: 'classification-conflict',
+      );
+      expect(conflictJob.status, BillingJobStatus.succeeded);
+      final conflictTransaction =
+          await repository.getTransactionById(conflictJob.transactionId!);
+      expect(conflictTransaction, isNotNull);
+      expect(conflictTransaction!.needsClassification, isTrue);
+      expect(
+        (await repository.getCategoryById(conflictTransaction.categoryId!))
+            ?.name,
+        '其他',
+      );
+
+      await syncRepository.resolveConflict(
+        matchKey: conflicts.single.matchKey,
+        chosenRevisionId: rememberedRevision.revisionId,
+      );
+      expect(await syncRepository.listConflicts(), isEmpty);
+      await _send('classification-resolved', _resolvedBillText);
+      final resolvedJob = await _waitForCaseJob(
+        runtime,
+        caseId: 'classification-resolved',
+      );
+      expect(resolvedJob.status, BillingJobStatus.succeeded);
+      final resolvedTransaction =
+          await repository.getTransactionById(resolvedJob.transactionId!);
+      expect(resolvedTransaction, isNotNull);
+      expect(resolvedTransaction!.needsClassification, isFalse);
+      expect(resolvedTransaction.categoryId, selectedCategory.id);
+      final historicalConflict =
+          await repository.getTransactionById(conflictTransaction.id);
+      expect(historicalConflict?.needsClassification, isTrue,
+          reason: '解决个人规则冲突不得静默改写冲突期间创建的历史账单');
+      expect(historicalConflict?.categoryId, conflictTransaction.categoryId);
       await Future<void>.delayed(const Duration(seconds: 2));
-      expect(find.byType(PendingTransactionClassificationPage), findsNothing);
     },
-    timeout: const Timeout(Duration(minutes: 4)),
+    timeout: const Timeout(Duration(minutes: 6)),
   );
 }
 
@@ -280,4 +352,36 @@ const _secondBillText = '''
 零钱
 交易单号
 4200002666202607179876543210
+''';
+
+const _conflictingBillText = '''
+微信支付
+支付详情
+当前状态
+支付成功
+-36.60
+支付时间
+2026年07月17日 14:56:07
+商户全称
+极光测试实验室
+支付方式
+零钱
+交易单号
+4200002666202607174567890123
+''';
+
+const _resolvedBillText = '''
+微信支付
+支付详情
+当前状态
+支付成功
+-42.80
+支付时间
+2026年07月17日 15:07:18
+商户全称
+极光测试实验室
+支付方式
+零钱
+交易单号
+4200002666202607175678901234
 ''';

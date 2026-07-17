@@ -6,6 +6,8 @@ import 'rules/billing_rule_engine.dart';
 import 'rules/billing_rule_models.dart';
 import 'rules/billing_rule_trace.dart';
 
+typedef PausedBillingRuleSetLoader = Future<BillingRuleSet> Function();
+
 class FastBillingRuleEvaluation {
   final OcrResult result;
   final bool accepted;
@@ -25,11 +27,13 @@ class FastBillingRuleService {
 
   final BillingRuleRepository ruleRepository;
   final BillingRuleEngine ruleEngine;
+  final PausedBillingRuleSetLoader? loadPausedExtractionRules;
   final double minimumConfidence;
 
   const FastBillingRuleService({
     required this.ruleRepository,
     required this.ruleEngine,
+    this.loadPausedExtractionRules,
     this.minimumConfidence = defaultMinimumConfidence,
   });
 
@@ -68,6 +72,20 @@ class FastBillingRuleService {
       ruleTrace: ruleTrace,
     );
     final rejectReasons = _rejectReasons(ruleResult, mergedResult);
+    final pausedRules = await loadPausedExtractionRules?.call();
+    if (pausedRules != null && pausedRules.templates.isNotEmpty) {
+      final pausedResult = await ruleEngine.evaluate(
+        ruleSet: pausedRules,
+        ocrText: baseResult.rawText,
+        preprocessResult: preprocessResult,
+        sourcePackage: sourcePackage,
+        sourceAppName: sourceInfo?.appName,
+        sourcePaymentChannel: sourceInfo?.paymentChannel,
+      );
+      if (pausedResult.matchedTemplateId != null) {
+        rejectReasons.add('sync_extraction_conflict');
+      }
+    }
     final accepted = rejectReasons.isEmpty;
 
     return FastBillingRuleEvaluation(

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_cloud_sync/flutter_cloud_sync.dart' hide SyncStatus;
 
+import '../../data/db.dart';
 import '../../providers/database_providers.dart';
 import '../../services/billing/regression_sample_store.dart';
 import '../../services/billing/rules/billing_rule_engine_impl.dart';
@@ -12,6 +13,18 @@ import 'sync_engine.dart';
 /// BeeCount Cloud 同步回归门禁使用的生产公共规则仓库。
 RuntimeBillingRuleRepository productionSyncPublicRuleRepository() =>
     productionBillingRuleRepository();
+
+PersonalRuleSyncRegressionGate productionPersonalRuleSyncRegressionGate(
+  BeeDatabase db,
+) =>
+    PersonalRuleSyncRegressionGate(
+      engine: BillingRuleEngineImpl(),
+      revisionStore: SqlitePersonalRuleRevisionStore(db),
+      regressionSamples: const PlatformPersonalRuleRegressionSampleSource(
+        RegressionSampleStore(),
+      ),
+      loadPublicRules: productionSyncPublicRuleRepository().loadActiveRuleSet,
+    );
 
 /// ChangeTracker provider
 final changeTrackerProvider = Provider<ChangeTracker>((ref) {
@@ -30,14 +43,8 @@ final syncEngineProvider = Provider.family<SyncEngine, BeeCountCloudProvider>(
       provider: provider,
       changeTracker: tracker,
       repo: repo,
-      personalRuleRegressionGate: PersonalRuleSyncRegressionGate(
-        engine: BillingRuleEngineImpl(),
-        revisionStore: SqlitePersonalRuleRevisionStore(db),
-        regressionSamples: const PlatformPersonalRuleRegressionSampleSource(
-          RegressionSampleStore(),
-        ),
-        loadPublicRules: productionSyncPublicRuleRepository().loadActiveRuleSet,
-      ).call,
+      personalRuleRegressionGate:
+          productionPersonalRuleSyncRegressionGate(db).call,
     );
   },
 );

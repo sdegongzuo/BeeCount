@@ -2,6 +2,7 @@ import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/category_repository.dart';
 import 'package:beecount/data/repositories/local/local_category_repository.dart';
 import 'package:beecount/services/billing/personal_category_rule_store.dart';
+import 'package:beecount/services/billing/rules/personal_rule_sync_repository.dart';
 import 'package:drift/native.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
@@ -68,9 +69,33 @@ void main() {
     );
   });
 
+  test('物化规则被移除后未解决的不可变分类修订仍禁止删除', () async {
+    final sourceId = await repo.createCategory(name: '旧分类', kind: 'expense');
+    final source = await repo.getCategoryById(sourceId);
+    await SqlitePersonalCategoryRuleStore(db).remember(
+      matchText: '咖啡',
+      categorySyncId: source!.syncId!,
+      ledgerId: null,
+    );
+    await db.customStatement('DELETE FROM personal_category_rules');
+
+    final preview = await repo.getCategoryMigrationPreview(
+      fromCategoryId: sourceId,
+      toCategoryId: await repo.createCategory(name: '临时目标', kind: 'expense'),
+    );
+    expect(preview.personalCategoryRuleCount, 1);
+    await expectLater(
+      repo.deleteCategory(sourceId),
+      throwsA(isA<CategoryReferencedException>()),
+    );
+  });
+
   test('预览并在同一事务迁移全部引用后删除旧分类', () async {
     final ledgerId = await db.into(db.ledgers).insert(
-          LedgersCompanion.insert(name: '账本'),
+          LedgersCompanion.insert(
+            name: '账本',
+            syncId: const Value('ledger-sync'),
+          ),
         );
     final sourceId = await repo.createCategory(name: '旧', kind: 'expense');
     final targetId = await repo.createCategory(name: '新', kind: 'expense');
@@ -131,6 +156,41 @@ void main() {
         targetId);
     expect(
         (await rules.loadActiveRules()).single.categorySyncId, target!.syncId);
+    final pending = await PersonalRuleSyncRepository(db).pendingUpload();
+    expect(
+      pending.map((revision) => (
+            revision.payload['category_sync_id'],
+            revision.resolvedRevisionIds,
+          )),
+      contains(predicate<(Object?, List<String>)>(
+        (item) => item.$1 == target.syncId && item.$2.isNotEmpty,
+      )),
+    );
+    final resolution = pending
+        .where((revision) => revision.resolvedRevisionIds.isNotEmpty)
+        .single;
+    expect(resolution.resolvedRevisionIds, hasLength(1));
+
+    final remoteDb = BeeDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(remoteDb.close);
+    await remoteDb.into(remoteDb.ledgers).insert(
+          LedgersCompanion.insert(
+            name: '远端账本',
+            syncId: const Value('ledger-sync'),
+          ),
+        );
+    final remoteRepository = PersonalRuleSyncRepository(remoteDb);
+    final converged = await remoteRepository.mergeRemote(
+      pending.reversed,
+      localDeviceId: 'remote-device',
+    );
+    expect(converged.pausedMatchKeys, isEmpty);
+    expect(
+      (await SqlitePersonalCategoryRuleStore(remoteDb).loadActiveRules())
+          .single
+          .categorySyncId,
+      target.syncId,
+    );
   });
 
   test('迁移任一步失败时全部回滚', () async {

@@ -8,6 +8,8 @@ import 'package:beecount/services/billing/personal_note_preference_store.dart';
 import 'package:beecount/services/billing/rules/billing_rule_engine_impl.dart';
 import 'package:beecount/services/billing/rules/billing_rule_models.dart';
 import 'package:beecount/services/billing/rules/billing_rule_repository.dart';
+import 'package:beecount/services/billing/rules/personal_rule_sync_repository.dart';
+import 'package:beecount/services/billing/rules/personal_rule_sync_service.dart';
 import 'package:beecount/services/data/seed_service.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
@@ -172,6 +174,67 @@ confidence = 0.9
     final transaction = await repo.getTransactionById(transactionId!);
     expect(transaction?.categoryId, travelCategoryId);
     expect(transaction?.needsClassification, isFalse);
+  });
+
+  test('同步分类冲突暂停范围优先于页面规则和商户词典并强制待分类', () async {
+    final foodId = await repo.createCategory(name: '餐饮', kind: 'expense');
+    final travelId = await repo.createCategory(name: '交通', kind: 'expense');
+    final food = await repo.getCategoryById(foodId);
+    final travel = await repo.getCategoryById(travelId);
+    PersonalRuleRevision revision(String id, String device, String target) =>
+        PersonalRuleRevision(
+          revisionId: id,
+          ruleId: 'category:global:天津海河测试餐厅甲',
+          originDeviceId: device,
+          originVersion: 1,
+          kind: PersonalRuleSyncKind.category,
+          scopeKey: 'global',
+          conditionKey: '天津海河测试餐厅甲',
+          payload: {
+            'match_text': '天津海河测试餐厅甲',
+            'category_sync_id': target,
+          },
+        );
+    await PersonalRuleSyncRepository(db).mergeRemote(
+      [
+        revision('food', 'device-a', food!.syncId!),
+        revision('travel', 'device-b', travel!.syncId!),
+      ],
+      localDeviceId: 'local-device',
+    );
+
+    final transactionId = await BillCreationService(
+      repo,
+      personalCategoryRules: SqlitePersonalCategoryRuleStore(db),
+    ).createBillTransaction(
+      result: OcrResult(
+        rawText: '天津海河测试餐厅甲 支付成功',
+        amount: -28,
+        time: DateTime(2026, 7, 17),
+        merchantFullName: '天津海河测试餐厅甲',
+        billingRuleResult: BillingRuleResult(
+          matchedTemplateId: 'page-category',
+          fields: {
+            'details.category_sync_id': BillingRuleFieldResult(
+              field: 'details.category_sync_id',
+              value: travel.syncId!,
+              confidence: 0.9,
+              extractorType: 'constant',
+            ),
+          },
+          details: {'category_sync_id': travel.syncId!},
+        ),
+        details: {'category_sync_id': travel.syncId!},
+        allNumbers: const ['28'],
+      ),
+      ledgerId: ledgerId,
+      billingTypes: const ['image'],
+      autoAddTags: false,
+    );
+
+    final transaction = await repo.getTransactionById(transactionId!);
+    expect(transaction?.categoryId, isNot(anyOf(foodId, travelId)));
+    expect(transaction?.needsClassification, isTrue);
   });
 
   test('图片自动分类不使用任意备注作为个人规则证据', () async {

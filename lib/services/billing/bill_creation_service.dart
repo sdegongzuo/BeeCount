@@ -52,6 +52,16 @@ class BillCreationService {
             categories.first.kind,
             categories,
           );
+    if (!allowAiCategory &&
+        ledgerId != null &&
+        personalCategoryRules != null &&
+        personalEvidence != null &&
+        await personalCategoryRules!.isMatchPaused(
+          ledgerId: ledgerId,
+          matchText: personalEvidence,
+        )) {
+      return null;
+    }
     if (ledgerId != null &&
         personalCategoryRules != null &&
         personalEvidence != null &&

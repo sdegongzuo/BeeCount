@@ -1,16 +1,48 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../data/db.dart';
+import 'billing_rule_models.dart';
 import 'personal_rule_sync_service.dart';
+
+class PersonalRuleSyncConflict {
+  final String matchKey;
+  final PersonalRuleSyncKind kind;
+  final String scopeKey;
+  final String conditionKey;
+  final List<PersonalRuleRevision> revisions;
+  final Map<String, String> categoryNamesBySyncId;
+
+  const PersonalRuleSyncConflict({
+    required this.matchKey,
+    required this.kind,
+    required this.scopeKey,
+    required this.conditionKey,
+    required this.revisions,
+    this.categoryNamesBySyncId = const {},
+  });
+}
 
 /// 个人规则同步的 SQLite 权威存储。同步修订与设备本地 OCR 样本分表保存。
 class PersonalRuleSyncRepository {
-  final BeeDatabase db;
+  static final Expando<StreamController<void>> _changeControllers =
+      Expando<StreamController<void>>('personal-rule-sync-changes');
 
-  const PersonalRuleSyncRepository(this.db);
+  final BeeDatabase db;
+  final PersonalRuleRegressionGate? conflictResolutionRegressionGate;
+
+  const PersonalRuleSyncRepository(
+    this.db, {
+    this.conflictResolutionRegressionGate,
+  });
+
+  StreamController<void> get _changeController =>
+      _changeControllers[db] ??= StreamController<void>.broadcast(sync: true);
+
+  void _notifyChanged() => _changeController.add(null);
 
   Future<void> ensureSchema() async {
     await db.customStatement(
@@ -119,6 +151,283 @@ class PersonalRuleSyncRepository {
     return result;
   }
 
+  /// 返回当前会暂停自动行为的同步冲突，供手机端审核页面展示。
+  Future<List<PersonalRuleSyncConflict>> listConflicts() async {
+    await ensureSchema();
+    final pauseRows = await db
+        .customSelect(
+          'SELECT match_key FROM personal_rule_sync_pauses ORDER BY match_key',
+        )
+        .get();
+    if (pauseRows.isEmpty) return const [];
+    final paused =
+        pauseRows.map((row) => row.read<String>('match_key')).toSet();
+    final rows = await db.customSelect(
+      '''SELECT r.* FROM personal_rule_sync_revisions r
+             JOIN personal_rule_sync_state s ON s.revision_id = r.revision_id
+             WHERE s.state IN ('conflict', 'pendingValidation')
+             ORDER BY r.revision_id''',
+    ).get();
+    final grouped = <String, List<PersonalRuleRevision>>{};
+    for (final row in rows) {
+      final revision = _fromRow(row.data);
+      if (paused.contains(revision.matchKey)) {
+        grouped.putIfAbsent(revision.matchKey, () => []).add(revision);
+      }
+    }
+    final result = <PersonalRuleSyncConflict>[];
+    for (final entry in grouped.entries) {
+      final categoryNames = <String, String>{};
+      if (entry.value.first.kind == PersonalRuleSyncKind.category) {
+        for (final revision in entry.value) {
+          final syncId = revision.payload['category_sync_id'];
+          if (syncId is! String || categoryNames.containsKey(syncId)) continue;
+          final category = await (db.select(db.categories)
+                ..where((item) => item.syncId.equals(syncId)))
+              .getSingleOrNull();
+          if (category != null) categoryNames[syncId] = category.name;
+        }
+      }
+      result.add(PersonalRuleSyncConflict(
+        matchKey: entry.key,
+        kind: entry.value.first.kind,
+        scopeKey: entry.value.first.scopeKey,
+        conditionKey: entry.value.first.conditionKey,
+        revisions: List.unmodifiable(entry.value),
+        categoryNamesBySyncId: Map.unmodifiable(categoryNames),
+      ));
+    }
+    return List.unmodifiable(result);
+  }
+
+  /// 监听同步合并或本机裁决造成的冲突列表变化。
+  ///
+  /// 控制器按数据库实例共享，因此同步引擎和设置页即使使用不同 Repository
+  /// 实例，仍能在同一个 App 进程内立即刷新。
+  Stream<List<PersonalRuleSyncConflict>> watchConflicts() {
+    late final StreamController<List<PersonalRuleSyncConflict>> controller;
+    late final StreamSubscription<void> changes;
+    var queue = Future<void>.value();
+
+    void scheduleRead() {
+      queue = queue.then((_) async {
+        final conflicts = await listConflicts();
+        if (controller.hasListener) controller.add(conflicts);
+      }).catchError((Object error, StackTrace stackTrace) {
+        if (controller.hasListener) controller.addError(error, stackTrace);
+      });
+    }
+
+    controller = StreamController<List<PersonalRuleSyncConflict>>(
+      onListen: () {
+        changes = _changeController.stream.listen((_) => scheduleRead());
+        scheduleRead();
+      },
+      onCancel: () => changes.cancel(),
+    );
+    return controller.stream;
+  }
+
+  /// 加载当前暂停范围中的提取模板，仅用于判断本次 OCR 是否必须待确认。
+  Future<BillingRuleSet> loadPausedExtractionRuleSet() async {
+    await ensureSchema();
+    final paused = (await db
+            .customSelect('SELECT match_key FROM personal_rule_sync_pauses')
+            .get())
+        .map((row) => row.read<String>('match_key'))
+        .toSet();
+    if (paused.isEmpty) {
+      return const BillingRuleSet(
+        schemaVersion: 1,
+        rulesVersion: 'sync-paused-empty',
+        paymentChannels: [],
+        templates: [],
+      );
+    }
+    final rows = await db.customSelect(
+      '''SELECT r.* FROM personal_rule_sync_revisions r
+             JOIN personal_rule_sync_state s ON s.revision_id = r.revision_id
+             WHERE r.kind = 'extraction'
+               AND s.state IN ('conflict', 'pendingValidation')''',
+    ).get();
+    final templates = <BillingRuleTemplate>[];
+    for (final row in rows) {
+      final revision = _fromRow(row.data);
+      if (!paused.contains(revision.matchKey)) continue;
+      final raw = revision.payload['template'];
+      if (raw is! Map) continue;
+      templates.add(BillingRuleTemplate.fromJson(
+        Map<String, dynamic>.from(raw),
+      ));
+    }
+    return BillingRuleSet(
+      schemaVersion: 1,
+      rulesVersion: 'sync-paused',
+      paymentChannels: const [],
+      templates: List.unmodifiable(templates),
+    );
+  }
+
+  Future<bool> isCategoryMatchPaused({
+    required int ledgerId,
+    required String matchText,
+  }) async {
+    final normalized = matchText.trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+    final ledger = await (db.select(db.ledgers)
+          ..where((item) => item.id.equals(ledgerId)))
+        .getSingleOrNull();
+    final ledgerSyncId = ledger?.syncId?.trim();
+    final scopes = <String>{'global', 'local-ledger:$ledgerId'};
+    if (ledgerSyncId != null && ledgerSyncId.isNotEmpty) {
+      scopes.add('ledger:$ledgerSyncId');
+    }
+    for (final conflict in await listConflicts()) {
+      if (conflict.kind != PersonalRuleSyncKind.category ||
+          !scopes.contains(conflict.scopeKey)) {
+        continue;
+      }
+      final raw = conflict.revisions.first.payload['match_text'] as String? ??
+          conflict.conditionKey;
+      final condition =
+          raw.startsWith('merchant:') ? raw.substring('merchant:'.length) : raw;
+      if (condition.trim().isNotEmpty &&
+          normalized.contains(condition.trim().toLowerCase())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<int> countUnresolvedCategoryReferences(String categorySyncId) async {
+    await ensureSchema();
+    return (await db.customSelect(
+      '''SELECT COUNT(*) AS count
+                 FROM personal_rule_sync_revisions referenced
+                 WHERE referenced.kind = 'category'
+                   AND json_extract(referenced.payload_json, '\$.category_sync_id') = ?
+                   AND NOT EXISTS (
+                     SELECT 1
+                     FROM personal_rule_sync_revisions resolver,
+                          json_each(resolver.resolved_revision_ids_json) resolved
+                     WHERE resolved.value = referenced.revision_id
+                   )''',
+      variables: [Variable.withString(categorySyncId)],
+    ).getSingle())
+        .read<int>('count');
+  }
+
+  /// 用新的不可变解决修订迁移分类引用，历史修订保持原文不变。
+  Future<void> migrateCategoryReferences({
+    required String fromCategorySyncId,
+    required String toCategorySyncId,
+  }) async {
+    await ensureSchema();
+    final rows = await db.customSelect(
+      '''SELECT referenced.*
+             FROM personal_rule_sync_revisions referenced
+             WHERE referenced.kind = 'category'
+               AND json_extract(referenced.payload_json, '\$.category_sync_id') = ?
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM personal_rule_sync_revisions resolver,
+                      json_each(resolver.resolved_revision_ids_json) resolved
+                 WHERE resolved.value = referenced.revision_id
+               )
+             ORDER BY referenced.revision_id''',
+      variables: [Variable.withString(fromCategorySyncId)],
+    ).get();
+    final groups = <String, List<PersonalRuleRevision>>{};
+    for (final row in rows) {
+      final revision = _fromRow(row.data);
+      groups.putIfAbsent(revision.matchKey, () => []).add(revision);
+    }
+    var sequence = 0;
+    for (final group in groups.values) {
+      final chosen = group.last;
+      await saveLocal(PersonalRuleRevision(
+        revisionId: const Uuid().v4(),
+        ruleId: chosen.ruleId,
+        originDeviceId: '',
+        originVersion: DateTime.now().microsecondsSinceEpoch + sequence++,
+        kind: PersonalRuleSyncKind.category,
+        scopeKey: chosen.scopeKey,
+        conditionKey: chosen.conditionKey,
+        payload: {
+          ...chosen.payload,
+          'category_sync_id': toCategorySyncId,
+        },
+        resolvedRevisionIds:
+            group.map((revision) => revision.revisionId).toList(),
+      ));
+    }
+  }
+
+  /// 用户选择一个候选后生成新的本地不可变解决修订并立即重新物化。
+  ///
+  /// 新修订保持 `pending_upload`，所以上传到其他设备后会用同一组
+  /// `resolvedRevisionIds` 收敛旧冲突。
+  Future<PersonalRuleSyncResult> resolveConflict({
+    required String matchKey,
+    required String chosenRevisionId,
+    PersonalRuleRegressionGate? regressionGate,
+  }) async {
+    final conflicts = await listConflicts();
+    PersonalRuleSyncConflict? conflict;
+    for (final candidate in conflicts) {
+      if (candidate.matchKey == matchKey) {
+        conflict = candidate;
+        break;
+      }
+    }
+    if (conflict == null) throw StateError('personal_rule_conflict_not_found');
+    PersonalRuleRevision? chosen;
+    for (final revision in conflict.revisions) {
+      if (revision.revisionId == chosenRevisionId) {
+        chosen = revision;
+        break;
+      }
+    }
+    if (chosen == null) {
+      throw StateError('personal_rule_conflict_choice_not_found');
+    }
+    final selectedConflict = conflict;
+    final selectedRevision = chosen;
+    final deviceId = await localDeviceId();
+    if (selectedRevision.kind == PersonalRuleSyncKind.extraction &&
+        selectedRevision.originDeviceId != deviceId) {
+      final gate = regressionGate ?? conflictResolutionRegressionGate;
+      if (gate == null) {
+        throw StateError('personal_rule_extraction_regression_required');
+      }
+      final verdict = await gate(selectedRevision);
+      if (verdict != LocalRegressionVerdict.passed) {
+        throw StateError('personal_rule_extraction_regression_not_passed');
+      }
+    }
+    final resolutionId = const Uuid().v4();
+    return db.transaction(() async {
+      await saveLocal(PersonalRuleRevision(
+        revisionId: resolutionId,
+        ruleId: selectedRevision.ruleId,
+        originDeviceId: '',
+        originVersion: DateTime.now().microsecondsSinceEpoch,
+        kind: selectedRevision.kind,
+        scopeKey: selectedRevision.scopeKey,
+        conditionKey: selectedRevision.conditionKey,
+        payload: selectedRevision.payload,
+        resolvedRevisionIds:
+            selectedConflict.revisions.map((item) => item.revisionId).toList(),
+      ));
+      final stored = (await pendingUpload())
+          .singleWhere((revision) => revision.revisionId == resolutionId);
+      return mergeRemote(
+        [stored],
+        localDeviceId: deviceId,
+      );
+    });
+  }
+
   Future<void> markUploaded(Iterable<String> revisionIds) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.transaction(() async {
@@ -137,7 +446,7 @@ class PersonalRuleSyncRepository {
     PersonalRuleRegressionGate? regressionGate,
   }) async {
     await ensureSchema();
-    return db.transaction(() async {
+    final result = await db.transaction(() async {
       for (final revision in incoming) {
         await _insertImmutable(revision, syncState: 'synced');
       }
@@ -192,6 +501,8 @@ class PersonalRuleSyncRepository {
       await _materializeActiveExtractionRules(result);
       return result;
     });
+    _notifyChanged();
+    return result;
   }
 
   Future<void> _materializeActiveExtractionRules(

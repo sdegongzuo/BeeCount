@@ -29,7 +29,8 @@ class PersonalRuleSyncRegressionGate {
   Future<LocalRegressionVerdict> call(PersonalRuleRevision revision) async {
     final rawTemplate = revision.payload['template'];
     if (rawTemplate is! Map) return LocalRegressionVerdict.rejected;
-    final candidate = _templateFromJson(Map<String, dynamic>.from(rawTemplate));
+    final candidate =
+        BillingRuleTemplate.fromJson(Map<String, dynamic>.from(rawTemplate));
     final batch = await regressionSamples.readBatch();
     if (batch.unreadableSampleIds.isNotEmpty || batch.samples.isEmpty) {
       return LocalRegressionVerdict.insufficient;
@@ -834,39 +835,6 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
         schemaVersion: 1,
         rulesVersion: 'personal-$version',
         paymentChannels: const [],
-        templates: rulesJson.map(_templateFromJson).toList());
+        templates: rulesJson.map(BillingRuleTemplate.fromJson).toList());
   }
-}
-
-BillingRuleTemplate _templateFromJson(Map<String, dynamic> json) {
-  final match = json['match'] as Map<String, dynamic>;
-  return BillingRuleTemplate(
-    id: json['id'] as String,
-    enabled: json['enabled'] as bool? ?? true,
-    priority: json['priority'] as int? ?? 0,
-    origin: BillingRuleOrigin.personal,
-    revision: json['revision'] as int? ?? 1,
-    match: BillingRuleTemplateMatch(
-      sourcePackages: (match['source_packages'] as List).cast<String>(),
-      requiredSource: match['required_source'] as bool? ?? false,
-      appNameKeywords: (match['app_name_keywords'] as List).cast<String>(),
-      keywordsAll: (match['keywords_all'] as List).cast<String>(),
-      keywordsAny: (match['keywords_any'] as List).cast<String>(),
-    ),
-    extractors: (json['extractors'] as List)
-        .cast<Map<String, dynamic>>()
-        .map((item) => BillingFieldExtractorRule(
-              id: item['id'] as String?,
-              field: item['field'] as String,
-              type: item['type'] as String,
-              value: item['value'] as String?,
-              label: item['label'] as String?,
-              parser: item['parser'] as String?,
-              pattern: item['pattern'] as String?,
-              confidence: (item['confidence'] as num?)?.toDouble() ?? 0.8,
-              options: (item['options'] as Map?)?.cast<String, dynamic>() ??
-                  const {},
-            ))
-        .toList(),
-  );
 }

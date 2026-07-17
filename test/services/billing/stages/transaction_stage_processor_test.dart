@@ -150,6 +150,34 @@ void main() {
     expect(txService.called, isTrue);
   });
 
+  test('同步提取冲突即使金额时间完整也保存待确认草稿', () async {
+    final txService = FakeTransactionCreationService();
+    final processor =
+        TransactionStageProcessor(txService: txService, repo: repo);
+    final job = await repo.createJob(imagePath: '/tmp/sync-conflict.png');
+    final candidate = OcrResult(
+      rawText: '金额 18.00\n时间 2026-07-17 10:30',
+      allNumbers: const ['18.00'],
+      amount: 18,
+      time: DateTime(2026, 7, 17, 10, 30),
+      fastBillingRejectReasons: const ['sync_extraction_conflict'],
+    );
+    await repo.updateRuleResultJson(job.id, jsonEncode(candidate.toJson()));
+
+    final result = await processor.process(
+      (await repo.findById(job.id))!,
+      DateTime.now().add(const Duration(seconds: 30)),
+      PipelineContext(),
+    );
+
+    expect(result.awaitingConfirmation, isTrue);
+    expect(txService.called, isFalse);
+    expect(
+      (await repo.findById(job.id))!.status,
+      BillingJobStatus.awaitingConfirmation,
+    );
+  });
+
   test('missing critical field saves a recoverable confirmation draft',
       () async {
     final txService = FakeTransactionCreationService();

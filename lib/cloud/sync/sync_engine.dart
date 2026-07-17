@@ -463,6 +463,7 @@ class SyncEngine implements app.SyncService {
 
     final ruleRepository = PersonalRuleSyncRepository(db);
     final personalRevisions = await ruleRepository.pendingUpload();
+    var pushedPersonalRuleCount = 0;
     if (personalRevisions.isNotEmpty && ledger != null) {
       await provider.pushChanges(
           changes: personalRevisions
@@ -477,6 +478,7 @@ class SyncEngine implements app.SyncService {
               .toList());
       await ruleRepository
           .markUploaded(personalRevisions.map((r) => r.revisionId));
+      pushedPersonalRuleCount = personalRevisions.length;
     }
 
     // 关键:ledger 已被本地删除时不能直接 return 0。因为 deleteLedger 会先
@@ -504,7 +506,7 @@ class SyncEngine implements app.SyncService {
       } else {
         logger.debug('SyncEngine', 'push: 无待推送变更');
       }
-      return 0;
+      return pushedPersonalRuleCount;
     }
     // 当本地 ledger 行已删,从同批 changes 里捞 ledger_snapshot:delete 的
     // entity_sync_id(= 被删账本的 syncId / UUID),用它给所有相关 change 的
@@ -579,7 +581,7 @@ class SyncEngine implements app.SyncService {
     await changeTracker.markPushed(changes.map((c) => c.id).toList());
     logger.info('SyncEngine',
         'push: 推送 ${changes.length} 条变更 (当前账本 ${ledgerChanges.length} + 全局 ${globalChanges.length})');
-    return changes.length + personalRevisions.length;
+    return changes.length + pushedPersonalRuleCount;
   }
 
   /// 拉取远程变更并应用到本地。每一页变更用 `db.transaction` 包起来，把

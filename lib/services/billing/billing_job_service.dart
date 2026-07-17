@@ -29,6 +29,7 @@ import 'rules/billing_rule_engine_impl.dart';
 import 'rules/billing_rule_engine.dart';
 import 'rules/billing_rule_repository.dart';
 import 'rules/personal_rule_lifecycle_service.dart';
+import 'rules/personal_rule_sync_repository.dart';
 import '../platform/screenshot_source_info.dart';
 import '../system/logger_service.dart';
 
@@ -343,6 +344,8 @@ class BillingJobService {
               SqlitePersonalRuleRevisionStore(database).loadActiveRuleSet,
         ),
         ruleEngine: BillingRuleEngineImpl(),
+        loadPausedExtractionRules:
+            PersonalRuleSyncRepository(database).loadPausedExtractionRuleSet,
       );
 
   /// 构造待确认校正链使用的真实个人规则生命周期服务。

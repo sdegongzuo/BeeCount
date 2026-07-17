@@ -198,6 +198,49 @@ class BillingRuleTemplate {
     this.extractorSelection = BillingExtractorSelection.firstSuccessful,
   });
 
+  factory BillingRuleTemplate.fromJson(
+    Map<String, dynamic> json, {
+    BillingRuleOrigin origin = BillingRuleOrigin.personal,
+  }) {
+    final match = Map<String, dynamic>.from(json['match'] as Map);
+    List<String> strings(String key) =>
+        (match[key] as List?)?.whereType<String>().toList() ?? const [];
+    return BillingRuleTemplate(
+      id: json['id'] as String,
+      enabled: json['enabled'] as bool? ?? true,
+      priority: json['priority'] as int? ?? 0,
+      baseConfidence: (json['base_confidence'] as num?)?.toDouble() ?? 0.8,
+      origin: origin,
+      revision: json['revision'] as int? ?? 1,
+      extractorSelection: json['extractor_selection'] == 'highestConfidence'
+          ? BillingExtractorSelection.highestConfidence
+          : BillingExtractorSelection.firstSuccessful,
+      match: BillingRuleTemplateMatch(
+        sourcePackages: strings('source_packages'),
+        requiredSource: match['required_source'] as bool? ?? false,
+        appNameKeywords: strings('app_name_keywords'),
+        keywordsAll: strings('keywords_all'),
+        keywordsAny: strings('keywords_any'),
+      ),
+      extractors:
+          (json['extractors'] as List? ?? const []).whereType<Map>().map((raw) {
+        final item = Map<String, dynamic>.from(raw);
+        return BillingFieldExtractorRule(
+          id: item['id'] as String?,
+          field: item['field'] as String,
+          type: item['type'] as String,
+          value: item['value'] as String?,
+          label: item['label'] as String?,
+          parser: item['parser'] as String?,
+          pattern: item['pattern'] as String?,
+          confidence: (item['confidence'] as num?)?.toDouble() ?? 0.8,
+          options:
+              (item['options'] as Map?)?.cast<String, dynamic>() ?? const {},
+        );
+      }).toList(growable: false),
+    );
+  }
+
   int get specificity => match.specificity;
 
   BillingRuleTemplate copyWith({BillingRuleOrigin? origin}) =>
