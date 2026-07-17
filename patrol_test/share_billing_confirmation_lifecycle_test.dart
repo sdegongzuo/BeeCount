@@ -101,29 +101,23 @@ void main() {
           await _transactionCount(runtime.database);
       await _send('future-similar', _futureSimilarBillText);
       final future = await _waitForJob(runtime.database, 4);
-      expect(future.status, BillingJobStatus.succeeded);
-      expect(future.transactionId, isNotNull);
+      expect(future.status, BillingJobStatus.awaitingConfirmation);
+      expect(future.transactionId, isNull);
       expect(
         await _transactionCount(runtime.database),
-        transactionCountBeforeFuture + 1,
+        transactionCountBeforeFuture,
       );
       final futureResult = OcrResult.fromJson(
         jsonDecode(future.finalResultJson!) as Map<String, dynamic>,
       );
+      expect(futureResult.amount, correctedAmount);
       expect(
         futureResult.billingRuleTrace?.matchedRules,
         contains(predicate<Map<String, dynamic>>(
           (rule) => rule['origin'] == 'personal',
         )),
       );
-      final futureTransaction = await runtime.container
-          .read(repositoryProvider)
-          .getTransactionById(future.transactionId!);
-      expect(futureTransaction, isNotNull);
-      expect(
-        futureTransaction!.amount,
-        closeTo(correctedAmount == 12 ? 12 : 29.9, 0.001),
-      );
+      expect(futureResult.fastBillingRejectReasons, contains('missing_time'));
     },
     timeout: const Timeout(Duration(minutes: 3)),
   );
