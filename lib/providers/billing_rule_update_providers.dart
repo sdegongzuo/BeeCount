@@ -338,7 +338,8 @@ final billingRuleUpdateControllerProvider = StateNotifierProvider<
 /// 在首帧绘制完成后触发且仅触发一次公共规则自动检查。
 ///
 /// 把启动时机集中在这个边界，避免 `main()` 和业务首页各自发起检查，亦避免
-/// 包元数据、数据库恢复和磁盘规则恢复阻塞首帧。
+/// 联网下载与候选回归阻塞首帧。磁盘 journal 恢复仍由生产 runtime 在任何
+/// 规则消费者启动前完成。
 class BillingRuleUpdateStartupCheck extends ConsumerStatefulWidget {
   final Widget child;
 
