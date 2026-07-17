@@ -315,7 +315,7 @@ class ProductionBillingRuleUpdateGateway implements BillingRuleUpdateGateway {
 Future<BillingRuleUpdateGateway> loadProductionBillingRuleUpdateGateway(
     BeeDatabase database) async {
   final configuration = await BillingRuleUpdateConfiguration.loadProduction();
-  final service = await initializeProductionBillingRuleUpdateService(
+  final service = await productionBillingRuleUpdateRuntime.prepare(
     configuration: configuration,
     database: database,
   );

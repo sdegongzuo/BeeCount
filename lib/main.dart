@@ -23,6 +23,8 @@ import 'services/platform/image_share_handler_service.dart';
 import 'services/platform/share_billing_background_service.dart';
 import 'services/platform/app_link_service.dart';
 import 'services/system/logger_service.dart';
+import 'services/billing/rules/billing_rule_update_configuration.dart';
+import 'services/billing/rules/billing_rule_update_runtime.dart';
 import 'l10n/app_localizations.dart';
 import 'widget/widget_manager.dart';
 import 'package:home_widget/home_widget.dart';
@@ -92,6 +94,21 @@ Future<void> main() async {
   // 直接从 SharedPreferences 读取并设置到 appModeProvider
   await _initializeAppMode(container);
 
+  // journal 恢复是规则读取安全门，必须早于截图/分享消费者；只有联网日检延后
+  // 到首帧。生产 runtime 会让后续 controller 复用这里已恢复的同一服务。
+  final ruleUpdateConfiguration =
+      await BillingRuleUpdateConfiguration.loadProduction();
+  await productionBillingRuleUpdateRuntime.runAfterRecovery(
+    configuration: ruleUpdateConfiguration,
+    database: container.read(databaseProvider),
+    startConsumers: () async {
+      await _restoreScreenshotMonitor(container);
+      if (Platform.isAndroid) {
+        _setupImageShareHandler(container);
+      }
+    },
+  );
+
   // 注意：不再在启动时生成重复交易
   // 周期交易生成已移至 appSplashInitProvider 中（等待数据库完全初始化后执行）
   // await _generatePendingRecurringTransactions(container);
@@ -115,14 +132,6 @@ Future<void> main() async {
     await WidgetManager.registerCallback();
   } catch (e) {
     print('⚠️  小组件回调注册失败（可能在不支持的平台上运行）: $e');
-  }
-
-  // 恢复截图自动识别设置（Android专属），传入container
-  await _restoreScreenshotMonitor(container);
-
-  // 初始化图片分享处理服务（Android专属）
-  if (Platform.isAndroid) {
-    _setupImageShareHandler(container);
   }
 
   // 启动 URL 监听（用于快捷指令/AppLink 自动记账）

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../../data/db.dart';
 import '../regression_sample_store.dart';
 import 'billing_rule_engine_impl.dart';
@@ -6,6 +8,64 @@ import 'billing_rule_runtime_evaluator.dart';
 import 'billing_rule_update_configuration.dart';
 import 'billing_rule_update_service.dart';
 import 'personal_rule_lifecycle_service.dart';
+
+typedef ProductionBillingRuleUpdateInitializer
+    = Future<BillingRuleUpdateService> Function({
+  required BillingRuleUpdateConfiguration configuration,
+  required BeeDatabase database,
+});
+
+/// 进程级公共规则恢复门。
+///
+/// 首个规则消费者启动前必须等待 [runAfterRecovery]；首帧后的网络日检和设置页
+/// 则通过 [prepare] 复用同一服务，不重复恢复 journal。
+class ProductionBillingRuleUpdateRuntime {
+  final ProductionBillingRuleUpdateInitializer _initializer;
+  Future<BillingRuleUpdateService>? _serviceFuture;
+
+  ProductionBillingRuleUpdateRuntime({
+    ProductionBillingRuleUpdateInitializer initializer =
+        initializeProductionBillingRuleUpdateService,
+  }) : _initializer = initializer;
+
+  Future<BillingRuleUpdateService> prepare({
+    required BillingRuleUpdateConfiguration configuration,
+    required BeeDatabase database,
+  }) {
+    final existing = _serviceFuture;
+    if (existing != null) return existing;
+    final created = Future<BillingRuleUpdateService>.sync(
+      () => _initializer(
+        configuration: configuration,
+        database: database,
+      ),
+    );
+    _serviceFuture = created;
+    return _clearFailedPreparation(created);
+  }
+
+  Future<BillingRuleUpdateService> _clearFailedPreparation(
+    Future<BillingRuleUpdateService> created,
+  ) async {
+    try {
+      return await created;
+    } catch (_) {
+      if (identical(_serviceFuture, created)) _serviceFuture = null;
+      rethrow;
+    }
+  }
+
+  Future<T> runAfterRecovery<T>({
+    required BillingRuleUpdateConfiguration configuration,
+    required BeeDatabase database,
+    required FutureOr<T> Function() startConsumers,
+  }) async {
+    await prepare(configuration: configuration, database: database);
+    return startConsumers();
+  }
+}
+
+final productionBillingRuleUpdateRuntime = ProductionBillingRuleUpdateRuntime();
 
 /// 组装生产远程规则更新服务，默认接入真实黄金评测和本机加密样本回归。
 BillingRuleUpdateService createProductionBillingRuleUpdateService({
