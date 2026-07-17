@@ -47,6 +47,37 @@ class ShareBillingC2Fixture {
   String get attachmentDirectoryName =>
       'beecount_share_c2_${fixtureId}_attachments';
 
+  /// 从 OCR 的完整数值 token 中选择一个不同于当前金额的确认值。
+  ///
+  /// OCR 的候选列表可能同时包含 `18.50` 和它的整数片段 `18`。C2 只能
+  /// 模拟用户选择图片中真实存在的完整金额，不能把派生片段当成校正证据。
+  static double selectDistinctExactAmountCandidate({
+    required String rawText,
+    required double? currentAmount,
+    required Iterable<String> candidates,
+  }) {
+    final exactTokens = RegExp(
+      r'(?:^|[^\d.])([+-]?\d+(?:,\d{3})*(?:\.\d{1,2})?)(?=$|[^\d.])',
+      multiLine: true,
+    )
+        .allMatches(rawText)
+        .map((match) => match.group(1)!.replaceAll(',', ''))
+        .toSet();
+    final current = currentAmount?.abs();
+    for (final candidate in candidates) {
+      final normalized =
+          candidate.replaceAll(',', '').replaceAll(RegExp(r'[^0-9.+-]'), '');
+      final parsed = double.tryParse(normalized)?.abs();
+      if (parsed == null || parsed == 0 || parsed == current) continue;
+      if (exactTokens.contains(normalized) ||
+          exactTokens.contains('-$normalized') ||
+          exactTokens.contains('+$normalized')) {
+        return parsed;
+      }
+    }
+    throw StateError('fixture_did_not_produce_alternate_amount_candidate');
+  }
+
   @override
   bool operator ==(Object other) =>
       other is ShareBillingC2Fixture && other.fixtureId == fixtureId;

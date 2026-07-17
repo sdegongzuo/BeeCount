@@ -304,12 +304,11 @@ Future<int> _revisionCount(BeeDatabase db) async {
 }
 
 double _confirmedAmount(OcrResult result) {
-  final current = result.amount?.abs();
-  for (final value in result.allNumbers) {
-    final parsed = double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), ''));
-    if (parsed != null && parsed > 0 && parsed != current) return parsed;
-  }
-  throw StateError('fixture_did_not_produce_alternate_amount_candidate');
+  return ShareBillingC2Fixture.selectDistinctExactAmountCandidate(
+    rawText: result.rawText,
+    currentAmount: result.amount,
+    candidates: result.allNumbers,
+  );
 }
 
 class _EmptyRegressionSamples implements PersonalRuleRegressionSampleSource {

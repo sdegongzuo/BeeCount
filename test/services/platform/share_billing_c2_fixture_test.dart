@@ -87,5 +87,29 @@ void main() {
           'beecount_share_c2_issue6-c2-20260716_attachments');
       expect(main.fixtureId, 'issue6-c2-20260716');
     });
+
+    test(
+        'confirmation candidate ignores integer fragments of decimal OCR values',
+        () {
+      final selected = ShareBillingC2Fixture.selectDistinctExactAmountCandidate(
+        rawText: '商品金额\n12.00\n实付金额\n18.50',
+        currentAmount: 18.5,
+        candidates: const ['18.50', '18', '12.00', '12'],
+      );
+
+      expect(selected, 12.0);
+    });
+
+    test('confirmation candidate must be an exact numeric token in OCR text',
+        () {
+      expect(
+        () => ShareBillingC2Fixture.selectDistinctExactAmountCandidate(
+          rawText: '实付金额\n18.50',
+          currentAmount: 18.5,
+          candidates: const ['18.50', '18'],
+        ),
+        throwsStateError,
+      );
+    });
   });
 }
