@@ -266,6 +266,64 @@ void main() {
       expect(await active.readAsString(), contains('rulesVersion = "active"'));
     });
 
+    test('手动检查在激活 journal 之前失败也持久化稳定状态和活动版本', () async {
+      final active = File('${tempDir.path}/billing_rules.active.toml');
+      await active.writeAsString(_validToml(rulesVersion: 'active'));
+      final service = BillingRuleUpdateService(
+        storageDirectory: tempDir,
+        configuration: _testConfiguration,
+        manifestLoader: (_) async => throw const SocketException(
+          'secret-host.internal refused',
+        ),
+        upgradeEvaluation: (_) async => true,
+        personalRegression: (_) async =>
+            const BillingRulePersonalRegressionResult.passed(),
+        personalRuleArchiver: (_) async {},
+        clock: () => DateTime.utc(2026, 7, 17, 12),
+      );
+
+      expect(
+        (await service.checkForUpdate()).status,
+        BillingRuleUpdateStatus.failed,
+      );
+      final diagnostics = await service.checkDiagnostics();
+
+      expect(diagnostics?.status, BillingRuleUpdateStatus.failed);
+      expect(diagnostics?.rulesVersion, 'active');
+      expect(diagnostics?.reason, '规则检查失败，已继续使用安全快照');
+      expect(diagnostics?.reason, isNot(contains('secret-host')));
+      expect(diagnostics?.resultAt, DateTime.utc(2026, 7, 17, 12));
+    });
+
+    test('自动检查的禁用结果持久化且不访问网络', () async {
+      var networkCalls = 0;
+      final disabled = BillingRuleUpdateConfiguration.fromValues(
+        manifestUrl: '',
+        currentAppVersion: '1.0.0',
+      );
+      final service = BillingRuleUpdateService(
+        storageDirectory: tempDir,
+        configuration: disabled,
+        manifestLoader: (_) async {
+          networkCalls++;
+          return '';
+        },
+        upgradeEvaluation: (_) async => true,
+        personalRegression: (_) async =>
+            const BillingRulePersonalRegressionResult.passed(),
+      );
+
+      expect(
+        (await service.checkForUpdateIfDue()).status,
+        BillingRuleUpdateStatus.disabled,
+      );
+      final diagnostics = await service.checkDiagnostics();
+
+      expect(networkCalls, 0);
+      expect(diagnostics?.status, BillingRuleUpdateStatus.disabled);
+      expect(diagnostics?.reason, '远程规则更新未启用');
+    });
+
     test('two updater instances sharing storage never interleave', () async {
       final firstEntered = Completer<void>();
       final releaseFirst = Completer<void>();

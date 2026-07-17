@@ -162,9 +162,37 @@ class _BillingRuleUpdatePageState extends ConsumerState<BillingRuleUpdatePage> {
                     '最近成功',
                     _timeText(diagnostics?.lastSuccessAt),
                   ),
-                  if (diagnostics?.lastError != null) ...[
+                  if (diagnostics?.lastCheckStatus != null) ...[
                     BeeTokens.cardDivider(context),
-                    _statusRow(context, '持久诊断', diagnostics!.lastError!),
+                    _statusRow(
+                      context,
+                      '最近结果',
+                      diagnostics!.lastCheckStatus!.name,
+                    ),
+                  ],
+                  if (diagnostics?.lastCheckVersion != null) ...[
+                    BeeTokens.cardDivider(context),
+                    _statusRow(
+                      context,
+                      '检查版本',
+                      diagnostics!.lastCheckVersion!,
+                    ),
+                  ],
+                  if (diagnostics?.lastCheckAt != null) ...[
+                    BeeTokens.cardDivider(context),
+                    _statusRow(
+                      context,
+                      '结果时间',
+                      _timeText(diagnostics!.lastCheckAt),
+                    ),
+                  ],
+                  if (diagnostics?.stableDiagnostic != null) ...[
+                    BeeTokens.cardDivider(context),
+                    _statusRow(
+                      context,
+                      '持久诊断',
+                      diagnostics!.stableDiagnostic!,
+                    ),
                   ],
                 ],
               ),
@@ -323,5 +351,5 @@ String _resultText(BillingRuleUpdateResult result) {
     BillingRuleUpdateStatus.recovered => '已恢复上次中断的规则操作',
     BillingRuleUpdateStatus.failed => '规则操作失败，已继续使用安全快照',
   };
-  return result.message == null ? base : '$base\n${result.message}';
+  return base;
 }

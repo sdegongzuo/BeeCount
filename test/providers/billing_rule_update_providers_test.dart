@@ -3,9 +3,33 @@ import 'dart:async';
 import 'package:beecount/providers/billing_rule_update_providers.dart';
 import 'package:beecount/services/billing/rules/billing_rule_activation_journal.dart';
 import 'package:beecount/services/billing/rules/billing_rule_update_service.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('启动自动检查只在首帧完成后调度一次', (tester) async {
+    final gateway = _FakeGateway();
+    final controller = BillingRuleUpdateController(() async => gateway);
+
+    expect(gateway.dueCalls, 0);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          billingRuleUpdateControllerProvider.overrideWith((ref) => controller),
+        ],
+        child: const BillingRuleUpdateStartupCheck(
+          child: SizedBox.shrink(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(gateway.dueCalls, 1);
+    await tester.pump();
+    expect(gateway.dueCalls, 1);
+  });
+
   test('并发启动与 resume 只排队一次自动日检', () async {
     final gate = Completer<BillingRuleUpdateResult>();
     final gateway = _FakeGateway(onDue: () => gate.future);
@@ -83,7 +107,7 @@ void main() {
 
     await controller.initialize();
     expect(controller.state.initialized, isFalse);
-    expect(controller.state.error, '公共规则启动恢复失败');
+    expect(controller.state.error, '公共规则操作失败，请稍后重试');
 
     await controller.initialize();
     expect(attempts, 2);

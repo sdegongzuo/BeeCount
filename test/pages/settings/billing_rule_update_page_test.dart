@@ -57,14 +57,41 @@ void main() {
     await tester.pump();
     expect(gateway.manualCalls, 0);
   });
+
+  testWidgets('检查失败只展示稳定状态而不泄露原始异常正文', (tester) async {
+    final gateway = _PageGateway(
+      manualResult: const BillingRuleUpdateResult(
+        status: BillingRuleUpdateStatus.failed,
+        message: 'https://secret.internal token=abc123',
+      ),
+    );
+    final controller = BillingRuleUpdateController(() async => gateway);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          billingRuleUpdateControllerProvider.overrideWith((ref) => controller),
+        ],
+        child: const MaterialApp(home: BillingRuleUpdatePage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('立即检查更新'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('规则操作失败'), findsOneWidget);
+    expect(find.textContaining('secret.internal'), findsNothing);
+    expect(find.textContaining('abc123'), findsNothing);
+  });
 }
 
 class _PageGateway implements BillingRuleUpdateGateway {
   final bool enabled;
+  final BillingRuleUpdateResult? manualResult;
   int manualCalls = 0;
   int rollbackCalls = 0;
 
-  _PageGateway({this.enabled = true});
+  _PageGateway({this.enabled = true, this.manualResult});
 
   @override
   String? get disabledReason => enabled ? null : '未配置远程规则 manifest URL';
@@ -82,9 +109,10 @@ class _PageGateway implements BillingRuleUpdateGateway {
   @override
   Future<BillingRuleUpdateResult> checkNow() async {
     manualCalls++;
-    return const BillingRuleUpdateResult(
-      status: BillingRuleUpdateStatus.alreadyLatest,
-    );
+    return manualResult ??
+        const BillingRuleUpdateResult(
+          status: BillingRuleUpdateStatus.alreadyLatest,
+        );
   }
 
   @override

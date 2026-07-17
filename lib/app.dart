@@ -92,11 +92,6 @@ class _BeeAppState extends ConsumerState<BeeApp>
 
     // 后台刷新账本同步状态
     _refreshLedgersStatusInBackground();
-    // 非阻塞恢复并执行每日公共规则安全检查。服务内部会先恢复任何未完成的
-    // 激活 journal；失败只进入诊断状态，不阻塞首帧或改动旧安全快照。
-    unawaited(
-      ref.read(billingRuleUpdateControllerProvider.notifier).checkIfDue(),
-    );
     // 延迟监听 AppLink，确保 context 可用
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setupAppLinkListener();

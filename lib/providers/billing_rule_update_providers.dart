@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db.dart';
@@ -28,7 +29,10 @@ class BillingRuleUpdateDiagnosticsView {
   final BillingRuleActivationOperation? operation;
   final DateTime? lastAttemptAt;
   final DateTime? lastSuccessAt;
-  final String? lastError;
+  final BillingRuleUpdateStatus? lastCheckStatus;
+  final String? lastCheckVersion;
+  final DateTime? lastCheckAt;
+  final String? stableDiagnostic;
   final bool diskStateVerified;
 
   const BillingRuleUpdateDiagnosticsView({
@@ -39,7 +43,10 @@ class BillingRuleUpdateDiagnosticsView {
     this.operation,
     this.lastAttemptAt,
     this.lastSuccessAt,
-    this.lastError,
+    this.lastCheckStatus,
+    this.lastCheckVersion,
+    this.lastCheckAt,
+    this.stableDiagnostic,
     this.diskStateVerified = true,
   });
 
@@ -78,8 +85,11 @@ class BillingRuleUpdateViewState {
     String? manifestHost,
     bool clearManifestHost = false,
     BillingRuleUpdateAction? action,
+    bool clearAction = false,
     BillingRuleUpdateResult? lastResult,
+    bool clearLastResult = false,
     BillingRuleUpdateDiagnosticsView? diagnostics,
+    bool clearDiagnostics = false,
     String? error,
     bool clearError = false,
   }) {
@@ -91,9 +101,9 @@ class BillingRuleUpdateViewState {
           clearDisabledReason ? null : (disabledReason ?? this.disabledReason),
       manifestHost:
           clearManifestHost ? null : (manifestHost ?? this.manifestHost),
-      action: action ?? this.action,
-      lastResult: lastResult ?? this.lastResult,
-      diagnostics: diagnostics ?? this.diagnostics,
+      action: clearAction ? null : (action ?? this.action),
+      lastResult: clearLastResult ? null : (lastResult ?? this.lastResult),
+      diagnostics: clearDiagnostics ? null : (diagnostics ?? this.diagnostics),
       error: clearError ? null : (error ?? this.error),
     );
   }
@@ -220,9 +230,6 @@ class BillingRuleUpdateController
 }
 
 String _stableError(Object error) {
-  if (error is StateError) {
-    return error.message.toString();
-  }
   return '公共规则操作失败，请稍后重试';
 }
 
@@ -230,13 +237,13 @@ void _reportProductionError(Object error, StackTrace stackTrace) {
   logger.error('BillingRuleUpdate', '公共规则操作失败', error, stackTrace);
 }
 
-class _ProductionBillingRuleUpdateGateway implements BillingRuleUpdateGateway {
+class ProductionBillingRuleUpdateGateway implements BillingRuleUpdateGateway {
   final BillingRuleUpdateConfiguration configuration;
   final BillingRuleUpdateService service;
   final RuntimeBillingRuleRepository publicRepository;
   final BillingRuleStorage storage;
 
-  const _ProductionBillingRuleUpdateGateway({
+  const ProductionBillingRuleUpdateGateway({
     required this.configuration,
     required this.service,
     required this.publicRepository,
@@ -264,18 +271,31 @@ class _ProductionBillingRuleUpdateGateway implements BillingRuleUpdateGateway {
   @override
   Future<BillingRuleUpdateDiagnosticsView> diagnostics() async {
     final journal = await service.activationDiagnostics();
+    final check = await service.checkDiagnostics();
     final active = await publicRepository.loadActiveRuleSet();
+    final previousExists = await storage.previousFile.exists();
     final previous = await _loadPrevious();
+    if (journal?.lastError != null) {
+      logger.warning(
+        'BillingRuleUpdate',
+        '规则激活诊断存在未完成状态: ${journal!.lastError}',
+      );
+    }
     return BillingRuleUpdateDiagnosticsView(
       activeVersion: active.rulesVersion,
-      previousVersion: previous?.rulesVersion ?? journal?.previousVersion,
+      previousVersion: previous?.rulesVersion,
       candidateVersion: journal?.candidateVersion,
       journalState: journal?.state,
       operation: journal?.operation,
-      lastAttemptAt: journal?.lastAttemptAt,
-      lastSuccessAt: journal?.lastSuccessAt,
-      lastError: journal?.lastError,
-      diskStateVerified: journal?.diskStateVerified ?? true,
+      lastAttemptAt: check?.lastAttemptAt ?? journal?.lastAttemptAt,
+      lastSuccessAt: check?.lastSuccessAt ?? journal?.lastSuccessAt,
+      lastCheckStatus: check?.status,
+      lastCheckVersion: check?.rulesVersion,
+      lastCheckAt: check?.resultAt,
+      stableDiagnostic: check?.reason ??
+          (journal?.lastError == null ? null : '上次规则操作未完成，已保留安全快照'),
+      diskStateVerified: (journal?.diskStateVerified ?? true) &&
+          (!previousExists || previous != null),
     );
   }
 
@@ -292,14 +312,14 @@ class _ProductionBillingRuleUpdateGateway implements BillingRuleUpdateGateway {
   }
 }
 
-Future<BillingRuleUpdateGateway> _loadProductionGateway(
+Future<BillingRuleUpdateGateway> loadProductionBillingRuleUpdateGateway(
     BeeDatabase database) async {
   final configuration = await BillingRuleUpdateConfiguration.loadProduction();
   final service = await initializeProductionBillingRuleUpdateService(
     configuration: configuration,
     database: database,
   );
-  return _ProductionBillingRuleUpdateGateway(
+  return ProductionBillingRuleUpdateGateway(
     configuration: configuration,
     service: service,
     publicRepository: productionBillingRuleRepository(),
@@ -310,5 +330,41 @@ Future<BillingRuleUpdateGateway> _loadProductionGateway(
 final billingRuleUpdateControllerProvider = StateNotifierProvider<
     BillingRuleUpdateController, BillingRuleUpdateViewState>((ref) {
   final database = ref.watch(databaseProvider);
-  return BillingRuleUpdateController(() => _loadProductionGateway(database));
+  return BillingRuleUpdateController(
+    () => loadProductionBillingRuleUpdateGateway(database),
+  );
 });
+
+/// 在首帧绘制完成后触发且仅触发一次公共规则自动检查。
+///
+/// 把启动时机集中在这个边界，避免 `main()` 和业务首页各自发起检查，亦避免
+/// 包元数据、数据库恢复和磁盘规则恢复阻塞首帧。
+class BillingRuleUpdateStartupCheck extends ConsumerStatefulWidget {
+  final Widget child;
+
+  const BillingRuleUpdateStartupCheck({
+    required this.child,
+    super.key,
+  });
+
+  @override
+  ConsumerState<BillingRuleUpdateStartupCheck> createState() =>
+      _BillingRuleUpdateStartupCheckState();
+}
+
+class _BillingRuleUpdateStartupCheckState
+    extends ConsumerState<BillingRuleUpdateStartupCheck> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        ref.read(billingRuleUpdateControllerProvider.notifier).checkIfDue(),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}

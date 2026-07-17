@@ -77,6 +77,25 @@ class BillingRuleUpdateResult {
   });
 }
 
+/// 最近一次自动或手动检查的持久化、可直接展示的稳定诊断。
+class BillingRuleUpdateCheckDiagnostics {
+  final BillingRuleUpdateStatus status;
+  final String? rulesVersion;
+  final String reason;
+  final DateTime resultAt;
+  final DateTime? lastAttemptAt;
+  final DateTime? lastSuccessAt;
+
+  const BillingRuleUpdateCheckDiagnostics({
+    required this.status,
+    required this.reason,
+    required this.resultAt,
+    this.rulesVersion,
+    this.lastAttemptAt,
+    this.lastSuccessAt,
+  });
+}
+
 class BillingRuleUpdateService {
   static const activeFileName = BillingRuleStorage.activeFileName;
   static const previousFileName = BillingRuleStorage.previousFileName;
@@ -185,15 +204,40 @@ class BillingRuleUpdateService {
     });
   }
 
+  /// 读取自动/手动检查的稳定结果；原始异常只进入日志，不写入该展示边界。
+  Future<BillingRuleUpdateCheckDiagnostics?> checkDiagnostics() async {
+    final storage = await _storage();
+    return storage.runExclusive(() async {
+      final state = await _readCheckState(storage.lastCheckFile);
+      final status = state.lastStatus;
+      final resultAt = state.lastResultAt;
+      if (status == null || resultAt == null) return null;
+      return BillingRuleUpdateCheckDiagnostics(
+        status: status,
+        rulesVersion: state.lastRulesVersion,
+        reason: state.lastReason ?? _stableResultReason(status),
+        resultAt: resultAt,
+        lastAttemptAt: state.lastAttemptAt,
+        lastSuccessAt: state.lastSuccessAt,
+      );
+    });
+  }
+
   Future<BillingRuleUpdateResult> checkForUpdateIfDue({
     Duration minInterval = const Duration(days: 1),
   }) async {
-    final disabled = _disabledResult();
-    if (disabled != null) return disabled;
     final storage = await _storage();
     return storage.runExclusive(() async {
+      final disabled = _disabledResult();
+      if (disabled != null) {
+        await _recordCheckResult(storage, disabled, attempted: false);
+        return disabled;
+      }
       final recovery = await _reconcileInterruptedActivation(storage);
-      if (recovery.status == BillingRuleUpdateStatus.failed) return recovery;
+      if (recovery.status == BillingRuleUpdateStatus.failed) {
+        await _recordCheckResult(storage, recovery, attempted: false);
+        return recovery;
+      }
       await storage.directory.create(recursive: true);
       final lastCheckFile = storage.lastCheckFile;
       final now = clock().toUtc();
@@ -201,11 +245,14 @@ class BillingRuleUpdateService {
       final state = await _readCheckState(lastCheckFile);
       if (state.lastSuccessAt != null &&
           now.difference(state.lastSuccessAt!) < minInterval) {
-        return const BillingRuleUpdateResult(
+        const result = BillingRuleUpdateResult(
           status: BillingRuleUpdateStatus.notDue,
           message:
               'Update check skipped because the daily interval has not elapsed.',
         );
+        await _recordCheckResult(storage, result,
+            attempted: false, state: state);
+        return result;
       }
       final lastAttempt = state.lastAttemptAt;
       final lastAttemptFailed = lastAttempt != null &&
@@ -213,38 +260,37 @@ class BillingRuleUpdateService {
               lastAttempt.isAfter(state.lastSuccessAt!));
       if (lastAttemptFailed &&
           now.difference(lastAttempt) < configuration.failureRetryInterval) {
-        return const BillingRuleUpdateResult(
+        const result = BillingRuleUpdateResult(
           status: BillingRuleUpdateStatus.notDue,
           message: '上次更新失败，尚未到短退避重试时间。',
         );
+        await _recordCheckResult(storage, result,
+            attempted: false, state: state);
+        return result;
       }
 
       final result = await _checkForUpdate(storage);
-      final isSuccess = result.status == BillingRuleUpdateStatus.activated ||
-          result.status == BillingRuleUpdateStatus.alreadyLatest;
-      await lastCheckFile.writeAsString(
-        jsonEncode({
-          'lastAttemptAt': now.toIso8601String(),
-          if (isSuccess)
-            'lastSuccessAt': now.toIso8601String()
-          else if (state.lastSuccessAt != null)
-            'lastSuccessAt': state.lastSuccessAt!.toIso8601String(),
-        }),
-        flush: true,
-      );
-      await durability.syncFileAndParent(lastCheckFile);
+      await _recordCheckResult(storage, result, attempted: true, state: state);
       return result;
     });
   }
 
   Future<BillingRuleUpdateResult> checkForUpdate() async {
-    final disabled = _disabledResult();
-    if (disabled != null) return disabled;
     final storage = await _storage();
     return storage.runExclusive(() async {
+      final disabled = _disabledResult();
+      if (disabled != null) {
+        await _recordCheckResult(storage, disabled, attempted: false);
+        return disabled;
+      }
       final recovery = await _reconcileInterruptedActivation(storage);
-      if (recovery.status == BillingRuleUpdateStatus.failed) return recovery;
-      return _checkForUpdate(storage);
+      if (recovery.status == BillingRuleUpdateStatus.failed) {
+        await _recordCheckResult(storage, recovery, attempted: false);
+        return recovery;
+      }
+      final result = await _checkForUpdate(storage);
+      await _recordCheckResult(storage, result, attempted: true);
+      return result;
     });
   }
 
@@ -1054,14 +1100,61 @@ class BillingRuleUpdateService {
         return value is String ? DateTime.tryParse(value)?.toUtc() : null;
       }
 
+      BillingRuleUpdateStatus? parseStatus() {
+        final value = json['lastStatus'];
+        if (value is! String) return null;
+        for (final status in BillingRuleUpdateStatus.values) {
+          if (status.name == value) return status;
+        }
+        return null;
+      }
+
       // 兼容旧版本：旧 checkedAt 只代表一次尝试，不能再视为成功而压住 24h。
       return _BillingRuleCheckState(
         lastAttemptAt: parse('lastAttemptAt') ?? parse('checkedAt'),
         lastSuccessAt: parse('lastSuccessAt'),
+        lastResultAt: parse('lastResultAt'),
+        lastStatus: parseStatus(),
+        lastRulesVersion: json['lastRulesVersion'] as String?,
+        lastReason: json['lastReason'] as String?,
       );
     } catch (_) {
       return const _BillingRuleCheckState();
     }
+  }
+
+  Future<void> _recordCheckResult(
+    BillingRuleStorage storage,
+    BillingRuleUpdateResult result, {
+    required bool attempted,
+    _BillingRuleCheckState? state,
+  }) async {
+    final previous = state ?? await _readCheckState(storage.lastCheckFile);
+    final now = clock().toUtc();
+    final isSuccess = result.status == BillingRuleUpdateStatus.activated ||
+        result.status == BillingRuleUpdateStatus.alreadyLatest;
+    final version = result.rulesVersion ??
+        (await _snapshot(storage.activeFile))?.version ??
+        previous.lastRulesVersion;
+    await storage.lastCheckFile.writeAsString(
+      jsonEncode({
+        'schemaVersion': 1,
+        if (attempted)
+          'lastAttemptAt': now.toIso8601String()
+        else if (previous.lastAttemptAt != null)
+          'lastAttemptAt': previous.lastAttemptAt!.toIso8601String(),
+        if (isSuccess)
+          'lastSuccessAt': now.toIso8601String()
+        else if (previous.lastSuccessAt != null)
+          'lastSuccessAt': previous.lastSuccessAt!.toIso8601String(),
+        'lastResultAt': now.toIso8601String(),
+        'lastStatus': result.status.name,
+        if (version != null) 'lastRulesVersion': version,
+        'lastReason': _stableResultReason(result.status),
+      }),
+      flush: true,
+    );
+    await durability.syncFileAndParent(storage.lastCheckFile);
   }
 
   BillingRuleUpdateResult? _disabledResult() {
@@ -1087,8 +1180,19 @@ class BillingRuleUpdateService {
 class _BillingRuleCheckState {
   final DateTime? lastAttemptAt;
   final DateTime? lastSuccessAt;
+  final DateTime? lastResultAt;
+  final BillingRuleUpdateStatus? lastStatus;
+  final String? lastRulesVersion;
+  final String? lastReason;
 
-  const _BillingRuleCheckState({this.lastAttemptAt, this.lastSuccessAt});
+  const _BillingRuleCheckState({
+    this.lastAttemptAt,
+    this.lastSuccessAt,
+    this.lastResultAt,
+    this.lastStatus,
+    this.lastRulesVersion,
+    this.lastReason,
+  });
 }
 
 class _RuleFileSnapshot {
@@ -1110,6 +1214,28 @@ void _enforceTextLimit(String value, int maxBytes) {
 Future<bool> _defaultSmokeTest(BillingRuleSet ruleSet) async {
   return ruleSet.templates.isNotEmpty;
 }
+
+String _stableResultReason(BillingRuleUpdateStatus status) => switch (status) {
+      BillingRuleUpdateStatus.disabled => '远程规则更新未启用',
+      BillingRuleUpdateStatus.activated => '新规则已安全启用',
+      BillingRuleUpdateStatus.alreadyLatest => '当前已经是最新规则',
+      BillingRuleUpdateStatus.notDue => '尚未到下一次自动检查时间',
+      BillingRuleUpdateStatus.securityPolicyRejected => '更新来源未通过安全策略',
+      BillingRuleUpdateStatus.incompatibleAppVersion => '规则需要更高版本的 App',
+      BillingRuleUpdateStatus.responseTooLarge => '下载内容超过安全上限',
+      BillingRuleUpdateStatus.timedOut => '规则更新请求超时',
+      BillingRuleUpdateStatus.hashMismatch => '规则包校验失败，已继续使用安全快照',
+      BillingRuleUpdateStatus.invalidManifest => '更新清单无效，已继续使用安全快照',
+      BillingRuleUpdateStatus.invalidRulePackage => '规则包无效，已继续使用安全快照',
+      BillingRuleUpdateStatus.smokeTestFailed => '规则基础验证失败，已继续使用安全快照',
+      BillingRuleUpdateStatus.goldenEvaluationFailed => '黄金样本回归失败，已继续使用安全快照',
+      BillingRuleUpdateStatus.personalRegressionFailed =>
+        '本机个人样本回归失败，已继续使用安全快照',
+      BillingRuleUpdateStatus.rolledBack => '已安全回滚到上一版规则',
+      BillingRuleUpdateStatus.rollbackUnavailable => '没有可安全回滚的上一版',
+      BillingRuleUpdateStatus.recovered => '已恢复上次中断的规则操作',
+      BillingRuleUpdateStatus.failed => '规则检查失败，已继续使用安全快照',
+    };
 
 Future<void> _missingPersonalRuleArchiver(List<String> ruleIds) async {
   if (ruleIds.isNotEmpty) {
