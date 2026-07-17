@@ -16,6 +16,8 @@ def useAndroidTestOrchestrator = providers.gradleProperty("beecount.useAndroidTe
         .orElse(providers.environmentVariable("BEECOUNT_USE_ANDROID_TEST_ORCHESTRATOR"))
         .map { it.toBoolean() }
         .getOrElse(false)
+def patrolTarget = providers.gradleProperty("target").getOrElse("").replace('\\', '/')
+def isPatrolBundleTarget = patrolTarget.endsWith('/patrol_test/test_bundle.dart')
 
 android {
     namespace = "com.tntlikely.beecount"
@@ -46,6 +48,11 @@ android {
         versionName = flutter.versionName
         testInstrumentationRunner "pl.leancode.patrol.PatrolJUnitRunner"
         testInstrumentationRunnerArguments clearPackageData: "false"
+        if (isPatrolBundleTarget) {
+            // Patrol bundles own their Dart test selection. Do not also execute every
+            // unrelated native instrumentation test during each business C2 run.
+            testInstrumentationRunnerArguments class: "com.tntlikely.beecount.MainActivityTest"
+        }
         // 当未在命令行指定 --flavor 时，默认选择 dev 风味，避免 Flutter 调试找不到 APK。
         missingDimensionStrategy "env", "dev"
         ndk {

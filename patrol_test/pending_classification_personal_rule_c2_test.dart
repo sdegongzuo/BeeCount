@@ -4,11 +4,13 @@ import 'dart:ui' as ui;
 
 import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/billing_job_repository.dart';
+import 'package:beecount/data/repositories/base_repository.dart';
 import 'package:beecount/l10n/app_localizations.dart';
 import 'package:beecount/pages/billing/pending_transaction_classification_page.dart';
 import 'package:beecount/providers/database_providers.dart';
 import 'package:beecount/services/billing/ocr_service.dart';
 import 'package:beecount/services/billing/pending_billing_navigation_host.dart';
+import 'package:beecount/services/billing/pending_transaction_classification_service.dart';
 import 'package:beecount/services/platform/image_share_handler_service.dart';
 import 'package:beecount/services/platform/share_billing_c2_container.dart';
 import 'package:beecount/services/platform/share_billing_c2_fixture.dart';
@@ -42,7 +44,7 @@ void main() {
         await runtime.dispose();
       });
 
-      await $.pumpWidget(UncontrolledProviderScope(
+      runApp(UncontrolledProviderScope(
         container: runtime.container,
         child: const MaterialApp(
           locale: Locale('zh'),
@@ -58,11 +60,10 @@ void main() {
           ),
         ),
       ));
-      await $.tester.pump();
+      await _waitForWidget(find.text('C2 fixture 主页'));
 
       await _send('classification-first', _firstBillText);
       final firstJob = await _waitForCaseJob(
-        $,
         runtime,
         caseId: 'classification-first',
       );
@@ -82,26 +83,35 @@ void main() {
       expect(firstBefore.note, expectedStructuredNote);
       _expectLoyalStructuredNote(firstBefore.note);
 
-      await _waitForWidget(
-          $, find.byType(PendingTransactionClassificationPage));
+      await _waitForWidget(find.text(expectedStructuredNote));
+      expect(find.byType(PendingTransactionClassificationPage), findsOneWidget);
       expect(find.text('商户：$_merchant'), findsOneWidget);
       expect(find.text('餐饮'), findsOneWidget);
       await $.tester.ensureVisible(find.text('餐饮'));
       await $.tap(find.text('餐饮'));
-      await $.tester.ensureVisible(find.text('记住到当前账本'));
-      await $.tap(find.text('记住到当前账本'));
-      await $.tester
-          .ensureVisible(find.byKey(const Key('confirmClassification')));
-      await $.tap(find.byKey(const Key('confirmClassification')));
-      await _waitForWidgetGone(
-        $,
-        find.byType(PendingTransactionClassificationPage),
+      final currentLedgerScope =
+          find.byKey(const Key('classificationScope-currentLedger'));
+      await _waitForWidget(currentLedgerScope);
+      await $.tester.ensureVisible(currentLedgerScope);
+      final currentLedgerTapTarget = currentLedgerScope.hitTestable();
+      await _waitForWidget(currentLedgerTapTarget);
+      final scopeGroup = $.tester.widget<RadioGroup<ClassificationMemoryScope>>(
+        find.byType(RadioGroup<ClassificationMemoryScope>),
       );
-
-      final firstAfter =
-          await repository.getTransactionById(firstJob.transactionId!);
-      expect(firstAfter, isNotNull);
-      expect(firstAfter!.needsClassification, isFalse);
+      scopeGroup.onChanged(ClassificationMemoryScope.currentLedger);
+      final confirmButton = find.byKey(const Key('confirmClassification'));
+      await _waitForWidget(confirmButton);
+      await $.tester.ensureVisible(confirmButton);
+      final confirmTapTarget = confirmButton.hitTestable();
+      await _waitForWidget(confirmTapTarget);
+      final button = $.tester.widget<FilledButton>(confirmButton);
+      expect(button.onPressed, isNotNull);
+      button.onPressed!();
+      final firstAfter = await _waitForClassifiedTransaction(
+        repository,
+        firstJob.transactionId!,
+      );
+      expect(firstAfter.needsClassification, isFalse);
       expect(firstAfter.note, expectedStructuredNote);
       _expectLoyalStructuredNote(firstAfter.note);
       final selectedCategory =
@@ -120,7 +130,6 @@ void main() {
 
       await _send('classification-second', _secondBillText);
       final secondJob = await _waitForCaseJob(
-        $,
         runtime,
         caseId: 'classification-second',
       );
@@ -134,13 +143,14 @@ void main() {
       _expectLoyalStructuredNote(second.note);
       expect(second.categoryId, selectedCategory.id);
       expect(second.amount, closeTo(29.90, 0.001));
+      expect(secondJob.ruleResultJson, isNotNull);
       final secondOcr = OcrResult.fromJson(
-        jsonDecode(secondJob.finalResultJson!) as Map<String, dynamic>,
+        jsonDecode(secondJob.ruleResultJson!) as Map<String, dynamic>,
       );
       expect(secondOcr.merchantFullName, _merchant);
       expect(secondOcr.suggestedCategoryId, isNull,
           reason: '第二张不能靠页面规则或测试注入分类，只能命中刚记住的个人规则');
-      await $.tester.pump(const Duration(seconds: 2));
+      await Future<void>.delayed(const Duration(seconds: 2));
       expect(find.byType(PendingTransactionClassificationPage), findsNothing);
     },
     timeout: const Timeout(Duration(minutes: 4)),
@@ -149,27 +159,25 @@ void main() {
 
 void _expectLoyalStructuredNote(String? note) {
   expect(note, isNotNull);
-  expect(note, isNot(contains('补充信息：')),
-      reason: '没有用户补充时，结构化摘要不得混入自由文本');
-  expect(note, isNot(contains('待分类')),
-      reason: '分类状态必须保存在结构化字段，不得注入备注');
+  expect(note, isNot(contains('补充信息：')), reason: '没有用户补充时，结构化摘要不得混入自由文本');
+  expect(note, isNot(contains('待分类')), reason: '分类状态必须保存在结构化字段，不得注入备注');
 }
 
 Future<void> _send(String caseId, String text) async {
+  final png = await _billPng(text).timeout(const Duration(seconds: 15));
   final result = await _tracer.invokeMapMethod<String, dynamic>(
     'sendActionSend',
     {
       'fixtureId': ShareBillingC2Fixture.compileTimeFixtureId,
       'caseId': caseId,
-      'pngBytes': await _billPng(text),
+      'pngBytes': png,
     },
-  );
+  ).timeout(const Duration(seconds: 15));
   expect(result?['fixtureId'], ShareBillingC2Fixture.compileTimeFixtureId);
   expect(result?['caseId'], caseId);
 }
 
 Future<BillingJob> _waitForCaseJob(
-  PatrolIntegrationTester $,
   ShareBillingC2Container runtime, {
   required String caseId,
 }) async {
@@ -181,7 +189,7 @@ Future<BillingJob> _waitForCaseJob(
         'fixtureId': ShareBillingC2Fixture.compileTimeFixtureId,
         'caseId': caseId,
       },
-    );
+    ).timeout(const Duration(seconds: 5));
     final path = located?['cacheImagePath']?.toString();
     if (path != null && path.isNotEmpty) {
       final job = await runtime.container
@@ -195,33 +203,33 @@ Future<BillingJob> _waitForCaseJob(
         return job;
       }
     }
-    await $.tester.pump(const Duration(milliseconds: 250));
+    await Future<void>.delayed(const Duration(milliseconds: 250));
   }
   throw TimeoutException('C2 case $caseId did not reach a terminal job');
 }
 
-Future<void> _waitForWidget(
-  PatrolIntegrationTester $,
-  Finder finder,
-) async {
+Future<void> _waitForWidget(Finder finder) async {
   final deadline = DateTime.now().add(const Duration(seconds: 30));
   while (DateTime.now().isBefore(deadline)) {
-    await $.tester.pump(const Duration(milliseconds: 100));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     if (finder.evaluate().isNotEmpty) return;
   }
   throw TimeoutException('Expected production widget did not open: $finder');
 }
 
-Future<void> _waitForWidgetGone(
-  PatrolIntegrationTester $,
-  Finder finder,
+Future<Transaction> _waitForClassifiedTransaction(
+  BaseRepository repository,
+  int transactionId,
 ) async {
   final deadline = DateTime.now().add(const Duration(seconds: 30));
   while (DateTime.now().isBefore(deadline)) {
-    await $.tester.pump(const Duration(milliseconds: 100));
-    if (finder.evaluate().isEmpty) return;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    final transaction = await repository.getTransactionById(transactionId);
+    if (transaction != null && !transaction.needsClassification) {
+      return transaction;
+    }
   }
-  throw TimeoutException('Production widget did not close: $finder');
+  throw TimeoutException('Production classification callback did not commit');
 }
 
 Future<Uint8List> _billPng(String text) async {

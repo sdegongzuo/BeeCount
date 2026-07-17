@@ -44,6 +44,7 @@ class _PendingTransactionClassificationPageState
   bool _missing = false;
   bool _loading = true;
   bool _loadFailed = false;
+  final GlobalKey _scopeSectionKey = GlobalKey();
 
   @override
   void initState() {
@@ -101,100 +102,130 @@ class _PendingTransactionClassificationPageState
               ? const Center(child: CircularProgressIndicator())
               : _missing
                   ? const Center(child: Text('此账单已完成分类或已不存在'))
-                  : ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        if (_draft!.attachments.isNotEmpty) ...[
-                          Text('图片证据',
-                              style: Theme.of(context).textTheme.titleMedium),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            height: 180,
-                            child: FutureBuilder<String>(
-                              future: widget.resolveAttachmentPath(
-                                  _draft!.attachments.first.fileName),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState !=
-                                    ConnectionState.done) {
-                                  return const Center(
-                                      child: CircularProgressIndicator());
-                                }
-                                if (snapshot.hasError || !snapshot.hasData) {
-                                  return const _AttachmentPlaceholder();
-                                }
-                                return Image.file(
-                                  File(snapshot.data!),
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) =>
-                                      const _AttachmentPlaceholder(),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                        Text('结构化摘要',
-                            style: Theme.of(context).textTheme.titleMedium),
-                        const SizedBox(height: 8),
-                        Text(
-                            _draft!.structuredSummary?.trim().isNotEmpty == true
+                  : SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (_draft!.attachments.isNotEmpty) ...[
+                              Text('图片证据',
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                height: 180,
+                                child: FutureBuilder<String>(
+                                  future: widget.resolveAttachmentPath(
+                                      _draft!.attachments.first.fileName),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState !=
+                                        ConnectionState.done) {
+                                      return const Center(
+                                          child: CircularProgressIndicator());
+                                    }
+                                    if (snapshot.hasError ||
+                                        !snapshot.hasData) {
+                                      return const _AttachmentPlaceholder();
+                                    }
+                                    return Image.file(
+                                      File(snapshot.data!),
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (_, __, ___) =>
+                                          const _AttachmentPlaceholder(),
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                            ],
+                            Text('结构化摘要',
+                                style: Theme.of(context).textTheme.titleMedium),
+                            const SizedBox(height: 8),
+                            Text(_draft!.structuredSummary?.trim().isNotEmpty ==
+                                    true
                                 ? _draft!.structuredSummary!
                                 : '暂无可验证的摘要'),
-                        const SizedBox(height: 16),
-                        Row(children: [
-                          Expanded(
-                              child: _EvidenceTile(
-                                  label: '金额',
-                                  value:
-                                      '¥${_draft!.transaction.amount.toStringAsFixed(2)}')),
-                          const SizedBox(width: 12),
-                          Expanded(
-                              child: _EvidenceTile(
-                                  label: '时间',
-                                  value: _formatTime(
-                                      _draft!.transaction.happenedAt))),
-                        ]),
-                        const SizedBox(height: 24),
-                        Text('选择分类',
-                            style: Theme.of(context).textTheme.titleMedium),
-                        RadioGroup<int>(
-                          groupValue: _categoryId,
-                          onChanged: (value) =>
-                              setState(() => _categoryId = value),
-                          child: Column(
-                            children: _draft!.categories
-                                .map((category) => RadioListTile<int>(
-                                      value: category.id,
-                                      title: Text(category.name),
-                                    ))
-                                .toList(),
-                          ),
+                            const SizedBox(height: 16),
+                            Row(children: [
+                              Expanded(
+                                  child: _EvidenceTile(
+                                      label: '金额',
+                                      value:
+                                          '¥${_draft!.transaction.amount.toStringAsFixed(2)}')),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                  child: _EvidenceTile(
+                                      label: '时间',
+                                      value: _formatTime(
+                                          _draft!.transaction.happenedAt))),
+                            ]),
+                            const SizedBox(height: 24),
+                            Text('选择分类',
+                                style: Theme.of(context).textTheme.titleMedium),
+                            RadioGroup<int>(
+                              groupValue: _categoryId,
+                              onChanged: _selectCategory,
+                              child: Column(
+                                children: _draft!.categories
+                                    .map((category) => RadioListTile<int>(
+                                          value: category.id,
+                                          title: Text(category.name),
+                                        ))
+                                    .toList(),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text('这次选择如何生效',
+                                key: _scopeSectionKey,
+                                style: Theme.of(context).textTheme.titleMedium),
+                            RadioGroup<ClassificationMemoryScope>(
+                              groupValue: _scope,
+                              onChanged: (value) =>
+                                  setState(() => _scope = value),
+                              child: Column(
+                                children: ClassificationMemoryScope.values
+                                    .map((scope) => RadioListTile<
+                                            ClassificationMemoryScope>(
+                                          key: Key(
+                                              'classificationScope-${scope.name}'),
+                                          value: scope,
+                                          title: Text(_scopeText(scope)),
+                                        ))
+                                    .toList(),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton(
+                              key: const Key('confirmClassification'),
+                              onPressed: _saving ? null : _confirm,
+                              child: const Text('确认分类'),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        Text('这次选择如何生效',
-                            style: Theme.of(context).textTheme.titleMedium),
-                        RadioGroup<ClassificationMemoryScope>(
-                          groupValue: _scope,
-                          onChanged: (value) => setState(() => _scope = value),
-                          child: Column(
-                            children: ClassificationMemoryScope.values
-                                .map((scope) =>
-                                    RadioListTile<ClassificationMemoryScope>(
-                                      value: scope,
-                                      title: Text(_scopeText(scope)),
-                                    ))
-                                .toList(),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          key: const Key('confirmClassification'),
-                          onPressed: _saving ? null : _confirm,
-                          child: const Text('确认分类'),
-                        ),
-                      ],
+                      ),
                     ),
     );
+  }
+
+  void _selectCategory(int? value) {
+    setState(() => _categoryId = value);
+    if (value != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _revealScopeSection();
+      });
+    }
+  }
+
+  void _revealScopeSection() {
+    if (!mounted) return;
+    final scopeContext = _scopeSectionKey.currentContext;
+    if (scopeContext != null) {
+      Scrollable.ensureVisible(
+        scopeContext,
+        alignment: 0.05,
+      );
+    }
   }
 
   Future<void> _confirm() async {

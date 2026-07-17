@@ -12,7 +12,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('展示账单证据并由用户明确选择分类记忆范围', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    await tester.binding.setSurfaceSize(const Size(412, 915));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     SharedPreferences.setMockInitialValues({});
     final db = BeeDatabase.forTesting(NativeDatabase.memory());
@@ -52,13 +52,27 @@ void main() {
     expect(find.text('¥28.50'), findsOneWidget);
     expect(find.text('2026-07-16 12:30'), findsOneWidget);
     expect(find.text('图片证据'), findsOneWidget);
+    await tester.tap(find.text('餐饮'));
+    await tester.pumpAndSettle();
+    final currentLedgerScope =
+        find.byKey(const Key('classificationScope-currentLedger'));
+    expect(currentLedgerScope.hitTestable(), findsOneWidget);
     expect(find.text('仅修正本次账单'), findsOneWidget);
     expect(find.text('记住到当前账本'), findsOneWidget);
+    expect(
+      find.byKey(const Key('classificationScope-currentLedger')),
+      findsOneWidget,
+    );
     expect(find.text('记住到所有账本'), findsOneWidget);
 
-    await tester.tap(find.text('餐饮'));
-    await tester.tap(find.text('记住到当前账本'));
-    await tester.tap(find.byKey(const Key('confirmClassification')));
+    await tester.tap(currentLedgerScope);
+    final confirmButton = find.byKey(const Key('confirmClassification'));
+    await tester.scrollUntilVisible(
+      confirmButton,
+      300,
+      scrollable: find.byType(Scrollable),
+    );
+    await tester.tap(confirmButton);
     await tester.pumpAndSettle();
 
     final updated = await repository.getTransactionById(transactionId);
