@@ -130,4 +130,39 @@ void main() {
     expect(context.original.merchantFullName, '极光测试实验室');
     expect(context.rawText, '付款金额\n29.90');
   });
+
+  test('旧任务的最终结果损坏时回退到规则结果和交易账本', () async {
+    final db = BeeDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final jobs = LocalBillingJobRepository(db);
+    final job = await jobs.createJob(imagePath: '/tmp/legacy.png');
+    await jobs.updateRawText(job.id, '付款金额\n36.00');
+    await jobs.updateRuleResultJson(
+      job.id,
+      jsonEncode(OcrResult(
+        rawText: '付款金额\n36.00',
+        allNumbers: const ['36.00'],
+        amount: 36,
+        merchantFullName: '旧版商户',
+      ).toJson()),
+    );
+    await jobs.updateFinalResultJson(job.id, '{amount: 36.0}');
+    await jobs.updateTransactionId(job.id, 44);
+    final failures = <Object>[];
+    final service = ImageBillEditLearningService(
+      jobs: jobs,
+      applyCorrection: (_) async => const PersonalRuleLifecycleResult(
+        status: PersonalRuleLifecycleStatus.enabled,
+      ),
+      logLearningFailure: (_, __, error, ___) => failures.add(error),
+    );
+
+    final context = await service.loadContext(44, fallbackLedgerId: 9);
+
+    expect(context, isNotNull);
+    expect(context!.ledgerId, 9);
+    expect(context.original.amount, 36);
+    expect(context.original.merchantFullName, '旧版商户');
+    expect(failures, hasLength(1));
+  });
 }

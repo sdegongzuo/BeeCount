@@ -13,6 +13,9 @@ import '../../widgets/category/category_selector.dart';
 import '../../widgets/transaction/transfer_form.dart';
 import '../../styles/tokens.dart';
 import '../../services/billing/post_processor.dart';
+import '../../services/billing/image_bill_edit_learning_service.dart';
+import '../../services/billing/pending_bill_confirmation_service.dart';
+import '../../services/billing/rules/personal_rule_lifecycle_service.dart';
 import '../../services/attachment_service.dart';
 import '../billing/personal_rule_update_prompt.dart';
 
@@ -278,12 +281,18 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               widget.initialDate != null && widget.initialDate != res.date;
           final categoryChanged = widget.initialCategoryId != null &&
               widget.initialCategoryId != c.id;
+          final existingTransaction = widget.editingTransactionId == null
+              ? null
+              : await repo.getTransactionById(widget.editingTransactionId!);
           final learningService = widget.editingTransactionId == null
               ? null
               : await ref.read(imageBillEditLearningServiceProvider.future);
           final learningContext = learningService == null
               ? null
-              : await learningService.loadContext(widget.editingTransactionId!);
+              : await learningService.loadContext(
+                  widget.editingTransactionId!,
+                  fallbackLedgerId: existingTransaction?.ledgerId,
+                );
           final noteChanged =
               (widget.initialNote?.trim() ?? '') != (res.note?.trim() ?? '');
           final supplementalNote = noteChanged
@@ -294,6 +303,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               categoryChanged ||
               supplementalNote != null;
           PersonalRuleUpdateDecision? learningDecision;
+          ImageBillEditLearningResult? learningResult;
           if (learningContext != null && hasLearnableChanges && ctx.mounted) {
             learningDecision = await showPersonalRuleUpdatePrompt(
               ctx,
@@ -346,7 +356,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
           if (learningDecision?.remember == true &&
               learningService != null &&
               learningContext != null) {
-            await learningService.remember(
+            learningResult = await learningService.remember(
               context: learningContext,
               amount: amountChanged ? res.amount : null,
               time: timeChanged ? res.date : null,
@@ -390,6 +400,11 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
           if (mounted) {
             updateAppWidget(ref, context);
           }
+          if (learningResult != null && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(_imageBillLearningMessage(learningResult)),
+            ));
+          }
           // 先关闭页面，再播放反馈
           if (ctx.mounted && Navigator.of(ctx).canPop()) {
             Navigator.of(ctx).pop();
@@ -405,3 +420,34 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
     );
   }
 }
+
+String _imageBillLearningMessage(ImageBillEditLearningResult result) {
+  if (result.learningErrors.isNotEmpty) {
+    return '账单修改已保存，但部分记忆未完成：'
+        '${result.learningErrors.map(_imageBillLearningErrorText).join('；')}';
+  }
+  final enabled = result.ruleResults
+      .where((item) => item.status == PersonalRuleLifecycleStatus.enabled)
+      .length;
+  if (enabled > 0) return '账单修改已保存，$enabled 条个人规则已启用';
+  if (result.ruleResults
+      .any((item) => item.status == PersonalRuleLifecycleStatus.conflict)) {
+    return '账单修改已保存；相似个人规则存在冲突';
+  }
+  if (result.ruleResults.any((item) =>
+      item.status == PersonalRuleLifecycleStatus.regressionRejected)) {
+    return '账单修改已保存；个人规则未通过回归门禁';
+  }
+  if (result.ruleResults.isNotEmpty) {
+    return '账单修改已保存；校正仅用于本次，规则等待更多证据';
+  }
+  return '账单修改已保存；分类或备注偏好已记住';
+}
+
+String _imageBillLearningErrorText(PendingBillLearningError error) =>
+    switch (error.reason) {
+      PendingBillLearningReason.sourceInfoInvalid => '图片来源信息已损坏',
+      PendingBillLearningReason.extractionCorrectionFailed => '提取修正保存失败',
+      PendingBillLearningReason.categoryRuleFailed => '分类规则保存失败',
+      PendingBillLearningReason.notePreferenceFailed => '备注偏好保存失败',
+    };

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../data/repositories/billing_job_repository.dart';
+import '../system/logger_service.dart';
 import 'classification_match_evidence.dart';
 import 'ocr_service.dart';
 import 'pending_bill_confirmation_service.dart';
@@ -62,24 +63,42 @@ class ImageBillEditLearningService {
   final NotePreferenceRememberer? rememberNotePreference;
   final PendingBillLearningLogger logLearningFailure;
 
-  Future<ImageBillEditLearningContext?> loadContext(int transactionId) async {
+  Future<ImageBillEditLearningContext?> loadContext(
+    int transactionId, {
+    int? fallbackLedgerId,
+  }) async {
     final job = await jobs.findByTransactionId(transactionId);
-    if (job == null || job.ledgerId == null) {
-      return null;
-    }
+    if (job == null) return null;
+    final ledgerId = job.ledgerId ?? fallbackLedgerId;
+    if (ledgerId == null) return null;
     // 待确认任务会把用户确认后的候选写入 finalResultJson；
     // 可直接创建交易的任务不经过该分支，交易实际使用的是
     // ruleResultJson。两者都是交易可追溯的 OCR 结果，最终确认值优先。
-    final storedJson = job.finalResultJson ?? job.ruleResultJson;
-    if (storedJson == null || storedJson.isEmpty) return null;
-    final stored = jsonDecode(storedJson) as Map<String, dynamic>;
-    return ImageBillEditLearningContext(
-      transactionId: transactionId,
-      ledgerId: job.ledgerId!,
-      original: OcrResult.fromJson(stored),
-      rawText: stored['rawText'] as String? ?? job.rawText ?? '',
-      sourceInfoJson: job.sourceInfoJson,
-    );
+    // 历史 AI 阶段曾用 Map.toString() 写入非 JSON 的最终结果；
+    // 解析失败时必须继续尝试规则结果，可选学习不得阻断交易编辑。
+    final candidates = <String?>[job.finalResultJson, job.ruleResultJson];
+    for (final storedJson in candidates) {
+      if (storedJson == null || storedJson.isEmpty) continue;
+      try {
+        final stored = jsonDecode(storedJson) as Map<String, dynamic>;
+        final original = OcrResult.fromJson(stored);
+        return ImageBillEditLearningContext(
+          transactionId: transactionId,
+          ledgerId: ledgerId,
+          original: original,
+          rawText: stored['rawText'] as String? ?? job.rawText ?? '',
+          sourceInfoJson: job.sourceInfoJson,
+        );
+      } catch (error, stackTrace) {
+        logLearningFailure(
+          'ImageBillEditLearning',
+          '解析可选 OCR 学习上下文失败',
+          error,
+          stackTrace,
+        );
+      }
+    }
+    return null;
   }
 
   /// Learns only non-null fields. Callers pass fields the user changed and
@@ -220,4 +239,8 @@ void _logLearningFailure(
   String message,
   Object error,
   StackTrace stackTrace,
-) {}
+) {
+  try {
+    logger.error(component, message, error, stackTrace);
+  } catch (_) {}
+}
