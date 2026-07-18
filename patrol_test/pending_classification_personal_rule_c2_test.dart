@@ -191,7 +191,19 @@ void main() {
         runtime,
         caseId: 'classification-conflict',
       );
-      expect(conflictJob.status, BillingJobStatus.succeeded);
+      expect(
+        conflictJob.status,
+        BillingJobStatus.succeeded,
+        reason: jsonEncode({
+          'last_error': conflictJob.lastError,
+          'rule_result': conflictJob.ruleResultJson == null
+              ? null
+              : jsonDecode(conflictJob.ruleResultJson!),
+          'final_result': conflictJob.finalResultJson == null
+              ? null
+              : jsonDecode(conflictJob.finalResultJson!),
+        }),
+      );
       final conflictTransaction =
           await repository.getTransactionById(conflictJob.transactionId!);
       expect(conflictTransaction, isNotNull);

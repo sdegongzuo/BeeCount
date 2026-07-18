@@ -772,6 +772,14 @@ void main() {
       );
       expect(
         BillingRuleParsers.parse(
+          BillingRuleParserTypes.zhDatetime,
+          '2026年07月17日14:56:07',
+        ).value,
+        DateTime(2026, 7, 17, 14, 56, 7),
+        reason: 'OCR 可能吞掉“日”和小时之间的空格',
+      );
+      expect(
+        BillingRuleParsers.parse(
           BillingRuleParserTypes.isoDatetime,
           '2026-06-30T12:51:18',
         ).value,

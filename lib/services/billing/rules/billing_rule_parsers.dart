@@ -84,7 +84,7 @@ class BillingRuleParsers {
 
   static BillingRuleParseResult _parseZhDatetime(String input) {
     final match = RegExp(
-      r'(\d{4})年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s+'
+      r'(\d{4})年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*'
       r'(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?',
     ).firstMatch(input.trim());
     if (match == null) {
