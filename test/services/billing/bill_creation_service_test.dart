@@ -99,7 +99,7 @@ void main() {
     final transaction = await repo.getTransactionById(transactionId!);
     expect(transaction?.categoryId, foodId);
     expect(transaction?.needsClassification, isFalse);
-    expect(transaction?.note, '商户：天津海河测试餐厅甲\n商品：海河测试饮品甲\n门店：天津和平测试门店甲');
+    expect(transaction?.note, '天津海河测试餐厅甲\n商品：海河测试饮品甲\n门店：天津和平测试门店甲');
   });
 
   test('图片分享优先使用图片中的商户字段做确定性分类', () async {
@@ -413,7 +413,7 @@ confidence = 0.9
     );
 
     final transaction = await repo.getTransactionById(transactionId!);
-    expect(transaction!.note, '商户：天津海河测试餐厅甲\n商品：海河测试饮品甲\n门店：天津和平测试门店甲');
+    expect(transaction!.note, '天津海河测试餐厅甲\n商品：海河测试饮品甲\n门店：天津和平测试门店甲');
     expect(transaction.note, isNot(contains('AI 备注')));
     expect(transaction.note, isNot(contains('同一条补充')));
     expect(transaction.detailsText, contains('交易单号：OCR-123'));

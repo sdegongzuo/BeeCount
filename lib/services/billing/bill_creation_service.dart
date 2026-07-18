@@ -449,6 +449,7 @@ class BillCreationService {
             storeName: details?['store_name']?.toString(),
             routeStart: details?['route_start']?.toString(),
             routeEnd: details?['route_end']?.toString(),
+            labelMerchant: false,
           )
         : (result.note ?? note);
     final detailParts = <String>[];

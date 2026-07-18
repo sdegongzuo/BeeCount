@@ -149,9 +149,10 @@ String? buildStructuredBillSummary({
   String? storeName,
   String? routeStart,
   String? routeEnd,
+  bool labelMerchant = true,
 }) {
   final fields = <(String, String?)>[
-    ('商户', merchant),
+    (labelMerchant ? '商户' : '', merchant),
     ('商品', productSummary),
     ('门店', storeName),
     ('出发站', routeStart),
@@ -159,7 +160,9 @@ String? buildStructuredBillSummary({
   ];
   final lines = fields
       .where((field) => field.$2 != null && field.$2!.trim().isNotEmpty)
-      .map((field) => '${field.$1}：${field.$2!.trim()}')
+      .map((field) => field.$1.isEmpty
+          ? field.$2!.trim()
+          : '${field.$1}：${field.$2!.trim()}')
       .toList();
   return lines.isEmpty ? null : lines.join('\n');
 }
