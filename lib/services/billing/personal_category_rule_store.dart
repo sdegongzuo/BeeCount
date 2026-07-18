@@ -1,4 +1,5 @@
 import '../../data/db.dart';
+import 'package:drift/drift.dart' show Value;
 import 'deterministic_bill_enrichment.dart';
 import 'rules/personal_rule_sync_repository.dart';
 import 'rules/personal_rule_sync_service.dart';
@@ -51,43 +52,47 @@ class SqlitePersonalCategoryRuleStore implements PersonalCategoryRuleStore {
       throw ArgumentError.value(categorySyncId, 'categorySyncId');
     }
     await _ensureSchema();
-    String? ledgerSyncId;
-    if (ledgerId != null) {
-      final ledger = await (db.select(db.ledgers)
-            ..where((item) => item.id.equals(ledgerId)))
-          .getSingleOrNull();
-      ledgerSyncId = ledger?.syncId;
-      if (ledgerSyncId?.isEmpty == true) ledgerSyncId = null;
-    }
-    final scopeKey = ledgerId == null
-        ? 'global'
-        : ledgerSyncId == null
-            ? 'local-ledger:$ledgerId'
-            : 'ledger:$ledgerSyncId';
-    final now = DateTime.now().millisecondsSinceEpoch;
     await db.transaction(() async {
+      String? ledgerSyncId;
+      if (ledgerId != null) {
+        final ledger = await (db.select(db.ledgers)
+              ..where((item) => item.id.equals(ledgerId)))
+            .getSingleOrNull();
+        if (ledger == null) {
+          throw StateError('personal_category_rule_ledger_not_found');
+        }
+        ledgerSyncId = ledger.syncId?.trim();
+        if (ledgerSyncId == null || ledgerSyncId.isEmpty) {
+          // v21 以前的账本曾以本地整数 ID 作为云端 external_id；当前库中
+          // 遗留空值也必须沿用同一兼容身份，不能临时生成新 UUID 导致重复账本。
+          ledgerSyncId = ledger.id.toString();
+          await (db.update(db.ledgers)
+                ..where((item) => item.id.equals(ledger.id)))
+              .write(LedgersCompanion(syncId: Value(ledgerSyncId)));
+        }
+      }
+      final scopeKey = ledgerId == null ? 'global' : 'ledger:$ledgerSyncId';
+      final now = DateTime.now().millisecondsSinceEpoch;
       await db.customStatement(
         '''INSERT OR REPLACE INTO personal_category_rules
          (match_text, category_sync_id, ledger_id, scope_key, updated_at)
          VALUES (?, ?, ?, ?, ?)''',
         [normalized, categorySyncId, ledgerId, scopeKey, now],
       );
-      if (ledgerId == null || ledgerSyncId != null) {
-        await PersonalRuleSyncRepository(db).saveLocal(PersonalRuleRevision(
-          revisionId: const Uuid().v4(),
-          ruleId: 'category:$scopeKey:$normalized',
-          originDeviceId: '',
-          originVersion: now,
-          kind: PersonalRuleSyncKind.category,
-          scopeKey: scopeKey,
-          conditionKey: normalized,
-          payload: {
-            'match_text': normalized,
-            'category_sync_id': categorySyncId,
-            if (ledgerSyncId != null) 'ledger_sync_id': ledgerSyncId,
-          },
-        ));
-      }
+      await PersonalRuleSyncRepository(db).saveLocal(PersonalRuleRevision(
+        revisionId: const Uuid().v4(),
+        ruleId: 'category:$scopeKey:$normalized',
+        originDeviceId: '',
+        originVersion: now,
+        kind: PersonalRuleSyncKind.category,
+        scopeKey: scopeKey,
+        conditionKey: normalized,
+        payload: {
+          'match_text': normalized,
+          'category_sync_id': categorySyncId,
+          if (ledgerSyncId != null) 'ledger_sync_id': ledgerSyncId,
+        },
+      ));
     });
   }
 

@@ -1,6 +1,9 @@
 import 'package:beecount/data/db.dart';
 import 'package:beecount/providers/database_providers.dart';
 import 'package:beecount/services/attachment_service.dart';
+import 'package:beecount/services/billing/personal_category_rule_store.dart';
+import 'package:beecount/services/billing/rules/personal_rule_sync_repository.dart';
+import 'package:beecount/services/billing/rules/personal_rule_sync_service.dart';
 import 'package:beecount/services/platform/share_billing_c2_container.dart';
 import 'package:beecount/services/platform/share_billing_c2_fixture.dart';
 import 'package:drift/native.dart';
@@ -33,8 +36,11 @@ void main() {
       runtime.container.read(attachmentStorageNamespaceProvider),
       fixture.attachmentDirectoryName,
     );
-    expect(await runtime.container.read(repositoryProvider).getAllLedgers(),
-        hasLength(1));
+    final ledgers =
+        await runtime.container.read(repositoryProvider).getAllLedgers();
+    expect(ledgers, hasLength(1));
+    expect(ledgers.single.syncId?.trim(), isNotEmpty,
+        reason: 'production 默认账本必须现场生成跨设备稳定身份');
     final categories =
         await runtime.container.read(repositoryProvider).getAllCategories();
     expect(
@@ -48,6 +54,21 @@ void main() {
         (category) => category.syncId?.trim().isNotEmpty == true,
         'production seed 分类具有稳定 syncId',
       )),
+    );
+    final food = categories.singleWhere((category) => category.name == '餐饮');
+    await SqlitePersonalCategoryRuleStore(runtime.database).remember(
+      matchText: '真机同步商户',
+      categorySyncId: food.syncId!,
+      ledgerId: ledgers.single.id,
+    );
+    final pending =
+        await PersonalRuleSyncRepository(runtime.database).pendingUpload();
+    expect(
+      pending.where((revision) =>
+          revision.kind == PersonalRuleSyncKind.category &&
+          revision.conditionKey == '真机同步商户'),
+      hasLength(1),
+      reason: 'production 默认账本上的当前账本规则必须生成待上传同步修订',
     );
     expect(
       runtime.container.read(databaseProvider),

@@ -600,6 +600,7 @@ class SeedService {
           LedgersCompanion.insert(
             name: l10n.ledgerDefaultName,
             currency: Value(currency),
+            syncId: Value(const Uuid().v4()),
           ),
         );
     return ledgerId;
@@ -1113,8 +1114,7 @@ class SeedService {
       }
       if (!alreadyStable && blank != null) {
         final blankId = blank.id;
-        await (db.update(db.categories)
-              ..where((row) => row.id.equals(blankId)))
+        await (db.update(db.categories)..where((row) => row.id.equals(blankId)))
             .write(CategoriesCompanion(syncId: Value(stableSyncId)));
       } else if (existing.isEmpty) {
         await db.into(db.categories).insert(

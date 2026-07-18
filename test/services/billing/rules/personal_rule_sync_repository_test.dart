@@ -67,6 +67,26 @@ void main() {
     expect(active.single.categorySyncId, 'category-food');
   });
 
+  test('历史空 syncId 账本首次记住规则时原子回填兼容身份并同步', () async {
+    final ledgerId = await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: '历史默认账本'),
+        );
+
+    await SqlitePersonalCategoryRuleStore(db).remember(
+      matchText: '历史商户',
+      categorySyncId: 'category-food',
+      ledgerId: ledgerId,
+    );
+
+    final ledger = await (db.select(db.ledgers)
+          ..where((item) => item.id.equals(ledgerId)))
+        .getSingle();
+    expect(ledger.syncId, ledgerId.toString());
+    final pending = (await repository.pendingUpload()).single;
+    expect(pending.scopeKey, 'ledger:$ledgerId');
+    expect(pending.payload['ledger_sync_id'], ledgerId.toString());
+  });
+
   test('本地修订来源首次落库即固定且读取待上传不会改写', () async {
     final revision = PersonalRuleRevision(
       revisionId: 'immutable-origin',
