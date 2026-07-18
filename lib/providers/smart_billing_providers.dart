@@ -8,6 +8,7 @@ import '../services/billing/pending_bill_confirmation_service.dart';
 import '../services/billing/pending_transaction_classification_service.dart';
 import '../services/billing/personal_category_rule_store.dart';
 import '../services/billing/personal_note_preference_store.dart';
+import '../services/billing/rules/personal_rule_lifecycle_service.dart';
 import 'database_providers.dart';
 
 /// Android 分享入口发现待确认账单后设置；根页面消费并打开校正界面。
@@ -32,8 +33,7 @@ final pendingBillConfirmationServiceProvider =
   final repo = ref.watch(billingJobRepositoryProvider);
   final database = ref.watch(databaseProvider);
   final baseRepository = ref.watch(repositoryProvider);
-  final lifecycle =
-      await BillingJobService.createProductionPersonalRuleLifecycle(database);
+  Future<PersonalRuleLifecycleService>? lifecycle;
   final categoryRuleStore = SqlitePersonalCategoryRuleStore(database);
   final notePreferenceStore = SqlitePersonalNotePreferenceStore(database);
   return PendingBillConfirmationService(
@@ -51,7 +51,13 @@ final pendingBillConfirmationServiceProvider =
       if (id == null) throw StateError('confirmed_bill_not_created');
       return id;
     },
-    applyCorrection: lifecycle.applyCorrection,
+    // 打开确认页、只确认当前账单或只记住分类/备注时不需要加载 TOML
+    // 与平台路径。仅在用户明确选择“记住提取修正”时延迟构造门禁。
+    applyCorrection: (correction) async {
+      lifecycle ??=
+          BillingJobService.createProductionPersonalRuleLifecycle(database);
+      return (await lifecycle!).applyCorrection(correction);
+    },
     loadCategories: () async {
       final top = await baseRepository.getTopLevelCategories('expense');
       final all = <ConfirmableCategory>[];

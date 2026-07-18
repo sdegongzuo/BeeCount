@@ -1,5 +1,6 @@
 import 'package:beecount/data/db.dart';
 import 'package:beecount/services/billing/personal_category_rule_store.dart';
+import 'package:beecount/services/billing/personal_note_preference_store.dart';
 import 'package:beecount/services/billing/rules/personal_rule_sync_repository.dart';
 import 'package:beecount/services/billing/rules/personal_rule_sync_service.dart';
 import 'package:beecount/services/billing/rules/personal_rule_lifecycle_service.dart';
@@ -82,6 +83,84 @@ void main() {
     final second = (await repository.pendingUpload()).single;
     expect(first.originDeviceId, isNotEmpty);
     expect(second.originDeviceId, first.originDeviceId);
+  });
+
+  test('同一来源规则的连续及并发本地写入使用持久化单调版本', () async {
+    Future<void> save(String id) => repository.saveLocal(PersonalRuleRevision(
+          revisionId: id,
+          ruleId: 'note:merchant:test',
+          originDeviceId: '',
+          originVersion: 1,
+          kind: PersonalRuleSyncKind.notePreference,
+          scopeKey: 'merchant',
+          conditionKey: 'test',
+          payload: {'suffix': id},
+        ));
+
+    await save('local-1');
+    await save('local-2');
+    await Future.wait([save('local-3'), save('local-4')]);
+
+    final revisions = (await repository.pendingUpload())
+        .where((revision) => revision.ruleId == 'note:merchant:test')
+        .toList()
+      ..sort((a, b) => a.originVersion.compareTo(b.originVersion));
+    expect(revisions.map((revision) => revision.originVersion), [1, 2, 3, 4]);
+    expect(revisions.map((revision) => revision.originVersion).toSet(),
+        hasLength(4));
+    await expectLater(
+      PersonalRuleSyncService(localDeviceId: await repository.localDeviceId())
+          .merge(revisions),
+      completes,
+    );
+  });
+
+  test('同一本地修订重试幂等且不消耗新的单调版本', () async {
+    final retried = PersonalRuleRevision(
+      revisionId: 'retry-same-revision',
+      ruleId: 'note:merchant:retry',
+      originDeviceId: '',
+      originVersion: 999,
+      kind: PersonalRuleSyncKind.notePreference,
+      scopeKey: 'merchant',
+      conditionKey: 'retry',
+      payload: const {'suffix': '工作餐'},
+    );
+    await repository.saveLocal(retried);
+    await repository.saveLocal(retried);
+    await repository.saveLocal(PersonalRuleRevision(
+      revisionId: 'retry-next-revision',
+      ruleId: retried.ruleId,
+      originDeviceId: '',
+      originVersion: 777,
+      kind: retried.kind,
+      scopeKey: retried.scopeKey,
+      conditionKey: retried.conditionKey,
+      payload: const {'suffix': '早餐'},
+    ));
+
+    final revisions = (await repository.pendingUpload())
+        .where((revision) => revision.ruleId == retried.ruleId)
+        .toList()
+      ..sort((a, b) => a.originVersion.compareTo(b.originVersion));
+    expect(revisions, hasLength(2));
+    expect(revisions.map((revision) => revision.originVersion), [1, 2]);
+  });
+
+  test('分类和备注真实写路径共享单调版本分配器', () async {
+    await SqlitePersonalNotePreferenceStore(db).remember(
+      matchText: '天津海河测试餐厅甲',
+      supplementalNote: '工作餐',
+    );
+    await SqlitePersonalNotePreferenceStore(db).remember(
+      matchText: '天津海河测试餐厅甲',
+      supplementalNote: '早餐',
+    );
+    final revisions = (await repository.pendingUpload())
+        .where((revision) => revision.ruleId == 'note:merchant:天津海河测试餐厅甲')
+        .toList()
+      ..sort((a, b) => a.originVersion.compareTo(b.originVersion));
+    expect(revisions.map((revision) => revision.originVersion), [1, 2]);
   });
 
   test('远端合并裁决失败会原子回滚修订与物化状态', () async {
@@ -390,6 +469,44 @@ void main() {
     final active =
         await SqlitePersonalRuleRevisionStore(db).loadActiveRuleSet();
     expect(active.templates, isEmpty);
+  });
+
+  test('远端提取候选全部回归失败时仍暂停运行时并进入用户确认', () async {
+    const template = BillingRuleTemplate(
+      id: 'rejected-amount',
+      match: BillingRuleTemplateMatch(keywordsAll: ['金额']),
+      extractors: [
+        BillingFieldExtractorRule(
+          field: 'amount',
+          type: 'labelNextLine',
+          label: '金额',
+          parser: 'amount',
+        ),
+      ],
+    );
+    final remote = PersonalRuleRevision(
+      revisionId: 'rejected-remote',
+      ruleId: template.id,
+      originDeviceId: 'old-device',
+      originVersion: 1,
+      kind: PersonalRuleSyncKind.extraction,
+      scopeKey: '[]',
+      conditionKey: 'amount-label',
+      payload: {'template': template.toJson()},
+    );
+
+    final result = await repository.mergeRemote(
+      [remote],
+      localDeviceId: 'new-device',
+      regressionGate: (_) async => LocalRegressionVerdict.rejected,
+    );
+
+    expect(result.pausedMatchKeys, [remote.matchKey]);
+    final conflicts = await repository.listConflicts();
+    expect(conflicts, hasLength(1));
+    expect(conflicts.single.revisions.single.revisionId, remote.revisionId);
+    final paused = await repository.loadPausedExtractionRuleSet();
+    expect(paused.templates.single.id, template.id);
   });
 
   test('公共等价归档成为物化抑制状态，远端旧修订重放也不会复活', () async {

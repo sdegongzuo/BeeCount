@@ -4,6 +4,7 @@ import 'package:beecount/services/billing/rules/billing_rule_engine_impl.dart';
 import 'package:beecount/services/billing/rules/billing_rule_models.dart';
 import 'package:beecount/services/billing/rules/billing_rule_runtime_evaluator.dart';
 import 'package:beecount/services/billing/rules/personal_rule_lifecycle_service.dart';
+import 'package:beecount/services/billing/rules/personal_rule_sync_service.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -89,6 +90,64 @@ void main() {
     expect(rejected.impactSampleIds, ['affected']);
     expect(rejected.excludedSampleIds, ['excluded']);
     expect(await revisions.activeVersion(), isNull);
+  });
+
+  test('同步回归强制评测候选本身，不允许旧活动模板替候选通过', () async {
+    const oldTemplate = BillingRuleTemplate(
+      id: 'same-rule',
+      match: BillingRuleTemplateMatch(
+        sourcePackages: ['com.tencent.mm'],
+        requiredSource: true,
+        keywordsAll: ['金额'],
+      ),
+      extractors: [
+        BillingFieldExtractorRule(
+          field: 'amount',
+          type: 'labelNextLine',
+          label: '金额',
+          parser: 'amount',
+        ),
+      ],
+    );
+    await revisions.activate(oldTemplate, expectedActiveVersion: null);
+    const badCandidate = BillingRuleTemplate(
+      id: 'same-rule',
+      match: BillingRuleTemplateMatch(keywordsAll: ['金额']),
+      extractors: [
+        BillingFieldExtractorRule(
+          field: 'amount',
+          type: 'labelNextLine',
+          label: '不存在的标签',
+          parser: 'amount',
+        ),
+      ],
+    );
+    final gate = PersonalRuleSyncRegressionGate(
+      engine: BillingRuleEngineImpl(),
+      revisionStore: revisions,
+      regressionSamples: _Samples([
+        _sample('existing', '金额\n12.00', {'amount': 12.0}),
+      ]),
+      loadPublicRules: () async => const BillingRuleSet(
+        schemaVersion: 1,
+        rulesVersion: 'public',
+        paymentChannels: [],
+        templates: [],
+      ),
+    );
+
+    final verdict = await gate(PersonalRuleRevision(
+      revisionId: 'bad-remote',
+      ruleId: 'same-rule',
+      originDeviceId: 'remote',
+      originVersion: 2,
+      kind: PersonalRuleSyncKind.extraction,
+      scopeKey: '[]',
+      conditionKey: 'amount',
+      payload: {'template': badCandidate.toJson()},
+    ));
+
+    expect(verdict, LocalRegressionVerdict.rejected);
   });
 
   test('同作用域不兼容候选返回冲突', () async {

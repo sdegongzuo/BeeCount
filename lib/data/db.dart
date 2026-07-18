@@ -983,7 +983,12 @@ class BeeDatabase extends _$BeeDatabase {
             }
           }
           if (from < 31) {
-            await SeedService.repairExistingCategoryInvariants(this);
+            final categoriesTable = await customSelect(
+              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'categories'",
+            ).getSingleOrNull();
+            if (categoriesTable != null) {
+              await SeedService.repairExistingCategoryInvariants(this);
+            }
           }
         },
         beforeOpen: (_) async {

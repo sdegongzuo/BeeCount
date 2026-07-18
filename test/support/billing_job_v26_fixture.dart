@@ -16,7 +16,7 @@ Future<void> verifyHistoricalV26BillingJobUpgrade(File databaseFile) async {
   final db = BeeDatabase.forTesting(NativeDatabase(databaseFile));
   try {
     final version = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(version.read<int>('user_version'), 28);
+    expect(version.read<int>('user_version'), db.schemaVersion);
 
     final repo = LocalBillingJobRepository(db);
     final migratedDone = (await repo.findById(2601))!;

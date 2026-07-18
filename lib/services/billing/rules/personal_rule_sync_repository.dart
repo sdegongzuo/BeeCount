@@ -65,6 +65,11 @@ class PersonalRuleSyncRepository {
       local_device_id TEXT NOT NULL
     )''');
     await db.customStatement(
+        '''CREATE TABLE IF NOT EXISTS personal_rule_sync_local_versions (
+      rule_id TEXT PRIMARY KEY,
+      last_version INTEGER NOT NULL
+    )''');
+    await db.customStatement(
         '''CREATE TABLE IF NOT EXISTS personal_rule_sync_state (
       revision_id TEXT PRIMARY KEY,
       state TEXT NOT NULL
@@ -93,20 +98,75 @@ class PersonalRuleSyncRepository {
 
   Future<void> saveLocal(PersonalRuleRevision revision) async {
     await ensureSchema();
-    final immutableRevision = revision.originDeviceId.isEmpty
-        ? PersonalRuleRevision(
-            revisionId: revision.revisionId,
-            ruleId: revision.ruleId,
-            originDeviceId: await localDeviceId(),
-            originVersion: revision.originVersion,
-            kind: revision.kind,
-            scopeKey: revision.scopeKey,
-            conditionKey: revision.conditionKey,
-            payload: revision.payload,
-            resolvedRevisionIds: revision.resolvedRevisionIds,
-          )
-        : revision;
-    await _insertImmutable(immutableRevision, syncState: 'pending_upload');
+    if (revision.originDeviceId.isNotEmpty) {
+      await _insertImmutable(revision, syncState: 'pending_upload');
+      return;
+    }
+    await db.transaction(() async {
+      final existing = await db.customSelect(
+        'SELECT * FROM personal_rule_sync_revisions WHERE revision_id = ?',
+        variables: [Variable.withString(revision.revisionId)],
+      ).getSingleOrNull();
+      if (existing != null) {
+        final stored = _fromRow(existing.data);
+        if (stored.ruleId != revision.ruleId ||
+            stored.kind != revision.kind ||
+            stored.scopeKey != revision.scopeKey ||
+            stored.conditionKey != revision.conditionKey ||
+            jsonEncode(stored.payload) != jsonEncode(revision.payload) ||
+            jsonEncode(stored.resolvedRevisionIds) !=
+                jsonEncode(revision.resolvedRevisionIds)) {
+          throw StateError('revisionId ${revision.revisionId} 对应多个不可变内容');
+        }
+        return;
+      }
+      final deviceId = await localDeviceId();
+      final version = await _allocateLocalOriginVersion(
+        deviceId: deviceId,
+        ruleId: revision.ruleId,
+      );
+      await _insertImmutable(
+        PersonalRuleRevision(
+          revisionId: revision.revisionId,
+          ruleId: revision.ruleId,
+          originDeviceId: deviceId,
+          originVersion: version,
+          kind: revision.kind,
+          scopeKey: revision.scopeKey,
+          conditionKey: revision.conditionKey,
+          payload: revision.payload,
+          resolvedRevisionIds: revision.resolvedRevisionIds,
+        ),
+        syncState: 'pending_upload',
+      );
+    });
+  }
+
+  Future<int> _allocateLocalOriginVersion({
+    required String deviceId,
+    required String ruleId,
+  }) async {
+    final allocated = await db.customSelect(
+      'SELECT last_version FROM personal_rule_sync_local_versions WHERE rule_id = ?',
+      variables: [Variable.withString(ruleId)],
+    ).getSingleOrNull();
+    final historical = await db.customSelect(
+      '''SELECT MAX(origin_version) AS max_version
+         FROM personal_rule_sync_revisions
+         WHERE origin_device_id = ? AND rule_id = ?''',
+      variables: [Variable.withString(deviceId), Variable.withString(ruleId)],
+    ).getSingle();
+    final lastAllocated = allocated?.read<int>('last_version') ?? 0;
+    final lastHistorical = historical.readNullable<int>('max_version') ?? 0;
+    final next =
+        (lastAllocated > lastHistorical ? lastAllocated : lastHistorical) + 1;
+    await db.customStatement(
+      '''INSERT INTO personal_rule_sync_local_versions(rule_id, last_version)
+         VALUES (?, ?)
+         ON CONFLICT(rule_id) DO UPDATE SET last_version = excluded.last_version''',
+      [ruleId, next],
+    );
+    return next;
   }
 
   /// 此安装的稳定来源标识；在修订首次落库前生成，之后绝不改写。
@@ -165,7 +225,7 @@ class PersonalRuleSyncRepository {
     final rows = await db.customSelect(
       '''SELECT r.* FROM personal_rule_sync_revisions r
              JOIN personal_rule_sync_state s ON s.revision_id = r.revision_id
-             WHERE s.state IN ('conflict', 'pendingValidation')
+             WHERE s.state IN ('conflict', 'pendingValidation', 'regressionRejected')
              ORDER BY r.revision_id''',
     ).get();
     final grouped = <String, List<PersonalRuleRevision>>{};
@@ -248,7 +308,7 @@ class PersonalRuleSyncRepository {
       '''SELECT r.* FROM personal_rule_sync_revisions r
              JOIN personal_rule_sync_state s ON s.revision_id = r.revision_id
              WHERE r.kind = 'extraction'
-               AND s.state IN ('conflict', 'pendingValidation')''',
+               AND s.state IN ('conflict', 'pendingValidation', 'regressionRejected')''',
     ).get();
     final templates = <BillingRuleTemplate>[];
     for (final row in rows) {
@@ -299,20 +359,29 @@ class PersonalRuleSyncRepository {
     return false;
   }
 
-  Future<int> countUnresolvedCategoryReferences(String categorySyncId) async {
+  Future<int> countCategoryReferences(String categorySyncId) async {
     await ensureSchema();
     return (await db.customSelect(
-      '''SELECT COUNT(*) AS count
-                 FROM personal_rule_sync_revisions referenced
-                 WHERE referenced.kind = 'category'
-                   AND json_extract(referenced.payload_json, '\$.category_sync_id') = ?
-                   AND NOT EXISTS (
-                     SELECT 1
-                     FROM personal_rule_sync_revisions resolver,
-                          json_each(resolver.resolved_revision_ids_json) resolved
-                     WHERE resolved.value = referenced.revision_id
-                   )''',
-      variables: [Variable.withString(categorySyncId)],
+      '''SELECT COUNT(*) AS count FROM (
+           SELECT scope_key, match_text AS condition_key
+             FROM personal_category_rules
+            WHERE category_sync_id = ?
+           UNION
+           SELECT referenced.scope_key, referenced.condition_key
+             FROM personal_rule_sync_revisions referenced
+            WHERE referenced.kind = 'category'
+              AND json_extract(referenced.payload_json, '\$.category_sync_id') = ?
+              AND NOT EXISTS (
+                SELECT 1
+                  FROM personal_rule_sync_revisions resolver,
+                       json_each(resolver.resolved_revision_ids_json) resolved
+                 WHERE resolved.value = referenced.revision_id
+              )
+         )''',
+      variables: [
+        Variable.withString(categorySyncId),
+        Variable.withString(categorySyncId),
+      ],
     ).getSingle())
         .read<int>('count');
   }

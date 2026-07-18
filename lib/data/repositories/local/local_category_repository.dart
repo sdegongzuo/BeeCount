@@ -494,23 +494,13 @@ class LocalCategoryRepository implements CategoryRepository {
           [categoryId]),
       personalCategoryRuleCount: category?.syncId == null
           ? 0
-          : await _personalCategoryReferenceCount(category!.syncId!, count),
+          : await _personalCategoryReferenceCount(category!.syncId!),
     );
   }
 
-  Future<int> _personalCategoryReferenceCount(
-    String categorySyncId,
-    Future<int> Function(String sql, List<Object?> variables) count,
-  ) async {
-    final materialized = await count(
-      'SELECT COUNT(*) AS count FROM personal_category_rules WHERE category_sync_id = ?',
-      [categorySyncId],
-    );
-    final immutable = await PersonalRuleSyncRepository(db)
-        .countUnresolvedCategoryReferences(categorySyncId);
-    // 同一逻辑规则通常同时存在于物化表和不可变修订表，只计较大的集合，
-    // 避免迁移预览把一条用户规则重复显示为两条引用。
-    return materialized > immutable ? materialized : immutable;
+  Future<int> _personalCategoryReferenceCount(String categorySyncId) async {
+    return PersonalRuleSyncRepository(db)
+        .countCategoryReferences(categorySyncId);
   }
 
   @override

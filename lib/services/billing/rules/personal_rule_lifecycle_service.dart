@@ -38,12 +38,22 @@ class PersonalRuleSyncRegressionGate {
     final active = await revisionStore.loadActiveRuleSet();
     final public = await loadPublicRules();
     final snapshot = BillingRuleSet.activeSnapshot(
-      publicRules: public,
+      publicRules: BillingRuleSet(
+        schemaVersion: public.schemaVersion,
+        rulesVersion: public.rulesVersion,
+        paymentChannels: public.paymentChannels,
+        templates: public.templates
+            .where((template) => template.id != candidate.id)
+            .toList(growable: false),
+      ),
       personalRules: BillingRuleSet(
         schemaVersion: public.schemaVersion,
         rulesVersion: 'sync-candidate',
         paymentChannels: const [],
-        templates: [...active.templates, candidate],
+        templates: [
+          ...active.templates.where((template) => template.id != candidate.id),
+          candidate,
+        ],
       ),
     );
     var impacted = 0;
@@ -60,7 +70,10 @@ class PersonalRuleSyncRegressionGate {
         sourcePackage: source,
         sourceAppName: appName,
       );
-      if (!_preservesExpected(actual, sample.expectedFields)) {
+      // 回归结论必须来自候选本身。更具体的旧规则或同 ID 旧版本不能
+      // 替一个坏候选“通过”门禁；候选未被选中时保持暂停，等待用户处理。
+      if (actual.matchedTemplateId != candidate.id ||
+          !_preservesExpected(actual, sample.expectedFields)) {
         return LocalRegressionVerdict.rejected;
       }
     }

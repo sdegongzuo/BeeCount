@@ -3,6 +3,7 @@ import 'package:beecount/data/repositories/category_repository.dart';
 import 'package:beecount/data/repositories/local/local_category_repository.dart';
 import 'package:beecount/services/billing/personal_category_rule_store.dart';
 import 'package:beecount/services/billing/rules/personal_rule_sync_repository.dart';
+import 'package:beecount/services/billing/rules/personal_rule_sync_service.dart';
 import 'package:drift/native.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
@@ -88,6 +89,83 @@ void main() {
       repo.deleteCategory(sourceId),
       throwsA(isA<CategoryReferencedException>()),
     );
+  });
+
+  test('迁移预览按物化与不可变规则的不相交逻辑键并集计数', () async {
+    final sourceId = await repo.createCategory(name: '旧分类', kind: 'expense');
+    final targetId = await repo.createCategory(name: '目标', kind: 'expense');
+    final source = (await repo.getCategoryById(sourceId))!;
+    await db
+        .customStatement('''CREATE TABLE IF NOT EXISTS personal_category_rules (
+      match_text TEXT NOT NULL, category_sync_id TEXT NOT NULL, ledger_id INTEGER,
+      scope_key TEXT NOT NULL, updated_at INTEGER NOT NULL,
+      PRIMARY KEY (match_text, scope_key))''');
+    for (final condition in ['物化甲', '物化乙']) {
+      await db.customStatement(
+        '''INSERT INTO personal_category_rules
+          (match_text, category_sync_id, ledger_id, scope_key, updated_at)
+          VALUES (?, ?, NULL, 'global', 1)''',
+        [condition, source.syncId],
+      );
+    }
+    for (final condition in ['修订甲', '修订乙']) {
+      await PersonalRuleSyncRepository(db).saveLocal(PersonalRuleRevision(
+        revisionId: 'revision-$condition',
+        ruleId: 'category:global:$condition',
+        originDeviceId: '',
+        originVersion: 1,
+        kind: PersonalRuleSyncKind.category,
+        scopeKey: 'global',
+        conditionKey: condition,
+        payload: {
+          'match_text': condition,
+          'category_sync_id': source.syncId!,
+        },
+      ));
+    }
+
+    final preview = await repo.getCategoryMigrationPreview(
+      fromCategoryId: sourceId,
+      toCategoryId: targetId,
+    );
+    expect(preview.personalCategoryRuleCount, 4);
+  });
+
+  test('迁移预览按逻辑键去重物化重叠和冲突的多条不可变修订', () async {
+    final sourceId = await repo.createCategory(name: '旧分类', kind: 'expense');
+    final targetId = await repo.createCategory(name: '目标', kind: 'expense');
+    final source = (await repo.getCategoryById(sourceId))!;
+    await SqlitePersonalCategoryRuleStore(db).remember(
+      matchText: '重叠',
+      categorySyncId: source.syncId!,
+      ledgerId: null,
+    );
+    for (final device in ['remote-a', 'remote-b']) {
+      await PersonalRuleSyncRepository(db).mergeRemote(
+        [
+          PersonalRuleRevision(
+            revisionId: '$device-conflict',
+            ruleId: '$device-rule',
+            originDeviceId: device,
+            originVersion: 1,
+            kind: PersonalRuleSyncKind.category,
+            scopeKey: 'global',
+            conditionKey: '冲突',
+            payload: {
+              'match_text': '冲突',
+              'category_sync_id': source.syncId!,
+            },
+          ),
+        ],
+        localDeviceId: 'local',
+      );
+    }
+
+    final preview = await repo.getCategoryMigrationPreview(
+      fromCategoryId: sourceId,
+      toCategoryId: targetId,
+    );
+    expect(preview.personalCategoryRuleCount, 2);
   });
 
   test('预览并在同一事务迁移全部引用后删除旧分类', () async {
