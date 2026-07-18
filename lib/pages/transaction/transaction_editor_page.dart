@@ -298,10 +298,15 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
           final supplementalNote = noteChanged
               ? learningContext?.supplementalNoteFrom(res.note)
               : null;
+          final preferenceLearnable =
+              learningContext?.preferenceMatchText != null;
+          final categoryLearnable = categoryChanged && preferenceLearnable;
+          final supplementalNoteLearnable =
+              supplementalNote != null && preferenceLearnable;
           final hasLearnableChanges = amountChanged ||
               timeChanged ||
-              categoryChanged ||
-              supplementalNote != null;
+              categoryLearnable ||
+              supplementalNoteLearnable;
           PersonalRuleUpdateDecision? learningDecision;
           ImageBillEditLearningResult? learningResult;
           if (learningContext != null && hasLearnableChanges && ctx.mounted) {
@@ -310,10 +315,10 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               changedLabels: [
                 if (amountChanged) '金额',
                 if (timeChanged) '时间',
-                if (categoryChanged) '分类',
-                if (supplementalNote != null) '补充备注',
+                if (categoryLearnable) '分类',
+                if (supplementalNoteLearnable) '补充备注',
               ],
-              categoryChanged: categoryChanged,
+              categoryChanged: categoryLearnable,
               allowCancel: false,
             );
           }
@@ -360,8 +365,9 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               context: learningContext,
               amount: amountChanged ? res.amount : null,
               time: timeChanged ? res.date : null,
-              categoryId: categoryChanged ? c.id : null,
-              supplementalNote: supplementalNote,
+              categoryId: categoryLearnable ? c.id : null,
+              supplementalNote:
+                  supplementalNoteLearnable ? supplementalNote : null,
               categoryGlobal: learningDecision!.categoryGlobal,
             );
           }

@@ -23,6 +23,14 @@ class ImageBillEditLearningContext {
   final String rawText;
   final String? sourceInfoJson;
 
+  /// 分类规则和备注偏好必须有图片证据中的稳定匹配键。
+  /// 没有该证据时，用户修改只能作用于本次账单。
+  String? get preferenceMatchText => classificationMatchText(
+        merchantFullName: original.merchantFullName,
+        counterparty: original.counterparty,
+        structuredSummary: original.note,
+      );
+
   /// Returns only an appended user note. Rewriting any byte of the original
   /// structured summary is not safe evidence for a reusable note preference.
   String? supplementalNoteFrom(String? editedNote) {
@@ -162,11 +170,7 @@ class ImageBillEditLearningService {
       }
     }
     if (categoryId != null && rememberCategory != null) {
-      final matchText = classificationMatchText(
-        merchantFullName: context.original.merchantFullName,
-        counterparty: context.original.counterparty,
-        structuredSummary: context.original.note,
-      );
+      final matchText = context.preferenceMatchText;
       if (matchText != null) {
         try {
           await rememberCategory!(
@@ -192,11 +196,7 @@ class ImageBillEditLearningService {
     }
     final note = supplementalNote?.trim() ?? '';
     if (note.isNotEmpty && rememberNotePreference != null) {
-      final matchText = classificationMatchText(
-        merchantFullName: context.original.merchantFullName,
-        counterparty: context.original.counterparty,
-        structuredSummary: context.original.note,
-      );
+      final matchText = context.preferenceMatchText;
       if (matchText != null) {
         try {
           await rememberNotePreference!(

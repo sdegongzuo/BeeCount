@@ -94,6 +94,20 @@ void main() {
       context.supplementalNoteFrom('商户：瑞幸\n商品：海河测试饮品甲\n和朋友聚餐'),
       isNull,
     );
+    expect(context.preferenceMatchText, '天津海河测试餐厅甲');
+
+    final evidenceLess = ImageBillEditLearningContext(
+      transactionId: 43,
+      ledgerId: 7,
+      original: OcrResult(
+        rawText: '付款金额 18.00',
+        allNumbers: const ['18.00'],
+        amount: 18,
+      ),
+      rawText: '付款金额 18.00',
+      sourceInfoJson: null,
+    );
+    expect(evidenceLess.preferenceMatchText, isNull);
   });
 
   test('自动创建成功的截图交易从规则结果找回 OCR 证据', () async {
