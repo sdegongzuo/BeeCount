@@ -7,7 +7,7 @@
 # ---------------------------------------------------------------------------
 
 schemaVersion = 1
-rulesVersion = "2026.07.06.2"
+rulesVersion = "2026.07.18.1"
 
 # ---------------------------------------------------------------------------
 # Payment channel registry
@@ -62,7 +62,14 @@ baseConfidence = 0.88
 [templates.match]
 sourcePackages = ["com.tencent.mm"]
 keywordsAll = ["当前状态", "支付时间", "交易单号"]
-keywordsAny = ["微信支付", "支付详情", "交易详情", "财付通支付科技有限公司"]
+keywordsAny = [
+  "微信支付",
+  "支付详情",
+  "交易详情",
+  "财付通支付科技有限公司",
+  "收单机构",
+  "商户全称",
+]
 
 # Basic fields
 
@@ -117,6 +124,34 @@ field = "counterparty"
 type = "regex"
 pattern = '^(拼多多|天津津门测试餐厅乙)$'
 confidence = 0.82
+
+[[templates.extract]]
+field = "note"
+type = "labelNextLine"
+label = "商品"
+pattern = '^.{2,40}$'
+confidence = 0.84
+
+[[templates.extract]]
+field = "counterparty"
+type = "labelNextLine"
+label = "商品"
+pattern = '^.{2,40}$'
+confidence = 0.84
+
+# WeChat receipt details
+
+[[templates.extract]]
+field = "details.order_amount"
+type = "labelNextLine"
+label = "原价"
+confidence = 0.78
+
+[[templates.extract]]
+field = "details.discount"
+type = "labelNextLine"
+label = "优惠"
+confidence = 0.78
 
 # Detail fields
 
