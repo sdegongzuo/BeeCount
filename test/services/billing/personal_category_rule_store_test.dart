@@ -7,11 +7,15 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('确认分类可按当前账本或全局记住并在重启后用于相似账单', () async {
     final db = BeeDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final ledgerId = await db.into(db.ledgers).insert(
+          LedgersCompanion.insert(name: '测试账本'),
+        );
     final store = SqlitePersonalCategoryRuleStore(db);
     await store.remember(
       matchText: '天津海河测试餐厅甲',
       categorySyncId: 'category-food-sync',
-      ledgerId: 8,
+      ledgerId: ledgerId,
     );
     await store.remember(
       matchText: '滴滴',
@@ -23,7 +27,7 @@ void main() {
     expect(rules, hasLength(2));
     expect(
       rules.singleWhere((rule) => rule.matchText == '天津海河测试餐厅甲').ledgerId,
-      8,
+      ledgerId,
     );
     expect(
       rules.singleWhere((rule) => rule.matchText == '滴滴').ledgerId,
@@ -33,7 +37,7 @@ void main() {
         containsAll(['category-food-sync', 'category-travel-sync']));
     final futureBill =
         DeterministicBillClassifier(personalRules: rules).classify(
-      ledgerId: 8,
+      ledgerId: ledgerId,
       merchant: '天津海河测试餐厅甲天津和平测试门店甲',
       searchableText: '天津海河测试餐厅甲 支付成功',
       fallbackCategorySyncId: 'category-other-sync',
@@ -52,6 +56,5 @@ void main() {
     );
     expect(futureBill.category.localId, 3);
     expect(futureBill.source, BillCategorySource.personalRule);
-    await db.close();
   });
 }
