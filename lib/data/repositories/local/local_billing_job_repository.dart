@@ -250,6 +250,17 @@ WHERE id = ?
   }
 
   @override
+  Future<BillingJob?> findByTransactionId(int transactionId) async {
+    return (db.select(db.billingJobs)
+          ..where((t) =>
+              t.transactionId.equals(transactionId) &
+              t.kind.equals('image_share'))
+          ..orderBy([(t) => d.OrderingTerm.desc(t.id)])
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  @override
   Future<bool> updateRawText(int id, String rawText,
       {BillingJobLease? lease}) async {
     final updated = await (db.update(db.billingJobs)

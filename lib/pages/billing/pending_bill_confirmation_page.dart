@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/billing/pending_bill_confirmation_service.dart';
 import '../../services/billing/rules/personal_rule_lifecycle_service.dart';
+import 'personal_rule_update_prompt.dart';
 
 class PendingBillConfirmationPage extends StatefulWidget {
   final int jobId;
@@ -206,6 +207,34 @@ class _PendingBillConfirmationPageState
         const SnackBar(content: Text('此历史账单缺少账本信息，无法安全创建')),
       );
       return;
+    }
+    final extractionChanged =
+        _draft!.candidate.amount != amount || _draft!.candidate.time != time;
+    final categoryChanged = _categoryId != null &&
+        _categoryId != _draft!.candidate.suggestedCategoryId;
+    final noteAdded = _supplement.text.trim().isNotEmpty;
+    final hasLearnableChanges =
+        extractionChanged || categoryChanged || noteAdded;
+    final hasExplicitRememberChoice = _rememberExtractionCorrections ||
+        _rememberCategoryRule ||
+        _rememberNotePreference;
+    if (hasLearnableChanges && !hasExplicitRememberChoice) {
+      final decision = await showPersonalRuleUpdatePrompt(
+        context,
+        changedLabels: [
+          if (extractionChanged) '金额或时间',
+          if (categoryChanged) '分类',
+          if (noteAdded) '补充备注',
+        ],
+        categoryChanged: categoryChanged,
+      );
+      if (decision == null || !mounted) return;
+      if (decision.remember) {
+        _rememberExtractionCorrections = extractionChanged;
+        _rememberCategoryRule = categoryChanged;
+        _rememberNotePreference = noteAdded;
+        _categoryRuleGlobal = decision.categoryGlobal;
+      }
     }
     setState(() => _saving = true);
     try {

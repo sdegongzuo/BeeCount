@@ -7,7 +7,9 @@ import 'package:beecount/data/repositories/billing_job_repository.dart';
 import 'package:beecount/data/repositories/base_repository.dart';
 import 'package:beecount/l10n/app_localizations.dart';
 import 'package:beecount/pages/billing/pending_transaction_classification_page.dart';
+import 'package:beecount/pages/transaction/transaction_editor_page.dart';
 import 'package:beecount/providers/database_providers.dart';
+import 'package:beecount/providers/smart_billing_providers.dart';
 import 'package:beecount/services/billing/ocr_service.dart';
 import 'package:beecount/services/billing/pending_billing_navigation_host.dart';
 import 'package:beecount/services/billing/pending_transaction_classification_service.dart';
@@ -16,6 +18,7 @@ import 'package:beecount/services/billing/rules/personal_rule_sync_service.dart'
 import 'package:beecount/services/platform/image_share_handler_service.dart';
 import 'package:beecount/services/platform/share_billing_c2_container.dart';
 import 'package:beecount/services/platform/share_billing_c2_fixture.dart';
+import 'package:beecount/widgets/biz/amount_editor_sheet.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -152,6 +155,61 @@ void main() {
       expect(secondOcr.merchantFullName, _merchant);
       expect(secondOcr.suggestedCategoryId, isNull,
           reason: '第二张不能靠页面规则或测试注入分类，只能命中刚记住的个人规则');
+
+      final editLearningService = await runtime.container
+          .read(imageBillEditLearningServiceProvider.future);
+      final editLearningContext =
+          await editLearningService.loadContext(second.id);
+      expect(
+        editLearningContext,
+        isNotNull,
+        reason: jsonEncode({
+          'transaction_id': second.id,
+          'job_transaction_id': secondJob.transactionId,
+          'job_kind': secondJob.kind,
+          'ledger_id': secondJob.ledgerId,
+          'has_final_result': secondJob.finalResultJson != null,
+          'has_raw_text': secondJob.rawText?.isNotEmpty ?? false,
+        }),
+      );
+
+      final rootContext = $.tester.element(find.text('C2 fixture 主页'));
+      final editClosed = Navigator.of(rootContext).push(MaterialPageRoute<void>(
+        builder: (_) => TransactionEditorPage(
+          initialKind: second.type,
+          quickAdd: true,
+          initialCategoryId: second.categoryId,
+          initialAmount: second.amount,
+          initialDate: second.happenedAt,
+          initialNote: second.note,
+          initialPaymentMethod: second.paymentMethod,
+          initialCounterparty: second.counterparty,
+          initialPaymentChannel: second.paymentChannel,
+          initialMerchantFullName: second.merchantFullName,
+          initialAcquirer: second.acquirer,
+          initialDetailsText: second.detailsText,
+          editingTransactionId: second.id,
+          initialAccountId: second.accountId,
+        ),
+      ));
+      await _waitForWidget(find.byType(AmountEditorSheet));
+      for (var index = 0; index < 4; index++) {
+        await $.tap(find.byIcon(Icons.backspace_outlined));
+      }
+      await $.tap(find.widgetWithText(InkWell, '3'));
+      await $.tap(find.widgetWithText(InkWell, '1'));
+      expect(find.text('31'), findsOneWidget);
+      await $.tap(find.text('完成'));
+      await _waitForWidget(find.text('是否更新个人规则？'));
+      expect(find.text('仅本次'), findsOneWidget);
+      expect(find.text('对类似账单记住'), findsOneWidget);
+      expect((await repository.getTransactionById(second.id))?.amount,
+          closeTo(29.90, 0.001));
+      await $.tap(find.text('对类似账单记住'));
+      final edited = await _waitForAmount(repository, second.id, 31);
+      expect(edited.note, expectedStructuredNote);
+      await editClosed;
+      await _waitForWidget(find.text('C2 fixture 主页'));
 
       final otherCategory = await (runtime.database.select(
         runtime.database.categories,
@@ -314,6 +372,22 @@ Future<Transaction> _waitForClassifiedTransaction(
     }
   }
   throw TimeoutException('Production classification callback did not commit');
+}
+
+Future<Transaction> _waitForAmount(
+  BaseRepository repository,
+  int transactionId,
+  double amount,
+) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 30));
+  while (DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    final transaction = await repository.getTransactionById(transactionId);
+    if (transaction != null && (transaction.amount - amount).abs() < 0.001) {
+      return transaction;
+    }
+  }
+  throw TimeoutException('Production edit did not commit amount $amount');
 }
 
 Future<Uint8List> _billPng(String text) async {

@@ -14,6 +14,7 @@ import '../../widgets/transaction/transfer_form.dart';
 import '../../styles/tokens.dart';
 import '../../services/billing/post_processor.dart';
 import '../../services/attachment_service.dart';
+import '../billing/personal_rule_update_prompt.dart';
 
 /// 交易编辑器页面
 /// 支持创建/编辑收入、支出和转账记录
@@ -271,6 +272,41 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         onSubmit: (res) async {
           final repo = ref.read(repositoryProvider);
           final attachmentService = ref.read(attachmentServiceProvider);
+          final amountChanged = widget.initialAmount != null &&
+              (widget.initialAmount! - res.amount).abs() > 0.000001;
+          final timeChanged =
+              widget.initialDate != null && widget.initialDate != res.date;
+          final categoryChanged = widget.initialCategoryId != null &&
+              widget.initialCategoryId != c.id;
+          final learningService = widget.editingTransactionId == null
+              ? null
+              : await ref.read(imageBillEditLearningServiceProvider.future);
+          final learningContext = learningService == null
+              ? null
+              : await learningService.loadContext(widget.editingTransactionId!);
+          final noteChanged =
+              (widget.initialNote?.trim() ?? '') != (res.note?.trim() ?? '');
+          final supplementalNote = noteChanged
+              ? learningContext?.supplementalNoteFrom(res.note)
+              : null;
+          final hasLearnableChanges = amountChanged ||
+              timeChanged ||
+              categoryChanged ||
+              supplementalNote != null;
+          PersonalRuleUpdateDecision? learningDecision;
+          if (learningContext != null && hasLearnableChanges && ctx.mounted) {
+            learningDecision = await showPersonalRuleUpdatePrompt(
+              ctx,
+              changedLabels: [
+                if (amountChanged) '金额',
+                if (timeChanged) '时间',
+                if (categoryChanged) '分类',
+                if (supplementalNote != null) '补充备注',
+              ],
+              categoryChanged: categoryChanged,
+              allowCancel: false,
+            );
+          }
           int transactionId;
           if (widget.editingTransactionId != null) {
             // 编辑模式：使用repository更新交易
@@ -305,6 +341,18 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               acquirer: res.acquirer,
               detailsText: res.detailsText,
               accountId: res.accountId,
+            );
+          }
+          if (learningDecision?.remember == true &&
+              learningService != null &&
+              learningContext != null) {
+            await learningService.remember(
+              context: learningContext,
+              amount: amountChanged ? res.amount : null,
+              time: timeChanged ? res.date : null,
+              categoryId: categoryChanged ? c.id : null,
+              supplementalNote: supplementalNote,
+              categoryGlobal: learningDecision!.categoryGlobal,
             );
           }
           // 保存待上传的附件

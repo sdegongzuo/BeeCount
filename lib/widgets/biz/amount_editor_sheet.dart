@@ -167,6 +167,7 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
       widget.ledgerId,
       limit: 20,
     );
+    if (!mounted) return;
     setState(() {
       _frequentNotes = notes;
     });

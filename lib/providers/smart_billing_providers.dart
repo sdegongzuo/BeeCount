@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/repositories/local/local_repository.dart';
 import '../services/billing/bill_creation_service.dart';
 import '../services/billing/billing_job_service.dart';
+import '../services/billing/image_bill_edit_learning_service.dart';
 import '../services/billing/pending_bill_confirmation_service.dart';
 import '../services/billing/pending_transaction_classification_service.dart';
 import '../services/billing/personal_category_rule_store.dart';
@@ -95,6 +96,20 @@ final pendingBillConfirmationServiceProvider =
         supplementalNote: supplementalNote,
       );
     },
+  );
+});
+
+/// 已由分享截图创建的交易在普通编辑页保存时，复用同一组
+/// 个人规则写边界，但不重复创建交易。
+final imageBillEditLearningServiceProvider =
+    FutureProvider<ImageBillEditLearningService>((ref) async {
+  final confirmation =
+      await ref.watch(pendingBillConfirmationServiceProvider.future);
+  return ImageBillEditLearningService(
+    jobs: ref.watch(billingJobRepositoryProvider),
+    applyCorrection: confirmation.applyCorrection,
+    rememberCategory: confirmation.rememberCategory,
+    rememberNotePreference: confirmation.rememberNotePreference,
   );
 });
 

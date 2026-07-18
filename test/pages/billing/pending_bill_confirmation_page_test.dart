@@ -14,6 +14,68 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('修改 OCR 字段后保存会询问仅本次或对类似账单记住', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final db = BeeDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repo = LocalBillingJobRepository(db);
+    final job = await repo.createJob(imagePath: '/tmp/shared.png', ledgerId: 7);
+    await repo.updateFinalResultJson(
+      job.id,
+      jsonEncode(OcrResult(
+        rawText: '付款金额\n18.00',
+        allNumbers: const ['18.00'],
+        amount: 18,
+        time: DateTime(2026, 7, 18, 10, 30),
+        merchantFullName: '天津海河测试餐厅甲',
+      ).toJson()),
+    );
+    await repo.updateStatus(job.id, BillingJobStatus.awaitingConfirmation);
+    var createCount = 0;
+    var correctionCount = 0;
+    final service = PendingBillConfirmationService(
+      repo: repo,
+      createTransaction: (_, {required ledgerId}) async {
+        createCount++;
+        return 9;
+      },
+      applyCorrection: (_) async {
+        correctionCount++;
+        return const PersonalRuleLifecycleResult(
+          status: PersonalRuleLifecycleStatus.enabled,
+        );
+      },
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('zh'),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: PendingBillConfirmationPage(jobId: job.id, service: service),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const Key('amountField')), '20.00');
+    await tester.tap(find.text('确认并创建账单'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('是否更新个人规则？'), findsOneWidget);
+    expect(find.text('仅本次'), findsOneWidget);
+    expect(find.text('对类似账单记住'), findsOneWidget);
+    expect(createCount, 0);
+
+    await tester.tap(find.text('仅本次'));
+    await tester.pumpAndSettle();
+    expect(createCount, 1);
+    expect(correctionCount, 0);
+  });
+
   testWidgets('预填候选并明确区分证据、补充信息和记住范围', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));

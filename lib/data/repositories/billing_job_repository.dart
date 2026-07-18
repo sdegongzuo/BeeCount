@@ -83,6 +83,12 @@ abstract class BillingJobRepository {
   Future<bool> markSucceeded(int id, {BillingJobLease? lease});
   Future<bool> markAttachmentDone(int id, {BillingJobLease? lease});
   Future<BillingJob?> findByImagePath(String imagePath);
+
+  /// Finds the latest image-share job that created [transactionId].
+  ///
+  /// Returns null for manually created transactions, so ordinary edits never
+  /// enter the personal-rule learning flow without OCR evidence.
+  Future<BillingJob?> findByTransactionId(int transactionId);
   Future<bool> updateRawText(int id, String rawText, {BillingJobLease? lease});
   Future<bool> updateSourceInfoJson(int id, String sourceInfoJson,
       {BillingJobLease? lease});
