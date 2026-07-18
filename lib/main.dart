@@ -514,7 +514,11 @@ class MainApp extends ConsumerWidget {
           final showPrivacy = ref.watch(showPrivacyScreenProvider);
           return Stack(
             children: [
-              child ?? const SizedBox.shrink(),
+              SafeArea(
+                bottom: true,
+                top: false,
+                child: child ?? const SizedBox.shrink(),
+              ),
               if (showPrivacy)
                 Positioned.fill(
                   child: BackdropFilter(
