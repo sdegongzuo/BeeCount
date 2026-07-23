@@ -5,9 +5,11 @@ import 'package:uuid/uuid.dart';
 
 import '../../../data/db.dart';
 import '../regression_sample_store.dart';
+import '../payment_method_semantics.dart';
 import 'billing_rule_engine.dart';
 import 'billing_rule_extractors.dart';
 import 'billing_rule_models.dart';
+import 'billing_rule_parsers.dart';
 import 'billing_rule_runtime_evaluator.dart';
 import 'personal_rule_sync_repository.dart';
 import 'personal_rule_sync_service.dart';
@@ -312,18 +314,44 @@ class PersonalRuleLifecycleService {
 }
 
 BillingRuleTemplate? _synthesize(PersonalRuleCorrection correction) {
-  final valueText = _valueText(correction.confirmedValue);
+  const paymentMethodSemantics = PaymentMethodSemantics();
+  final valueText = correction.field == 'paymentMethod'
+      ? paymentMethodSemantics
+          .canonicalize(correction.confirmedValue.toString())
+          .value
+      : _valueText(correction.confirmedValue);
+  if (valueText == null) return null;
   final lines = correction.normalizedOcr
       .split(RegExp(r'\r?\n'))
       .map((line) => line.trim())
       .toList();
-  final valueLine = lines.indexWhere((line) => line.contains(valueText));
+  String? sameLineLabel;
+  final valueLine = lines.indexWhere((line) {
+    if (line.contains(valueText)) return true;
+    if (correction.field != 'paymentMethod') return false;
+    if (paymentMethodSemantics.canonicalize(line).value == valueText) {
+      return true;
+    }
+    final separator = RegExp(r'[:：]').firstMatch(line);
+    if (separator == null) return false;
+    final label = line.substring(0, separator.start).trim();
+    final candidate = line.substring(separator.end).trim();
+    if (!_safeLabel(label, lines) ||
+        paymentMethodSemantics.canonicalize(candidate).value != valueText) {
+      return false;
+    }
+    sameLineLabel = label;
+    return true;
+  });
   if (valueLine < 0) return null;
 
   String? type;
   String? label;
   String? pattern;
-  if (valueLine > 0 &&
+  if (sameLineLabel != null) {
+    type = BillingRuleExtractorTypes.labelSameLine;
+    label = sameLineLabel;
+  } else if (valueLine > 0 &&
       _safeLabel(lines[valueLine - 1], lines) &&
       _labelFitsField(lines[valueLine - 1], correction.field)) {
     type = BillingRuleExtractorTypes.labelNextLine;
@@ -345,6 +373,7 @@ BillingRuleTemplate? _synthesize(PersonalRuleCorrection correction) {
     }
   }
   final keyword = label;
+  if (keyword == null) return null;
   final scope = [
     correction.sourcePackage ?? '',
     correction.sourceAppName ?? '',
@@ -371,7 +400,11 @@ BillingRuleTemplate? _synthesize(PersonalRuleCorrection correction) {
         type: type,
         label: label,
         pattern: pattern,
-        parser: correction.field == 'amount' ? 'amount' : null,
+        parser: switch (correction.field) {
+          'amount' => BillingRuleParserTypes.amount,
+          'paymentMethod' => BillingRuleParserTypes.paymentMethod,
+          _ => null,
+        },
         confidence: 0.95,
       ),
     ],

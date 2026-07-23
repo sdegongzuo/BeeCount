@@ -513,6 +513,57 @@ void main() {
       expect(result.confidence, greaterThan(0.8));
     });
 
+    test('canonicalizes before selection and falls through rejected candidates',
+        () async {
+      final result = await BillingRuleEngineImpl().evaluate(
+        ruleSet: BillingRuleSet(
+          schemaVersion: 1,
+          rulesVersion: 'normalization.test',
+          paymentChannels: const [],
+          templates: [
+            _template(
+              id: 'payment_method_fallback',
+              extractorSelection: BillingExtractorSelection.firstSuccessful,
+              match: const BillingRuleTemplateMatch(
+                keywordsAll: ['支付方式', '卡号'],
+              ),
+              extractors: const [
+                BillingFieldExtractorRule(
+                  field: 'paymentMethod',
+                  type: BillingRuleExtractorTypes.labelNextLine,
+                  label: '支付方式',
+                  parser: BillingRuleParserTypes.paymentMethod,
+                  confidence: 0.99,
+                ),
+                BillingFieldExtractorRule(
+                  field: 'paymentMethod',
+                  type: BillingRuleExtractorTypes.regex,
+                  pattern: r'(中国银行银联信用卡\[3610\])',
+                  parser: BillingRuleParserTypes.paymentMethod,
+                  confidence: 0.8,
+                ),
+              ],
+            ),
+          ],
+        ),
+        ocrText: '支付方式\n卡号\n中国银行银联信用卡[2853]',
+      );
+
+      expect(result.paymentMethod, '中国银行信用卡(2853)');
+      expect(
+        result.fields['paymentMethod']?.rawValue,
+        '中国银行银联信用卡[2853]',
+      );
+      expect(
+        result.fields['paymentMethod']?.toJson(),
+        isNot(contains('raw_value')),
+      );
+      expect(
+        result.fields['paymentMethod']?.toDebugJson()['raw_value'],
+        '中国银行银联信用卡[2853]',
+      );
+    });
+
     test('collects unmatched OCR lines into details', () async {
       final result = await BillingRuleEngineImpl().evaluate(
         ruleSet: BillingRuleSet(
@@ -722,7 +773,7 @@ void main() {
       expect(result.amount, -27.82);
       expect(result.time, DateTime(2026, 6, 14, 12, 22, 17));
       expect(result.paymentChannel, '云闪付');
-      expect(result.paymentMethod, '工商银行银联信用卡(1044)');
+      expect(result.paymentMethod, '工商银行信用卡(1044)');
       expect(result.counterparty, '天津滨海测试家居有限公司庚');
       expect(result.note, '天津滨海测试家居有限公司庚');
       expect(result.acquirer, '支付宝(中国)网络技术有限公司');
@@ -797,20 +848,20 @@ void main() {
       );
     });
 
-    test('normalizes payment method OCR variants', () {
+    test('payment method parser only validates and trims strings', () {
       expect(
         BillingRuleParsers.parse(
           BillingRuleParserTypes.paymentMethod,
           '中国银行银联信用卡[2853]',
         ).value,
-        '中国银行银联信用卡(3610)',
+        '中国银行银联信用卡[2853]',
       );
       expect(
         BillingRuleParsers.parse(
           BillingRuleParserTypes.paymentMethod,
           '平安银行信用卡(2299)>',
         ).value,
-        '平安银行信用卡(2299)',
+        '平安银行信用卡(2299)>',
       );
     });
 

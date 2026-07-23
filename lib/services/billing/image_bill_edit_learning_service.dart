@@ -115,13 +115,18 @@ class ImageBillEditLearningService {
     required ImageBillEditLearningContext context,
     double? amount,
     DateTime? time,
+    String? paymentMethod,
     int? categoryId,
     String? supplementalNote,
     bool categoryGlobal = false,
   }) async {
     final results = <PersonalRuleLifecycleResult>[];
     final errors = <PendingBillLearningError>[];
-    if (amount != null || time != null) {
+    final normalizedPaymentMethod = paymentMethod?.trim();
+    if (amount != null ||
+        time != null ||
+        (normalizedPaymentMethod != null &&
+            normalizedPaymentMethod.isNotEmpty)) {
       (String?, String?)? source;
       try {
         source = _source(context.sourceInfoJson);
@@ -141,6 +146,9 @@ class ImageBillEditLearningService {
       final fields = <MapEntry<String, Object>>[
         if (amount != null) MapEntry('amount', amount),
         if (time != null) MapEntry('time', time),
+        if (normalizedPaymentMethod != null &&
+            normalizedPaymentMethod.isNotEmpty)
+          MapEntry('paymentMethod', normalizedPaymentMethod),
       ];
       final parsedSource = source;
       if (parsedSource != null) {

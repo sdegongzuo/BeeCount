@@ -60,6 +60,26 @@ void main() {
         ],
       });
     });
+
+    test('keeps raw values out of ordinary JSON and masks debug output', () {
+      const result = BillingRuleFieldResult(
+        field: 'paymentMethod',
+        rawValue: '银行卡号 9924954949692968',
+        value: '中国银行信用卡(2853)',
+        confidence: 0.9,
+        extractorType: 'labelNextLine',
+      );
+
+      expect(result.toJson(), isNot(contains('raw_value')));
+      expect(
+        result.toDebugJson()['raw_value'],
+        '银行卡号 ************2968',
+      );
+      expect(
+        result.toDebugJson(includeSensitive: true)['raw_value'],
+        '银行卡号 9924954949692968',
+      );
+    });
   });
 
   group('BillingRuleTrace', () {

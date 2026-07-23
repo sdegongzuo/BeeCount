@@ -58,15 +58,21 @@ void main() {
     final result = await service.remember(
       context: context!,
       amount: 20,
+      paymentMethod: '中国银行信用卡(2853)',
       supplementalNote: '和朋友聚餐',
     );
 
-    expect(result.ruleResults, hasLength(1));
-    expect(corrections, hasLength(1));
-    expect(corrections.single.field, 'amount');
-    expect(corrections.single.confirmedValue, 20);
-    expect(corrections.single.normalizedOcr, '付款金额\n18.00');
-    expect(corrections.single.sourcePackage, 'com.tencent.mm');
+    expect(result.ruleResults, hasLength(2));
+    expect(corrections, hasLength(2));
+    expect(corrections.map((item) => item.field), ['amount', 'paymentMethod']);
+    expect(corrections.map((item) => item.confirmedValue), [
+      20,
+      '中国银行信用卡(2853)',
+    ]);
+    for (final correction in corrections) {
+      expect(correction.normalizedOcr, '付款金额\n18.00');
+      expect(correction.sourcePackage, 'com.tencent.mm');
+    }
     expect(
       notePreferences,
       [(matchText: '天津海河测试餐厅甲', note: '和朋友聚餐')],

@@ -438,11 +438,20 @@ class BillingRuleResult {
         'ai_enhance_status': aiEnhanceStatus.wireName,
       };
 
-  Map<String, dynamic> toDebugJson() => toJson();
+  Map<String, dynamic> toDebugJson({bool includeSensitive = false}) => {
+        ...toJson(),
+        'fields': fields.map(
+          (field, result) => MapEntry(
+            field,
+            result.toDebugJson(includeSensitive: includeSensitive),
+          ),
+        ),
+      };
 }
 
 class BillingRuleFieldResult {
   final String field;
+  final Object? rawValue;
   final Object? value;
   final double confidence;
   final String extractorType;
@@ -453,6 +462,7 @@ class BillingRuleFieldResult {
   const BillingRuleFieldResult({
     required this.field,
     required this.value,
+    this.rawValue,
     required this.confidence,
     required this.extractorType,
     this.extractorId,
@@ -468,6 +478,13 @@ class BillingRuleFieldResult {
         if (extractorId != null) 'extractor_id': extractorId,
         'source': source,
         'evidence': evidence.map((item) => item.toJson()).toList(),
+      };
+
+  Map<String, dynamic> toDebugJson({bool includeSensitive = false}) => {
+        ...toJson(),
+        'raw_value': _jsonValue(
+          includeSensitive ? rawValue : _redactSensitiveValue(rawValue),
+        ),
       };
 }
 
@@ -508,4 +525,13 @@ dynamic _jsonValue(Object? value) {
     );
   }
   return value;
+}
+
+Object? _redactSensitiveValue(Object? value) {
+  if (value is! String) return value;
+  return value.replaceAllMapped(
+    RegExp(r'\d{7,}'),
+    (match) => '${'*' * (match.group(0)!.length - 4)}'
+        '${match.group(0)!.substring(match.group(0)!.length - 4)}',
+  );
 }

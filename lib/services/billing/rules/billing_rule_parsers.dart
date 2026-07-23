@@ -43,7 +43,7 @@ class BillingRuleParsers {
       case BillingRuleParserTypes.institutionName:
         return BillingRuleParseResult(value: _normalizeInstitutionName(input));
       case BillingRuleParserTypes.paymentMethod:
-        return BillingRuleParseResult(value: _normalizePaymentMethod(input));
+        return _parsePaymentMethod(input);
       case BillingRuleParserTypes.regexGroup:
         return _parseRegexGroup(input, pattern: pattern, options: options);
       case BillingRuleParserTypes.raw:
@@ -148,14 +148,15 @@ String _normalizeInstitutionName(String input) {
   return input.trim().replaceAll('料技', '科技').replaceAll('適', '通');
 }
 
-String _normalizePaymentMethod(String input) {
-  return input
-      .trim()
-      .replaceAll(RegExp(r'[>〉]+$'), '')
-      .trim()
-      .replaceAllMapped(RegExp(r'\[(\d{3,6})\]'), (match) {
-    return '(${match.group(1)})';
-  });
+BillingRuleParseResult _parsePaymentMethod(String input) {
+  if (input.contains('\n') || input.contains('\r')) {
+    return const BillingRuleParseResult(
+      value: null,
+      confidence: 0,
+      error: 'Payment method must be a single line',
+    );
+  }
+  return BillingRuleParseResult(value: input.trim());
 }
 
 int? _intOption(Object? value) {

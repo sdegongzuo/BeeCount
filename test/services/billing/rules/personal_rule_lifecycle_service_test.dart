@@ -56,6 +56,40 @@ void main() {
     expect(result.candidate!.extractors.single.type, 'regex');
   });
 
+  test('支付方式按 parser 归一后合成标签规则', () async {
+    final result = await _service(revisions, const []).applyCorrection(
+      const PersonalRuleCorrection(
+        field: 'paymentMethod',
+        confirmedValue: '中国银行信用卡(2853)',
+        normalizedOcr: '银联交易详情\n卡号\n中国银行银联信用卡[2853]\n交易时间',
+        sourcePackage: 'com.unionpay',
+      ),
+    );
+
+    expect(result.status, PersonalRuleLifecycleStatus.enabled);
+    expect(result.candidate!.extractors.single.type, 'labelNextLine');
+    expect(result.candidate!.extractors.single.label, '卡号');
+    expect(result.candidate!.extractors.single.parser, 'paymentMethod');
+  });
+
+  test('支付方式同一行标签候选按 canonical value 合成', () async {
+    final result = await _service(revisions, const []).applyCorrection(
+      const PersonalRuleCorrection(
+        field: 'paymentMethod',
+        confirmedValue: '中国银行信用卡(2853)',
+        normalizedOcr: '支付方式：中国银行银联信用卡[2853]',
+        sourcePackage: 'com.unionpay',
+      ),
+    );
+
+    expect(result.status, PersonalRuleLifecycleStatus.enabled);
+    expect(
+      result.candidate!.extractors.single.type,
+      'labelSameLine',
+    );
+    expect(result.candidate!.extractors.single.label, '支付方式');
+  });
+
   test('无法由 OCR 证据安全表达的校正只作用于当前账单', () async {
     final result = await _service(revisions, const []).applyCorrection(
       const PersonalRuleCorrection(

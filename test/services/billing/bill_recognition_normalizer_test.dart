@@ -15,13 +15,44 @@ void main() {
       );
 
       expect(result.category, '医疗');
-      expect(result.paymentMethod, '中国银行银联准贷记卡(3610)');
+      expect(result.paymentMethod, '中国银行准贷记卡(2853)');
       expect(result.paymentChannel, '云闪付');
       expect(result.details?['original_fields'], {
         'category': '医疗保健',
         'payment_method': '中国银行银联准贷记卡[2853]',
         'payment_channel': '银联云闪付',
       });
+    });
+
+    test('paymentMethod delegates to canonical semantics', () {
+      expect(
+        normalizer
+            .normalize(
+                const BillRecognitionFields(paymentMethod: '中国银行贷记卡[2853]'))
+            .paymentMethod,
+        '中国银行贷记卡(2853)',
+      );
+      expect(
+        normalizer
+            .normalize(
+                const BillRecognitionFields(paymentMethod: '招商银行银联信用卡【7549】'))
+            .paymentMethod,
+        '招商银行信用卡(7549)',
+      );
+      expect(
+        normalizer
+            .normalize(
+                const BillRecognitionFields(paymentMethod: '工商银行银联借记卡（4886）'))
+            .paymentMethod,
+        '工商银行借记卡(4886)',
+      );
+      expect(
+        normalizer
+            .normalize(const BillRecognitionFields(
+                paymentMethod: '建设银行  银联  贷记卡  [7746]'))
+            .paymentMethod,
+        '建设银行贷记卡(7746)',
+      );
     });
 
     test('keeps store name in details and normalizes counterparty', () {

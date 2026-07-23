@@ -1,10 +1,17 @@
 import 'billing_rule_engine.dart';
+import '../payment_method_semantics.dart';
 import 'billing_rule_extractors.dart';
 import 'billing_rule_models.dart';
 import 'billing_rule_parsers.dart';
 import 'billing_rule_trace.dart';
 
 class BillingRuleEngineImpl implements BillingRuleEngine {
+  final PaymentMethodSemantics paymentMethodSemantics;
+
+  const BillingRuleEngineImpl({
+    this.paymentMethodSemantics = const PaymentMethodSemantics(),
+  });
+
   @override
   Future<BillingRuleResult> evaluate({
     required BillingRuleSet ruleSet,
@@ -87,13 +94,22 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
         );
         continue;
       }
+      final parsedValue = parsed.value!;
 
+      final authoritativeValue = _canonicalizeField(
+        extractorRule.field,
+        parsedValue,
+        debugMessages,
+        extractorRule,
+      );
+      if (authoritativeValue == null) continue;
       final confidence = _clampConfidence(
         extraction.confidence * parsed.confidence,
       );
       final fieldResult = BillingRuleFieldResult(
         field: extractorRule.field,
-        value: parsed.value,
+        rawValue: extraction.text,
+        value: authoritativeValue,
         confidence: confidence,
         extractorType: extractorRule.type,
         extractorId: extractorRule.resolvedId(selected.id),
@@ -121,32 +137,33 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
 
       switch (extractorRule.field) {
         case 'amount':
-          amount = _asDouble(parsed.value);
+          amount = _asDouble(authoritativeValue);
           break;
         case 'note':
-          note = parsed.value.toString();
+          note = authoritativeValue.toString();
           break;
         case 'time':
-          if (parsed.value is DateTime) time = parsed.value as DateTime;
+          if (authoritativeValue is DateTime) time = authoritativeValue;
           break;
         case 'paymentChannel':
-          paymentChannel = parsed.value.toString();
+          paymentChannel = authoritativeValue.toString();
           break;
         case 'paymentMethod':
-          paymentMethod = parsed.value.toString();
+          paymentMethod = authoritativeValue.toString();
           break;
         case 'counterparty':
-          counterparty = parsed.value.toString();
+          counterparty = authoritativeValue.toString();
           break;
         case 'merchantFullName':
-          merchantFullName = parsed.value.toString();
+          merchantFullName = authoritativeValue.toString();
           break;
         case 'acquirer':
-          acquirer = parsed.value.toString();
+          acquirer = authoritativeValue.toString();
           break;
         default:
           if (extractorRule.field.startsWith('details.')) {
-            _writeDetailsValue(details, extractorRule.field, parsed.value);
+            _writeDetailsValue(
+                details, extractorRule.field, authoritativeValue);
           }
           break;
       }
@@ -265,6 +282,29 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
       debugMessages: debugMessages,
     );
     return result;
+  }
+
+  Object? _canonicalizeField(
+    String field,
+    Object parsedValue,
+    List<String> debugMessages,
+    BillingFieldExtractorRule extractorRule,
+  ) {
+    if (field != 'paymentMethod') return parsedValue;
+    final normalized = paymentMethodSemantics.canonicalize(
+      parsedValue.toString(),
+    );
+    if (normalized.isRejected || normalized.value == null) {
+      debugMessages.add(
+        'Canonicalization rejected field $field from '
+        '${extractorRule.id ?? extractorRule.type}: ${normalized.reason}',
+      );
+      return null;
+    }
+    debugMessages.add(
+      'Canonicalization ${normalized.status.name} field $field',
+    );
+    return normalized.value;
   }
 
   List<_TemplateMatch> _matchTemplates(

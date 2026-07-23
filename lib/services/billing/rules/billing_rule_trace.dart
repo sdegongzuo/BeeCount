@@ -58,5 +58,8 @@ class BillingRuleTrace {
         'debug_messages': debugMessages,
       };
 
-  Map<String, dynamic> toDebugJson() => toJson();
+  Map<String, dynamic> toDebugJson({bool includeSensitive = false}) => {
+        ...toJson(),
+        'result': result?.toDebugJson(includeSensitive: includeSensitive),
+      };
 }

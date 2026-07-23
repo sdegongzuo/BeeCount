@@ -63,7 +63,7 @@ void main() {
         '${directory.path}${Platform.pathSeparator}rules');
     await productionStorage.directory.create(recursive: true);
     final repository = productionBillingRuleRepository();
-    expect((await repository.loadActiveRuleSet()).rulesVersion, '2026.07.18.1');
+    expect((await repository.loadActiveRuleSet()).rulesVersion, '2026.07.22.1');
     final remote = _rules('production-v1', marker: '生产新规则');
     final updater = BillingRuleUpdateService(
       configuration: _testUpdateConfiguration,

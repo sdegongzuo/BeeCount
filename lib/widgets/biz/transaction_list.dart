@@ -7,6 +7,7 @@ import '../../data/db.dart';
 import '../../providers.dart';
 import '../../providers/budget_providers.dart';
 import '../../services/system/logger_service.dart';
+import '../../services/billing/payment_method_semantics.dart';
 import '../../widgets/ui/ui.dart';
 import '../../widgets/biz/biz.dart';
 import '../../styles/tokens.dart';
@@ -214,45 +215,7 @@ class TransactionListState extends ConsumerState<TransactionList> {
   }
 
   String? _compactPaymentMethodForList(String? value) {
-    final rawText = value?.trim();
-    if (rawText == null || rawText.isEmpty) return null;
-
-    var text = rawText
-        .replaceAll(RegExp(r'\s+'), '')
-        .replaceAll(RegExp(r'（[^）]*）|\([^)]*\)'), '')
-        .replaceAll(RegExp(r'(尾号)?\d{4}$'), '');
-
-    const aliases = <String, String>{
-      '中国邮政储蓄银行': '邮储',
-      '邮储银行': '邮储',
-      '中国建设银行': '建行',
-      '建设银行': '建行',
-      '中国工商银行': '工行',
-      '工商银行': '工行',
-      '中国农业银行': '农行',
-      '农业银行': '农行',
-      '中国银行': '中行',
-      '交通银行': '交行',
-      '招商银行': '招行',
-      '平安银行': '平安',
-      '浦发银行': '浦发',
-      '兴业银行': '兴业',
-      '中信银行': '中信',
-      '光大银行': '光大',
-      '民生银行': '民生',
-      '广发银行': '广发',
-      '华夏银行': '华夏',
-    };
-
-    for (final entry in aliases.entries) {
-      if (text.contains(entry.key)) {
-        text = text.replaceFirst(entry.key, entry.value);
-        break;
-      }
-    }
-
-    text = text.replaceAll('银行', '').trim();
-    return text.isEmpty ? null : text;
+    return const PaymentMethodSemantics().formatForHome(value);
   }
 
   @override

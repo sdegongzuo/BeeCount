@@ -1,9 +1,15 @@
+import 'payment_method_semantics.dart';
+
 /// Normalizes bill recognition fields after OCR/AI extraction.
 ///
 /// This layer keeps the final user-facing fields stable while preserving
 /// rewritten raw values in `details.original_fields`.
 class BillRecognitionNormalizer {
-  const BillRecognitionNormalizer();
+  final PaymentMethodSemantics paymentMethodSemantics;
+
+  const BillRecognitionNormalizer({
+    this.paymentMethodSemantics = const PaymentMethodSemantics(),
+  });
 
   NormalizedBillRecognition normalize(
     BillRecognitionFields fields, {
@@ -13,9 +19,10 @@ class BillRecognitionNormalizer {
     var details = _normalizeDetails(fields.details);
 
     var category = _normalizeCategory(fields.category);
-    var paymentMethod = _normalizePaymentMethod(fields.paymentMethod);
-    var paymentChannel =
-        _normalizePaymentChannel(detectedPaymentChannel ?? fields.paymentChannel);
+    var paymentMethod =
+        paymentMethodSemantics.canonicalize(fields.paymentMethod).value;
+    var paymentChannel = _normalizePaymentChannel(
+        detectedPaymentChannel ?? fields.paymentChannel);
     var counterparty = _normalizeCounterparty(fields.counterparty);
     var merchantFullName = _normalizeEntityName(fields.merchantFullName);
     var note = _normalizeNote(
@@ -83,12 +90,6 @@ class BillRecognitionNormalizer {
     final text = _cleanText(value);
     if (text == null) return null;
     return _categoryAliases[_compact(text)] ?? text;
-  }
-
-  static String? _normalizePaymentMethod(String? value) {
-    final text = _normalizeBrackets(_cleanText(value));
-    if (text == null) return null;
-    return text.replaceAll('[', '(').replaceAll(']', ')');
   }
 
   static String? _normalizePaymentChannel(String? value) {

@@ -7,7 +7,7 @@
 # ---------------------------------------------------------------------------
 
 schemaVersion = 1
-rulesVersion = "2026.07.18.1"
+rulesVersion = "2026.07.22.1"
 
 # ---------------------------------------------------------------------------
 # Payment channel registry
@@ -696,6 +696,13 @@ type = "regex"
 pattern = "(\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}:\\d{2})"
 parser = "isoDatetime"
 confidence = 0.9
+
+[[templates.extract]]
+field = "paymentMethod"
+type = "labelNextLine"
+label = "卡号"
+parser = "paymentMethod"
+confidence = 0.92
 
 [[templates.extract]]
 field = "paymentMethod"

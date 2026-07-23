@@ -15,6 +15,7 @@ import '../../styles/tokens.dart';
 import '../../services/billing/post_processor.dart';
 import '../../services/billing/image_bill_edit_learning_service.dart';
 import '../../services/billing/pending_bill_confirmation_service.dart';
+import '../../services/billing/payment_method_semantics.dart';
 import '../../services/billing/rules/personal_rule_lifecycle_service.dart';
 import '../../services/attachment_service.dart';
 import '../billing/personal_rule_update_prompt.dart';
@@ -303,10 +304,29 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
           final categoryLearnable = categoryChanged && preferenceLearnable;
           final supplementalNoteLearnable =
               supplementalNote != null && preferenceLearnable;
+          const paymentMethodSemantics = PaymentMethodSemantics();
+          final paymentMethodNormalization =
+              paymentMethodSemantics.canonicalize(res.paymentMethod);
+          if (paymentMethodNormalization.isRejected) {
+            if (ctx.mounted) {
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                const SnackBar(content: Text('支付方式格式无效，请检查后重试')),
+              );
+            }
+            return;
+          }
+          final canonicalPaymentMethod = paymentMethodNormalization.value;
+          final paymentMethodChanged = paymentMethodSemantics
+                  .canonicalize(widget.initialPaymentMethod)
+                  .value !=
+              canonicalPaymentMethod;
+          final paymentMethodLearnable =
+              paymentMethodChanged && canonicalPaymentMethod != null;
           final hasLearnableChanges = amountChanged ||
               timeChanged ||
               categoryLearnable ||
-              supplementalNoteLearnable;
+              supplementalNoteLearnable ||
+              paymentMethodLearnable;
           PersonalRuleUpdateDecision? learningDecision;
           ImageBillEditLearningResult? learningResult;
           if (learningContext != null && hasLearnableChanges && ctx.mounted) {
@@ -317,6 +337,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
                 if (timeChanged) '时间',
                 if (categoryLearnable) '分类',
                 if (supplementalNoteLearnable) '补充备注',
+                if (paymentMethodLearnable) '支付方式',
               ],
               categoryChanged: categoryLearnable,
               allowCancel: false,
@@ -331,7 +352,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               amount: res.amount,
               categoryId: c.id,
               note: res.note,
-              paymentMethod: d.Value(res.paymentMethod),
+              paymentMethod: d.Value(canonicalPaymentMethod),
               counterparty: d.Value(res.counterparty),
               paymentChannel: d.Value(res.paymentChannel),
               merchantFullName: d.Value(res.merchantFullName),
@@ -349,7 +370,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               categoryId: c.id,
               happenedAt: res.date,
               note: res.note,
-              paymentMethod: res.paymentMethod,
+              paymentMethod: canonicalPaymentMethod,
               counterparty: res.counterparty,
               paymentChannel: res.paymentChannel,
               merchantFullName: res.merchantFullName,
@@ -365,6 +386,8 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               context: learningContext,
               amount: amountChanged ? res.amount : null,
               time: timeChanged ? res.date : null,
+              paymentMethod:
+                  paymentMethodLearnable ? canonicalPaymentMethod : null,
               categoryId: categoryLearnable ? c.id : null,
               supplementalNote:
                   supplementalNoteLearnable ? supplementalNote : null,
