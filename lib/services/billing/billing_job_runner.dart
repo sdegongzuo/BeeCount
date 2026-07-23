@@ -333,7 +333,8 @@ class BillingJobRunner {
       case BillingJobStage.ocrDone:
         return 1;
       case BillingJobStage.ruleDone:
-        return 2;
+        // 先让 RuleStage 校验固定快照仍可用；不可用时显式迁回 ocr_done。
+        return 1;
       case BillingJobStage.transactionCreated:
         return 3;
       case BillingJobStage.aiDone:

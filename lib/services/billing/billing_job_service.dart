@@ -85,14 +85,28 @@ class BillingJobService {
     bool captureRegressionSamples = true,
   }) {
     final database = container.read(databaseProvider);
+    final activeRuleRepository = ActiveBillingRuleRepository(
+      publicRepository: productionBillingRuleRepository(),
+      loadActivePersonalRules:
+          SqlitePersonalRuleRevisionStore(database).loadActiveRuleSet,
+    );
     final ocrService = OcrService(
-      fastBillingRuleService: createProductionRuleService(database),
+      fastBillingRuleService: FastBillingRuleService(
+        ruleRepository: activeRuleRepository,
+        ruleEngine: BillingRuleEngineImpl(),
+        loadPausedExtractionRules:
+            PersonalRuleSyncRepository(database).loadPausedExtractionRuleSet,
+      ),
     );
     final ocrProcessor = OcrStageProcessor(
       ocrService: _OcrServiceAdapter(ocrService),
       repo: repo,
     );
-    const ruleProcessor = RuleStageProcessor();
+    final ruleProcessor = RuleStageProcessor(
+      repo: repo,
+      snapshots: ActiveBillingJobRuleSnapshotSource(activeRuleRepository),
+      engine: BillingRuleEngineImpl(),
+    );
 
     // ledgerId 从 provider 读取，fallback 到 SharedPreferences
     final baseRepo = container.read(repositoryProvider);
@@ -405,15 +419,12 @@ class _OcrServiceAdapter implements OcrServiceInterface {
   _OcrServiceAdapter(this._ocr);
 
   @override
-  Future<OcrResult> recognize(
+  Future<OcrStageOutput> recognizeText(
     String imagePath, {
     ScreenshotSourceInfo? sourceInfo,
   }) async {
-    return _ocr.recognizePaymentImage(
-      File(imagePath),
-      sourceInfo: sourceInfo,
-      enableAiEnhancement: false,
-    );
+    final result = await _ocr.recognizePaymentImageText(File(imagePath));
+    return OcrStageOutput(rawText: result.rawText, engine: result.engine);
   }
 }
 

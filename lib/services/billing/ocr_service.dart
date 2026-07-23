@@ -272,6 +272,48 @@ class OcrService {
   /// [repo] Repository实例（可选，用于获取账户列表）
   static const _tag = 'OCR';
 
+  /// Billing Job OCR Stage 专用：只做图片预处理和文字识别，不加载或执行规则。
+  Future<OcrTextRecognitionResult> recognizePaymentImageText(
+    File imageFile, {
+    BillExtractionTraceSink? traceSink,
+  }) async {
+    OcrPreprocessResult? preprocessResult;
+    var ocrImageFile = imageFile;
+    try {
+      preprocessResult = await _imagePreprocessor.preprocess(imageFile);
+      final outputPath = preprocessResult.outputPath;
+      if (outputPath != null && outputPath.isNotEmpty) {
+        ocrImageFile = File(outputPath);
+      }
+      traceSink?.call(BillExtractionTraceEvent(
+        stage: 'preprocess',
+        data: preprocessResult.toJson(),
+      ));
+    } catch (error) {
+      traceSink?.call(BillExtractionTraceEvent(
+        stage: 'preprocess',
+        data: {
+          'method': 'error_fallback_original',
+          'original_path': imageFile.path,
+          'error': error.toString(),
+        },
+      ));
+    }
+    final text = await _recognizeImageText(ocrImageFile);
+    traceSink?.call(BillExtractionTraceEvent(
+      stage: 'ocr',
+      data: {
+        'textLength': text.rawText.length,
+        'engine': text.engine,
+      },
+    ));
+    return OcrTextRecognitionResult(
+      rawText: text.rawText,
+      engine: text.engine,
+      preprocessResult: preprocessResult,
+    );
+  }
+
   Future<OcrResult> recognizePaymentImage(
     File imageFile, {
     BaseRepository? repo,
@@ -986,6 +1028,18 @@ class OcrService {
   void dispose() {
     _textRecognizer.close();
   }
+}
+
+class OcrTextRecognitionResult {
+  final String rawText;
+  final String engine;
+  final OcrPreprocessResult? preprocessResult;
+
+  const OcrTextRecognitionResult({
+    required this.rawText,
+    required this.engine,
+    this.preprocessResult,
+  });
 }
 
 class _OcrTextResult {

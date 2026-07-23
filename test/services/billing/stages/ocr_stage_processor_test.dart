@@ -2,7 +2,6 @@ import 'package:beecount/data/db.dart';
 import 'package:beecount/data/repositories/billing_job_repository.dart';
 import 'package:beecount/data/repositories/local/local_billing_job_repository.dart';
 import 'package:beecount/services/billing/billing_job_runner.dart';
-import 'package:beecount/services/billing/ocr_service.dart';
 import 'package:beecount/services/billing/stages/ocr_stage_processor.dart';
 import 'package:beecount/services/platform/screenshot_source_info.dart';
 import 'package:drift/native.dart';
@@ -15,12 +14,12 @@ class FakeOcrService implements OcrServiceInterface {
   FakeOcrService({this.textToReturn = 'Sample receipt text'});
 
   @override
-  Future<OcrResult> recognize(
+  Future<OcrStageOutput> recognizeText(
     String imagePath, {
     ScreenshotSourceInfo? sourceInfo,
   }) async {
     called = true;
-    return OcrResult(rawText: textToReturn, allNumbers: []);
+    return OcrStageOutput(rawText: textToReturn, engine: 'fake');
   }
 }
 
@@ -51,6 +50,8 @@ void main() {
 
     final updated = await repo.findById(job.id);
     expect(updated!.rawText, equals('Sample receipt text'));
+    expect(updated.ruleResultJson, isNull);
+    expect(updated.rulesVersion, isNull);
   });
 
   test('OCR skips if raw_text already exists (idempotent)', () async {
@@ -103,7 +104,7 @@ void main() {
 
 class _ThrowingOcrService implements OcrServiceInterface {
   @override
-  Future<OcrResult> recognize(
+  Future<OcrStageOutput> recognizeText(
     String imagePath, {
     ScreenshotSourceInfo? sourceInfo,
   }) async {
