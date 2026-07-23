@@ -18,6 +18,24 @@ void main() {
       expect(report.templateHitRate, 1);
       expect(report.fieldAccuracy, 1);
       expect(report.falsePositiveCount, 0);
+      final paymentSample = report.samples.firstWhere(
+        (sample) => sample.paymentMethodReport != null,
+      );
+      final paymentReport =
+          paymentSample.toJson()['paymentMethod'] as Map<String, dynamic>;
+      expect(
+          paymentReport.keys,
+          containsAll([
+            'raw',
+            'normalized',
+            'expected',
+            'evidence',
+          ]));
+      expect(paymentReport['raw'], isNot(contains(RegExp(r'\d{7,}'))));
+      expect(
+        (paymentReport['evidence'] as List).join(),
+        isNot(contains(RegExp(r'\d{7,}'))),
+      );
 
       final markdown = renderRuleEvalMarkdown(report);
       expect(markdown, contains('Template hit rate:'));

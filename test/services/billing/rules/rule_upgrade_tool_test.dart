@@ -248,6 +248,41 @@ void main() {
       expect(verification.actual['matched_template_id'],
           'wechat_sample_candidate_v1');
       expect(verification.actual['payment_channel'], '微信支付');
+      final paymentReport =
+          verification.toJson()['paymentMethod'] as Map<String, dynamic>;
+      expect(paymentReport['raw'], '平安银行信用卡(2299)');
+      expect(paymentReport['normalized'], '平安银行信用卡(2299)');
+      expect(paymentReport['expected'], '平安银行信用卡(2299)');
+      expect(paymentReport['evidence'], isNotEmpty);
+      expect(verification.actual['fields']['paymentMethod'],
+          isNot(contains('raw_value')));
+    });
+
+    test('redacts long payment identifiers in upgrade report by default',
+        () async {
+      final upgradeCase = RuleUpgradeCase.fromJson({
+        'schema': RuleUpgradeCase.schema,
+        'status': 'reviewed',
+        'case_id': 'card_sample',
+        'image': 'image/card_sample.jpg',
+        'source_app': '微信',
+        'ocr_text': '支付方式\n中国银行信用卡(9924954949692968)',
+        'expected': {
+          'payment_method': '中国银行信用卡(9924954949692968)',
+        },
+      });
+      final verification = await RuleUpgradeCandidateVerifier.verify(
+        upgradeCase: upgradeCase,
+        candidateToml: RuleUpgradeCandidateGenerator.generate(upgradeCase),
+      );
+
+      final paymentReport =
+          verification.toJson()['paymentMethod'] as Map<String, dynamic>;
+      expect(paymentReport['raw'], '中国银行信用卡(************2968)');
+      expect(
+        (paymentReport['evidence'] as List).join(),
+        isNot(contains('9924954949692968')),
+      );
     });
 
     test('detects when an existing template wins over the candidate', () async {

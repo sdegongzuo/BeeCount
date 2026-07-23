@@ -118,6 +118,10 @@ Future<RuleEvalReport> evaluateBillingRules({
       elapsedMicros: stopwatch.elapsedMicroseconds,
       expected: expected,
       actual: actual,
+      paymentMethodReport: _paymentMethodReport(
+        result,
+        expected['paymentMethod'],
+      ),
       fieldDiffs: diffs,
     ));
   }
@@ -245,6 +249,7 @@ class RuleEvalSampleResult {
   final int elapsedMicros;
   final Map<String, Object?> expected;
   final Map<String, Object?> actual;
+  final Map<String, Object?>? paymentMethodReport;
   final List<RuleEvalFieldDiff> fieldDiffs;
 
   const RuleEvalSampleResult({
@@ -254,6 +259,7 @@ class RuleEvalSampleResult {
     required this.elapsedMicros,
     required this.expected,
     required this.actual,
+    this.paymentMethodReport,
     required this.fieldDiffs,
   });
 
@@ -269,9 +275,41 @@ class RuleEvalSampleResult {
         'passed': passed,
         'expected': expected,
         'actual': actual,
+        if (paymentMethodReport != null) 'paymentMethod': paymentMethodReport,
         'field_diffs': fieldDiffs.map((diff) => diff.toJson()).toList(),
       };
 }
+
+Map<String, Object?>? _paymentMethodReport(
+  BillingRuleResult result,
+  Object? expected,
+) {
+  final field = result.fields['paymentMethod'];
+  if (field == null && result.paymentMethod == null && expected == null) {
+    return null;
+  }
+  return {
+    'raw': _redactPaymentMethodValue(field?.rawValue),
+    'normalized': result.paymentMethod,
+    'expected': expected,
+    'evidence': field?.evidence
+            .map((item) => {
+                  ...item.toJson(),
+                  'text': _redactPaymentMethodText(item.text),
+                })
+            .toList(growable: false) ??
+        const [],
+  };
+}
+
+Object? _redactPaymentMethodValue(Object? value) =>
+    value is String ? _redactPaymentMethodText(value) : value;
+
+String _redactPaymentMethodText(String value) => value.replaceAllMapped(
+      RegExp(r'\d{7,}'),
+      (match) => '${'*' * (match.group(0)!.length - 4)}'
+          '${match.group(0)!.substring(match.group(0)!.length - 4)}',
+    );
 
 class RuleEvalFieldDiff {
   final String field;

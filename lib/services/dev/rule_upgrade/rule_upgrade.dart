@@ -197,8 +197,11 @@ class RuleUpgradeCandidateGenerator {
       ..writeln('# Review before merging into assets/rules/billing_rules.toml.')
       ..writeln()
       ..writeln('schemaVersion = 1')
+      ..writeln('rulePackageVersion = 1')
       ..writeln(
           'rulesVersion = ${_tomlString('candidate.${upgradeCase.caseId}')}')
+      ..writeln('normalizationVersion = 1')
+      ..writeln('compatibleNormalizationVersions = [1]')
       ..writeln()
       ..writeln('[[templates]]')
       ..writeln('id = ${_tomlString(id)}')
@@ -314,6 +317,7 @@ class RuleUpgradeCandidateGenerator {
 
 class RuleUpgradeVerificationResult {
   final Map<String, dynamic> actual;
+  final Map<String, Object?>? paymentMethodReport;
   final List<String> failures;
   final List<String> candidateTemplateIds;
   final String mode;
@@ -321,6 +325,7 @@ class RuleUpgradeVerificationResult {
 
   const RuleUpgradeVerificationResult({
     required this.actual,
+    this.paymentMethodReport,
     required this.failures,
     this.candidateTemplateIds = const [],
     this.mode = 'standalone',
@@ -334,6 +339,7 @@ class RuleUpgradeVerificationResult {
         'mode': mode,
         'candidate_template_ids': candidateTemplateIds,
         'actual': actual,
+        if (paymentMethodReport != null) 'paymentMethod': paymentMethodReport,
         'failures': failures,
         if (regression != null) 'regression': regression!.toJson(),
       };
@@ -433,6 +439,10 @@ class RuleUpgradeCandidateVerifier {
     }
     return RuleUpgradeVerificationResult(
       actual: actual,
+      paymentMethodReport: _paymentMethodReport(
+        ruleResult,
+        upgradeCase.expected['payment_method'],
+      ),
       failures: failures,
       candidateTemplateIds: candidateTemplateIds.toList(growable: false),
       mode: baseToml == null ? 'standalone' : 'merged',
@@ -440,6 +450,37 @@ class RuleUpgradeCandidateVerifier {
     );
   }
 }
+
+Map<String, Object?>? _paymentMethodReport(
+  BillingRuleResult result,
+  Object? expected,
+) {
+  final field = result.fields['paymentMethod'];
+  if (field == null && result.paymentMethod == null && expected == null) {
+    return null;
+  }
+  return {
+    'raw': _redactPaymentMethodValue(field?.rawValue),
+    'normalized': result.paymentMethod,
+    'expected': expected,
+    'evidence': field?.evidence
+            .map((item) => {
+                  ...item.toJson(),
+                  'text': _redactPaymentMethodText(item.text),
+                })
+            .toList(growable: false) ??
+        const [],
+  };
+}
+
+Object? _redactPaymentMethodValue(Object? value) =>
+    value is String ? _redactPaymentMethodText(value) : value;
+
+String _redactPaymentMethodText(String value) => value.replaceAllMapped(
+      RegExp(r'\d{7,}'),
+      (match) => '${'*' * (match.group(0)!.length - 4)}'
+          '${match.group(0)!.substring(match.group(0)!.length - 4)}',
+    );
 
 Future<RuleUpgradeRegressionResult> _verifyRegression({
   required BillingRuleSet ruleSet,
