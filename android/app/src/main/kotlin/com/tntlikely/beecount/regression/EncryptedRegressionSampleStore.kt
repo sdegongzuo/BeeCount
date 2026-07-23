@@ -79,6 +79,12 @@ data class ExpectedActivationResult(
     val activatedRevisionCount: Int,
 )
 
+data class ExpectedActivationState(
+    val activeNormalizationVersion: Int?,
+    val previousNormalizationVersion: Int?,
+    val migrationDecisionId: String?,
+)
+
 data class ExpectedCompactionResult(
     val retainedRevisionIds: Set<String>,
     val compactedRevisionIds: Set<String>,
@@ -296,6 +302,23 @@ class EncryptedRegressionSampleStore(
         }
         return ExpectedActivationResult(active, previous, count)
     }
+
+    fun readExpectedActivationState(): ExpectedActivationState =
+        readableDatabase.rawQuery(
+            """SELECT active_version, previous_version, migration_decision_id
+               FROM regression_normalization_state WHERE singleton = 1""".trimIndent(),
+            emptyArray(),
+        ).use { cursor ->
+            check(cursor.moveToFirst()) { "Missing regression normalization state" }
+            ExpectedActivationState(
+                activeNormalizationVersion =
+                    if (cursor.isNull(0)) null else cursor.getInt(0),
+                previousNormalizationVersion =
+                    if (cursor.isNull(1)) null else cursor.getInt(1),
+                migrationDecisionId =
+                    if (cursor.isNull(2)) null else cursor.getString(2),
+            )
+        }
 
     fun compactExpectedRevisions(
         referencedRevisionIds: Set<String>,

@@ -175,4 +175,25 @@ void main() {
     expect(rollback.previousNormalizationVersion, 2);
     expect(rollback.activatedRevisionCount, 3);
   });
+
+  test('读取 expected 激活状态用于规则与归一化恢复校验', () async {
+    MethodCall? received;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      received = call;
+      return {
+        'activeNormalizationVersion': 2,
+        'previousNormalizationVersion': 1,
+        'migrationDecisionId': 'migration-2',
+      };
+    });
+
+    final state =
+        await const RegressionSampleStore().readExpectedActivationState();
+
+    expect(received?.method, 'readExpectedActivationState');
+    expect(state.activeNormalizationVersion, 2);
+    expect(state.previousNormalizationVersion, 1);
+    expect(state.migrationDecisionId, 'migration-2');
+  });
 }

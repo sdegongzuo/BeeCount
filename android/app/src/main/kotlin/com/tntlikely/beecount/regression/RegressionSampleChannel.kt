@@ -37,6 +37,16 @@ class RegressionSampleChannel(
             "rollbackExpectedRevisions" -> executor.execute {
                 respond(result) { activationToMap(store.rollbackExpectedRevisions()) }
             }
+            "readExpectedActivationState" -> executor.execute {
+                respond(result) {
+                    val state = store.readExpectedActivationState()
+                    mapOf(
+                        "activeNormalizationVersion" to state.activeNormalizationVersion,
+                        "previousNormalizationVersion" to state.previousNormalizationVersion,
+                        "migrationDecisionId" to state.migrationDecisionId,
+                    )
+                }
+            }
             else -> result.notImplemented()
         }
     }

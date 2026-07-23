@@ -136,6 +136,28 @@ class RegressionExpectedActivationResult {
       );
 }
 
+class RegressionExpectedActivationState {
+  final int? activeNormalizationVersion;
+  final int? previousNormalizationVersion;
+  final String? migrationDecisionId;
+
+  const RegressionExpectedActivationState({
+    required this.activeNormalizationVersion,
+    required this.previousNormalizationVersion,
+    required this.migrationDecisionId,
+  });
+
+  factory RegressionExpectedActivationState.fromMap(
+    Map<Object?, Object?> map,
+  ) =>
+      RegressionExpectedActivationState(
+        activeNormalizationVersion: map['activeNormalizationVersion'] as int?,
+        previousNormalizationVersion:
+            map['previousNormalizationVersion'] as int?,
+        migrationDecisionId: map['migrationDecisionId'] as String?,
+      );
+}
+
 /// 一批样本读取与解密的分阶段耗时。
 class RegressionSampleTimings {
   /// 数据密钥解封耗时。
@@ -315,6 +337,8 @@ abstract class RegressionExpectedRevisionStore {
   });
 
   Future<RegressionExpectedActivationResult> rollbackExpectedRevisions();
+
+  Future<RegressionExpectedActivationState> readExpectedActivationState();
 }
 
 class RegressionSampleStore
@@ -385,6 +409,15 @@ class RegressionSampleStore
       'rollbackExpectedRevisions',
     );
     return RegressionExpectedActivationResult.fromMap(result!);
+  }
+
+  @override
+  Future<RegressionExpectedActivationState>
+      readExpectedActivationState() async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      'readExpectedActivationState',
+    );
+    return RegressionExpectedActivationState.fromMap(result!);
   }
 
   @override
