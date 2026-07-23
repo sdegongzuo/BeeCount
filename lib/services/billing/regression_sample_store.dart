@@ -83,6 +83,59 @@ class SaveRegressionSampleResult {
       );
 }
 
+enum RegressionExpectedRevisionState { prepared, active, compacted }
+
+class RegressionExpectedRevision {
+  final String revisionId;
+  final String sampleId;
+  final int normalizationVersion;
+  final String? derivedFromRevisionId;
+  final String migrationDecisionId;
+  final RegressionExpectedRevisionState state;
+
+  const RegressionExpectedRevision({
+    required this.revisionId,
+    required this.sampleId,
+    required this.normalizationVersion,
+    required this.migrationDecisionId,
+    required this.state,
+    this.derivedFromRevisionId,
+  });
+
+  factory RegressionExpectedRevision.fromMap(Map<Object?, Object?> map) =>
+      RegressionExpectedRevision(
+        revisionId: map['revisionId'] as String,
+        sampleId: map['sampleId'] as String,
+        normalizationVersion: map['normalizationVersion'] as int,
+        migrationDecisionId: map['migrationDecisionId'] as String,
+        derivedFromRevisionId: map['derivedFromRevisionId'] as String?,
+        state: RegressionExpectedRevisionState.values
+            .byName(map['state'] as String),
+      );
+}
+
+class RegressionExpectedActivationResult {
+  final int activeNormalizationVersion;
+  final int? previousNormalizationVersion;
+  final int activatedRevisionCount;
+
+  const RegressionExpectedActivationResult({
+    required this.activeNormalizationVersion,
+    required this.previousNormalizationVersion,
+    required this.activatedRevisionCount,
+  });
+
+  factory RegressionExpectedActivationResult.fromMap(
+    Map<Object?, Object?> map,
+  ) =>
+      RegressionExpectedActivationResult(
+        activeNormalizationVersion: map['activeNormalizationVersion'] as int,
+        previousNormalizationVersion:
+            map['previousNormalizationVersion'] as int?,
+        activatedRevisionCount: map['activatedRevisionCount'] as int,
+      );
+}
+
 /// 一批样本读取与解密的分阶段耗时。
 class RegressionSampleTimings {
   /// 数据密钥解封耗时。
@@ -269,6 +322,48 @@ class RegressionSampleStore implements RegressionSamplePageSource {
     final result =
         await _channel.invokeMapMethod<Object?, Object?>('readBatch');
     return RegressionSampleBatch.fromMap(result!);
+  }
+
+  Future<RegressionExpectedRevision> prepareExpectedRevision({
+    required String sampleId,
+    required int normalizationVersion,
+    required Map<String, Object?> expectedFields,
+    required String migrationDecisionId,
+    String? derivedFromRevisionId,
+  }) async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      'prepareExpectedRevision',
+      {
+        'sampleId': sampleId,
+        'normalizationVersion': normalizationVersion,
+        'expectedFields': expectedFields,
+        'migrationDecisionId': migrationDecisionId,
+        if (derivedFromRevisionId != null)
+          'derivedFromRevisionId': derivedFromRevisionId,
+      },
+    );
+    return RegressionExpectedRevision.fromMap(result!);
+  }
+
+  Future<RegressionExpectedActivationResult> activateExpectedRevisions({
+    required int normalizationVersion,
+    required String migrationDecisionId,
+  }) async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      'activateExpectedRevisions',
+      {
+        'normalizationVersion': normalizationVersion,
+        'migrationDecisionId': migrationDecisionId,
+      },
+    );
+    return RegressionExpectedActivationResult.fromMap(result!);
+  }
+
+  Future<RegressionExpectedActivationResult> rollbackExpectedRevisions() async {
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      'rollbackExpectedRevisions',
+    );
+    return RegressionExpectedActivationResult.fromMap(result!);
   }
 
   @override

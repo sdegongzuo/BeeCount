@@ -87,4 +87,92 @@ void main() {
     });
     expect(page.nextCursor, '200|sample-2');
   });
+
+  test('准备 expected 修订时传递版本、来源和迁移决策', () async {
+    MethodCall? received;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      received = call;
+      return {
+        'revisionId': 'revision-2',
+        'sampleId': 'sample-1',
+        'normalizationVersion': 2,
+        'migrationDecisionId': 'decision-2',
+        'derivedFromRevisionId': 'revision-1',
+        'state': 'prepared',
+      };
+    });
+
+    final revision =
+        await const RegressionSampleStore().prepareExpectedRevision(
+      sampleId: 'sample-1',
+      normalizationVersion: 2,
+      expectedFields: const {
+        'paymentMethod': '中国银行信用卡(2853)',
+      },
+      migrationDecisionId: 'decision-2',
+      derivedFromRevisionId: 'revision-1',
+    );
+
+    expect(received?.method, 'prepareExpectedRevision');
+    expect(received?.arguments, {
+      'sampleId': 'sample-1',
+      'normalizationVersion': 2,
+      'expectedFields': {'paymentMethod': '中国银行信用卡(2853)'},
+      'migrationDecisionId': 'decision-2',
+      'derivedFromRevisionId': 'revision-1',
+    });
+    expect(revision.revisionId, 'revision-2');
+    expect(revision.state, RegressionExpectedRevisionState.prepared);
+  });
+
+  test('激活 expected 修订时返回原子切换结果', () async {
+    MethodCall? received;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      received = call;
+      return {
+        'activeNormalizationVersion': 2,
+        'previousNormalizationVersion': 1,
+        'activatedRevisionCount': 3,
+      };
+    });
+
+    final activation =
+        await const RegressionSampleStore().activateExpectedRevisions(
+      normalizationVersion: 2,
+      migrationDecisionId: 'decision-2',
+    );
+
+    expect(received?.method, 'activateExpectedRevisions');
+    expect(received?.arguments, {
+      'normalizationVersion': 2,
+      'migrationDecisionId': 'decision-2',
+    });
+    expect(activation.activeNormalizationVersion, 2);
+    expect(activation.previousNormalizationVersion, 1);
+    expect(activation.activatedRevisionCount, 3);
+  });
+
+  test('回滚 expected 修订时调用无参数本机事务', () async {
+    MethodCall? received;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      received = call;
+      return {
+        'activeNormalizationVersion': 1,
+        'previousNormalizationVersion': 2,
+        'activatedRevisionCount': 3,
+      };
+    });
+
+    final rollback =
+        await const RegressionSampleStore().rollbackExpectedRevisions();
+
+    expect(received?.method, 'rollbackExpectedRevisions');
+    expect(received?.arguments, isNull);
+    expect(rollback.activeNormalizationVersion, 1);
+    expect(rollback.previousNormalizationVersion, 2);
+    expect(rollback.activatedRevisionCount, 3);
+  });
 }

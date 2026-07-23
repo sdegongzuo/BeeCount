@@ -63,6 +63,21 @@ data class RegressionSamplePage(
     val nextCursor: String?,
 )
 
+data class ExpectedRevisionResult(
+    val revisionId: String,
+    val sampleId: String,
+    val normalizationVersion: Int,
+    val migrationDecisionId: String,
+    val derivedFromRevisionId: String?,
+    val state: String,
+)
+
+data class ExpectedActivationResult(
+    val activeNormalizationVersion: Int,
+    val previousNormalizationVersion: Int?,
+    val activatedRevisionCount: Int,
+)
+
 class RegressionSampleSnapshotChangedException : IllegalStateException(
     "Regression sample content changed during paged scan",
 )
@@ -96,10 +111,160 @@ class EncryptedRegressionSampleStore(
         )
         db.execSQL("CREATE INDEX regression_samples_structure ON regression_samples(structure_fingerprint)")
         createMetadataSchema(db)
+        createExpectedRevisionSchema(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) createMetadataSchema(db)
+        if (oldVersion < 3) createExpectedRevisionSchema(db)
+    }
+
+    fun prepareExpectedRevision(
+        sampleId: String,
+        normalizationVersion: Int,
+        expectedFieldsJson: String,
+        migrationDecisionId: String,
+        derivedFromRevisionId: String?,
+    ): ExpectedRevisionResult {
+        require(normalizationVersion >= 0)
+        check(readableDatabase.rawQuery(
+            "SELECT 1 FROM regression_samples WHERE id = ?",
+            arrayOf(sampleId),
+        ).use { it.moveToFirst() }) { "Unknown regression sample" }
+        val revisionId = UUID.randomUUID().toString()
+        val createdAt = System.currentTimeMillis()
+        val dataKey = saveDataKey ?: crypto.loadDataKey().also { saveDataKey = it }
+        val encrypted = crypto.encrypt(
+            dataKey.key,
+            JSONObject()
+                .put("revisionId", revisionId)
+                .put("sampleId", sampleId)
+                .put("normalizationVersion", normalizationVersion)
+                .put("expectedFields", JSONObject(expectedFieldsJson))
+                .put("derivedFromRevisionId", derivedFromRevisionId)
+                .put("migrationDecisionId", migrationDecisionId)
+                .put("state", "prepared")
+                .put("createdAt", createdAt)
+                .toString().toByteArray(Charsets.UTF_8),
+        )
+        writableDatabase.insertOrThrow(
+            "regression_expected_revisions",
+            null,
+            ContentValues().apply {
+                put("revision_id", revisionId)
+                put("sample_id", sampleId)
+                put("normalization_version", normalizationVersion)
+                put("nonce", encrypted.nonce)
+                put("ciphertext", encrypted.ciphertext)
+                put("key_version", dataKey.version)
+                put("derived_from_revision_id", derivedFromRevisionId)
+                put("migration_decision_id", migrationDecisionId)
+                put("state", "prepared")
+                put("created_at", createdAt)
+            },
+        )
+        return ExpectedRevisionResult(
+            revisionId, sampleId, normalizationVersion, migrationDecisionId,
+            derivedFromRevisionId, "prepared",
+        )
+    }
+
+    fun activateExpectedRevisions(
+        normalizationVersion: Int,
+        migrationDecisionId: String,
+    ): ExpectedActivationResult {
+        val db = writableDatabase
+        var activated = 0
+        var previous: Int? = null
+        db.transaction {
+            previous = rawQuery(
+                "SELECT active_version FROM regression_normalization_state WHERE singleton = 1",
+                emptyArray(),
+            ).use { cursor ->
+                cursor.moveToFirst()
+                if (cursor.isNull(0)) null else cursor.getInt(0)
+            }
+            val relevantSamples = rawQuery(
+                "SELECT id FROM regression_samples WHERE unreadable = 0",
+                emptyArray(),
+            ).use { cursor -> buildList { while (cursor.moveToNext()) add(cursor.getString(0)) } }
+            for (sampleId in relevantSamples) {
+                val revisionId = rawQuery(
+                    """SELECT revision_id FROM regression_expected_revisions
+                       WHERE sample_id = ? AND normalization_version = ?
+                         AND migration_decision_id = ? AND state = 'prepared'
+                       ORDER BY created_at DESC LIMIT 1""".trimIndent(),
+                    arrayOf(sampleId, normalizationVersion.toString(), migrationDecisionId),
+                ).use { cursor ->
+                    check(cursor.moveToFirst()) { "Missing prepared expected revision for $sampleId" }
+                    cursor.getString(0)
+                }
+                val oldActive = rawQuery(
+                    "SELECT active_revision_id FROM regression_expected_state WHERE sample_id = ?",
+                    arrayOf(sampleId),
+                ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                execSQL(
+                    """INSERT OR REPLACE INTO regression_expected_state(
+                       sample_id, active_revision_id, previous_revision_id
+                       ) VALUES (?, ?, ?)""".trimIndent(),
+                    arrayOf(sampleId, revisionId, oldActive),
+                )
+                execSQL(
+                    "UPDATE regression_expected_revisions SET state = 'active' WHERE revision_id = ?",
+                    arrayOf(revisionId),
+                )
+                activated++
+            }
+            execSQL(
+                """UPDATE regression_normalization_state
+                   SET previous_version = active_version, active_version = ?,
+                       migration_decision_id = ?, updated_at = ?
+                   WHERE singleton = 1""".trimIndent(),
+                arrayOf(normalizationVersion, migrationDecisionId, System.currentTimeMillis()),
+            )
+        }
+        return ExpectedActivationResult(normalizationVersion, previous, activated)
+    }
+
+    fun rollbackExpectedRevisions(): ExpectedActivationResult {
+        val db = writableDatabase
+        var active = 0
+        var previous: Int? = null
+        var count = 0
+        db.transaction {
+            val versions = rawQuery(
+                "SELECT active_version, previous_version FROM regression_normalization_state WHERE singleton = 1",
+                emptyArray(),
+            ).use { cursor ->
+                check(cursor.moveToFirst() && !cursor.isNull(1)) { "No normalization rollback available" }
+                cursor.getInt(0) to cursor.getInt(1)
+            }
+            active = versions.second
+            previous = versions.first
+            val states = rawQuery(
+                "SELECT sample_id, active_revision_id, previous_revision_id FROM regression_expected_state",
+                emptyArray(),
+            ).use { cursor ->
+                buildList {
+                    while (cursor.moveToNext()) {
+                        add(Triple(cursor.getString(0), cursor.getString(1), cursor.getString(2)))
+                    }
+                }
+            }
+            for ((sampleId, currentId, previousId) in states) {
+                check(previousId != null) { "Sample $sampleId has no rollback revision" }
+                execSQL(
+                    "UPDATE regression_expected_state SET active_revision_id = ?, previous_revision_id = ? WHERE sample_id = ?",
+                    arrayOf(previousId, currentId, sampleId),
+                )
+                count++
+            }
+            execSQL(
+                "UPDATE regression_normalization_state SET active_version = ?, previous_version = ?, updated_at = ? WHERE singleton = 1",
+                arrayOf(active, previous, System.currentTimeMillis()),
+            )
+        }
+        return ExpectedActivationResult(active, previous, count)
     }
 
     fun save(input: RegressionSampleInput): SaveSampleResult {
@@ -362,6 +527,74 @@ class EncryptedRegressionSampleStore(
         }
     }
 
+    fun visibleExpectedRevisionStorageForTesting(revisionId: String): String =
+        readableDatabase.rawQuery(
+            """SELECT normalization_version, nonce, ciphertext, key_version,
+                      derived_from_revision_id, migration_decision_id, state
+               FROM regression_expected_revisions WHERE revision_id = ?""".trimIndent(),
+            arrayOf(revisionId),
+        ).use { cursor ->
+            check(cursor.moveToFirst())
+            buildString {
+                for (index in 0 until cursor.columnCount) {
+                    when (cursor.getType(index)) {
+                        android.database.Cursor.FIELD_TYPE_BLOB ->
+                            append(cursor.getBlob(index).toString(Charsets.ISO_8859_1))
+                        android.database.Cursor.FIELD_TYPE_NULL -> Unit
+                        else -> append(cursor.getString(index))
+                    }
+                    append('|')
+                }
+            }
+        }
+
+    fun expectedRevisionPayloadForTesting(revisionId: String): String {
+        val row = readableDatabase.rawQuery(
+            """SELECT nonce, ciphertext, key_version
+               FROM regression_expected_revisions WHERE revision_id = ?""".trimIndent(),
+            arrayOf(revisionId),
+        ).use { cursor ->
+            check(cursor.moveToFirst())
+            Triple(cursor.getBlob(0), cursor.getBlob(1), cursor.getInt(2))
+        }
+        val dataKey = crypto.loadDataKey()
+        check(row.third == dataKey.version) { "Unsupported key version" }
+        return crypto.decrypt(
+            dataKey.key,
+            row.first,
+            row.second,
+        ).toString(Charsets.UTF_8)
+    }
+
+    fun activeExpectedRevisionIdForTesting(sampleId: String): String? =
+        readableDatabase.rawQuery(
+            "SELECT active_revision_id FROM regression_expected_state WHERE sample_id = ?",
+            arrayOf(sampleId),
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+
+    fun normalizationVersionsForTesting(): Pair<Int?, Int?> =
+        readableDatabase.rawQuery(
+            """SELECT active_version, previous_version
+               FROM regression_normalization_state WHERE singleton = 1""".trimIndent(),
+            emptyArray(),
+        ).use { cursor ->
+            check(cursor.moveToFirst())
+            (if (cursor.isNull(0)) null else cursor.getInt(0)) to
+                (if (cursor.isNull(1)) null else cursor.getInt(1))
+        }
+
+    fun hasExpectedRevisionSchemaForTesting(): Boolean =
+        readableDatabase.rawQuery(
+            """SELECT COUNT(*) FROM sqlite_master
+               WHERE type = 'table' AND name IN (
+                 'regression_expected_revisions',
+                 'regression_expected_state',
+                 'regression_expected_audits',
+                 'regression_normalization_state'
+               )""".trimIndent(),
+            emptyArray(),
+        ).use { cursor -> cursor.moveToFirst(); cursor.getInt(0) == 4 }
+
     fun corruptCiphertextForTesting(id: String) {
         writableDatabase.transaction {
             execSQL(
@@ -524,6 +757,56 @@ class EncryptedRegressionSampleStore(
         )
     }
 
+    private fun createExpectedRevisionSchema(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS regression_expected_revisions (
+                revision_id TEXT PRIMARY KEY,
+                sample_id TEXT NOT NULL,
+                normalization_version INTEGER NOT NULL,
+                nonce BLOB NOT NULL,
+                ciphertext BLOB NOT NULL,
+                key_version INTEGER NOT NULL,
+                derived_from_revision_id TEXT,
+                migration_decision_id TEXT NOT NULL,
+                state TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY(sample_id) REFERENCES regression_samples(id)
+            )""".trimIndent(),
+        )
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS regression_expected_state (
+                sample_id TEXT PRIMARY KEY,
+                active_revision_id TEXT NOT NULL,
+                previous_revision_id TEXT
+            )""".trimIndent(),
+        )
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS regression_expected_audits (
+                revision_id TEXT PRIMARY KEY,
+                sample_id TEXT NOT NULL,
+                normalization_version INTEGER NOT NULL,
+                encrypted_digest BLOB NOT NULL,
+                decision TEXT NOT NULL,
+                result TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )""".trimIndent(),
+        )
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS regression_normalization_state (
+                singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+                active_version INTEGER,
+                previous_version INTEGER,
+                migration_decision_id TEXT,
+                updated_at INTEGER NOT NULL
+            )""".trimIndent(),
+        )
+        db.execSQL(
+            """INSERT OR IGNORE INTO regression_normalization_state(
+               singleton, active_version, previous_version, updated_at
+               ) VALUES (1, NULL, NULL, 0)""".trimIndent(),
+        )
+    }
+
     private inline fun <T> SQLiteDatabase.transaction(block: SQLiteDatabase.() -> T): T {
         beginTransaction()
         return try {
@@ -536,7 +819,7 @@ class EncryptedRegressionSampleStore(
     companion object {
         const val DATABASE_NAME = "regression_samples.db"
         const val DEFAULT_ORDINARY_LIMIT = 500
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
         private fun nanosToMs(nanos: Long) = nanos / 1_000_000.0
     }
 }

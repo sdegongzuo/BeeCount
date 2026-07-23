@@ -28,9 +28,54 @@ class RegressionSampleChannel(
             "readPage" -> executor.execute {
                 respond(result) { readPage(call) }
             }
+            "prepareExpectedRevision" -> executor.execute {
+                respond(result) { prepareExpectedRevision(call) }
+            }
+            "activateExpectedRevisions" -> executor.execute {
+                respond(result) { activateExpectedRevisions(call) }
+            }
+            "rollbackExpectedRevisions" -> executor.execute {
+                respond(result) { activationToMap(store.rollbackExpectedRevisions()) }
+            }
             else -> result.notImplemented()
         }
     }
+
+    private fun prepareExpectedRevision(call: MethodCall): Map<String, Any?> {
+        val arguments = requireNotNull(call.arguments as? Map<*, *>)
+        val revision = store.prepareExpectedRevision(
+            sampleId = arguments.requiredString("sampleId"),
+            normalizationVersion = requireNotNull(arguments["normalizationVersion"] as? Int),
+            expectedFieldsJson = JSONObject(arguments.requiredMap("expectedFields")).toString(),
+            migrationDecisionId = arguments.requiredString("migrationDecisionId"),
+            derivedFromRevisionId = arguments["derivedFromRevisionId"] as? String,
+        )
+        return mapOf(
+            "revisionId" to revision.revisionId,
+            "sampleId" to revision.sampleId,
+            "normalizationVersion" to revision.normalizationVersion,
+            "migrationDecisionId" to revision.migrationDecisionId,
+            "derivedFromRevisionId" to revision.derivedFromRevisionId,
+            "state" to revision.state,
+        )
+    }
+
+    private fun activateExpectedRevisions(call: MethodCall): Map<String, Any?> {
+        val arguments = requireNotNull(call.arguments as? Map<*, *>)
+        return activationToMap(
+            store.activateExpectedRevisions(
+                normalizationVersion =
+                    requireNotNull(arguments["normalizationVersion"] as? Int),
+                migrationDecisionId = arguments.requiredString("migrationDecisionId"),
+            ),
+        )
+    }
+
+    private fun activationToMap(value: ExpectedActivationResult) = mapOf(
+        "activeNormalizationVersion" to value.activeNormalizationVersion,
+        "previousNormalizationVersion" to value.previousNormalizationVersion,
+        "activatedRevisionCount" to value.activatedRevisionCount,
+    )
 
     private fun save(call: MethodCall): Map<String, Any?> {
         val arguments = requireNotNull(call.arguments as? Map<*, *>)

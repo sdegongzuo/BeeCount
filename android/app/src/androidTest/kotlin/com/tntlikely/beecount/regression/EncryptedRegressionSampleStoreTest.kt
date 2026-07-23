@@ -1,6 +1,8 @@
 package com.tntlikely.beecount.regression
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
 import android.os.SystemClock
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
@@ -47,6 +49,120 @@ class EncryptedRegressionSampleStoreTest {
         assertFalse(visibleStorage.contains("SECRET-42"))
         assertFalse(visibleStorage.contains("微信支付成功"))
         assertFalse(visibleStorage.contains("amount"))
+    }
+
+    @Test
+    fun expectedRevisionRoundTripsWithSameAesGcmStoreWithoutPlaintext() {
+        val sampleId = store.save(
+            sample("中国银行银联信用卡[2853]", "unionpay-card", SampleProtection.CORRECTION),
+        ).sampleId!!
+
+        val revision = store.prepareExpectedRevision(
+            sampleId = sampleId,
+            normalizationVersion = 2,
+            expectedFieldsJson = """{"paymentMethod":"中国银行信用卡(2853)"}""",
+            migrationDecisionId = "decision-v2",
+            derivedFromRevisionId = null,
+        )
+
+        val payload = org.json.JSONObject(
+            store.expectedRevisionPayloadForTesting(revision.revisionId),
+        )
+        assertEquals(
+            """{"paymentMethod":"中国银行信用卡(2853)"}""",
+            payload.getJSONObject("expectedFields").toString(),
+        )
+        assertEquals(revision.revisionId, payload.getString("revisionId"))
+        assertEquals(sampleId, payload.getString("sampleId"))
+        assertEquals(2, payload.getInt("normalizationVersion"))
+        assertEquals("decision-v2", payload.getString("migrationDecisionId"))
+        assertEquals("prepared", payload.getString("state"))
+        val visibleStorage =
+            store.visibleExpectedRevisionStorageForTesting(revision.revisionId)
+        assertFalse(visibleStorage.contains("中国银行"))
+        assertFalse(visibleStorage.contains("paymentMethod"))
+        assertTrue(visibleStorage.contains("decision-v2"))
+    }
+
+    @Test
+    fun activationIsAtomicWhenAnyReadableSampleLacksPreparedRevision() {
+        val first = store.save(
+            sample("first", "first", SampleProtection.CORRECTION),
+        ).sampleId!!
+        val second = store.save(
+            sample("second", "second", SampleProtection.CORRECTION),
+        ).sampleId!!
+        val firstV1 = prepare(first, 1, "decision-v1")
+        val secondV1 = prepare(second, 1, "decision-v1")
+        store.activateExpectedRevisions(1, "decision-v1")
+        val firstV2 = prepare(first, 2, "decision-v2")
+
+        assertThrows(IllegalStateException::class.java) {
+            store.activateExpectedRevisions(2, "decision-v2")
+        }
+
+        assertEquals(1 to null, store.normalizationVersionsForTesting())
+        assertEquals(firstV1.revisionId, store.activeExpectedRevisionIdForTesting(first))
+        assertEquals(secondV1.revisionId, store.activeExpectedRevisionIdForTesting(second))
+
+        val secondV2 = prepare(second, 2, "decision-v2")
+        val activated = store.activateExpectedRevisions(2, "decision-v2")
+        assertEquals(2, activated.activeNormalizationVersion)
+        assertEquals(1, activated.previousNormalizationVersion)
+        assertEquals(2, activated.activatedRevisionCount)
+        assertEquals(firstV2.revisionId, store.activeExpectedRevisionIdForTesting(first))
+        assertEquals(secondV2.revisionId, store.activeExpectedRevisionIdForTesting(second))
+    }
+
+    @Test
+    fun rollbackRestoresAllPreviousExpectedRevisionsAtomically() {
+        val first = store.save(
+            sample("rollback-first", "rollback-first", SampleProtection.CORRECTION),
+        ).sampleId!!
+        val second = store.save(
+            sample("rollback-second", "rollback-second", SampleProtection.CORRECTION),
+        ).sampleId!!
+        val firstV1 = prepare(first, 1, "decision-v1")
+        val secondV1 = prepare(second, 1, "decision-v1")
+        store.activateExpectedRevisions(1, "decision-v1")
+        val firstV2 = prepare(first, 2, "decision-v2")
+        val secondV2 = prepare(second, 2, "decision-v2")
+        store.activateExpectedRevisions(2, "decision-v2")
+
+        val rolledBack = store.rollbackExpectedRevisions()
+
+        assertEquals(1, rolledBack.activeNormalizationVersion)
+        assertEquals(2, rolledBack.previousNormalizationVersion)
+        assertEquals(2, rolledBack.activatedRevisionCount)
+        assertEquals(1 to 2, store.normalizationVersionsForTesting())
+        assertEquals(firstV1.revisionId, store.activeExpectedRevisionIdForTesting(first))
+        assertEquals(secondV1.revisionId, store.activeExpectedRevisionIdForTesting(second))
+        assertTrue(firstV2.revisionId != firstV1.revisionId)
+        assertTrue(secondV2.revisionId != secondV1.revisionId)
+    }
+
+    @Test
+    fun databaseVersionTwoMigratesExpectedRevisionSchemaWithoutDroppingSamples() {
+        val databaseName = "regression-v2-migration-${System.nanoTime()}.db"
+        LegacyVersionTwoStore(context, databaseName).use { legacy ->
+            legacy.writableDatabase.execSQL(
+                """INSERT INTO regression_samples(
+                   id, exact_fingerprint, structure_fingerprint, protection,
+                   nonce, ciphertext, key_version, unreadable, created_at, last_used_at
+                   ) VALUES ('legacy', 'exact', 'structure', 'correction',
+                     X'01', X'02', 1, 0, 1, 1)""".trimIndent(),
+            )
+        }
+
+        EncryptedRegressionSampleStore(
+            context,
+            databaseName,
+            "beecount-regression-test-${System.nanoTime()}",
+        ).use { migrated ->
+            assertEquals(1, migrated.countAll())
+            assertTrue(migrated.hasExpectedRevisionSchemaForTesting())
+            assertEquals(null to null, migrated.normalizationVersionsForTesting())
+        }
     }
 
     @Test
@@ -217,6 +333,18 @@ class EncryptedRegressionSampleStoreTest {
     private fun sample(text: String, structure: String, protection: SampleProtection) =
         RegressionSampleInput(text, "{\"amount\":1}", "{}", structure, protection)
 
+    private fun prepare(
+        sampleId: String,
+        normalizationVersion: Int,
+        decisionId: String,
+    ) = store.prepareExpectedRevision(
+        sampleId = sampleId,
+        normalizationVersion = normalizationVersion,
+        expectedFieldsJson = """{"paymentMethod":"card-$normalizationVersion"}""",
+        migrationDecisionId = decisionId,
+        derivedFromRevisionId = null,
+    )
+
     private fun readXml(resourceId: Int): String {
         val parser = context.resources.getXml(resourceId)
         return buildString {
@@ -230,5 +358,38 @@ class EncryptedRegressionSampleStoreTest {
                 parser.next()
             }
         }
+    }
+
+    private class LegacyVersionTwoStore(context: Context, databaseName: String) :
+        SQLiteOpenHelper(context, databaseName, null, 2) {
+        override fun onCreate(db: SQLiteDatabase) {
+            db.execSQL(
+                """CREATE TABLE regression_samples (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    exact_fingerprint TEXT NOT NULL UNIQUE,
+                    structure_fingerprint TEXT NOT NULL,
+                    protection TEXT NOT NULL,
+                    nonce BLOB NOT NULL,
+                    ciphertext BLOB NOT NULL,
+                    key_version INTEGER NOT NULL,
+                    unreadable INTEGER NOT NULL DEFAULT 0,
+                    unreadable_reason TEXT,
+                    created_at INTEGER NOT NULL,
+                    last_used_at INTEGER NOT NULL
+                )""".trimIndent(),
+            )
+            db.execSQL(
+                """CREATE TABLE regression_sample_metadata (
+                    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+                    content_generation INTEGER NOT NULL
+                )""".trimIndent(),
+            )
+            db.execSQL(
+                """INSERT INTO regression_sample_metadata(singleton, content_generation)
+                   VALUES (1, 0)""".trimIndent(),
+            )
+        }
+
+        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
     }
 }
