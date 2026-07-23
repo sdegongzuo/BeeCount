@@ -12,6 +12,7 @@ import '../../services/import/parsers/generic_parser.dart';
 import '../../services/import/parsers/alipay_parser.dart';
 import '../../services/import/parsers/wechat_parser.dart';
 import '../../services/billing/post_processor.dart';
+import '../../services/billing/payment_method_input.dart';
 import '../../services/data_import_service.dart';
 import '../../utils/date_parser.dart';
 import '../../styles/tokens.dart';
@@ -1045,10 +1046,12 @@ class _ImportConfirmPageState extends ConsumerState<ImportConfirmPage> {
 
   String? _resolvePaymentMethod(String? Function(String key) getBy) {
     final paymentMethod = getBy('payment_method');
-    if (paymentMethod != null) return paymentMethod;
+    if (paymentMethod != null) {
+      return canonicalizePaymentMethodInput(paymentMethod).value;
+    }
 
     if (widget.billType == BillSourceType.alipay) {
-      return getBy('counterparty');
+      return canonicalizePaymentMethodInput(getBy('counterparty')).value;
     }
 
     return null;

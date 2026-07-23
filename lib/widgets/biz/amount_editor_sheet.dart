@@ -9,6 +9,7 @@ import '../../data/db.dart';
 import '../../styles/tokens.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/data/note_history_service.dart';
+import '../../services/billing/payment_method_input.dart';
 import '../../services/attachment_service.dart';
 import '../../providers.dart';
 import '../../pages/tag/widgets/tag_selector.dart';
@@ -549,8 +550,8 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
                   child: _buildMetadataTextField(
                     controller: _merchantFullNameCtrl,
                     icon: Icons.store_outlined,
-                    hintText:
-                        AppLocalizations.of(context).transactionMerchantFullName,
+                    hintText: AppLocalizations.of(context)
+                        .transactionMerchantFullName,
                   ),
                 ),
               ],
@@ -562,8 +563,7 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
                   child: _buildMetadataTextField(
                     controller: _acquirerCtrl,
                     icon: Icons.business_outlined,
-                    hintText:
-                        AppLocalizations.of(context).transactionAcquirer,
+                    hintText: AppLocalizations.of(context).transactionAcquirer,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -577,8 +577,7 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
               minLines: 1,
               style: TextStyle(color: BeeTokens.textPrimary(context)),
               decoration: InputDecoration(
-                labelText:
-                    AppLocalizations.of(context).transactionDetailsText,
+                labelText: AppLocalizations.of(context).transactionDetailsText,
                 floatingLabelBehavior: FloatingLabelBehavior.always,
                 floatingLabelStyle: TextStyle(
                   color: BeeTokens.textSecondary(context),
@@ -782,15 +781,25 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
 
                               HapticFeedback.lightImpact();
                               SystemSound.play(SystemSoundType.click);
+                              final paymentMethodInput =
+                                  _paymentMethodCtrl.text.trim();
+                              final paymentMethod =
+                                  canonicalizePaymentMethodInput(
+                                paymentMethodInput,
+                              );
+                              if (paymentMethod.isRejected) {
+                                setState(() => _isSubmitting = false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('支付方式格式无效')),
+                                );
+                                return;
+                              }
                               widget.onSubmit((
                                 amount: total.abs(), // 始终正数
                                 note: _noteCtrl.text.trim().isEmpty
                                     ? null
                                     : _noteCtrl.text.trim(),
-                                paymentMethod:
-                                    _paymentMethodCtrl.text.trim().isEmpty
-                                        ? null
-                                        : _paymentMethodCtrl.text.trim(),
+                                paymentMethod: paymentMethod.value,
                                 counterparty:
                                     _counterpartyCtrl.text.trim().isEmpty
                                         ? null
@@ -803,10 +812,9 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
                                     _merchantFullNameCtrl.text.trim().isEmpty
                                         ? null
                                         : _merchantFullNameCtrl.text.trim(),
-                                acquirer:
-                                    _acquirerCtrl.text.trim().isEmpty
-                                        ? null
-                                        : _acquirerCtrl.text.trim(),
+                                acquirer: _acquirerCtrl.text.trim().isEmpty
+                                    ? null
+                                    : _acquirerCtrl.text.trim(),
                                 detailsText:
                                     _detailsTextCtrl.text.trim().isEmpty
                                         ? null
