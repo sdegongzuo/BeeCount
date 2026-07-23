@@ -300,7 +300,25 @@ abstract class RegressionSamplePageSource {
 }
 
 /// Android 本机加密个人规则回归样本存储入口。
-class RegressionSampleStore implements RegressionSamplePageSource {
+abstract class RegressionExpectedRevisionStore {
+  Future<RegressionExpectedRevision> prepareExpectedRevision({
+    required String sampleId,
+    required int normalizationVersion,
+    required Map<String, Object?> expectedFields,
+    required String migrationDecisionId,
+    String? derivedFromRevisionId,
+  });
+
+  Future<RegressionExpectedActivationResult> activateExpectedRevisions({
+    required int normalizationVersion,
+    required String migrationDecisionId,
+  });
+
+  Future<RegressionExpectedActivationResult> rollbackExpectedRevisions();
+}
+
+class RegressionSampleStore
+    implements RegressionSamplePageSource, RegressionExpectedRevisionStore {
   /// Flutter 与 Android 共用的平台通道名称。
   static const channelName = 'com.tntlikely.beecount/regression_samples';
   static const _channel = MethodChannel(channelName);
@@ -324,6 +342,7 @@ class RegressionSampleStore implements RegressionSamplePageSource {
     return RegressionSampleBatch.fromMap(result!);
   }
 
+  @override
   Future<RegressionExpectedRevision> prepareExpectedRevision({
     required String sampleId,
     required int normalizationVersion,
@@ -345,6 +364,7 @@ class RegressionSampleStore implements RegressionSamplePageSource {
     return RegressionExpectedRevision.fromMap(result!);
   }
 
+  @override
   Future<RegressionExpectedActivationResult> activateExpectedRevisions({
     required int normalizationVersion,
     required String migrationDecisionId,
@@ -359,6 +379,7 @@ class RegressionSampleStore implements RegressionSamplePageSource {
     return RegressionExpectedActivationResult.fromMap(result!);
   }
 
+  @override
   Future<RegressionExpectedActivationResult> rollbackExpectedRevisions() async {
     final result = await _channel.invokeMapMethod<Object?, Object?>(
       'rollbackExpectedRevisions',
