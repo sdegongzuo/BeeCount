@@ -85,10 +85,11 @@ class BillingJobService {
     bool captureRegressionSamples = true,
   }) {
     final database = container.read(databaseProvider);
+    final publicRuleRepository = productionBillingRuleRepository();
+    final personalRuleStore = SqlitePersonalRuleRevisionStore(database);
     final activeRuleRepository = ActiveBillingRuleRepository(
-      publicRepository: productionBillingRuleRepository(),
-      loadActivePersonalRules:
-          SqlitePersonalRuleRevisionStore(database).loadActiveRuleSet,
+      publicRepository: publicRuleRepository,
+      loadActivePersonalRules: personalRuleStore.loadActiveRuleSet,
     );
     final ocrService = OcrService(
       fastBillingRuleService: FastBillingRuleService(
@@ -104,7 +105,10 @@ class BillingJobService {
     );
     final ruleProcessor = RuleStageProcessor(
       repo: repo,
-      snapshots: ActiveBillingJobRuleSnapshotSource(activeRuleRepository),
+      snapshots: PersistentBillingJobRuleSnapshotSource(
+        publicRules: publicRuleRepository,
+        personalRules: personalRuleStore,
+      ),
       engine: BillingRuleEngineImpl(),
     );
 

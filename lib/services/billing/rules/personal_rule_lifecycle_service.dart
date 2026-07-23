@@ -904,4 +904,35 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
         paymentChannels: const [],
         templates: rulesJson.map(BillingRuleTemplate.fromJson).toList());
   }
+
+  Future<BillingRuleSet?> loadRuleSetAtVersion(int version) async {
+    await ensureSchema();
+    if (version == 0) {
+      return const BillingRuleSet(
+        schemaVersion: 1,
+        rulesVersion: 'personal-0',
+        normalizationVersion:
+            PaymentMethodSemantics.currentNormalizationVersion,
+        paymentChannels: [],
+        templates: [],
+      );
+    }
+    final row = await db.customSelect(
+      '''SELECT rule_json, normalization_version
+         FROM personal_rule_revisions WHERE version = ?''',
+      variables: [Variable.withInt(version)],
+    ).getSingleOrNull();
+    if (row == null) return null;
+    final decoded = jsonDecode(row.read<String>('rule_json'));
+    final rulesJson = decoded is List
+        ? decoded.cast<Map<String, dynamic>>()
+        : [decoded as Map<String, dynamic>];
+    return BillingRuleSet(
+      schemaVersion: 1,
+      rulesVersion: 'personal-$version',
+      normalizationVersion: row.read<int>('normalization_version'),
+      paymentChannels: const [],
+      templates: rulesJson.map(BillingRuleTemplate.fromJson).toList(),
+    );
+  }
 }

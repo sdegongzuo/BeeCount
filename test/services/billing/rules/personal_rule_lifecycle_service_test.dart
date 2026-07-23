@@ -22,6 +22,10 @@ void main() {
 
   tearDown(() => db.close());
 
+  test('指定个人规则历史修订不存在时明确返回空', () async {
+    expect(await revisions.loadRuleSetAtVersion(999), isNull);
+  });
+
   test('合成标签相对位置规则，通过回归后原子启用', () async {
     final service = _service(revisions, [
       _sample('old', '金额\n12.00', {'amount': 12.0}),

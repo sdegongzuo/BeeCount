@@ -78,6 +78,28 @@ class RuntimeBillingRuleRepository implements BillingRuleRepository {
     }
   }
 
+  Future<BillingRuleSet?> loadPublicSnapshot({
+    required int rulePackageVersion,
+    required String rulesVersion,
+    required int normalizationVersion,
+  }) async {
+    final repository = await _repository();
+    final candidates = <BillingRuleSet?>[
+      await repository.loadDebugOverrideRuleSet(),
+      await repository.loadActiveFileRuleSet(),
+      await repository.loadPreviousRuleSet(),
+      await repository.loadBuiltInRuleSet(),
+    ];
+    for (final candidate in candidates.whereType<BillingRuleSet>()) {
+      if (candidate.rulePackageVersion == rulePackageVersion &&
+          candidate.rulesVersion == rulesVersion &&
+          candidate.normalizationVersion == normalizationVersion) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
   @override
   Future<BillingRuleSet> loadBuiltInRuleSet() async =>
       (await _repository()).loadBuiltInRuleSet();
@@ -228,6 +250,12 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
 
     return loadBuiltInRuleSet();
   }
+
+  Future<BillingRuleSet?> loadActiveFileRuleSet() =>
+      _tryLoadFile(activeRuleFile);
+
+  Future<BillingRuleSet?> loadPreviousRuleSet() =>
+      _tryLoadFile(previousRuleFile);
 
   @override
   Future<BillingRuleSet?> loadDebugOverrideRuleSet() {

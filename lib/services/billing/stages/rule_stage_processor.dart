@@ -7,6 +7,8 @@ import '../billing_job_runner.dart';
 import '../ocr_service.dart';
 import '../rules/billing_rule_engine.dart';
 import '../rules/billing_rule_models.dart';
+import '../rules/billing_rule_repository.dart';
+import '../rules/personal_rule_lifecycle_service.dart';
 
 abstract class BillingJobRuleSnapshotSource {
   Future<BillingRuleSet> loadLatest();
@@ -29,6 +31,46 @@ class ActiveBillingJobRuleSnapshotSource
   ) async {
     final active = await repository.loadActiveRuleSet();
     return _sameSnapshot(_snapshotOf(active), snapshot) ? active : null;
+  }
+}
+
+class PersistentBillingJobRuleSnapshotSource
+    implements BillingJobRuleSnapshotSource {
+  final RuntimeBillingRuleRepository publicRules;
+  final SqlitePersonalRuleRevisionStore personalRules;
+
+  const PersistentBillingJobRuleSnapshotSource({
+    required this.publicRules,
+    required this.personalRules,
+  });
+
+  @override
+  Future<BillingRuleSet> loadLatest() async => BillingRuleSet.activeSnapshot(
+        publicRules: await publicRules.loadActiveRuleSet(),
+        personalRules: await personalRules.loadActiveRuleSet(),
+      );
+
+  @override
+  Future<BillingRuleSet?> loadPinned(
+    BillingRuleExecutionSnapshot snapshot,
+  ) async {
+    final public = await publicRules.loadPublicSnapshot(
+      rulePackageVersion: snapshot.rulePackageVersion,
+      rulesVersion: snapshot.rulesVersion,
+      normalizationVersion: snapshot.normalizationVersion,
+    );
+    final personal = await personalRules
+        .loadRuleSetAtVersion(snapshot.personalRulesRevision);
+    if (public == null ||
+        personal == null ||
+        (personal.templates.isNotEmpty &&
+            personal.normalizationVersion != snapshot.normalizationVersion)) {
+      return null;
+    }
+    return BillingRuleSet.activeSnapshot(
+      publicRules: public,
+      personalRules: personal,
+    );
   }
 }
 

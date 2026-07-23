@@ -45,6 +45,46 @@ void main() {
         storage.pendingFile.path, endsWith(BillingRuleStorage.pendingFileName));
   });
 
+  test('固定快照可按完整身份读取上一版公共规则', () async {
+    await storage.activeFile.writeAsString(_rules('v2', marker: '版本二'));
+    await storage.previousFile.writeAsString(_rules('v1', marker: '版本一'));
+    final repository = RuntimeBillingRuleRepository(
+      storageLoader: () async => storage,
+      assetBundle: assets,
+    );
+
+    final pinned = await repository.loadPublicSnapshot(
+      rulePackageVersion: 1,
+      rulesVersion: 'v1',
+      normalizationVersion: 1,
+    );
+
+    expect(pinned?.rulesVersion, 'v1');
+    expect(
+      pinned?.templates
+          .singleWhere((template) => template.id == 'rule-v1')
+          .match
+          .keywordsAll,
+      ['版本一'],
+    );
+  });
+
+  test('历史 TOML 已不可用时固定公共快照明确返回空', () async {
+    await storage.activeFile.writeAsString(_rules('v2', marker: '版本二'));
+    final repository = RuntimeBillingRuleRepository(
+      storageLoader: () async => storage,
+      assetBundle: assets,
+    );
+
+    final missing = await repository.loadPublicSnapshot(
+      rulePackageVersion: 1,
+      rulesVersion: 'v1',
+      normalizationVersion: 1,
+    );
+
+    expect(missing, isNull);
+  });
+
   test('默认生产存储位于 application documents 且默认更新回调立即失效缓存', () async {
     const channel = MethodChannel('plugins.flutter.io/path_provider');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
