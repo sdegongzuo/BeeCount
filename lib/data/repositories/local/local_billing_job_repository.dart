@@ -303,6 +303,57 @@ WHERE id = ?
   }
 
   @override
+  Future<bool> commitRuleResultSnapshot({
+    required int id,
+    required String ruleResultJson,
+    required BillingRuleExecutionSnapshot snapshot,
+    BillingJobLease? lease,
+  }) async {
+    final updated = await (db.update(db.billingJobs)
+          ..where((t) =>
+              _canMutate(t, id, lease) &
+              t.stage.equals(BillingJobStage.ocrDone)))
+        .write(
+      BillingJobsCompanion(
+        stage: const d.Value(BillingJobStage.ruleDone),
+        ruleResultJson: d.Value(ruleResultJson),
+        rulePackageVersion: d.Value(snapshot.rulePackageVersion),
+        rulesVersion: d.Value(snapshot.rulesVersion),
+        normalizationVersion: d.Value(snapshot.normalizationVersion),
+        personalRulesRevision: d.Value(snapshot.personalRulesRevision),
+        ruleSnapshotStatus: const d.Value('pinned'),
+        updatedAt: d.Value(DateTime.now()),
+      ),
+    );
+    return updated > 0;
+  }
+
+  @override
+  Future<bool> migrateUnavailableRuleSnapshotToOcrDone(
+    int id, {
+    BillingJobLease? lease,
+  }) async {
+    final updated = await (db.update(db.billingJobs)
+          ..where((t) =>
+              _canMutate(t, id, lease) &
+              t.stage.equals(BillingJobStage.ruleDone)))
+        .write(
+      BillingJobsCompanion(
+        stage: const d.Value(BillingJobStage.ocrDone),
+        ruleResultJson: const d.Value(null),
+        rulePackageVersion: const d.Value(null),
+        rulesVersion: const d.Value(null),
+        normalizationVersion: const d.Value(null),
+        personalRulesRevision: const d.Value(null),
+        ruleSnapshotStatus: const d.Value('snapshot_migrated'),
+        lastError: const d.Value('snapshot_migrated'),
+        updatedAt: d.Value(DateTime.now()),
+      ),
+    );
+    return updated > 0;
+  }
+
+  @override
   Future<bool> updateTransactionId(int id, int transactionId,
       {BillingJobLease? lease}) async {
     final updated = await (db.update(db.billingJobs)

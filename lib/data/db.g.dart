@@ -6694,6 +6694,36 @@ class $BillingJobsTable extends BillingJobs
   late final GeneratedColumn<String> ruleResultJson = GeneratedColumn<String>(
       'rule_result_json', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _rulePackageVersionMeta =
+      const VerificationMeta('rulePackageVersion');
+  @override
+  late final GeneratedColumn<int> rulePackageVersion = GeneratedColumn<int>(
+      'rule_package_version', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _rulesVersionMeta =
+      const VerificationMeta('rulesVersion');
+  @override
+  late final GeneratedColumn<String> rulesVersion = GeneratedColumn<String>(
+      'rules_version', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _normalizationVersionMeta =
+      const VerificationMeta('normalizationVersion');
+  @override
+  late final GeneratedColumn<int> normalizationVersion = GeneratedColumn<int>(
+      'normalization_version', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _personalRulesRevisionMeta =
+      const VerificationMeta('personalRulesRevision');
+  @override
+  late final GeneratedColumn<int> personalRulesRevision = GeneratedColumn<int>(
+      'personal_rules_revision', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _ruleSnapshotStatusMeta =
+      const VerificationMeta('ruleSnapshotStatus');
+  @override
+  late final GeneratedColumn<String> ruleSnapshotStatus =
+      GeneratedColumn<String>('rule_snapshot_status', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _finalResultJsonMeta =
       const VerificationMeta('finalResultJson');
   @override
@@ -6765,6 +6795,11 @@ class $BillingJobsTable extends BillingJobs
         ocrEngine,
         sourceInfoJson,
         ruleResultJson,
+        rulePackageVersion,
+        rulesVersion,
+        normalizationVersion,
+        personalRulesRevision,
+        ruleSnapshotStatus,
         finalResultJson,
         attemptCount,
         lastError,
@@ -6834,6 +6869,36 @@ class $BillingJobsTable extends BillingJobs
           _ruleResultJsonMeta,
           ruleResultJson.isAcceptableOrUnknown(
               data['rule_result_json']!, _ruleResultJsonMeta));
+    }
+    if (data.containsKey('rule_package_version')) {
+      context.handle(
+          _rulePackageVersionMeta,
+          rulePackageVersion.isAcceptableOrUnknown(
+              data['rule_package_version']!, _rulePackageVersionMeta));
+    }
+    if (data.containsKey('rules_version')) {
+      context.handle(
+          _rulesVersionMeta,
+          rulesVersion.isAcceptableOrUnknown(
+              data['rules_version']!, _rulesVersionMeta));
+    }
+    if (data.containsKey('normalization_version')) {
+      context.handle(
+          _normalizationVersionMeta,
+          normalizationVersion.isAcceptableOrUnknown(
+              data['normalization_version']!, _normalizationVersionMeta));
+    }
+    if (data.containsKey('personal_rules_revision')) {
+      context.handle(
+          _personalRulesRevisionMeta,
+          personalRulesRevision.isAcceptableOrUnknown(
+              data['personal_rules_revision']!, _personalRulesRevisionMeta));
+    }
+    if (data.containsKey('rule_snapshot_status')) {
+      context.handle(
+          _ruleSnapshotStatusMeta,
+          ruleSnapshotStatus.isAcceptableOrUnknown(
+              data['rule_snapshot_status']!, _ruleSnapshotStatusMeta));
     }
     if (data.containsKey('final_result_json')) {
       context.handle(
@@ -6908,6 +6973,16 @@ class $BillingJobsTable extends BillingJobs
           DriftSqlType.string, data['${effectivePrefix}source_info_json']),
       ruleResultJson: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}rule_result_json']),
+      rulePackageVersion: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}rule_package_version']),
+      rulesVersion: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rules_version']),
+      normalizationVersion: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}normalization_version']),
+      personalRulesRevision: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}personal_rules_revision']),
+      ruleSnapshotStatus: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}rule_snapshot_status']),
       finalResultJson: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}final_result_json']),
       attemptCount: attachedDatabase.typeMapping
@@ -6945,6 +7020,11 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
   final String? ocrEngine;
   final String? sourceInfoJson;
   final String? ruleResultJson;
+  final int? rulePackageVersion;
+  final String? rulesVersion;
+  final int? normalizationVersion;
+  final int? personalRulesRevision;
+  final String? ruleSnapshotStatus;
   final String? finalResultJson;
   final int attemptCount;
   final String? lastError;
@@ -6965,6 +7045,11 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
       this.ocrEngine,
       this.sourceInfoJson,
       this.ruleResultJson,
+      this.rulePackageVersion,
+      this.rulesVersion,
+      this.normalizationVersion,
+      this.personalRulesRevision,
+      this.ruleSnapshotStatus,
       this.finalResultJson,
       required this.attemptCount,
       this.lastError,
@@ -6998,6 +7083,21 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
     }
     if (!nullToAbsent || ruleResultJson != null) {
       map['rule_result_json'] = Variable<String>(ruleResultJson);
+    }
+    if (!nullToAbsent || rulePackageVersion != null) {
+      map['rule_package_version'] = Variable<int>(rulePackageVersion);
+    }
+    if (!nullToAbsent || rulesVersion != null) {
+      map['rules_version'] = Variable<String>(rulesVersion);
+    }
+    if (!nullToAbsent || normalizationVersion != null) {
+      map['normalization_version'] = Variable<int>(normalizationVersion);
+    }
+    if (!nullToAbsent || personalRulesRevision != null) {
+      map['personal_rules_revision'] = Variable<int>(personalRulesRevision);
+    }
+    if (!nullToAbsent || ruleSnapshotStatus != null) {
+      map['rule_snapshot_status'] = Variable<String>(ruleSnapshotStatus);
     }
     if (!nullToAbsent || finalResultJson != null) {
       map['final_result_json'] = Variable<String>(finalResultJson);
@@ -7043,6 +7143,21 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
       ruleResultJson: ruleResultJson == null && nullToAbsent
           ? const Value.absent()
           : Value(ruleResultJson),
+      rulePackageVersion: rulePackageVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rulePackageVersion),
+      rulesVersion: rulesVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rulesVersion),
+      normalizationVersion: normalizationVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(normalizationVersion),
+      personalRulesRevision: personalRulesRevision == null && nullToAbsent
+          ? const Value.absent()
+          : Value(personalRulesRevision),
+      ruleSnapshotStatus: ruleSnapshotStatus == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ruleSnapshotStatus),
       finalResultJson: finalResultJson == null && nullToAbsent
           ? const Value.absent()
           : Value(finalResultJson),
@@ -7077,6 +7192,14 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
       ocrEngine: serializer.fromJson<String?>(json['ocrEngine']),
       sourceInfoJson: serializer.fromJson<String?>(json['sourceInfoJson']),
       ruleResultJson: serializer.fromJson<String?>(json['ruleResultJson']),
+      rulePackageVersion: serializer.fromJson<int?>(json['rulePackageVersion']),
+      rulesVersion: serializer.fromJson<String?>(json['rulesVersion']),
+      normalizationVersion:
+          serializer.fromJson<int?>(json['normalizationVersion']),
+      personalRulesRevision:
+          serializer.fromJson<int?>(json['personalRulesRevision']),
+      ruleSnapshotStatus:
+          serializer.fromJson<String?>(json['ruleSnapshotStatus']),
       finalResultJson: serializer.fromJson<String?>(json['finalResultJson']),
       attemptCount: serializer.fromJson<int>(json['attemptCount']),
       lastError: serializer.fromJson<String?>(json['lastError']),
@@ -7102,6 +7225,11 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
       'ocrEngine': serializer.toJson<String?>(ocrEngine),
       'sourceInfoJson': serializer.toJson<String?>(sourceInfoJson),
       'ruleResultJson': serializer.toJson<String?>(ruleResultJson),
+      'rulePackageVersion': serializer.toJson<int?>(rulePackageVersion),
+      'rulesVersion': serializer.toJson<String?>(rulesVersion),
+      'normalizationVersion': serializer.toJson<int?>(normalizationVersion),
+      'personalRulesRevision': serializer.toJson<int?>(personalRulesRevision),
+      'ruleSnapshotStatus': serializer.toJson<String?>(ruleSnapshotStatus),
       'finalResultJson': serializer.toJson<String?>(finalResultJson),
       'attemptCount': serializer.toJson<int>(attemptCount),
       'lastError': serializer.toJson<String?>(lastError),
@@ -7125,6 +7253,11 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
           Value<String?> ocrEngine = const Value.absent(),
           Value<String?> sourceInfoJson = const Value.absent(),
           Value<String?> ruleResultJson = const Value.absent(),
+          Value<int?> rulePackageVersion = const Value.absent(),
+          Value<String?> rulesVersion = const Value.absent(),
+          Value<int?> normalizationVersion = const Value.absent(),
+          Value<int?> personalRulesRevision = const Value.absent(),
+          Value<String?> ruleSnapshotStatus = const Value.absent(),
           Value<String?> finalResultJson = const Value.absent(),
           int? attemptCount,
           Value<String?> lastError = const Value.absent(),
@@ -7148,6 +7281,20 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
             sourceInfoJson.present ? sourceInfoJson.value : this.sourceInfoJson,
         ruleResultJson:
             ruleResultJson.present ? ruleResultJson.value : this.ruleResultJson,
+        rulePackageVersion: rulePackageVersion.present
+            ? rulePackageVersion.value
+            : this.rulePackageVersion,
+        rulesVersion:
+            rulesVersion.present ? rulesVersion.value : this.rulesVersion,
+        normalizationVersion: normalizationVersion.present
+            ? normalizationVersion.value
+            : this.normalizationVersion,
+        personalRulesRevision: personalRulesRevision.present
+            ? personalRulesRevision.value
+            : this.personalRulesRevision,
+        ruleSnapshotStatus: ruleSnapshotStatus.present
+            ? ruleSnapshotStatus.value
+            : this.ruleSnapshotStatus,
         finalResultJson: finalResultJson.present
             ? finalResultJson.value
             : this.finalResultJson,
@@ -7178,6 +7325,21 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
       ruleResultJson: data.ruleResultJson.present
           ? data.ruleResultJson.value
           : this.ruleResultJson,
+      rulePackageVersion: data.rulePackageVersion.present
+          ? data.rulePackageVersion.value
+          : this.rulePackageVersion,
+      rulesVersion: data.rulesVersion.present
+          ? data.rulesVersion.value
+          : this.rulesVersion,
+      normalizationVersion: data.normalizationVersion.present
+          ? data.normalizationVersion.value
+          : this.normalizationVersion,
+      personalRulesRevision: data.personalRulesRevision.present
+          ? data.personalRulesRevision.value
+          : this.personalRulesRevision,
+      ruleSnapshotStatus: data.ruleSnapshotStatus.present
+          ? data.ruleSnapshotStatus.value
+          : this.ruleSnapshotStatus,
       finalResultJson: data.finalResultJson.present
           ? data.finalResultJson.value
           : this.finalResultJson,
@@ -7211,6 +7373,11 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
           ..write('ocrEngine: $ocrEngine, ')
           ..write('sourceInfoJson: $sourceInfoJson, ')
           ..write('ruleResultJson: $ruleResultJson, ')
+          ..write('rulePackageVersion: $rulePackageVersion, ')
+          ..write('rulesVersion: $rulesVersion, ')
+          ..write('normalizationVersion: $normalizationVersion, ')
+          ..write('personalRulesRevision: $personalRulesRevision, ')
+          ..write('ruleSnapshotStatus: $ruleSnapshotStatus, ')
           ..write('finalResultJson: $finalResultJson, ')
           ..write('attemptCount: $attemptCount, ')
           ..write('lastError: $lastError, ')
@@ -7224,26 +7391,32 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      ledgerId,
-      kind,
-      status,
-      stage,
-      transactionId,
-      imagePath,
-      rawText,
-      ocrEngine,
-      sourceInfoJson,
-      ruleResultJson,
-      finalResultJson,
-      attemptCount,
-      lastError,
-      leaseUntil,
-      attachmentDone,
-      createdAt,
-      updatedAt,
-      completedAt);
+  int get hashCode => Object.hashAll([
+        id,
+        ledgerId,
+        kind,
+        status,
+        stage,
+        transactionId,
+        imagePath,
+        rawText,
+        ocrEngine,
+        sourceInfoJson,
+        ruleResultJson,
+        rulePackageVersion,
+        rulesVersion,
+        normalizationVersion,
+        personalRulesRevision,
+        ruleSnapshotStatus,
+        finalResultJson,
+        attemptCount,
+        lastError,
+        leaseUntil,
+        attachmentDone,
+        createdAt,
+        updatedAt,
+        completedAt
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -7259,6 +7432,11 @@ class BillingJob extends DataClass implements Insertable<BillingJob> {
           other.ocrEngine == this.ocrEngine &&
           other.sourceInfoJson == this.sourceInfoJson &&
           other.ruleResultJson == this.ruleResultJson &&
+          other.rulePackageVersion == this.rulePackageVersion &&
+          other.rulesVersion == this.rulesVersion &&
+          other.normalizationVersion == this.normalizationVersion &&
+          other.personalRulesRevision == this.personalRulesRevision &&
+          other.ruleSnapshotStatus == this.ruleSnapshotStatus &&
           other.finalResultJson == this.finalResultJson &&
           other.attemptCount == this.attemptCount &&
           other.lastError == this.lastError &&
@@ -7281,6 +7459,11 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
   final Value<String?> ocrEngine;
   final Value<String?> sourceInfoJson;
   final Value<String?> ruleResultJson;
+  final Value<int?> rulePackageVersion;
+  final Value<String?> rulesVersion;
+  final Value<int?> normalizationVersion;
+  final Value<int?> personalRulesRevision;
+  final Value<String?> ruleSnapshotStatus;
   final Value<String?> finalResultJson;
   final Value<int> attemptCount;
   final Value<String?> lastError;
@@ -7301,6 +7484,11 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
     this.ocrEngine = const Value.absent(),
     this.sourceInfoJson = const Value.absent(),
     this.ruleResultJson = const Value.absent(),
+    this.rulePackageVersion = const Value.absent(),
+    this.rulesVersion = const Value.absent(),
+    this.normalizationVersion = const Value.absent(),
+    this.personalRulesRevision = const Value.absent(),
+    this.ruleSnapshotStatus = const Value.absent(),
     this.finalResultJson = const Value.absent(),
     this.attemptCount = const Value.absent(),
     this.lastError = const Value.absent(),
@@ -7322,6 +7510,11 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
     this.ocrEngine = const Value.absent(),
     this.sourceInfoJson = const Value.absent(),
     this.ruleResultJson = const Value.absent(),
+    this.rulePackageVersion = const Value.absent(),
+    this.rulesVersion = const Value.absent(),
+    this.normalizationVersion = const Value.absent(),
+    this.personalRulesRevision = const Value.absent(),
+    this.ruleSnapshotStatus = const Value.absent(),
     this.finalResultJson = const Value.absent(),
     this.attemptCount = const Value.absent(),
     this.lastError = const Value.absent(),
@@ -7343,6 +7536,11 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
     Expression<String>? ocrEngine,
     Expression<String>? sourceInfoJson,
     Expression<String>? ruleResultJson,
+    Expression<int>? rulePackageVersion,
+    Expression<String>? rulesVersion,
+    Expression<int>? normalizationVersion,
+    Expression<int>? personalRulesRevision,
+    Expression<String>? ruleSnapshotStatus,
     Expression<String>? finalResultJson,
     Expression<int>? attemptCount,
     Expression<String>? lastError,
@@ -7364,6 +7562,15 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
       if (ocrEngine != null) 'ocr_engine': ocrEngine,
       if (sourceInfoJson != null) 'source_info_json': sourceInfoJson,
       if (ruleResultJson != null) 'rule_result_json': ruleResultJson,
+      if (rulePackageVersion != null)
+        'rule_package_version': rulePackageVersion,
+      if (rulesVersion != null) 'rules_version': rulesVersion,
+      if (normalizationVersion != null)
+        'normalization_version': normalizationVersion,
+      if (personalRulesRevision != null)
+        'personal_rules_revision': personalRulesRevision,
+      if (ruleSnapshotStatus != null)
+        'rule_snapshot_status': ruleSnapshotStatus,
       if (finalResultJson != null) 'final_result_json': finalResultJson,
       if (attemptCount != null) 'attempt_count': attemptCount,
       if (lastError != null) 'last_error': lastError,
@@ -7387,6 +7594,11 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
       Value<String?>? ocrEngine,
       Value<String?>? sourceInfoJson,
       Value<String?>? ruleResultJson,
+      Value<int?>? rulePackageVersion,
+      Value<String?>? rulesVersion,
+      Value<int?>? normalizationVersion,
+      Value<int?>? personalRulesRevision,
+      Value<String?>? ruleSnapshotStatus,
       Value<String?>? finalResultJson,
       Value<int>? attemptCount,
       Value<String?>? lastError,
@@ -7407,6 +7619,12 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
       ocrEngine: ocrEngine ?? this.ocrEngine,
       sourceInfoJson: sourceInfoJson ?? this.sourceInfoJson,
       ruleResultJson: ruleResultJson ?? this.ruleResultJson,
+      rulePackageVersion: rulePackageVersion ?? this.rulePackageVersion,
+      rulesVersion: rulesVersion ?? this.rulesVersion,
+      normalizationVersion: normalizationVersion ?? this.normalizationVersion,
+      personalRulesRevision:
+          personalRulesRevision ?? this.personalRulesRevision,
+      ruleSnapshotStatus: ruleSnapshotStatus ?? this.ruleSnapshotStatus,
       finalResultJson: finalResultJson ?? this.finalResultJson,
       attemptCount: attemptCount ?? this.attemptCount,
       lastError: lastError ?? this.lastError,
@@ -7454,6 +7672,22 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
     if (ruleResultJson.present) {
       map['rule_result_json'] = Variable<String>(ruleResultJson.value);
     }
+    if (rulePackageVersion.present) {
+      map['rule_package_version'] = Variable<int>(rulePackageVersion.value);
+    }
+    if (rulesVersion.present) {
+      map['rules_version'] = Variable<String>(rulesVersion.value);
+    }
+    if (normalizationVersion.present) {
+      map['normalization_version'] = Variable<int>(normalizationVersion.value);
+    }
+    if (personalRulesRevision.present) {
+      map['personal_rules_revision'] =
+          Variable<int>(personalRulesRevision.value);
+    }
+    if (ruleSnapshotStatus.present) {
+      map['rule_snapshot_status'] = Variable<String>(ruleSnapshotStatus.value);
+    }
     if (finalResultJson.present) {
       map['final_result_json'] = Variable<String>(finalResultJson.value);
     }
@@ -7495,6 +7729,11 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
           ..write('ocrEngine: $ocrEngine, ')
           ..write('sourceInfoJson: $sourceInfoJson, ')
           ..write('ruleResultJson: $ruleResultJson, ')
+          ..write('rulePackageVersion: $rulePackageVersion, ')
+          ..write('rulesVersion: $rulesVersion, ')
+          ..write('normalizationVersion: $normalizationVersion, ')
+          ..write('personalRulesRevision: $personalRulesRevision, ')
+          ..write('ruleSnapshotStatus: $ruleSnapshotStatus, ')
           ..write('finalResultJson: $finalResultJson, ')
           ..write('attemptCount: $attemptCount, ')
           ..write('lastError: $lastError, ')
@@ -10699,6 +10938,11 @@ typedef $$BillingJobsTableCreateCompanionBuilder = BillingJobsCompanion
   Value<String?> ocrEngine,
   Value<String?> sourceInfoJson,
   Value<String?> ruleResultJson,
+  Value<int?> rulePackageVersion,
+  Value<String?> rulesVersion,
+  Value<int?> normalizationVersion,
+  Value<int?> personalRulesRevision,
+  Value<String?> ruleSnapshotStatus,
   Value<String?> finalResultJson,
   Value<int> attemptCount,
   Value<String?> lastError,
@@ -10721,6 +10965,11 @@ typedef $$BillingJobsTableUpdateCompanionBuilder = BillingJobsCompanion
   Value<String?> ocrEngine,
   Value<String?> sourceInfoJson,
   Value<String?> ruleResultJson,
+  Value<int?> rulePackageVersion,
+  Value<String?> rulesVersion,
+  Value<int?> normalizationVersion,
+  Value<int?> personalRulesRevision,
+  Value<String?> ruleSnapshotStatus,
   Value<String?> finalResultJson,
   Value<int> attemptCount,
   Value<String?> lastError,
@@ -10773,6 +11022,25 @@ class $$BillingJobsTableFilterComposer
 
   ColumnFilters<String> get ruleResultJson => $composableBuilder(
       column: $table.ruleResultJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get rulePackageVersion => $composableBuilder(
+      column: $table.rulePackageVersion,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get rulesVersion => $composableBuilder(
+      column: $table.rulesVersion, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get normalizationVersion => $composableBuilder(
+      column: $table.normalizationVersion,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get personalRulesRevision => $composableBuilder(
+      column: $table.personalRulesRevision,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get ruleSnapshotStatus => $composableBuilder(
+      column: $table.ruleSnapshotStatus,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get finalResultJson => $composableBuilder(
@@ -10847,6 +11115,26 @@ class $$BillingJobsTableOrderingComposer
       column: $table.ruleResultJson,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<int> get rulePackageVersion => $composableBuilder(
+      column: $table.rulePackageVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get rulesVersion => $composableBuilder(
+      column: $table.rulesVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get normalizationVersion => $composableBuilder(
+      column: $table.normalizationVersion,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get personalRulesRevision => $composableBuilder(
+      column: $table.personalRulesRevision,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get ruleSnapshotStatus => $composableBuilder(
+      column: $table.ruleSnapshotStatus,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get finalResultJson => $composableBuilder(
       column: $table.finalResultJson,
       builder: (column) => ColumnOrderings(column));
@@ -10917,6 +11205,21 @@ class $$BillingJobsTableAnnotationComposer
   GeneratedColumn<String> get ruleResultJson => $composableBuilder(
       column: $table.ruleResultJson, builder: (column) => column);
 
+  GeneratedColumn<int> get rulePackageVersion => $composableBuilder(
+      column: $table.rulePackageVersion, builder: (column) => column);
+
+  GeneratedColumn<String> get rulesVersion => $composableBuilder(
+      column: $table.rulesVersion, builder: (column) => column);
+
+  GeneratedColumn<int> get normalizationVersion => $composableBuilder(
+      column: $table.normalizationVersion, builder: (column) => column);
+
+  GeneratedColumn<int> get personalRulesRevision => $composableBuilder(
+      column: $table.personalRulesRevision, builder: (column) => column);
+
+  GeneratedColumn<String> get ruleSnapshotStatus => $composableBuilder(
+      column: $table.ruleSnapshotStatus, builder: (column) => column);
+
   GeneratedColumn<String> get finalResultJson => $composableBuilder(
       column: $table.finalResultJson, builder: (column) => column);
 
@@ -10976,6 +11279,11 @@ class $$BillingJobsTableTableManager extends RootTableManager<
             Value<String?> ocrEngine = const Value.absent(),
             Value<String?> sourceInfoJson = const Value.absent(),
             Value<String?> ruleResultJson = const Value.absent(),
+            Value<int?> rulePackageVersion = const Value.absent(),
+            Value<String?> rulesVersion = const Value.absent(),
+            Value<int?> normalizationVersion = const Value.absent(),
+            Value<int?> personalRulesRevision = const Value.absent(),
+            Value<String?> ruleSnapshotStatus = const Value.absent(),
             Value<String?> finalResultJson = const Value.absent(),
             Value<int> attemptCount = const Value.absent(),
             Value<String?> lastError = const Value.absent(),
@@ -10997,6 +11305,11 @@ class $$BillingJobsTableTableManager extends RootTableManager<
             ocrEngine: ocrEngine,
             sourceInfoJson: sourceInfoJson,
             ruleResultJson: ruleResultJson,
+            rulePackageVersion: rulePackageVersion,
+            rulesVersion: rulesVersion,
+            normalizationVersion: normalizationVersion,
+            personalRulesRevision: personalRulesRevision,
+            ruleSnapshotStatus: ruleSnapshotStatus,
             finalResultJson: finalResultJson,
             attemptCount: attemptCount,
             lastError: lastError,
@@ -11018,6 +11331,11 @@ class $$BillingJobsTableTableManager extends RootTableManager<
             Value<String?> ocrEngine = const Value.absent(),
             Value<String?> sourceInfoJson = const Value.absent(),
             Value<String?> ruleResultJson = const Value.absent(),
+            Value<int?> rulePackageVersion = const Value.absent(),
+            Value<String?> rulesVersion = const Value.absent(),
+            Value<int?> normalizationVersion = const Value.absent(),
+            Value<int?> personalRulesRevision = const Value.absent(),
+            Value<String?> ruleSnapshotStatus = const Value.absent(),
             Value<String?> finalResultJson = const Value.absent(),
             Value<int> attemptCount = const Value.absent(),
             Value<String?> lastError = const Value.absent(),
@@ -11039,6 +11357,11 @@ class $$BillingJobsTableTableManager extends RootTableManager<
             ocrEngine: ocrEngine,
             sourceInfoJson: sourceInfoJson,
             ruleResultJson: ruleResultJson,
+            rulePackageVersion: rulePackageVersion,
+            rulesVersion: rulesVersion,
+            normalizationVersion: normalizationVersion,
+            personalRulesRevision: personalRulesRevision,
+            ruleSnapshotStatus: ruleSnapshotStatus,
             finalResultJson: finalResultJson,
             attemptCount: attemptCount,
             lastError: lastError,

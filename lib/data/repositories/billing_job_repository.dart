@@ -41,6 +41,20 @@ final class BillingJobLeaseLost implements Exception {
   String toString() => 'BillingJobLeaseLost(jobId=${lease.jobId})';
 }
 
+class BillingRuleExecutionSnapshot {
+  final int rulePackageVersion;
+  final String rulesVersion;
+  final int normalizationVersion;
+  final int personalRulesRevision;
+
+  const BillingRuleExecutionSnapshot({
+    required this.rulePackageVersion,
+    required this.rulesVersion,
+    required this.normalizationVersion,
+    required this.personalRulesRevision,
+  });
+}
+
 typedef BillingJobPublicationGate = Future<T> Function<T>(
   BillingJobLease lease,
   Future<T> Function() action,
@@ -94,6 +108,18 @@ abstract class BillingJobRepository {
       {BillingJobLease? lease});
   Future<bool> updateRuleResultJson(int id, String ruleResultJson,
       {BillingJobLease? lease});
+  Future<bool> commitRuleResultSnapshot({
+    required int id,
+    required String ruleResultJson,
+    required BillingRuleExecutionSnapshot snapshot,
+    BillingJobLease? lease,
+  }) =>
+      throw UnsupportedError('atomic rule snapshot commit is unavailable');
+  Future<bool> migrateUnavailableRuleSnapshotToOcrDone(
+    int id, {
+    BillingJobLease? lease,
+  }) =>
+      throw UnsupportedError('rule snapshot migration is unavailable');
   Future<bool> updateTransactionId(int id, int transactionId,
       {BillingJobLease? lease});
   Future<bool> updateFinalResultJson(int id, String finalResultJson,

@@ -281,4 +281,77 @@ void main() {
     expect(first!.id, created.id);
     expect(second!.id, created.id);
   });
+
+  test('rule_done atomically persists the complete execution snapshot',
+      () async {
+    final job = await repo.createJob(imagePath: '/tmp/snapshot.png');
+    await repo.updateStage(job.id, BillingJobStage.ocrDone);
+
+    final committed = await repo.commitRuleResultSnapshot(
+      id: job.id,
+      ruleResultJson: '{"amount":12}',
+      snapshot: const BillingRuleExecutionSnapshot(
+        rulePackageVersion: 12,
+        rulesVersion: '2026.07.24.1',
+        normalizationVersion: 2,
+        personalRulesRevision: 37,
+      ),
+    );
+
+    final saved = await repo.findById(job.id);
+    expect(committed, isTrue);
+    expect(saved?.stage, BillingJobStage.ruleDone);
+    expect(saved?.ruleResultJson, '{"amount":12}');
+    expect(saved?.rulePackageVersion, 12);
+    expect(saved?.rulesVersion, '2026.07.24.1');
+    expect(saved?.normalizationVersion, 2);
+    expect(saved?.personalRulesRevision, 37);
+    expect(saved?.ruleSnapshotStatus, 'pinned');
+  });
+
+  test('snapshot commit rejects a stale stage CAS', () async {
+    final job = await repo.createJob(imagePath: '/tmp/stale-snapshot.png');
+
+    final committed = await repo.commitRuleResultSnapshot(
+      id: job.id,
+      ruleResultJson: '{}',
+      snapshot: const BillingRuleExecutionSnapshot(
+        rulePackageVersion: 12,
+        rulesVersion: 'rules-2',
+        normalizationVersion: 2,
+        personalRulesRevision: 37,
+      ),
+    );
+
+    expect(committed, isFalse);
+    expect((await repo.findById(job.id))?.ruleResultJson, isNull);
+  });
+
+  test('unavailable pinned snapshot explicitly migrates back to ocr_done',
+      () async {
+    final job = await repo.createJob(imagePath: '/tmp/migrate-snapshot.png');
+    await repo.updateStage(job.id, BillingJobStage.ocrDone);
+    await repo.commitRuleResultSnapshot(
+      id: job.id,
+      ruleResultJson: '{"payment_method":"旧值"}',
+      snapshot: const BillingRuleExecutionSnapshot(
+        rulePackageVersion: 12,
+        rulesVersion: 'rules-2',
+        normalizationVersion: 2,
+        personalRulesRevision: 37,
+      ),
+    );
+
+    final migrated = await repo.migrateUnavailableRuleSnapshotToOcrDone(job.id);
+
+    final saved = await repo.findById(job.id);
+    expect(migrated, isTrue);
+    expect(saved?.stage, BillingJobStage.ocrDone);
+    expect(saved?.ruleResultJson, isNull);
+    expect(saved?.rulesVersion, isNull);
+    expect(saved?.normalizationVersion, isNull);
+    expect(saved?.personalRulesRevision, isNull);
+    expect(saved?.ruleSnapshotStatus, 'snapshot_migrated');
+    expect(saved?.lastError, 'snapshot_migrated');
+  });
 }

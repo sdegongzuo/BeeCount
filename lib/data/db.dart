@@ -251,6 +251,11 @@ class BillingJobs extends Table {
   TextColumn get ocrEngine => text().nullable()();
   TextColumn get sourceInfoJson => text().nullable()();
   TextColumn get ruleResultJson => text().nullable()();
+  IntColumn get rulePackageVersion => integer().nullable()();
+  TextColumn get rulesVersion => text().nullable()();
+  IntColumn get normalizationVersion => integer().nullable()();
+  IntColumn get personalRulesRevision => integer().nullable()();
+  TextColumn get ruleSnapshotStatus => text().nullable()();
   TextColumn get finalResultJson => text().nullable()();
   IntColumn get attemptCount => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
@@ -293,7 +298,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 31; // v31: 分类稳定标识与显式兜底
+  int get schemaVersion => 32; // v32: Billing Job 固定规则执行快照
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -988,6 +993,36 @@ class BeeDatabase extends _$BeeDatabase {
             ).getSingleOrNull();
             if (categoriesTable != null) {
               await SeedService.repairExistingCategoryInvariants(this);
+            }
+          }
+          if (from < 32) {
+            final columns =
+                await customSelect('PRAGMA table_info(billing_jobs)').get();
+            final names = columns.map((row) => row.data['name']).toSet();
+            if (!names.contains('rule_package_version')) {
+              await customStatement(
+                'ALTER TABLE billing_jobs ADD COLUMN rule_package_version INTEGER;',
+              );
+            }
+            if (!names.contains('rules_version')) {
+              await customStatement(
+                'ALTER TABLE billing_jobs ADD COLUMN rules_version TEXT;',
+              );
+            }
+            if (!names.contains('normalization_version')) {
+              await customStatement(
+                'ALTER TABLE billing_jobs ADD COLUMN normalization_version INTEGER;',
+              );
+            }
+            if (!names.contains('personal_rules_revision')) {
+              await customStatement(
+                'ALTER TABLE billing_jobs ADD COLUMN personal_rules_revision INTEGER;',
+              );
+            }
+            if (!names.contains('rule_snapshot_status')) {
+              await customStatement(
+                'ALTER TABLE billing_jobs ADD COLUMN rule_snapshot_status TEXT;',
+              );
             }
           }
         },
