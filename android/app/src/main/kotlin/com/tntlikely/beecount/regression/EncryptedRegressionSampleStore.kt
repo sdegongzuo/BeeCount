@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.os.SystemClock
 import org.json.JSONObject
+import java.security.MessageDigest
 import java.util.UUID
 
 enum class SampleProtection(val storageValue: String) {
@@ -76,6 +77,11 @@ data class ExpectedActivationResult(
     val activeNormalizationVersion: Int,
     val previousNormalizationVersion: Int?,
     val activatedRevisionCount: Int,
+)
+
+data class ExpectedCompactionResult(
+    val retainedRevisionIds: Set<String>,
+    val compactedRevisionIds: Set<String>,
 )
 
 class RegressionSampleSnapshotChangedException : IllegalStateException(
@@ -203,6 +209,22 @@ class EncryptedRegressionSampleStore(
                     "SELECT active_revision_id FROM regression_expected_state WHERE sample_id = ?",
                     arrayOf(sampleId),
                 ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                val oldPrevious = rawQuery(
+                    "SELECT previous_revision_id FROM regression_expected_state WHERE sample_id = ?",
+                    arrayOf(sampleId),
+                ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                oldPrevious?.let {
+                    execSQL(
+                        "UPDATE regression_expected_revisions SET state = 'prepared' WHERE revision_id = ?",
+                        arrayOf(it),
+                    )
+                }
+                oldActive?.let {
+                    execSQL(
+                        "UPDATE regression_expected_revisions SET state = 'previous' WHERE revision_id = ?",
+                        arrayOf(it),
+                    )
+                }
                 execSQL(
                     """INSERT OR REPLACE INTO regression_expected_state(
                        sample_id, active_revision_id, previous_revision_id
@@ -257,6 +279,14 @@ class EncryptedRegressionSampleStore(
                     "UPDATE regression_expected_state SET active_revision_id = ?, previous_revision_id = ? WHERE sample_id = ?",
                     arrayOf(previousId, currentId, sampleId),
                 )
+                execSQL(
+                    "UPDATE regression_expected_revisions SET state = 'previous' WHERE revision_id = ?",
+                    arrayOf(currentId),
+                )
+                execSQL(
+                    "UPDATE regression_expected_revisions SET state = 'active' WHERE revision_id = ?",
+                    arrayOf(previousId),
+                )
                 count++
             }
             execSQL(
@@ -265,6 +295,103 @@ class EncryptedRegressionSampleStore(
             )
         }
         return ExpectedActivationResult(active, previous, count)
+    }
+
+    fun compactExpectedRevisions(
+        referencedRevisionIds: Set<String>,
+        migrationDecisionId: String,
+    ): ExpectedCompactionResult {
+        val db = writableDatabase
+        val retained = mutableSetOf<String>()
+        val compacted = mutableSetOf<String>()
+        db.transaction {
+            retained += referencedRevisionIds
+            rawQuery(
+                "SELECT active_revision_id, previous_revision_id FROM regression_expected_state",
+                emptyArray(),
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    retained += cursor.getString(0)
+                    if (!cursor.isNull(1)) retained += cursor.getString(1)
+                }
+            }
+            rawQuery(
+                """SELECT revision_id FROM regression_expected_revisions
+                   WHERE state = 'prepared'""".trimIndent(),
+                emptyArray(),
+            ).use { cursor -> while (cursor.moveToNext()) retained += cursor.getString(0) }
+            rawQuery(
+                """SELECT revision_id FROM regression_expected_revisions
+                   WHERE revision_id IN (
+                     SELECT revision_id FROM regression_expected_revisions grouped
+                     WHERE created_at = (
+                       SELECT MIN(created_at) FROM regression_expected_revisions
+                       WHERE sample_id = grouped.sample_id
+                     )
+                   )""".trimIndent(),
+                emptyArray(),
+            ).use { cursor -> while (cursor.moveToNext()) retained += cursor.getString(0) }
+            val candidates = rawQuery(
+                """SELECT revision_id, sample_id, normalization_version, ciphertext
+                   FROM regression_expected_revisions ORDER BY created_at""".trimIndent(),
+                emptyArray(),
+            ).use { cursor ->
+                buildList {
+                    while (cursor.moveToNext()) {
+                        add(arrayOf(
+                            cursor.getString(0),
+                            cursor.getString(1),
+                            cursor.getInt(2),
+                            cursor.getBlob(3),
+                        ))
+                    }
+                }
+            }
+            for (row in candidates) {
+                val revisionId = row[0] as String
+                if (revisionId in retained) continue
+                val digest = MessageDigest.getInstance("SHA-256").digest(row[3] as ByteArray)
+                execSQL(
+                    """INSERT OR REPLACE INTO regression_expected_audits(
+                       revision_id, sample_id, normalization_version, encrypted_digest,
+                       decision, result, created_at
+                       ) VALUES (?, ?, ?, ?, ?, 'compacted', ?)""".trimIndent(),
+                    arrayOf(
+                        revisionId, row[1], row[2], digest, migrationDecisionId,
+                        System.currentTimeMillis(),
+                    ),
+                )
+                delete("regression_expected_revisions", "revision_id = ?", arrayOf(revisionId))
+                compacted += revisionId
+            }
+        }
+        return ExpectedCompactionResult(retained, compacted)
+    }
+
+    fun rejectExpectedRevision(revisionId: String, decision: String, result: String) {
+        writableDatabase.transaction {
+            val row = rawQuery(
+                """SELECT sample_id, normalization_version, ciphertext
+                   FROM regression_expected_revisions
+                   WHERE revision_id = ? AND state = 'prepared'""".trimIndent(),
+                arrayOf(revisionId),
+            ).use { cursor ->
+                check(cursor.moveToFirst()) { "Expected revision is not a prepared candidate" }
+                Triple(cursor.getString(0), cursor.getInt(1), cursor.getBlob(2))
+            }
+            execSQL(
+                """INSERT INTO regression_expected_audits(
+                   revision_id, sample_id, normalization_version, encrypted_digest,
+                   decision, result, created_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?)""".trimIndent(),
+                arrayOf(
+                    revisionId, row.first, row.second,
+                    MessageDigest.getInstance("SHA-256").digest(row.third),
+                    decision, result, System.currentTimeMillis(),
+                ),
+            )
+            delete("regression_expected_revisions", "revision_id = ?", arrayOf(revisionId))
+        }
     }
 
     fun save(input: RegressionSampleInput): SaveSampleResult {
@@ -594,6 +721,18 @@ class EncryptedRegressionSampleStore(
                )""".trimIndent(),
             emptyArray(),
         ).use { cursor -> cursor.moveToFirst(); cursor.getInt(0) == 4 }
+
+    fun expectedRevisionExistsForTesting(revisionId: String): Boolean =
+        readableDatabase.rawQuery(
+            "SELECT 1 FROM regression_expected_revisions WHERE revision_id = ?",
+            arrayOf(revisionId),
+        ).use { cursor -> cursor.moveToFirst() }
+
+    fun expectedAuditResultForTesting(revisionId: String): String? =
+        readableDatabase.rawQuery(
+            "SELECT result FROM regression_expected_audits WHERE revision_id = ?",
+            arrayOf(revisionId),
+        ).use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
 
     fun corruptCiphertextForTesting(id: String) {
         writableDatabase.transaction {

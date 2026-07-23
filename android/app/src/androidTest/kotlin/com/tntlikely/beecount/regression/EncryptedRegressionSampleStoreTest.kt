@@ -142,6 +142,53 @@ class EncryptedRegressionSampleStoreTest {
     }
 
     @Test
+    fun compactionKeepsAnchorCurrentPreviousPreparedAndReferencedRevisions() {
+        val sampleId = store.save(
+            sample("retention", "retention", SampleProtection.CORRECTION),
+        ).sampleId!!
+        val anchor = prepare(sampleId, 0, "decision-v0")
+        store.activateExpectedRevisions(0, "decision-v0")
+        val oldIntermediate = prepare(sampleId, 1, "decision-v1")
+        store.activateExpectedRevisions(1, "decision-v1")
+        val previous = prepare(sampleId, 2, "decision-v2")
+        store.activateExpectedRevisions(2, "decision-v2")
+        val current = prepare(sampleId, 3, "decision-v3")
+        store.activateExpectedRevisions(3, "decision-v3")
+        val prepared = prepare(sampleId, 4, "decision-v4")
+        val referenced = prepare(sampleId, 5, "decision-v5")
+
+        val result = store.compactExpectedRevisions(
+            setOf(referenced.revisionId),
+            "retention-v3",
+        )
+
+        assertEquals(setOf(oldIntermediate.revisionId), result.compactedRevisionIds)
+        listOf(anchor, previous, current, prepared, referenced).forEach {
+            assertTrue(store.expectedRevisionExistsForTesting(it.revisionId))
+        }
+        assertEquals(
+            "compacted",
+            store.expectedAuditResultForTesting(oldIntermediate.revisionId),
+        )
+    }
+
+    @Test
+    fun rejectedCandidateLeavesOnlyAuditRecord() {
+        val sampleId = store.save(
+            sample("rejected", "rejected", SampleProtection.CORRECTION),
+        ).sampleId!!
+        val candidate = prepare(sampleId, 9, "candidate-v9")
+
+        store.rejectExpectedRevision(candidate.revisionId, "candidate-v9", "regression_failed")
+
+        assertFalse(store.expectedRevisionExistsForTesting(candidate.revisionId))
+        assertEquals(
+            "regression_failed",
+            store.expectedAuditResultForTesting(candidate.revisionId),
+        )
+    }
+
+    @Test
     fun databaseVersionTwoMigratesExpectedRevisionSchemaWithoutDroppingSamples() {
         val databaseName = "regression-v2-migration-${System.nanoTime()}.db"
         LegacyVersionTwoStore(context, databaseName).use { legacy ->
