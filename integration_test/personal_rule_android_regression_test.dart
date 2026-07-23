@@ -64,7 +64,7 @@ Future<int> _runProductionSeam(
     final jobs = LocalBillingJobRepository(db);
     final confirmation = PendingBillConfirmationService(
       repo: jobs,
-      createTransaction: (_) async => 1000 + run,
+      createTransaction: (_, {required ledgerId}) async => 1000 + run,
       applyCorrection: lifecycle.applyCorrection,
     );
     final learnedJob = await _awaitingJob(jobs,
@@ -191,7 +191,7 @@ Future<PendingBillConfirmationResult> _confirmWithLifecycle(
       sourcePackage: sourcePackage);
   return PendingBillConfirmationService(
     repo: jobs,
-    createTransaction: (_) async => marker.hashCode,
+    createTransaction: (_, {required ledgerId}) async => marker.hashCode,
     applyCorrection: lifecycle.applyCorrection,
   ).confirm(
       jobId: job.id,
