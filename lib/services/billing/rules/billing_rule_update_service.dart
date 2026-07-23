@@ -411,7 +411,13 @@ class BillingRuleUpdateService {
       final candidateRuleSet = await _tryLoadRuleSet(candidateFile);
       if (candidateRuleSet == null ||
           candidateRuleSet.schemaVersion != manifest.latest.schemaVersion ||
-          candidateRuleSet.rulesVersion != manifest.latest.rulesVersion) {
+          candidateRuleSet.rulesVersion != manifest.latest.rulesVersion ||
+          (manifest.latest.rulePackageVersion != 0 &&
+              candidateRuleSet.rulePackageVersion !=
+                  manifest.latest.rulePackageVersion) ||
+          (manifest.latest.normalizationVersion != 0 &&
+              candidateRuleSet.normalizationVersion !=
+                  manifest.latest.normalizationVersion)) {
         return _abortTransition(
           storage,
           journal,

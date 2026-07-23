@@ -15,7 +15,9 @@ void main() {
       final ruleSet = await repository.loadBuiltInRuleSet();
 
       expect(ruleSet.schemaVersion, 1);
+      expect(ruleSet.rulePackageVersion, 1);
       expect(ruleSet.rulesVersion, '2026.07.22.1');
+      expect(ruleSet.normalizationVersion, 1);
       expect(ruleSet.source, 'asset:assets/rules/billing_rules.toml');
       expect(ruleSet.paymentChannels.map((channel) => channel.channel),
           containsAll(['微信支付', '抖音', '支付宝']));
@@ -116,6 +118,27 @@ void main() {
       );
     });
 
+    test('rejects a rule package with an incompatible normalization version',
+        () async {
+      final repository = _repositoryFor(_validToml(normalizationVersion: 2));
+
+      await expectLater(
+        repository.loadBuiltInRuleSet(),
+        throwsA(isA<BillingRuleRepositoryException>()),
+      );
+    });
+
+    test('accepts explicitly evaluated normalization compatibility', () async {
+      final repository = _repositoryFor(
+        _validToml(
+          normalizationVersion: 2,
+          compatibleNormalizationVersions: const [1, 2],
+        ),
+      );
+
+      expect((await repository.loadBuiltInRuleSet()).normalizationVersion, 2);
+    });
+
     test('rejects duplicate template ids', () async {
       final repository = _repositoryFor('''
 schemaVersion = 1
@@ -196,9 +219,17 @@ TomlBillingRuleRepository _repositoryFor(String toml) {
   );
 }
 
-String _validToml({String rulesVersion = 'test'}) => '''
+String _validToml({
+  String rulesVersion = 'test',
+  int normalizationVersion = 1,
+  List<int> compatibleNormalizationVersions = const [],
+}) =>
+    '''
 schemaVersion = 1
+rulePackageVersion = 1
 rulesVersion = "$rulesVersion"
+normalizationVersion = $normalizationVersion
+${compatibleNormalizationVersions.isEmpty ? '' : 'compatibleNormalizationVersions = $compatibleNormalizationVersions'}
 
 [[paymentChannels]]
 channel = "微信支付"

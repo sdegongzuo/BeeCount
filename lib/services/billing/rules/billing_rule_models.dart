@@ -101,7 +101,10 @@ enum BillingExtractorSelection { firstSuccessful, highestConfidence }
 
 class BillingRuleSet {
   final int schemaVersion;
+  final int rulePackageVersion;
   final String rulesVersion;
+  final int normalizationVersion;
+  final List<int> compatibleNormalizationVersions;
   final List<BillingPaymentChannelRule> paymentChannels;
   final List<BillingRuleTemplate> templates;
   final String? source;
@@ -110,6 +113,9 @@ class BillingRuleSet {
   const BillingRuleSet({
     required this.schemaVersion,
     required this.rulesVersion,
+    this.rulePackageVersion = 0,
+    this.normalizationVersion = 0,
+    this.compatibleNormalizationVersions = const [],
     required this.paymentChannels,
     required this.templates,
     this.source,
@@ -123,9 +129,20 @@ class BillingRuleSet {
     if (publicRules.schemaVersion != personalRules.schemaVersion) {
       throw ArgumentError('Rule sets must use the same schema version');
     }
+    if (personalRules.templates.isNotEmpty &&
+        publicRules.normalizationVersion !=
+            personalRules.normalizationVersion) {
+      throw ArgumentError(
+        'Public and personal rules must use the same normalization version',
+      );
+    }
     return BillingRuleSet(
       schemaVersion: publicRules.schemaVersion,
+      rulePackageVersion: publicRules.rulePackageVersion,
       rulesVersion: '${publicRules.rulesVersion}+${personalRules.rulesVersion}',
+      normalizationVersion: publicRules.normalizationVersion,
+      compatibleNormalizationVersions:
+          publicRules.compatibleNormalizationVersions,
       paymentChannels: [
         ...publicRules.paymentChannels,
         ...personalRules.paymentChannels,
@@ -145,13 +162,21 @@ class BillingRuleSet {
 
   Map<String, dynamic> toJson() => {
         'schema_version': schemaVersion,
+        'rule_package_version': rulePackageVersion,
         'rules_version': rulesVersion,
+        'normalization_version': normalizationVersion,
+        'compatible_normalization_versions': compatibleNormalizationVersions,
         'payment_channels':
             paymentChannels.map((channel) => channel.toJson()).toList(),
         'templates': templates.map((template) => template.toJson()).toList(),
         'source': source,
         'loaded_at': loadedAt?.toIso8601String(),
       };
+
+  bool supportsNormalizationVersion(int version) =>
+      compatibleNormalizationVersions.isEmpty
+          ? normalizationVersion == version
+          : compatibleNormalizationVersions.contains(version);
 }
 
 class BillingPaymentChannelRule {

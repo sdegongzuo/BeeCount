@@ -38,6 +38,8 @@ class PaymentMethodNormalizationResult {
 class PaymentMethodSemantics {
   const PaymentMethodSemantics();
 
+  static const int currentNormalizationVersion = 1;
+
   static final RegExp _controlCharacters =
       RegExp(r'[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]');
   static final RegExp _labelOnly = RegExp(r'^(?:支付方式|付款方式|卡号|银行卡|支付账户)[:：]?$');

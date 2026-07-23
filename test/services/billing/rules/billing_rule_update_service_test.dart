@@ -580,7 +580,9 @@ final _testConfiguration = BillingRuleUpdateConfiguration.fromValues(
 
 String _validToml({required String rulesVersion}) => '''
 schemaVersion = 1
+rulePackageVersion = 1
 rulesVersion = "$rulesVersion"
+normalizationVersion = 1
 
 [[templates]]
 id = "wechat_payment_detail_v1"

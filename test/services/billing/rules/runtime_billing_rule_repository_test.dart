@@ -251,7 +251,9 @@ Future<FastBillingRuleEvaluation> _evaluate(
 
 String _rules(String version, {required String marker}) => '''
 schemaVersion = 1
+rulePackageVersion = 1
 rulesVersion = "$version"
+normalizationVersion = 1
 
 [[templates]]
 id = "rule-$version"

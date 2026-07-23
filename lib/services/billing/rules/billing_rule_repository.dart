@@ -6,6 +6,7 @@ import 'package:toml/toml.dart';
 import 'billing_rule_engine.dart';
 import 'billing_rule_models.dart';
 import 'billing_rule_storage.dart';
+import '../payment_method_semantics.dart';
 
 typedef BillingRuleFileLoader = Future<String?> Function(File file);
 
@@ -261,7 +262,15 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
 
     final ruleSet = BillingRuleSet(
       schemaVersion: _requiredInt(map, 'schemaVersion'),
+      rulePackageVersion:
+          _optionalInt(map['rulePackageVersion'], 0, 'rulePackageVersion'),
       rulesVersion: _requiredString(map, 'rulesVersion'),
+      normalizationVersion:
+          _optionalInt(map['normalizationVersion'], 0, 'normalizationVersion'),
+      compatibleNormalizationVersions: _intList(
+        map['compatibleNormalizationVersions'],
+        'compatibleNormalizationVersions',
+      ),
       paymentChannels: _parsePaymentChannels(map['paymentChannels']),
       templates: _parseTemplates(map['templates']),
       source: source,
@@ -381,6 +390,15 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
     if (ruleSet.rulesVersion.trim().isEmpty) {
       throw const BillingRuleRepositoryException('rulesVersion is required');
     }
+    if (!ruleSet.supportsNormalizationVersion(
+      PaymentMethodSemantics.currentNormalizationVersion,
+    )) {
+      throw BillingRuleRepositoryException(
+        'Rule package normalization version ${ruleSet.normalizationVersion} '
+        'is incompatible with app normalization version '
+        '${PaymentMethodSemantics.currentNormalizationVersion}',
+      );
+    }
 
     final templateIds = <String>{};
     for (final template in ruleSet.templates) {
@@ -396,6 +414,15 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
         _validateExtractor(template.id, extractor);
       }
     }
+  }
+
+  List<int> _intList(Object? value, String field) {
+    if (value == null) return const [];
+    final values = _optionalList(value, field);
+    if (values.any((item) => item is! int)) {
+      throw BillingRuleRepositoryException('$field must contain integers');
+    }
+    return values.cast<int>();
   }
 
   void _validateExtractor(String templateId, BillingFieldExtractorRule rule) {

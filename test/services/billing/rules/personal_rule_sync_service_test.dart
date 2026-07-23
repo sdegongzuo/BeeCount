@@ -37,6 +37,7 @@ void main() {
       'rule_id': 'amount-rule',
       'origin_device_id': 'a',
       'origin_version': 1,
+      'created_normalization_version': 1,
       'kind': 'extraction',
       'scope_key': 'app:wechat',
       'condition_key': 'label:amount',
@@ -84,6 +85,30 @@ void main() {
         },
       ),
       throwsArgumentError,
+    );
+  });
+
+  test('更高归一化版本的远端提取修订等待兼容版本', () async {
+    final future = PersonalRuleRevision(
+      revisionId: 'future',
+      ruleId: 'amount-rule',
+      originDeviceId: 'remote',
+      originVersion: 1,
+      createdNormalizationVersion: 2,
+      kind: PersonalRuleSyncKind.extraction,
+      scopeKey: 'app:wechat',
+      conditionKey: 'label:amount',
+      payload: const {'field': 'amount', 'extractor': 'next-line'},
+    );
+    final result = await PersonalRuleSyncService(
+      localDeviceId: 'local',
+      currentNormalizationVersion: 1,
+      regressionGate: (_) async => LocalRegressionVerdict.passed,
+    ).merge([future]);
+
+    expect(
+      result.stateFor('future'),
+      PersonalRuleRevisionState.pendingValidation,
     );
   });
 

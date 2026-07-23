@@ -29,14 +29,18 @@ class BillingRuleManifestLatest {
   static const supportedSchemaVersion = 1;
 
   final int schemaVersion;
+  final int rulePackageVersion;
   final String rulesVersion;
+  final int normalizationVersion;
   final String minAppVersion;
   final Uri url;
   final String sha256;
 
   const BillingRuleManifestLatest({
     required this.schemaVersion,
+    this.rulePackageVersion = 0,
     required this.rulesVersion,
+    this.normalizationVersion = 0,
     required this.minAppVersion,
     required this.url,
     required this.sha256,
@@ -62,12 +66,21 @@ class BillingRuleManifestLatest {
 
     return BillingRuleManifestLatest(
       schemaVersion: schemaVersion,
+      rulePackageVersion: _optionalInt(json, 'rulePackageVersion'),
       rulesVersion: _requiredString(json, 'rulesVersion'),
+      normalizationVersion: _optionalInt(json, 'normalizationVersion'),
       minAppVersion: _requiredString(json, 'minAppVersion'),
       url: url,
       sha256: sha256,
     );
   }
+}
+
+int _optionalInt(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value == null) return 0;
+  if (value is int && value >= 0) return value;
+  throw BillingRuleManifestException('$key must be a non-negative integer');
 }
 
 String _requiredString(Map<String, dynamic> json, String key) {

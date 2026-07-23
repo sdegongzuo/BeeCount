@@ -516,8 +516,19 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
         .customStatement('''CREATE TABLE IF NOT EXISTS personal_rule_revisions (
       version INTEGER PRIMARY KEY AUTOINCREMENT,
       rule_json TEXT NOT NULL,
+      normalization_version INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL
     )''');
+    final revisionColumns = await db
+        .customSelect('PRAGMA table_info(personal_rule_revisions)')
+        .get();
+    if (!revisionColumns
+        .any((row) => row.read<String>('name') == 'normalization_version')) {
+      await db.customStatement(
+        'ALTER TABLE personal_rule_revisions ADD COLUMN '
+        'normalization_version INTEGER NOT NULL DEFAULT 1',
+      );
+    }
     await db.customStatement('''CREATE TABLE IF NOT EXISTS personal_rule_state (
       singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
       active_version INTEGER REFERENCES personal_rule_revisions(version)
@@ -582,8 +593,13 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
         throw const PersonalRuleActivationConflict();
       }
       await db.customStatement(
-          'INSERT INTO personal_rule_revisions(rule_json, created_at) VALUES (?, ?)',
-          [snapshotJson, DateTime.now().millisecondsSinceEpoch]);
+          'INSERT INTO personal_rule_revisions('
+          'rule_json, normalization_version, created_at) VALUES (?, ?, ?)',
+          [
+            snapshotJson,
+            PaymentMethodSemantics.currentNormalizationVersion,
+            DateTime.now().millisecondsSinceEpoch,
+          ]);
       final version = (await db
               .customSelect('SELECT last_insert_rowid() AS id')
               .getSingle())
@@ -862,17 +878,21 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
   @override
   Future<BillingRuleSet> loadActiveRuleSet() async {
     await ensureSchema();
-    final rows = await db.customSelect('''SELECT r.version, r.rule_json
+    final rows = await db
+        .customSelect('''SELECT r.version, r.rule_json, r.normalization_version
       FROM personal_rule_state s JOIN personal_rule_revisions r
       ON r.version = s.active_version WHERE s.singleton = 1''').get();
     if (rows.isEmpty) {
       return const BillingRuleSet(
           schemaVersion: 1,
           rulesVersion: 'personal-0',
+          normalizationVersion:
+              PaymentMethodSemantics.currentNormalizationVersion,
           paymentChannels: [],
           templates: []);
     }
     final version = rows.single.read<int>('version');
+    final normalizationVersion = rows.single.read<int>('normalization_version');
     final decoded = jsonDecode(rows.single.read<String>('rule_json'));
     final rulesJson = decoded is List
         ? decoded.cast<Map<String, dynamic>>()
@@ -880,6 +900,7 @@ class SqlitePersonalRuleRevisionStore implements PersonalRuleRevisionStore {
     return BillingRuleSet(
         schemaVersion: 1,
         rulesVersion: 'personal-$version',
+        normalizationVersion: normalizationVersion,
         paymentChannels: const [],
         templates: rulesJson.map(BillingRuleTemplate.fromJson).toList());
   }

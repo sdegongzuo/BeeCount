@@ -31,6 +31,7 @@ class PersonalRuleRevision {
   final String ruleId;
   final String originDeviceId;
   final int originVersion;
+  final int createdNormalizationVersion;
   final PersonalRuleSyncKind kind;
   final String scopeKey;
   final String conditionKey;
@@ -42,6 +43,7 @@ class PersonalRuleRevision {
     required String ruleId,
     required String originDeviceId,
     required int originVersion,
+    int createdNormalizationVersion = 1,
     required PersonalRuleSyncKind kind,
     required String scopeKey,
     required String conditionKey,
@@ -57,6 +59,7 @@ class PersonalRuleRevision {
       ruleId: ruleId,
       originDeviceId: originDeviceId,
       originVersion: originVersion,
+      createdNormalizationVersion: createdNormalizationVersion,
       kind: kind,
       scopeKey: scopeKey,
       conditionKey: conditionKey,
@@ -70,6 +73,7 @@ class PersonalRuleRevision {
     required this.ruleId,
     required this.originDeviceId,
     required this.originVersion,
+    required this.createdNormalizationVersion,
     required this.kind,
     required this.scopeKey,
     required this.conditionKey,
@@ -82,6 +86,7 @@ class PersonalRuleRevision {
     required String ruleId,
     required String originDeviceId,
     required int originVersion,
+    int createdNormalizationVersion = 1,
     required PersonalRuleSyncKind kind,
     required String scopeKey,
     required String conditionKey,
@@ -93,6 +98,7 @@ class PersonalRuleRevision {
       ruleId: ruleId,
       originDeviceId: originDeviceId,
       originVersion: originVersion,
+      createdNormalizationVersion: createdNormalizationVersion,
       kind: kind,
       scopeKey: scopeKey,
       conditionKey: conditionKey,
@@ -119,6 +125,8 @@ class PersonalRuleRevision {
       ruleId: json['rule_id'] as String,
       originDeviceId: originDeviceId,
       originVersion: json['origin_version'] as int,
+      createdNormalizationVersion:
+          json['created_normalization_version'] as int? ?? 0,
       kind: kind,
       scopeKey: json['scope_key'] as String,
       conditionKey: json['condition_key'] as String,
@@ -139,6 +147,7 @@ class PersonalRuleRevision {
       'rule_id': ruleId,
       'origin_device_id': originDeviceId,
       'origin_version': originVersion,
+      'created_normalization_version': createdNormalizationVersion,
       'kind': _kindName(kind),
       'scope_key': scopeKey,
       'condition_key': conditionKey,
@@ -193,10 +202,12 @@ class PersonalRuleSyncResult {
 /// 合并来自多设备的不可变修订，并将本机回归证据保留在回调边界内。
 class PersonalRuleSyncService {
   final String localDeviceId;
+  final int currentNormalizationVersion;
   final PersonalRuleRegressionGate? regressionGate;
 
   const PersonalRuleSyncService({
     required this.localDeviceId,
+    this.currentNormalizationVersion = 1,
     this.regressionGate,
   });
 
@@ -277,11 +288,14 @@ class PersonalRuleSyncService {
   ) async {
     final verdicts = <String, LocalRegressionVerdict>{};
     for (final revision in group) {
-      verdicts[revision.revisionId] = revision.originDeviceId == localDeviceId
-          ? LocalRegressionVerdict.passed
-          : regressionGate == null
+      verdicts[revision.revisionId] =
+          revision.createdNormalizationVersion > currentNormalizationVersion
               ? LocalRegressionVerdict.insufficient
-              : await regressionGate!(revision);
+              : revision.originDeviceId == localDeviceId
+                  ? LocalRegressionVerdict.passed
+                  : regressionGate == null
+                      ? LocalRegressionVerdict.insufficient
+                      : await regressionGate!(revision);
     }
     final payloads = group.map((r) => _canonical(r.payload)).toSet();
     final passed = group
