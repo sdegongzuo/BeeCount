@@ -42,6 +42,7 @@ void main() {
         rawText: '付款金额\n18.00\n交易时间\n2026-07-12 10:30',
         allNumbers: const ['18.00'],
         amount: 18,
+        discountAmount: 1,
         note: '结构化摘要',
         merchantFullName: '天津海河测试餐厅甲',
       ).toJson()),
@@ -115,6 +116,7 @@ void main() {
     expect(result.ruleResults, isEmpty);
     expect(remembered, isEmpty);
     expect(createdBill.note, '结构化摘要');
+    expect(createdBill.discountAmount, 1);
     expect(createdBill.details?['supplemental_note'], '和朋友聚餐');
     final updated = await repo.findById(job.id);
     expect(updated!.status, BillingJobStatus.succeeded);

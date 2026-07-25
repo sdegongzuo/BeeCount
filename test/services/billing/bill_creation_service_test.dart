@@ -77,6 +77,66 @@ void main() {
     expect(transaction?.note, isNull);
   });
 
+  test('图片规则优惠金额随自动建账落库并进入当前账本汇总', () async {
+    final evaluated = await FastBillingRuleService(
+      ruleRepository: TomlBillingRuleRepository(),
+      ruleEngine: BillingRuleEngineImpl(),
+    ).evaluate(
+      baseResult: OcrResult(
+        rawText: [
+          '银联交易详情',
+          '财付通(银联云闪付)',
+          '-￥7.90',
+          '收款方',
+          '天津津门测试餐饮有限公司乙',
+          '优惠信息',
+          '银联优惠-¥1.00',
+          '卡号',
+          '中国银行银联信用卡[2853]',
+          '交易时间',
+          '2026-07-19 13:00:19',
+          '交易渠道',
+          '云闪付APP',
+          '消费',
+          '交易类别',
+          '分类',
+          '其他门类-其他',
+          '发卡机构',
+          '中国银行',
+          '收单机构',
+          '财付通支付科技有限公司',
+          '商户编号',
+          '946684247618003',
+          '参考号',
+          '936697774930',
+        ].join('\n'),
+        allNumbers: const ['7.90', '1.00'],
+      ),
+    );
+
+    expect(evaluated.result.discountAmount, 1);
+    final transactionId = await BillCreationService(repo).createBillTransaction(
+      result: evaluated.result,
+      ledgerId: ledgerId,
+      billingTypes: const ['image'],
+      autoAddTags: false,
+    );
+
+    expect(transactionId, isNotNull);
+    expect(
+      (await repo.getTransactionById(transactionId!))?.discountAmount,
+      1,
+    );
+    expect(
+      await repo.totalDiscountInRange(
+        ledgerId: ledgerId,
+        start: DateTime(2026, 7),
+        end: DateTime(2026, 8),
+      ),
+      1,
+    );
+  });
+
   test('图片分享分类与备注不消费 AI 输出', () async {
     final foodId = await repo.createCategory(name: '餐饮', kind: 'expense');
     final service = BillCreationService(repo);
@@ -133,7 +193,9 @@ void main() {
       assetBundle: _StringAssetBundle({
         TomlBillingRuleRepository.defaultBuiltInAssetPath: '''
 schemaVersion = 1
+rulePackageVersion = 2
 rulesVersion = "page-category-test"
+normalizationVersion = 1
 
 [[templates]]
 id = "page_category"

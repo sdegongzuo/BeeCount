@@ -614,7 +614,9 @@ BillingRuleUpdateService _service(
 
 String _toml(String version) => '''
 schemaVersion = 1
+rulePackageVersion = 2
 rulesVersion = "$version"
+normalizationVersion = 1
 
 [[templates]]
 id = "template_$version"

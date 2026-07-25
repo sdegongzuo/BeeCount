@@ -150,6 +150,7 @@ void main() {
             ledgerId: ledgerId,
             type: 'expense',
             amount: 12,
+            discountAmount: const Value(1),
             needsClassification: const Value(true),
           ),
         );
@@ -160,6 +161,7 @@ void main() {
     final item = (exported['items'] as List).single as Map<String, dynamic>;
     expect(exported['version'], 8);
     expect(item['needsClassification'], isTrue);
+    expect(item['discountAmount'], 1);
 
     final targetDb = BeeDatabase.forTesting(NativeDatabase.memory());
     addTearDown(targetDb.close);
@@ -176,6 +178,11 @@ void main() {
       (await (targetDb.select(targetDb.transactions)).getSingle())
           .needsClassification,
       isTrue,
+    );
+    expect(
+      (await (targetDb.select(targetDb.transactions)).getSingle())
+          .discountAmount,
+      1,
     );
   });
 }

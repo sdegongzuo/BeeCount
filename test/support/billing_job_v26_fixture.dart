@@ -188,6 +188,10 @@ CREATE TABLE billing_jobs (
   created_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s', 'now') AS INTEGER)),
   updated_at INTEGER NOT NULL DEFAULT (CAST(strftime('%s', 'now') AS INTEGER)),
   completed_at INTEGER
+);
+CREATE TABLE transactions (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  details_text TEXT
 )
 ''';
 

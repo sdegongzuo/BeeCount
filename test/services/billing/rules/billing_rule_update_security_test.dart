@@ -494,7 +494,9 @@ Future<List<InternetAddress>> _publicAddressResolver(String _) async =>
 
 String _validToml() => r'''
 schemaVersion = 1
+rulePackageVersion = 2
 rulesVersion = "remote"
+normalizationVersion = 1
 
 [[templates]]
 id = "secure_remote"

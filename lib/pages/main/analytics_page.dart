@@ -14,6 +14,59 @@ import '../../l10n/app_localizations.dart';
 import '../../services/export/share_poster_service.dart';
 import '../../data/db.dart' as db;
 
+typedef _AnalyticsSubcategory = ({
+  int id,
+  db.Category category,
+  String name,
+  double total,
+});
+
+typedef _AnalyticsCategory = ({
+  int? id,
+  String name,
+  db.Category? category,
+  double total,
+  List<_AnalyticsSubcategory> subCategories,
+});
+
+sealed class _AnalyticsLoadResult {
+  const _AnalyticsLoadResult({
+    required this.categories,
+    required this.transactionCount,
+    required this.discountTotal,
+  });
+
+  final List<_AnalyticsCategory> categories;
+  final int transactionCount;
+  final double discountTotal;
+}
+
+final class _CategoryAnalyticsLoadResult extends _AnalyticsLoadResult {
+  const _CategoryAnalyticsLoadResult({
+    required super.categories,
+    required super.transactionCount,
+    required super.discountTotal,
+    required this.series,
+  });
+
+  final Object series;
+}
+
+final class _BalanceAnalyticsLoadResult extends _AnalyticsLoadResult {
+  const _BalanceAnalyticsLoadResult({
+    required super.categories,
+    required super.transactionCount,
+    required super.discountTotal,
+    required this.incomeSeries,
+    required this.expenseSeries,
+    required this.incomeTransactionCount,
+  });
+
+  final Object incomeSeries;
+  final Object expenseSeries;
+  final int incomeTransactionCount;
+}
+
 class AnalyticsPage extends ConsumerStatefulWidget {
   const AnalyticsPage({super.key});
 
@@ -317,7 +370,7 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
     }
 
     // 按视角获取序列
-    Future<dynamic> seriesFuture;
+    Future<dynamic>? seriesFuture;
     Future<dynamic>? incomeSeriesFuture;
     Future<dynamic>? expenseSeriesFuture;
 
@@ -328,19 +381,16 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
             ledgerId: ledgerId, type: 'income', start: start, end: end);
         expenseSeriesFuture = repo.totalsByDay(
             ledgerId: ledgerId, type: 'expense', start: start, end: end);
-        seriesFuture = Future.value([]); // 占位
       } else if (_scope == 'year') {
         incomeSeriesFuture = repo.totalsByMonth(
             ledgerId: ledgerId, type: 'income', year: selMonth.year);
         expenseSeriesFuture = repo.totalsByMonth(
             ledgerId: ledgerId, type: 'expense', year: selMonth.year);
-        seriesFuture = Future.value([]);
       } else {
         incomeSeriesFuture =
             repo.totalsByYearSeries(ledgerId: ledgerId, type: 'income');
         expenseSeriesFuture =
             repo.totalsByYearSeries(ledgerId: ledgerId, type: 'expense');
-        seriesFuture = Future.value([]);
       }
     } else {
       // 收入或支出模式
@@ -528,64 +578,37 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
             child: FutureBuilder(
               key: ValueKey('analytics_$_type'),
               future: _type == 'balance'
-                  ? _loadBalanceData(repo, ledgerId, start, end, seriesFuture,
+                  ? _loadBalanceData(repo, ledgerId, start, end,
                       incomeSeriesFuture!, expenseSeriesFuture!)
                   : _loadCategoryData(
-                      repo, ledgerId, _type, start, end, seriesFuture),
+                      repo, ledgerId, _type, start, end, seriesFuture!),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final list = snapshot.data as List<dynamic>;
+                final data = snapshot.data as _AnalyticsLoadResult;
 
                 // 在balance模式下，需要计算结余数据
                 dynamic seriesRaw;
-                List<
-                    ({
-                      int? id,
-                      String name,
-                      db.Category? category,
-                      double total,
-                      List<
-                          ({
-                            int id,
-                            db.Category category,
-                            String name,
-                            double total
-                          })> subCategories
-                    })> catData;
+                List<_AnalyticsCategory> catData;
                 int txCount;
                 double sum;
-                final discountTotal =
-                    list[_type == 'balance' ? 6 : 3] as double;
+                final discountTotal = data.discountTotal;
 
                 if (_type == 'balance') {
-                  // balance模式：list[3]是收入数据，list[4]是支出数据，list[5]是收入交易数量
-                  final incomeData = list[3];
-                  final expenseData = list[4];
+                  final balanceData = data as _BalanceAnalyticsLoadResult;
+                  final incomeData = balanceData.incomeSeries;
+                  final expenseData = balanceData.expenseSeries;
 
                   // 计算结余序列
                   seriesRaw = _calculateBalanceSeries(incomeData, expenseData);
 
                   // 分类数据显示支出分类（但结余模式下不显示排行榜）
-                  catData = list[0] as List<
-                      ({
-                        int? id,
-                        String name,
-                        db.Category? category,
-                        double total,
-                        List<
-                            ({
-                              int id,
-                              db.Category category,
-                              String name,
-                              double total
-                            })> subCategories
-                      })>;
+                  catData = data.categories;
 
                   // 获取收入和支出的交易数量
-                  final expenseCount = list[2] as int;
-                  final incomeCount = list[5] as int;
+                  final expenseCount = data.transactionCount;
+                  final incomeCount = balanceData.incomeTransactionCount;
                   txCount = expenseCount + incomeCount;
 
                   // 计算总结余（收入总额 - 支出总额）
@@ -593,22 +616,10 @@ class _AnalyticsPageState extends ConsumerState<AnalyticsPage> {
                   final expenseSum = _getSumFromSeries(expenseData);
                   sum = incomeSum - expenseSum;
                 } else {
-                  catData = list[0] as List<
-                      ({
-                        int? id,
-                        String name,
-                        db.Category? category,
-                        double total,
-                        List<
-                            ({
-                              int id,
-                              db.Category category,
-                              String name,
-                              double total
-                            })> subCategories
-                      })>;
-                  seriesRaw = list[1];
-                  txCount = list[2] as int;
+                  final categoryData = data as _CategoryAnalyticsLoadResult;
+                  catData = data.categories;
+                  seriesRaw = categoryData.series;
+                  txCount = data.transactionCount;
                   sum = catData.fold<double>(0, (a, b) => a + b.total);
                 }
 
@@ -1017,7 +1028,7 @@ double _computeAverage(dynamic seriesRaw, String scope) {
 }
 
 // 加载分类数据并聚合
-Future<List<dynamic>> _loadCategoryData(
+Future<_AnalyticsLoadResult> _loadCategoryData(
   dynamic repo,
   int ledgerId,
   String type,
@@ -1045,23 +1056,26 @@ Future<List<dynamic>> _loadCategoryData(
       })>;
   final aggregated = await _aggregateTopLevelCategories(hierarchyData, repo);
 
-  return [aggregated, results[1], results[2], results[3]];
+  return _CategoryAnalyticsLoadResult(
+    categories: aggregated,
+    series: results[1],
+    transactionCount: results[2] as int,
+    discountTotal: results[3] as double,
+  );
 }
 
 // 加载结余数据并聚合
-Future<List<dynamic>> _loadBalanceData(
+Future<_AnalyticsLoadResult> _loadBalanceData(
   dynamic repo,
   int ledgerId,
   DateTime start,
   DateTime end,
-  Future<dynamic> seriesFuture,
   Future<dynamic> incomeSeriesFuture,
   Future<dynamic> expenseSeriesFuture,
 ) async {
   final results = await Future.wait<dynamic>([
     repo.totalsByCategoryWithHierarchy(
         ledgerId: ledgerId, type: 'expense', start: start, end: end),
-    seriesFuture,
     repo.countByTypeInRange(
         ledgerId: ledgerId, type: 'expense', start: start, end: end),
     incomeSeriesFuture,
@@ -1082,33 +1096,18 @@ Future<List<dynamic>> _loadBalanceData(
       })>;
   final aggregated = await _aggregateTopLevelCategories(hierarchyData, repo);
 
-  return [
-    aggregated,
-    results[1],
-    results[2],
-    results[3],
-    results[4],
-    results[5],
-    results[6],
-  ];
+  return _BalanceAnalyticsLoadResult(
+    categories: aggregated,
+    transactionCount: results[1] as int,
+    incomeSeries: results[2],
+    expenseSeries: results[3],
+    incomeTransactionCount: results[4] as int,
+    discountTotal: results[5] as double,
+  );
 }
 
 // 聚合一级分类数据（将二级分类金额聚合到一级分类）
-Future<
-    List<
-        ({
-          int? id,
-          String name,
-          db.Category? category,
-          double total,
-          List<
-              ({
-                int id,
-                db.Category category,
-                String name,
-                double total
-              })> subCategories
-        })>> _aggregateTopLevelCategories(
+Future<List<_AnalyticsCategory>> _aggregateTopLevelCategories(
     List<
             ({
               int? id,

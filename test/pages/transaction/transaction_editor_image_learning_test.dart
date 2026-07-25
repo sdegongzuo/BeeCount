@@ -33,6 +33,7 @@ void main() {
       ledgerId: ledgerId,
       type: 'expense',
       amount: 18,
+      discountAmount: 1,
       categoryId: categoryId,
       happenedAt: happenedAt,
       merchantFullName: '天津海河测试餐厅甲',
@@ -100,6 +101,7 @@ void main() {
           initialAmount: 18,
           initialDate: happenedAt,
           initialMerchantFullName: '天津海河测试餐厅甲',
+          initialDiscountAmount: 1,
           editingTransactionId: transactionId,
         ),
       ),
@@ -127,6 +129,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect((await repository.getTransactionById(transactionId))!.amount, 20);
+    expect(
+      (await repository.getTransactionById(transactionId))!.discountAmount,
+      1,
+    );
     expect(find.text('账单修改已保存；个人规则未通过回归门禁'), findsOneWidget);
     expect(corrections.single.field, 'amount');
     expect(corrections.single.confirmedValue, 20);

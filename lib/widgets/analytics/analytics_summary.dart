@@ -171,13 +171,11 @@ class AnalyticsSummary extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
-          _DiscountTotalRow(
+          _AnalyticsSummaryFooter(
             label: l10n.analyticsTotalDiscount,
             value: discountTotal,
             color: grey,
           ),
-          const SizedBox(height: 8),
-          BeeDivider.thin(),
         ],
       );
     } else {
@@ -227,21 +225,19 @@ class AnalyticsSummary extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
-          _DiscountTotalRow(
+          _AnalyticsSummaryFooter(
             label: l10n.analyticsTotalDiscount,
             value: discountTotal,
             color: grey,
           ),
-          const SizedBox(height: 8),
-          BeeDivider.thin(),
         ],
       );
     }
   }
 }
 
-class _DiscountTotalRow extends StatelessWidget {
-  const _DiscountTotalRow({
+class _AnalyticsSummaryFooter extends StatelessWidget {
+  const _AnalyticsSummaryFooter({
     required this.label,
     required this.value,
     required this.color,
@@ -253,20 +249,30 @@ class _DiscountTotalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: color),
+        Row(
+          children: [
+            Text(
+              label,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: color),
+            ),
+            AmountText(
+              value: value,
+              signed: false,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ],
         ),
-        AmountText(
-          value: value,
-          signed: false,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
-        ),
+        const SizedBox(height: 8),
+        BeeDivider.thin(),
       ],
     );
   }

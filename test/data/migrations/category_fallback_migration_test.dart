@@ -29,6 +29,13 @@ void main() {
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
+      CREATE TABLE billing_jobs (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT
+      );
+      CREATE TABLE transactions (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        details_text TEXT
+      );
       INSERT INTO categories (name, kind, sync_id)
       VALUES ('餐饮', 'expense', NULL),
              ('工资', 'income', 'existing-income'),
@@ -83,6 +90,13 @@ void main() {
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
+      CREATE TABLE billing_jobs (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT
+      );
+      CREATE TABLE transactions (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        details_text TEXT
+      );
       INSERT INTO categories (name, kind, sync_id)
       VALUES ('Dining', 'expense', NULL),
              ('Salary', 'income', NULL),
@@ -135,6 +149,13 @@ void main() {
         origin_key TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+      );
+      CREATE TABLE billing_jobs (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT
+      );
+      CREATE TABLE transactions (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        details_text TEXT
       );
       CREATE TABLE personal_category_rules (
         match_text TEXT NOT NULL,

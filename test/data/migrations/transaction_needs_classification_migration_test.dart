@@ -29,6 +29,10 @@ void main() {
         updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         completed_at INTEGER
       );
+      CREATE TABLE transactions (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        details_text TEXT
+      );
       CREATE TABLE transaction_attachments (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         transaction_id INTEGER NOT NULL,
@@ -82,6 +86,9 @@ void main() {
         origin_key TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+      );
+      CREATE TABLE billing_jobs (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT
       );
       INSERT INTO transactions (
         ledger_id, type, amount, happened_at, details_text

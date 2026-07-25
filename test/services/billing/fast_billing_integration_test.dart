@@ -181,7 +181,7 @@ void main() {
       expect(evaluation.result.time, DateTime(2026, 7, 3, 21, 4, 50));
       expect(evaluation.result.paymentChannel, '京东');
       expect(evaluation.result.note, '京东买药');
-      expect(evaluation.result.paymentMethod, '中国银行信用卡（2853）');
+      expect(evaluation.result.paymentMethod, '中国银行信用卡(2853)');
       expect(evaluation.result.details?['order_no'], '9717542574519413');
       expect(evaluation.result.details?['merchant_order_no'],
           '9458313000119266428366399457');
@@ -210,7 +210,7 @@ void main() {
       expect(evaluation.result.time, DateTime(2026, 7, 3, 20, 25, 26));
       expect(evaluation.result.paymentChannel, '京东');
       expect(evaluation.result.note, '滨海测试家用木质砧板');
-      expect(evaluation.result.paymentMethod, '中国银行信用卡（2853）');
+      expect(evaluation.result.paymentMethod, '中国银行信用卡(2853)');
       expect(evaluation.result.details?['order_no'], '9393828750240214');
       expect(evaluation.result.details?['merchant_order_no'],
           '9356035498922568809136331765');

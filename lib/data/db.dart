@@ -1030,6 +1030,11 @@ class BeeDatabase extends _$BeeDatabase {
             final columns =
                 await customSelect('PRAGMA table_info(transactions)').get();
             final names = columns.map((row) => row.data['name']).toSet();
+            if (names.isEmpty) {
+              throw StateError(
+                'v33 migration requires the transactions table',
+              );
+            }
             if (!names.contains('discount_amount')) {
               await customStatement(
                 'ALTER TABLE transactions ADD COLUMN discount_amount REAL;',

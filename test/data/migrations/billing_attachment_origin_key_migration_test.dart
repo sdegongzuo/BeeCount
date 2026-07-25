@@ -13,6 +13,10 @@ void main() {
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         stage TEXT NOT NULL
       );
+      CREATE TABLE transactions (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        details_text TEXT
+      );
       CREATE TABLE legacy_sentinel (
         id INTEGER NOT NULL PRIMARY KEY,
         value TEXT NOT NULL
@@ -67,6 +71,13 @@ void main() {
         cloud_file_id TEXT,
         cloud_sha256 TEXT,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+      );
+      CREATE TABLE billing_jobs (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT
+      );
+      CREATE TABLE transactions (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        details_text TEXT
       );
     ''');
     underlying.execute('''

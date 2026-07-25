@@ -176,7 +176,9 @@ String _manifest(String toml) => jsonEncode({
 
 String _validToml(String version) => '''
 schemaVersion = 1
+rulePackageVersion = 2
 rulesVersion = "$version"
+normalizationVersion = 1
 
 [[templates]]
 id = "gateway_rule"

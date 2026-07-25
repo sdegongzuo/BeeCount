@@ -51,6 +51,7 @@ void main() {
         merchantFullName: '天津海河测试餐厅甲(天津和平测试门店甲)',
         acquirer: '银联',
         detailsText: '订单号:ABC\n商户:天津海河测试餐厅甲\n金额:100.00',
+        discountAmount: 1,
         needsClassification: true,
         syncId: 'sync-added-1',
       );
@@ -80,6 +81,7 @@ void main() {
       expect(local.merchantFullName, '天津海河测试餐厅甲(天津和平测试门店甲)');
       expect(local.acquirer, '银联');
       expect(local.detailsText, '订单号:ABC\n商户:天津海河测试餐厅甲\n金额:100.00');
+      expect(local.discountAmount, 1);
       expect(local.needsClassification, isTrue);
     });
 
@@ -106,6 +108,7 @@ void main() {
         merchantFullName: '麦当劳(望京店)',
         acquirer: '网联',
         detailsText: '订单号:XYZ\n商户:麦当劳\n金额:88.00',
+        discountAmount: 0.5,
         needsClassification: true,
         syncId: 'sync-mod-1',
       );
@@ -131,6 +134,7 @@ void main() {
       expect(local, isNotNull);
       expect(local!.amount, 88.0);
       expect(local.note, 'updated');
+      expect(local.discountAmount, 0.5);
       expect(local.paymentMethod, '借记卡');
       expect(local.counterparty, '美团');
       expect(local.paymentChannel, '支付宝');
@@ -211,8 +215,7 @@ void main() {
       expect(preview, isNotNull);
       expect(preview!.changes.length, 1);
       expect(preview.changes.first.type, SyncChangeType.modified);
-      expect(preview.changes.first.diffDetails,
-          anyElement(contains('支付方式')));
+      expect(preview.changes.first.diffDetails, anyElement(contains('支付方式')));
     });
 
     test('counterparty 变更被检测为 diff', () async {
@@ -243,8 +246,7 @@ void main() {
 
       expect(preview, isNotNull);
       expect(preview!.changes.length, 1);
-      expect(preview.changes.first.diffDetails,
-          anyElement(contains('交易对方')));
+      expect(preview.changes.first.diffDetails, anyElement(contains('交易对方')));
     });
 
     test('全部 6 字段相同时不产生 diff', () async {

@@ -172,7 +172,9 @@ PersonalRuleRevision _syncRevision(
 
 const _publicRules = BillingRuleSet(
   schemaVersion: 1,
+  rulePackageVersion: 2,
   rulesVersion: 'public-test',
+  normalizationVersion: 1,
   paymentChannels: [],
   templates: [
     BillingRuleTemplate(

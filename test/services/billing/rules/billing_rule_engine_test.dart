@@ -783,9 +783,9 @@ void main() {
       expect(result.details?['batch_no'], '561845');
       expect(result.details?['voucher_no'], '500409');
       expect(result.details?['reference_no'], '957407753917');
+      expect(result.details?['discount'], '银联优惠（¥0.08）');
       final remainingText = result.details?['remaining_text'] as String?;
-      expect(remainingText, contains('优惠信息'));
-      expect(remainingText, contains('银联优惠-￥0.08'));
+      expect(remainingText, isNot(contains('优惠信息')));
       expect(remainingText, isNot(contains('2026-06-14 12:22:17')));
       expect(remainingText, isNot(contains('工商银行银联信用卡[2454]')));
     });

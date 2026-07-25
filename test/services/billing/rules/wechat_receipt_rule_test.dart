@@ -42,7 +42,7 @@ void main() {
     expect(result.acquirer, '天津海河测试支付科技有限公司辰');
     expect(result.paymentMethod, '中国银行信用卡(2853)');
     expect(result.details?['order_amount'], '￥88.12');
-    expect(result.details?['discount'], '摇优惠·银行卡多笔立减优惠￥1.70');
+    expect(result.details?['discount'], '摇优惠·银行卡多笔立减优惠（¥1.70）');
     expect(
       result.details?['transaction_no'],
       '9422548327273593242578194027',
