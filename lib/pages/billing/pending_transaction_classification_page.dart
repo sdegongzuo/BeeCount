@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../data/db.dart';
 import '../../services/billing/pending_transaction_classification_service.dart';
+import '../../widgets/biz/category_selector_dialog.dart';
+import '../../widgets/category_icon.dart';
 
 /// 把数据库附件文件名解析为设备上的可读取路径。
 typedef AttachmentPathResolver = Future<String> Function(String fileName);
@@ -38,7 +41,7 @@ class PendingTransactionClassificationPage extends StatefulWidget {
 class _PendingTransactionClassificationPageState
     extends State<PendingTransactionClassificationPage> {
   PendingTransactionClassificationDraft? _draft;
-  int? _categoryId;
+  Category? _selectedCategory;
   ClassificationMemoryScope? _scope;
   bool _saving = false;
   bool _missing = false;
@@ -163,16 +166,37 @@ class _PendingTransactionClassificationPageState
                             const SizedBox(height: 24),
                             Text('选择分类',
                                 style: Theme.of(context).textTheme.titleMedium),
-                            RadioGroup<int>(
-                              groupValue: _categoryId,
-                              onChanged: _selectCategory,
-                              child: Column(
-                                children: _draft!.categories
-                                    .map((category) => RadioListTile<int>(
-                                          value: category.id,
-                                          title: Text(category.name),
-                                        ))
-                                    .toList(),
+                            const SizedBox(height: 8),
+                            InkWell(
+                              onTap: _pickCategory,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Theme.of(context).dividerColor,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (_selectedCategory != null) ...[
+                                      CategoryIconWidget(
+                                        category: _selectedCategory!,
+                                        size: 24,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                          child: Text(_selectedCategory!.name)),
+                                    ] else
+                                      const Expanded(child: Text('点击选择分类')),
+                                    const Icon(Icons.chevron_right),
+                                  ],
+                                ),
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -208,12 +232,24 @@ class _PendingTransactionClassificationPageState
     );
   }
 
-  void _selectCategory(int? value) {
-    setState(() => _categoryId = value);
-    if (value != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _revealScopeSection();
-      });
+  void _selectCategory(Category category) {
+    setState(() => _selectedCategory = category);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _revealScopeSection();
+    });
+  }
+
+  Future<void> _pickCategory() async {
+    if (_draft == null) return;
+    final picked = await showCategorySelector(
+      context,
+      type: _draft!.transaction.type,
+      currentCategoryId: _selectedCategory?.id,
+      title: '选择分类',
+      showManageEntry: true,
+    );
+    if (picked != null) {
+      _selectCategory(picked);
     }
   }
 
@@ -229,7 +265,7 @@ class _PendingTransactionClassificationPageState
   }
 
   Future<void> _confirm() async {
-    if (_categoryId == null) {
+    if (_selectedCategory == null) {
       _showMessage('请先选择分类');
       return;
     }
@@ -242,7 +278,7 @@ class _PendingTransactionClassificationPageState
       await widget.service.confirmClassification(
         ledgerId: widget.ledgerId,
         transactionId: widget.transactionId,
-        categoryId: _categoryId!,
+        categoryId: _selectedCategory!.id,
         memoryScope: _scope!,
       );
       if (!mounted) return;
