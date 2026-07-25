@@ -57,6 +57,24 @@ void main() {
     );
   });
 
+  test('rule snapshot preserves structured discount amount', () async {
+    final job = await repo.createJob(imagePath: '/tmp/discount.png');
+    await repo.updateRawText(job.id, '账单');
+    await repo.updateStage(job.id, BillingJobStage.ocrDone);
+
+    final result = await processor.process(
+      (await repo.findById(job.id))!,
+      DateTime.now().add(const Duration(seconds: 30)),
+      PipelineContext(),
+    );
+
+    expect(result.success, isTrue);
+    final json = jsonDecode(
+      (await repo.findById(job.id))!.ruleResultJson!,
+    ) as Map<String, dynamic>;
+    expect(json['discount_amount'], 1.0);
+  });
+
   test('rule_done retry keeps using its available pinned snapshot', () async {
     final job = await _committedJob(repo);
     source.active = _ruleSet(paymentMethod: '新活动值');
@@ -142,6 +160,11 @@ BillingRuleSet _ruleSet({String paymentMethod = '候选支付方式'}) => Billin
               field: 'paymentMethod',
               type: BillingRuleExtractorTypes.constant,
               value: paymentMethod,
+            ),
+            const BillingFieldExtractorRule(
+              field: 'details.discount',
+              type: BillingRuleExtractorTypes.constant,
+              value: '银联优惠-¥1.00',
             ),
           ],
         ),

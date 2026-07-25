@@ -137,6 +137,7 @@ class RuleStageProcessor implements StageProcessor {
       merchantFullName: result.merchantFullName,
       acquirer: result.acquirer,
       details: result.details,
+      discountAmount: result.discountAmount,
       billingRuleResult: result,
     );
     final json = jsonEncode(ocrResult.toJson());
