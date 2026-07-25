@@ -20,6 +20,11 @@ class DiscountSemantics {
     r'[\s\-−－—:：]*'
     r'(?:[¥￥]\s*(\d+(?:\.\d{1,2})?)|(\d+(?:\.\d{1,2})?)\s*元)',
   );
+  static final RegExp _campaignNegativeAmountPattern = RegExp(
+    r'(?:优惠|立减|减免|已减|节省|省)'
+    r'[\s:：]*[\-−－—]\s*'
+    r'(?:[¥￥]\s*)?(\d+(?:\.\d{1,2})?)\s*(?:元)?',
+  );
   static final RegExp _moneyPattern = RegExp(
     r'(?:[¥￥]\s*\d+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?\s*元)',
   );
@@ -40,6 +45,16 @@ class DiscountSemantics {
         RegExp(r'满\s*\d+(?:\.\d+)?\s*元?\s*(?:减|优惠)').hasMatch(normalized)) {
       return DiscountParseResult(displayText: normalized, amount: null);
     }
+    final hasConditionalUpperBound =
+        RegExp(r'(?:最高|至高|最多|可省).*(?:优惠|立减|减免|节省|省|减)').hasMatch(normalized);
+    final hasRealizedAmountAfterUpperBound = RegExp(
+      r'(?:最高|至高|最多|可省).*\d+(?:\.\d+)?\s*元'
+      r'.*(?:优惠|立减|减免|已减|节省|省)[\s:：\-−－—]*'
+      r'(?:[¥￥]\s*\d|\d+(?:\.\d+)?\s*元|[\-−－—]\s*(?:[¥￥]\s*)?\d)',
+    ).hasMatch(normalized);
+    if (hasConditionalUpperBound && !hasRealizedAmountAfterUpperBound) {
+      return DiscountParseResult(displayText: normalized, amount: null);
+    }
 
     final labeledNegativeAmount =
         _labeledNegativeAmountPattern.firstMatch(normalized);
@@ -53,24 +68,29 @@ class DiscountSemantics {
       }
     }
 
-    final match = _realizedDiscountPattern.firstMatch(normalized);
+    final campaignNegative =
+        _campaignNegativeAmountPattern.firstMatch(normalized);
+    final match =
+        campaignNegative ?? _realizedDiscountPattern.firstMatch(normalized);
     if (match == null) {
       return DiscountParseResult(displayText: normalized, amount: null);
     }
 
-    final parsed = double.tryParse(match.group(1) ?? match.group(2) ?? '');
+    final parsed = double.tryParse(
+      match.group(1) ?? match.group(2) ?? '',
+    );
     if (parsed == null || !parsed.isFinite || parsed <= 0) {
       return DiscountParseResult(displayText: normalized, amount: null);
     }
 
     final moneyMatch = _moneyPattern.firstMatch(match.group(0)!);
-    if (moneyMatch == null) {
-      return DiscountParseResult(displayText: normalized, amount: null);
-    }
+    final amountStart = moneyMatch?.start ??
+        match.group(0)!.lastIndexOf(match.group(1) ?? match.group(2)!);
+    final amountEnd = moneyMatch?.end ?? match.group(0)!.length;
     var description = normalized
         .replaceRange(
-          match.start + moneyMatch.start,
-          match.start + moneyMatch.end,
+          match.start + amountStart,
+          match.start + amountEnd,
           '',
         )
         .trim();

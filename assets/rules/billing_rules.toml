@@ -8,7 +8,7 @@
 
 schemaVersion = 1
 rulePackageVersion = 2
-rulesVersion = "2026.07.25.2"
+rulesVersion = "2026.07.25.3"
 normalizationVersion = 1
 
 # ---------------------------------------------------------------------------
@@ -116,6 +116,12 @@ label = "支付方式"
 confidence = 0.85
 
 [[templates.extract]]
+field = "counterparty"
+type = "regex"
+pattern = '^((?!(?:交易详情|支付详情|淘宝平台商户)\s*$)[^\n]{2,40})\n\s*[-−]\s*\d{1,6}\.\d{1,2}\s*$'
+confidence = 0.88
+
+[[templates.extract]]
 field = "note"
 type = "regex"
 pattern = '^(拼多多|天津津门测试餐厅乙)$'
@@ -140,6 +146,12 @@ type = "labelNextLine"
 label = "商品"
 pattern = '^.{2,40}$'
 confidence = 0.84
+
+[[templates.extract]]
+field = "note"
+type = "regex"
+pattern = '^((?!(?:交易详情|支付详情|淘宝平台商户)\s*$)[^\n]{2,40})\n\s*[-−]\s*\d{1,6}\.\d{1,2}\s*$'
+confidence = 0.76
 
 # WeChat receipt details
 
@@ -273,6 +285,7 @@ priority = 94
 baseConfidence = 0.86
 
 [templates.match]
+sourcePackages = ["com.eg.android.AlipayGphone"]
 keywordsAll = ["账单详情", "支付时间"]
 keywordsAny = ["支付成功", "商品说明", "订单详情", "商家订单", "付款方式"]
 
@@ -322,16 +335,60 @@ pattern = '.*?(MiMo Token).*'
 confidence = 0.82
 
 [[templates.extract]]
+field = "note"
+type = "labelNextLine"
+label = "商品说明"
+pattern = '^(.{2,60})$'
+confidence = 0.76
+
+[[templates.extract]]
 field = "counterparty"
 type = "regex"
-pattern = '^([^\n]{2,40}(?:有限公司|责任公司|股份公司|公司|店|商行))$'
-confidence = 0.78
+pattern = '账单详情\s*\n(?:全部账单\s*\n)?([^\n]{2,60})\n\s*[-−]\s*\d{1,6}\.\d{1,2}'
+confidence = 0.88
 
 [[templates.extract]]
 field = "counterparty"
 type = "regex"
 pattern = '^(淘宝闪购)$'
 confidence = 0.78
+
+[[templates.extract]]
+field = "merchantFullName"
+type = "labelNextLine"
+label = "收款方全称"
+confidence = 0.86
+
+[[templates.extract]]
+field = "acquirer"
+type = "labelNextLine"
+label = "收单机构"
+confidence = 0.84
+
+[[templates.extract]]
+field = "details.order_amount"
+type = "labelNextLine"
+label = "订单金额"
+confidence = 0.8
+
+[[templates.extract]]
+field = "details.discount"
+type = "regex"
+pattern = '([^\n]{2,30}(?:优惠|立减|天天减)[^\n]*\n\s*[-−－—]\s*(?:[¥￥]\s*)?\d{1,6}\.\d{1,2})'
+confidence = 0.82
+
+[[templates.extract]]
+field = "details.clearing_institution"
+type = "labelNextLine"
+label = "清算机构"
+confidence = 0.82
+
+[[templates.extract]]
+field = "details.order_no"
+type = "labelNextLine"
+label = "订单号"
+pattern = '\d{20,}'
+confidence = 0.86
 
 # ---------------------------------------------------------------------------
 # Douyin payment detail templates
@@ -434,6 +491,18 @@ confidence = 0.84
 
 [[templates.extract]]
 field = "note"
+type = "regex"
+pattern = '账单详情\s*(?:\n全部账单)?\n([^\n]{2,60}?)(?:-订单编号\d+)?\n\s*[-−]\s*\d{1,6}\.\d{1,2}'
+confidence = 0.9
+
+[[templates.extract]]
+field = "counterparty"
+type = "regex"
+pattern = '账单详情\s*(?:\n全部账单)?\n([^\n]{2,60}?)(?:-订单编号\d+)?\n\s*[-−]\s*\d{1,6}\.\d{1,2}'
+confidence = 0.9
+
+[[templates.extract]]
+field = "note"
 type = "labelPreviousLine"
 label = "消费场景"
 pattern = '^(.{2,20}(?:超市|店|饭|餐厅|外卖).*)$'
@@ -481,6 +550,18 @@ label = "支付优惠"
 confidence = 0.76
 
 [[templates.extract]]
+field = "details.order_platform"
+type = "labelNextLine"
+label = "下单平台"
+confidence = 0.76
+
+[[templates.extract]]
+field = "details.consumption_scene"
+type = "labelNextLine"
+label = "消费场景"
+confidence = 0.76
+
+[[templates.extract]]
 field = "details.transaction_no"
 type = "labelNextLine"
 label = "交易单号"
@@ -492,6 +573,13 @@ field = "details.merchant_order_no"
 type = "labelNextLine"
 label = "商家单号"
 confidence = 0.8
+
+[[templates.extract]]
+field = "details.order_items"
+type = "betweenLabels"
+label = "订单详情"
+options = { endLabel = "常见问题" }
+confidence = 0.72
 
 # ---------------------------------------------------------------------------
 # JD bill detail templates
