@@ -93,6 +93,7 @@ void main() {
       ruleId: 'note:merchant:test',
       originDeviceId: '',
       originVersion: 1,
+      createdNormalizationVersion: 7,
       kind: PersonalRuleSyncKind.notePreference,
       scopeKey: 'merchant',
       conditionKey: 'test',
@@ -103,6 +104,102 @@ void main() {
     final second = (await repository.pendingUpload()).single;
     expect(first.originDeviceId, isNotEmpty);
     expect(second.originDeviceId, first.originDeviceId);
+    expect(first.createdNormalizationVersion, 7);
+    expect(second.createdNormalizationVersion, 7);
+  });
+
+  test('历史同步表补齐归一化版本后仍可幂等接收旧修订', () async {
+    await db.customStatement('''
+      CREATE TABLE personal_rule_sync_revisions (
+        revision_id TEXT PRIMARY KEY,
+        rule_id TEXT NOT NULL,
+        origin_device_id TEXT,
+        origin_version INTEGER NOT NULL,
+        kind TEXT NOT NULL,
+        scope_key TEXT NOT NULL,
+        condition_key TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        resolved_revision_ids_json TEXT NOT NULL DEFAULT '[]',
+        sync_state TEXT NOT NULL,
+        uploaded_at INTEGER
+      )
+    ''');
+    await db.customStatement(
+      '''INSERT INTO personal_rule_sync_revisions
+         (revision_id, rule_id, origin_device_id, origin_version, kind,
+          scope_key, condition_key, payload_json, sync_state)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+      [
+        'legacy-normalization',
+        'note:merchant:legacy',
+        'legacy-device',
+        1,
+        'note_preference',
+        'merchant',
+        'legacy',
+        '{"suffix":"旧规则"}',
+        'synced',
+      ],
+    );
+    final legacyRevision = PersonalRuleRevision(
+      revisionId: 'legacy-normalization',
+      ruleId: 'note:merchant:legacy',
+      originDeviceId: 'legacy-device',
+      originVersion: 1,
+      createdNormalizationVersion: 0,
+      kind: PersonalRuleSyncKind.notePreference,
+      scopeKey: 'merchant',
+      conditionKey: 'legacy',
+      payload: const {'suffix': '旧规则'},
+    );
+
+    await repository.mergeRemote(
+      [legacyRevision],
+      localDeviceId: 'new-device',
+    );
+
+    final stored = (await db.customSelect(
+      '''SELECT created_normalization_version
+         FROM personal_rule_sync_revisions
+         WHERE revision_id = ?''',
+      variables: [Variable.withString(legacyRevision.revisionId)],
+    ).getSingle())
+        .read<int>('created_normalization_version');
+    expect(stored, 0);
+  });
+
+  test('并发初始化历史同步表只补列一次', () async {
+    await db.customStatement('''
+      CREATE TABLE personal_rule_sync_revisions (
+        revision_id TEXT PRIMARY KEY,
+        rule_id TEXT NOT NULL,
+        origin_device_id TEXT,
+        origin_version INTEGER NOT NULL,
+        kind TEXT NOT NULL,
+        scope_key TEXT NOT NULL,
+        condition_key TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        resolved_revision_ids_json TEXT NOT NULL DEFAULT '[]',
+        sync_state TEXT NOT NULL,
+        uploaded_at INTEGER
+      )
+    ''');
+
+    await Future.wait([
+      repository.ensureSchema(),
+      PersonalRuleSyncRepository(db).ensureSchema(),
+    ]);
+
+    final columns = await db
+        .customSelect('PRAGMA table_info(personal_rule_sync_revisions)')
+        .get();
+    expect(
+      columns
+          .where((row) =>
+              row.read<String>('name') == 'created_normalization_version')
+          .length,
+      1,
+    );
   });
 
   test('同一来源规则的连续及并发本地写入使用持久化单调版本', () async {

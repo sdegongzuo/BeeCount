@@ -30,6 +30,8 @@ class PersonalRuleSyncConflict {
 class PersonalRuleSyncRepository {
   static final Expando<StreamController<void>> _changeControllers =
       Expando<StreamController<void>>('personal-rule-sync-changes');
+  static final Expando<Future<void>> _schemaInitializations =
+      Expando<Future<void>>('personal-rule-sync-schema');
 
   final BeeDatabase db;
   final PersonalRuleRegressionGate? conflictResolutionRegressionGate;
@@ -44,13 +46,16 @@ class PersonalRuleSyncRepository {
 
   void _notifyChanged() => _changeController.add(null);
 
-  Future<void> ensureSchema() async {
+  Future<void> ensureSchema() => _schemaInitializations[db] ??= _ensureSchema();
+
+  Future<void> _ensureSchema() async {
     await db.customStatement(
         '''CREATE TABLE IF NOT EXISTS personal_rule_sync_revisions (
       revision_id TEXT PRIMARY KEY,
       rule_id TEXT NOT NULL,
       origin_device_id TEXT,
       origin_version INTEGER NOT NULL,
+      created_normalization_version INTEGER NOT NULL DEFAULT 0,
       kind TEXT NOT NULL,
       scope_key TEXT NOT NULL,
       condition_key TEXT NOT NULL,
@@ -59,6 +64,14 @@ class PersonalRuleSyncRepository {
       sync_state TEXT NOT NULL,
       uploaded_at INTEGER
     )''');
+    final revisionColumns = await db
+        .customSelect('PRAGMA table_info(personal_rule_sync_revisions)')
+        .get();
+    if (!revisionColumns.any(
+        (row) => row.read<String>('name') == 'created_normalization_version')) {
+      await db.customStatement('''ALTER TABLE personal_rule_sync_revisions
+             ADD COLUMN created_normalization_version INTEGER NOT NULL DEFAULT 0''');
+    }
     await db.customStatement(
         '''CREATE TABLE IF NOT EXISTS personal_rule_sync_metadata (
       singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
@@ -113,6 +126,8 @@ class PersonalRuleSyncRepository {
             stored.kind != revision.kind ||
             stored.scopeKey != revision.scopeKey ||
             stored.conditionKey != revision.conditionKey ||
+            stored.createdNormalizationVersion !=
+                revision.createdNormalizationVersion ||
             jsonEncode(stored.payload) != jsonEncode(revision.payload) ||
             jsonEncode(stored.resolvedRevisionIds) !=
                 jsonEncode(revision.resolvedRevisionIds)) {
@@ -131,6 +146,7 @@ class PersonalRuleSyncRepository {
           ruleId: revision.ruleId,
           originDeviceId: deviceId,
           originVersion: version,
+          createdNormalizationVersion: revision.createdNormalizationVersion,
           kind: revision.kind,
           scopeKey: revision.scopeKey,
           conditionKey: revision.conditionKey,
@@ -699,8 +715,9 @@ class PersonalRuleSyncRepository {
     await db.customStatement(
       '''INSERT INTO personal_rule_sync_revisions
          (revision_id, rule_id, origin_device_id, origin_version, kind, scope_key,
-          condition_key, payload_json, resolved_revision_ids_json, sync_state)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+          created_normalization_version, condition_key, payload_json,
+          resolved_revision_ids_json, sync_state)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
       [
         revision.revisionId,
         revision.ruleId,
@@ -708,6 +725,7 @@ class PersonalRuleSyncRepository {
         revision.originVersion,
         json['kind'],
         revision.scopeKey,
+        revision.createdNormalizationVersion,
         revision.conditionKey,
         jsonEncode(revision.payload),
         jsonEncode(revision.resolvedRevisionIds),
@@ -722,6 +740,8 @@ class PersonalRuleSyncRepository {
         'rule_id': row['rule_id'],
         'origin_device_id': row['origin_device_id'] ?? '',
         'origin_version': row['origin_version'],
+        'created_normalization_version':
+            row['created_normalization_version'] ?? 0,
         'kind': row['kind'],
         'scope_key': row['scope_key'],
         'condition_key': row['condition_key'],
