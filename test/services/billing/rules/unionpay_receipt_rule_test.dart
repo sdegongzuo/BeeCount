@@ -43,7 +43,8 @@ void main() {
 
     expect(result.matchedTemplateId, 'unionpay_pinduoduo_single_v1');
     expect(result.paymentMethod, '中国银行信用卡(2853)');
-    expect(result.details?['discount'], '银联优惠-¥1.00');
-    expect(detailsMapToText(result.details), contains('优惠: 银联优惠-¥1.00'));
+    expect(result.details?['discount'], '银联优惠（¥1.00）');
+    expect(result.discountAmount, 1.00);
+    expect(detailsMapToText(result.details), contains('优惠: 银联优惠（¥1.00）'));
   });
 }

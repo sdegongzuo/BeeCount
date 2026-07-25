@@ -19,6 +19,7 @@ class AnalyticsSummary extends ConsumerWidget {
   final Color? expenseColor; // 支出颜色
   final Color? incomeColor; // 收入颜色
   final bool isBalance; // 是否是结余视角
+  final double discountTotal; // 当前统计范围内累计优惠金额
   const AnalyticsSummary({
     super.key,
     required this.scope,
@@ -35,6 +36,7 @@ class AnalyticsSummary extends ConsumerWidget {
     this.expenseColor,
     this.incomeColor,
     this.isBalance = false,
+    this.discountTotal = 0,
   });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -169,6 +171,12 @@ class AnalyticsSummary extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
+          _DiscountTotalRow(
+            label: l10n.analyticsTotalDiscount,
+            value: discountTotal,
+            color: grey,
+          ),
+          const SizedBox(height: 8),
           BeeDivider.thin(),
         ],
       );
@@ -219,9 +227,47 @@ class AnalyticsSummary extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
+          _DiscountTotalRow(
+            label: l10n.analyticsTotalDiscount,
+            value: discountTotal,
+            color: grey,
+          ),
+          const SizedBox(height: 8),
           BeeDivider.thin(),
         ],
       );
     }
+  }
+}
+
+class _DiscountTotalRow extends StatelessWidget {
+  const _DiscountTotalRow({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: color),
+        ),
+        AmountText(
+          value: value,
+          signed: false,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ],
+    );
   }
 }

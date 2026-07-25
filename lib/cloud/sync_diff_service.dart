@@ -90,8 +90,8 @@ class SyncDiffService {
     }
 
     // 获取本地交易
-    final local = localTransactions ??
-        await repo.getTransactionsByLedger(ledgerId);
+    final local =
+        localTransactions ?? await repo.getTransactionsByLedger(ledgerId);
 
     // 批量获取本地交易的标签
     final localTxIds = local.map((t) => t.id).toList();
@@ -144,10 +144,8 @@ class SyncDiffService {
         ));
       } else {
         // 都有，检查是否有差异
-        final localTagNames = (tagsMap[localTx.id] ?? [])
-            .map((t) => t.name)
-            .toList()
-          ..sort();
+        final localTagNames =
+            (tagsMap[localTx.id] ?? []).map((t) => t.name).toList()..sort();
         final localAccountName = localTx.accountId != null
             ? accountIdToName[localTx.accountId]
             : null;
@@ -188,10 +186,11 @@ class SyncDiffService {
     // 按类型排序：新增 → 修改 → 删除
     changes.sort((a, b) => a.type.index.compareTo(b.type.index));
 
-    logger.info('SyncDiff',
+    logger.info(
+        'SyncDiff',
         '差异计算完成: 新增=${changes.where((c) => c.type == SyncChangeType.added).length}, '
-        '修改=${changes.where((c) => c.type == SyncChangeType.modified).length}, '
-        '删除=${changes.where((c) => c.type == SyncChangeType.deleted).length}');
+            '修改=${changes.where((c) => c.type == SyncChangeType.modified).length}, '
+            '删除=${changes.where((c) => c.type == SyncChangeType.deleted).length}');
 
     return SyncPreview(changes: changes);
   }
@@ -266,22 +265,30 @@ class SyncDiffService {
 
     // 比较支付方式、交易对方、支付通道、商户全称、收单机构、识别明细
     if ((local.paymentMethod ?? '') != (cloud.paymentMethod ?? '')) {
-      diffs.add('支付方式: "${local.paymentMethod ?? ''}" → "${cloud.paymentMethod ?? ''}"');
+      diffs.add(
+          '支付方式: "${local.paymentMethod ?? ''}" → "${cloud.paymentMethod ?? ''}"');
     }
     if ((local.counterparty ?? '') != (cloud.counterparty ?? '')) {
-      diffs.add('交易对方: "${local.counterparty ?? ''}" → "${cloud.counterparty ?? ''}"');
+      diffs.add(
+          '交易对方: "${local.counterparty ?? ''}" → "${cloud.counterparty ?? ''}"');
     }
     if ((local.paymentChannel ?? '') != (cloud.paymentChannel ?? '')) {
-      diffs.add('支付通道: "${local.paymentChannel ?? ''}" → "${cloud.paymentChannel ?? ''}"');
+      diffs.add(
+          '支付通道: "${local.paymentChannel ?? ''}" → "${cloud.paymentChannel ?? ''}"');
     }
     if ((local.merchantFullName ?? '') != (cloud.merchantFullName ?? '')) {
-      diffs.add('商户全称: "${local.merchantFullName ?? ''}" → "${cloud.merchantFullName ?? ''}"');
+      diffs.add(
+          '商户全称: "${local.merchantFullName ?? ''}" → "${cloud.merchantFullName ?? ''}"');
     }
     if ((local.acquirer ?? '') != (cloud.acquirer ?? '')) {
       diffs.add('收单机构: "${local.acquirer ?? ''}" → "${cloud.acquirer ?? ''}"');
     }
     if ((local.detailsText ?? '') != (cloud.detailsText ?? '')) {
       diffs.add('识别明细变更');
+    }
+    if (local.discountAmount != cloud.discountAmount) {
+      diffs.add(
+          '优惠金额: "${local.discountAmount ?? ''}" → "${cloud.discountAmount ?? ''}"');
     }
     if (local.needsClassification != cloud.needsClassification) {
       diffs.add('待分类状态变更');
@@ -344,6 +351,7 @@ class SyncDiffService {
               merchantFullName: cloud.merchantFullName,
               acquirer: cloud.acquirer,
               detailsText: cloud.detailsText,
+              discountAmount: cloud.discountAmount,
               needsClassification: cloud.needsClassification,
               syncId: cloud.syncId,
             );
@@ -382,6 +390,7 @@ class SyncDiffService {
               merchantFullName: cloud.merchantFullName,
               acquirer: cloud.acquirer,
               detailsText: cloud.detailsText,
+              discountAmount: cloud.discountAmount,
               needsClassification: cloud.needsClassification,
             );
 
@@ -455,8 +464,7 @@ class SyncDiffService {
     return null;
   }
 
-  List<int> _resolveTagIds(
-      ImportTransaction tx, Map<String, int> tagNameToId) {
+  List<int> _resolveTagIds(ImportTransaction tx, Map<String, int> tagNameToId) {
     if (tx.tagNames == null || tx.tagNames!.isEmpty) return [];
     return tx.tagNames!
         .map((name) => tagNameToId[name])

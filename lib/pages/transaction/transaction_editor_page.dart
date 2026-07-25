@@ -34,6 +34,7 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
   final String? initialMerchantFullName;
   final String? initialAcquirer;
   final String? initialDetailsText;
+  final double? initialDiscountAmount;
   final double? initialAmount;
   final DateTime? initialDate;
   final int? editingTransactionId;
@@ -53,6 +54,7 @@ class TransactionEditorPage extends ConsumerStatefulWidget {
     this.initialMerchantFullName,
     this.initialAcquirer,
     this.initialDetailsText,
+    this.initialDiscountAmount,
     this.initialAmount,
     this.initialDate,
     this.editingTransactionId,
@@ -268,6 +270,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
         initialMerchantFullName: widget.initialMerchantFullName,
         initialAcquirer: widget.initialAcquirer,
         initialDetailsText: widget.initialDetailsText,
+        initialDiscountAmount: widget.initialDiscountAmount,
         initialAccountId: initialAccountId,
         initialTagIds: widget.initialTagIds,
         showAccountPicker: true,
@@ -358,6 +361,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               merchantFullName: d.Value(res.merchantFullName),
               acquirer: d.Value(res.acquirer),
               detailsText: d.Value(res.detailsText),
+              discountAmount: d.Value(res.discountAmount),
               happenedAt: res.date,
               accountId: res.accountId,
             );
@@ -376,6 +380,7 @@ class _TransactionEditorPageState extends ConsumerState<TransactionEditorPage>
               merchantFullName: res.merchantFullName,
               acquirer: res.acquirer,
               detailsText: res.detailsText,
+              discountAmount: res.discountAmount,
               accountId: res.accountId,
             );
           }

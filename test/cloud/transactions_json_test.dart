@@ -58,6 +58,23 @@ void main() {
       expect(data.transactions.first.detailsText, contains('\n'));
     });
 
+    test('保留结构化优惠金额且不依赖识别明细文本', () {
+      final json = _buildJson(items: [
+        {
+          'type': 'expense',
+          'amount': 8.9,
+          'happenedAt': '2026-07-19T13:00:19.000Z',
+          'detailsText': '优惠信息:银联优惠（¥1.00）',
+          'discountAmount': 1.0,
+          'syncId': 'sync-discount-1',
+        },
+      ]);
+
+      final tx = parseJsonToImportData(json).transactions.single;
+      expect(tx.detailsText, contains('银联优惠'));
+      expect(tx.discountAmount, 1.0);
+    });
+
     test('同时保留全部 6 个元信息字段', () {
       final json = _buildJson(items: [
         {

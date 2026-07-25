@@ -2698,6 +2698,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get analyticsTotalExpense => 'Total Expense: ';
 
   @override
+  String get analyticsTotalDiscount => 'Total Discount: ';
+
+  @override
   String get analyticsBalance => 'Balance: ';
 
   @override

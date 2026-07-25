@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' as d;
 import '../data/db.dart';
 import '../data/repositories/base_repository.dart';
+import '../utils/discount_amount.dart';
 import 'system/logger_service.dart';
 
 /// 统一的数据导入服务
@@ -97,6 +98,7 @@ class ImportTransaction {
   final String? merchantFullName; // 商户全称
   final String? acquirer; // 收单机构/清算机构
   final String? detailsText; // 补充明细（key:value 行文本）
+  final double? discountAmount; // 优惠节省金额（正数）
   final bool needsClassification; // 结构化待分类状态
   final String? accountName; // 普通账户（收入/支出）
   final String? fromAccountName; // 转出账户（转账）
@@ -119,6 +121,7 @@ class ImportTransaction {
     this.merchantFullName,
     this.acquirer,
     this.detailsText,
+    this.discountAmount,
     this.needsClassification = false,
     this.accountName,
     this.fromAccountName,
@@ -139,6 +142,7 @@ class ImportData {
 
   /// 账本名称（可选，用于更新账本信息）
   final String? ledgerName;
+
   /// 货币（可选，用于更新账本信息）
   final String? currency;
 
@@ -230,10 +234,8 @@ class DataImportService {
 
   /// 导入账户（全局按名称去重）
   Future<Map<String, int>> _importAccounts(
-    BaseRepository repo,
-    List<ImportAccount> accounts,
-    {String defaultCurrency = 'CNY'}
-  ) async {
+      BaseRepository repo, List<ImportAccount> accounts,
+      {String defaultCurrency = 'CNY'}) async {
     final accountNameToId = <String, int>{};
 
     if (accounts.isEmpty) return accountNameToId;
@@ -290,8 +292,12 @@ class DataImportService {
       }
 
       // 分离一级和二级分类
-      final level1 = categories.where((c) => c.level == 1 || c.parentName == null).toList();
-      final level2 = categories.where((c) => c.level == 2 && c.parentName != null).toList();
+      final level1 = categories
+          .where((c) => c.level == 1 || c.parentName == null)
+          .toList();
+      final level2 = categories
+          .where((c) => c.level == 2 && c.parentName != null)
+          .toList();
 
       // 导入一级分类
       for (final cat in level1) {
@@ -381,20 +387,24 @@ class DataImportService {
 
       // 创建不存在的标签，更新已存在标签的颜色
       for (final tag in tags) {
-        logger.info('TagImport', '处理标签: name="${tag.name}", color="${tag.color}"');
+        logger.info(
+            'TagImport', '处理标签: name="${tag.name}", color="${tag.color}"');
         if (!tagNameToId.containsKey(tag.name)) {
           // 创建新标签
-          logger.info('TagImport', '创建新标签: name="${tag.name}", color="${tag.color}"');
+          logger.info(
+              'TagImport', '创建新标签: name="${tag.name}", color="${tag.color}"');
           final id = await repo.createTag(name: tag.name, color: tag.color);
           tagNameToId[tag.name] = id;
           // 验证创建结果
           final created = await repo.getTagById(id);
-          logger.info('TagImport', '创建结果: id=$id, name="${created?.name}", color="${created?.color}"');
+          logger.info('TagImport',
+              '创建结果: id=$id, name="${created?.name}", color="${created?.color}"');
         } else if (tag.color != null) {
           // 标签已存在，检查是否需要更新颜色
           final existingTag = existingTagMap[tag.name];
           if (existingTag != null && existingTag.color != tag.color) {
-            logger.info('TagImport', '更新标签颜色: ${tag.name}, "${existingTag.color}" -> "${tag.color}"');
+            logger.info('TagImport',
+                '更新标签颜色: ${tag.name}, "${existingTag.color}" -> "${tag.color}"');
             await repo.updateTag(existingTag.id, color: tag.color);
           }
         }
@@ -549,12 +559,14 @@ class DataImportService {
         merchantFullName: d.Value(tx.merchantFullName),
         acquirer: d.Value(tx.acquirer),
         detailsText: d.Value(tx.detailsText),
+        discountAmount: d.Value(normalizeDiscountAmount(tx.discountAmount)),
         needsClassification: d.Value(tx.needsClassification),
         syncId: d.Value(tx.syncId),
       );
 
       // 如果有标签或附件，单独插入并关联
-      final hasAttachments = tx.attachments != null && tx.attachments!.isNotEmpty;
+      final hasAttachments =
+          tx.attachments != null && tx.attachments!.isNotEmpty;
       if (tagIds.isNotEmpty || hasAttachments) {
         try {
           final txId = await repo.insertTransactionCompanion(txCompanion);

@@ -111,6 +111,7 @@ class BillingRuleQuadrantReport {
   ) =>
       {
         'amount': result.amount,
+        'discount_amount': result.discountAmount,
         'note': result.note,
         'time': result.time?.toIso8601String(),
         'paymentChannel': result.paymentChannel,

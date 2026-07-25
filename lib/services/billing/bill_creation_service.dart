@@ -490,6 +490,7 @@ class BillCreationService {
       merchantFullName: result.merchantFullName,
       acquirer: result.acquirer,
       detailsText: mergeDetailsTextParts(detailParts),
+      discountAmount: result.discountAmount,
       needsClassification: isImageBilling && needsClassification,
     );
 

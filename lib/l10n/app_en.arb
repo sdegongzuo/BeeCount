@@ -1157,6 +1157,7 @@
   "analyticsOverallAvg": "Overall Avg",
   "analyticsTotalIncome": "Total Income: ",
   "analyticsTotalExpense": "Total Expense: ",
+  "analyticsTotalDiscount": "Total Discount: ",
   "analyticsBalance": "Balance: ",
   "analyticsAvgIncome": "{avgLabel} Income: ",
   "@analyticsAvgIncome": {

@@ -15,6 +15,7 @@ import '../../services/billing/rules/personal_rule_sync_repository.dart';
 import '../../services/billing/rules/personal_rule_sync_service.dart';
 import '../../services/system/logger_service.dart';
 import '../../services/ui/avatar_service.dart';
+import '../../utils/discount_amount.dart';
 import '../sync_service.dart' as app;
 import '../transactions_json.dart';
 import 'change_tracker.dart';

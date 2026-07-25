@@ -852,6 +852,7 @@ class _AIChatPageState extends ConsumerState<AIChatPage>
               initialMerchantFullName: transaction.merchantFullName,
               initialAcquirer: transaction.acquirer,
               initialDetailsText: transaction.detailsText,
+              initialDiscountAmount: transaction.discountAmount,
               editingTransactionId: transaction.id,
               initialAccountId: transaction.accountId,
               initialToAccountId: transaction.toAccountId,

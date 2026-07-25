@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../db.dart';
 import '../transaction_repository.dart';
 import '../../../services/system/logger_service.dart';
+import '../../../utils/discount_amount.dart';
 
 /// 本地交易Repository实现
 /// 基于 Drift 数据库实现
@@ -186,6 +187,7 @@ class LocalTransactionRepository implements TransactionRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    double? discountAmount,
     bool needsClassification = false,
     String? syncId,
   }) async {
@@ -204,6 +206,7 @@ class LocalTransactionRepository implements TransactionRepository {
           merchantFullName: d.Value(merchantFullName),
           acquirer: d.Value(acquirer),
           detailsText: d.Value(detailsText),
+          discountAmount: d.Value(normalizeDiscountAmount(discountAmount)),
           needsClassification: d.Value(needsClassification),
           syncId: d.Value(syncId ?? _uuid.v4()),
         ));
@@ -238,6 +241,7 @@ class LocalTransactionRepository implements TransactionRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    dynamic discountAmount,
     dynamic needsClassification,
     DateTime? happenedAt,
     dynamic accountId,
@@ -299,6 +303,15 @@ class LocalTransactionRepository implements TransactionRepository {
     } else {
       detailsTextValue = d.Value(detailsText as String?);
     }
+    final d.Value<double?> discountAmountValue;
+    if (discountAmount == null) {
+      discountAmountValue = const d.Value.absent();
+    } else if (discountAmount is d.Value<double?>) {
+      discountAmountValue = discountAmount;
+    } else {
+      discountAmountValue =
+          d.Value(normalizeDiscountAmount(discountAmount as double?));
+    }
     final d.Value<bool> needsClassificationValue;
     if (needsClassification == null) {
       needsClassificationValue = const d.Value.absent();
@@ -320,6 +333,7 @@ class LocalTransactionRepository implements TransactionRepository {
         merchantFullName: merchantFullNameValue,
         acquirer: acquirerValue,
         detailsText: detailsTextValue,
+        discountAmount: discountAmountValue,
         needsClassification: needsClassificationValue,
         happenedAt:
             happenedAt != null ? d.Value(happenedAt) : const d.Value.absent(),
@@ -476,6 +490,29 @@ class LocalTransactionRepository implements TransactionRepository {
     if (v is BigInt) return v.toInt();
     if (v is num) return v.toInt();
     return 0;
+  }
+
+  @override
+  Future<double> totalDiscountInRange({
+    required int ledgerId,
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final row = await db.customSelect(
+      'SELECT COALESCE(SUM(discount_amount), 0) AS total '
+      'FROM transactions '
+      'WHERE ledger_id = ?1 AND type = ?2 '
+      'AND happened_at >= ?3 AND happened_at < ?4',
+      variables: [
+        d.Variable<int>(ledgerId),
+        const d.Variable<String>('expense'),
+        d.Variable<DateTime>(start),
+        d.Variable<DateTime>(end),
+      ],
+      readsFrom: {db.transactions},
+    ).getSingle();
+    final value = row.data['total'];
+    return value is num ? value.toDouble() : 0;
   }
 
   @override
@@ -893,6 +930,7 @@ class LocalTransactionRepository implements TransactionRepository {
     String? merchantFullName,
     String? acquirer,
     String? detailsText,
+    double? discountAmount,
     bool needsClassification = false,
   }) async {
     await (db.update(db.transactions)..where((t) => t.syncId.equals(syncId)))
@@ -910,6 +948,7 @@ class LocalTransactionRepository implements TransactionRepository {
       merchantFullName: d.Value(merchantFullName),
       acquirer: d.Value(acquirer),
       detailsText: d.Value(detailsText),
+      discountAmount: d.Value(normalizeDiscountAmount(discountAmount)),
       needsClassification: d.Value(needsClassification),
     ));
   }

@@ -23,6 +23,7 @@ import 'ocr_text_quality.dart';
 /// OCR识别结果
 class OcrResult {
   final double? amount;
+  final double? discountAmount;
   final String? note;
   final DateTime? time;
   final String rawText;
@@ -50,6 +51,7 @@ class OcrResult {
 
   OcrResult({
     this.amount,
+    this.discountAmount,
     this.note,
     this.time,
     required this.rawText,
@@ -79,6 +81,7 @@ class OcrResult {
   /// 创建副本并合并AI结果
   OcrResult copyWithAI({
     double? amount,
+    double? discountAmount,
     String? note,
     DateTime? time,
     int? suggestedCategoryId,
@@ -97,6 +100,7 @@ class OcrResult {
   }) {
     return OcrResult(
       amount: amount ?? this.amount,
+      discountAmount: discountAmount ?? this.discountAmount,
       note: note ?? this.note,
       time: time ?? this.time,
       rawText: rawText,
@@ -127,6 +131,7 @@ class OcrResult {
 
   OcrResult copyWithFastBillingRule({
     double? amount,
+    double? discountAmount,
     String? note,
     DateTime? time,
     String? paymentMethod,
@@ -144,6 +149,7 @@ class OcrResult {
   }) {
     return OcrResult(
       amount: amount ?? this.amount,
+      discountAmount: discountAmount ?? this.discountAmount,
       note: note ?? this.note,
       time: time ?? this.time,
       rawText: rawText,
@@ -176,6 +182,7 @@ class OcrResult {
   factory OcrResult.fromJson(Map<String, dynamic> json) {
     return OcrResult(
       amount: (json['amount'] as num?)?.toDouble(),
+      discountAmount: (json['discount_amount'] as num?)?.toDouble(),
       note: json['note'] as String?,
       time: json['time'] != null
           ? DateTime.tryParse(json['time'] as String)
@@ -206,6 +213,7 @@ class OcrResult {
 
   Map<String, dynamic> toJson() => {
         'amount': amount,
+        'discount_amount': discountAmount,
         'note': note,
         'time': time?.toIso8601String(),
         'rawText': rawText,

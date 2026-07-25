@@ -1,4 +1,5 @@
 import 'billing_rule_engine.dart';
+import '../discount_semantics.dart';
 import '../payment_method_semantics.dart';
 import 'billing_rule_extractors.dart';
 import 'billing_rule_models.dart';
@@ -7,9 +8,11 @@ import 'billing_rule_trace.dart';
 
 class BillingRuleEngineImpl implements BillingRuleEngine {
   final PaymentMethodSemantics paymentMethodSemantics;
+  final DiscountSemantics discountSemantics;
 
   const BillingRuleEngineImpl({
     this.paymentMethodSemantics = const PaymentMethodSemantics(),
+    this.discountSemantics = const DiscountSemantics(),
   });
 
   @override
@@ -56,6 +59,7 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
     final fields = <String, BillingRuleFieldResult>{};
     final details = <String, dynamic>{};
     double? amount;
+    double? discountAmount;
     String? note;
     DateTime? time;
     String? paymentChannel;
@@ -96,12 +100,16 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
       }
       final parsedValue = parsed.value!;
 
-      final authoritativeValue = _canonicalizeField(
-        extractorRule.field,
-        parsedValue,
-        debugMessages,
-        extractorRule,
-      );
+      final discount = extractorRule.field == 'details.discount'
+          ? discountSemantics.parse(parsedValue.toString())
+          : null;
+      final authoritativeValue = discount?.displayText ??
+          _canonicalizeField(
+            extractorRule.field,
+            parsedValue,
+            debugMessages,
+            extractorRule,
+          );
       if (authoritativeValue == null) continue;
       final confidence = _clampConfidence(
         extraction.confidence * parsed.confidence,
@@ -164,6 +172,9 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
           if (extractorRule.field.startsWith('details.')) {
             _writeDetailsValue(
                 details, extractorRule.field, authoritativeValue);
+            if (extractorRule.field == 'details.discount') {
+              discountAmount = discount?.amount;
+            }
           }
           break;
       }
@@ -254,6 +265,7 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
 
     result = BillingRuleResult(
       amount: amount,
+      discountAmount: discountAmount,
       note: note,
       time: time,
       paymentChannel: paymentChannel,

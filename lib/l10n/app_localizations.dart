@@ -4940,6 +4940,12 @@ abstract class AppLocalizations {
   /// **'Total Expense: '**
   String get analyticsTotalExpense;
 
+  /// No description provided for @analyticsTotalDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Discount: '**
+  String get analyticsTotalDiscount;
+
   /// No description provided for @analyticsBalance.
   ///
   /// In en, this message translates to:

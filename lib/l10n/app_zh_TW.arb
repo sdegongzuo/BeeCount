@@ -227,6 +227,7 @@
   "analyticsToday": "今天",
   "analyticsTotal": "總{type}： ",
   "analyticsTotalExpense": "總支出： ",
+  "analyticsTotalDiscount": "累計優惠： ",
   "analyticsTotalIncome": "總收入： ",
   "analyticsYear": "年",
   "androidShortcutStep1": "下載支援建立捷徑的應用程式（如 Shortcut Maker）",

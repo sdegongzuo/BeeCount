@@ -18,4 +18,21 @@ void main() {
 
     expect(payload['needsClassification'], isTrue);
   });
+
+  test('transaction sync payload preserves structured discount amount', () {
+    final payload = EntitySerializer.serializeTransaction(
+      Transaction(
+        id: 1,
+        ledgerId: 2,
+        type: 'expense',
+        amount: 8.9,
+        happenedAt: DateTime.utc(2026, 7, 19),
+        discountAmount: 1.0,
+        needsClassification: false,
+        syncId: 'tx-discount-1',
+      ),
+    );
+
+    expect(payload['discountAmount'], 1.0);
+  });
 }

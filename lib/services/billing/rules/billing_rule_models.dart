@@ -416,6 +416,7 @@ class BillingFieldExtractorRule {
 
 class BillingRuleResult {
   final double? amount;
+  final double? discountAmount;
   final String? note;
   final DateTime? time;
   final String? paymentChannel;
@@ -431,6 +432,7 @@ class BillingRuleResult {
 
   const BillingRuleResult({
     this.amount,
+    this.discountAmount,
     this.note,
     this.time,
     this.paymentChannel,
@@ -447,6 +449,7 @@ class BillingRuleResult {
 
   Map<String, dynamic> toJson() => {
         'amount': amount,
+        'discount_amount': discountAmount,
         'note': note,
         'time': time?.toIso8601String(),
         'payment_channel': paymentChannel,

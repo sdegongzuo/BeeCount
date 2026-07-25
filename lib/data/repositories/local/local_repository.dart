@@ -316,6 +316,7 @@ class LocalRepository extends BaseRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    double? discountAmount,
     bool needsClassification = false,
     String? syncId,
   }) async {
@@ -334,6 +335,7 @@ class LocalRepository extends BaseRepository {
       merchantFullName: merchantFullName,
       acquirer: acquirer,
       detailsText: detailsText,
+      discountAmount: discountAmount,
       needsClassification: needsClassification,
       syncId: syncId,
     );
@@ -401,6 +403,7 @@ class LocalRepository extends BaseRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    dynamic discountAmount,
     dynamic needsClassification,
     DateTime? happenedAt,
     dynamic accountId,
@@ -420,6 +423,7 @@ class LocalRepository extends BaseRepository {
           merchantFullName: merchantFullName,
           acquirer: acquirer,
           detailsText: detailsText,
+          discountAmount: discountAmount,
           needsClassification: needsClassification,
           happenedAt: happenedAt,
           accountId: accountId,
@@ -534,6 +538,18 @@ class LocalRepository extends BaseRepository {
       );
 
   @override
+  Future<double> totalDiscountInRange({
+    required int ledgerId,
+    required DateTime start,
+    required DateTime end,
+  }) =>
+      _transactionRepo.totalDiscountInRange(
+        ledgerId: ledgerId,
+        start: start,
+        end: end,
+      );
+
+  @override
   Future<List<Transaction>> getTransactionsByLedger(int ledgerId) =>
       _transactionRepo.getTransactionsByLedger(ledgerId);
 
@@ -643,6 +659,7 @@ class LocalRepository extends BaseRepository {
     String? merchantFullName,
     String? acquirer,
     String? detailsText,
+    double? discountAmount,
     bool needsClassification = false,
   }) =>
       _transactionRepo.updateTransactionBySyncId(
@@ -660,6 +677,7 @@ class LocalRepository extends BaseRepository {
         merchantFullName: merchantFullName,
         acquirer: acquirer,
         detailsText: detailsText,
+        discountAmount: discountAmount,
         needsClassification: needsClassification,
       );
 

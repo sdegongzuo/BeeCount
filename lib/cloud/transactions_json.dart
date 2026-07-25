@@ -3,6 +3,7 @@ import '../data/db.dart';
 import '../data/repositories/base_repository.dart';
 import '../services/data_import_service.dart';
 import '../services/system/logger_service.dart';
+import '../utils/discount_amount.dart';
 
 /// 账本交易数据的 JSON 导入导出工具
 ///
@@ -175,6 +176,7 @@ Future<String> exportTransactionsJson(BeeDatabase db, int ledgerId) async {
         'acquirer': _sanitizeString(t.acquirer),
       if (t.detailsText != null && t.detailsText!.trim().isNotEmpty)
         'detailsText': _sanitizeDetailsText(t.detailsText),
+      if (t.discountAmount != null) 'discountAmount': t.discountAmount,
       'needsClassification': t.needsClassification,
       if (t.syncId != null) 'syncId': t.syncId,
     };
@@ -417,13 +419,18 @@ ImportData parseJsonToImportData(String jsonStr) {
         note: it['note'] as String?,
         paymentMethod: it['paymentMethod'] as String?,
         counterparty: it['counterparty'] as String?,
-        paymentChannel: (it['paymentChannel'] ?? it['payment_channel']) as String?,
-        merchantFullName: (it['merchantFullName'] ?? it['merchant_full_name']) as String?,
+        paymentChannel:
+            (it['paymentChannel'] ?? it['payment_channel']) as String?,
+        merchantFullName:
+            (it['merchantFullName'] ?? it['merchant_full_name']) as String?,
         acquirer: it['acquirer'] as String?,
         detailsText: (it['detailsText'] ?? it['details_text']) as String?,
-        needsClassification:
-            (it['needsClassification'] ?? it['needs_classification']) as bool? ??
-                false,
+        discountAmount: normalizeDiscountAmount(
+          (it['discountAmount'] ?? it['discount_amount']) as num?,
+        ),
+        needsClassification: (it['needsClassification'] ??
+                it['needs_classification']) as bool? ??
+            false,
         // 账户信息：转账用 fromAccountName/toAccountName，其他用 accountName
         accountName: type != 'transfer' ? it['accountName'] as String? : null,
         fromAccountName:

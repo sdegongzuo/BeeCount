@@ -125,6 +125,7 @@ class FastBillingRuleService {
 
     return baseResult.copyWithFastBillingRule(
       amount: ruleResult.amount ?? baseResult.amount,
+      discountAmount: ruleResult.discountAmount ?? baseResult.discountAmount,
       note: ruleResult.note ?? baseResult.note,
       time: ruleResult.time ??
           baseResult.time ??

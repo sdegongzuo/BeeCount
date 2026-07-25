@@ -34,6 +34,7 @@ class TransactionEditUtils {
           initialMerchantFullName: transaction.merchantFullName,
           initialAcquirer: transaction.acquirer,
           initialDetailsText: transaction.detailsText,
+          initialDiscountAmount: transaction.discountAmount,
           editingTransactionId: transaction.id,
           initialAccountId: transaction.accountId,
           // 转账特有的参数

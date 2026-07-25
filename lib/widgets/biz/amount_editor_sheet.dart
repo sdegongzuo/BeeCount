@@ -27,6 +27,7 @@ typedef AmountEditorResult = ({
   String? merchantFullName,
   String? acquirer,
   String? detailsText,
+  double? discountAmount,
   DateTime date,
   int? accountId,
   int? toAccountId,
@@ -45,6 +46,7 @@ class AmountEditorSheet extends ConsumerStatefulWidget {
   final String? initialMerchantFullName;
   final String? initialAcquirer;
   final String? initialDetailsText;
+  final double? initialDiscountAmount;
   final int? initialAccountId;
   final int? initialToAccountId;
   final List<int>? initialTagIds; // 初始标签ID列表
@@ -66,6 +68,7 @@ class AmountEditorSheet extends ConsumerStatefulWidget {
     this.initialMerchantFullName,
     this.initialAcquirer,
     this.initialDetailsText,
+    this.initialDiscountAmount,
     this.initialAccountId,
     this.initialToAccountId,
     this.initialTagIds,
@@ -819,6 +822,7 @@ class _AmountEditorSheetState extends ConsumerState<AmountEditorSheet> {
                                     _detailsTextCtrl.text.trim().isEmpty
                                         ? null
                                         : _detailsTextCtrl.text.trim(),
+                                discountAmount: widget.initialDiscountAmount,
                                 date: _date,
                                 accountId: _selectedAccountId,
                                 toAccountId: _selectedToAccountId,

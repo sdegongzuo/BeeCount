@@ -84,6 +84,7 @@ abstract class TransactionRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    double? discountAmount,
     bool needsClassification = false,
     String? syncId,
   });
@@ -107,6 +108,7 @@ abstract class TransactionRepository {
     dynamic merchantFullName,
     dynamic acquirer,
     dynamic detailsText,
+    dynamic discountAmount,
     dynamic needsClassification,
     DateTime? happenedAt,
     dynamic accountId,
@@ -119,6 +121,13 @@ abstract class TransactionRepository {
   Future<int> countByTypeInRange({
     required int ledgerId,
     required String type,
+    required DateTime start,
+    required DateTime end,
+  });
+
+  /// 获取指定账本和时间范围内支出交易的累计优惠金额。
+  Future<double> totalDiscountInRange({
+    required int ledgerId,
     required DateTime start,
     required DateTime end,
   });
@@ -217,6 +226,7 @@ abstract class TransactionRepository {
     String? merchantFullName,
     String? acquirer,
     String? detailsText,
+    double? discountAmount,
     bool needsClassification = false,
   });
 

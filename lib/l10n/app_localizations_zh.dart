@@ -2614,6 +2614,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get analyticsTotalExpense => '总支出： ';
 
   @override
+  String get analyticsTotalDiscount => '累计优惠： ';
+
+  @override
   String get analyticsBalance => '结余： ';
 
   @override
@@ -8947,6 +8950,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get analyticsTotalExpense => '總支出： ';
+
+  @override
+  String get analyticsTotalDiscount => '累計優惠： ';
 
   @override
   String get analyticsBalance => '結餘： ';
