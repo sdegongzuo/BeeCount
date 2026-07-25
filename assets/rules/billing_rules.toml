@@ -8,7 +8,7 @@
 
 schemaVersion = 1
 rulePackageVersion = 2
-rulesVersion = "2026.07.25.1"
+rulesVersion = "2026.07.25.2"
 normalizationVersion = 1
 
 # ---------------------------------------------------------------------------
@@ -397,6 +397,7 @@ priority = 88
 baseConfidence = 0.86
 
 [templates.match]
+sourcePackages = ["com.sankuai.meituan"]
 keywordsAll = ["账单详情", "支付成功"]
 keywordsAny = ["下单时间", "消费场景", "美团App", "外卖", "美团账单", "交易单号", "商家单号"]
 

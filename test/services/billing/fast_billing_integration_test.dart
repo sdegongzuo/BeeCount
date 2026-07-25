@@ -185,7 +185,8 @@ void main() {
       expect(evaluation.result.details?['order_no'], '9717542574519413');
       expect(evaluation.result.details?['merchant_order_no'],
           '9458313000119266428366399457');
-      expect(evaluation.result.details?['discount'], '-0.40');
+      expect(evaluation.result.details?['discount'], '优惠（¥0.40）');
+      expect(evaluation.result.discountAmount, 0.40);
     });
 
     test('extracts JD product title as note when service detail is not a shop',
@@ -214,7 +215,8 @@ void main() {
       expect(evaluation.result.details?['order_no'], '9393828750240214');
       expect(evaluation.result.details?['merchant_order_no'],
           '9356035498922568809136331765');
-      expect(evaluation.result.details?['discount'], '-1.00');
+      expect(evaluation.result.details?['discount'], '优惠（¥1.00）');
+      expect(evaluation.result.discountAmount, 1.00);
     });
 
     test('accepts Douyin payment detail when gallery is foreground', () async {

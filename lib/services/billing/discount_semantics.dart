@@ -23,6 +23,9 @@ class DiscountSemantics {
   static final RegExp _moneyPattern = RegExp(
     r'(?:[¥￥]\s*\d+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?\s*元)',
   );
+  static final RegExp _labeledNegativeAmountPattern = RegExp(
+    r'^[\-−－—]\s*(?:[¥￥]\s*)?(\d+(?:\.\d{1,2})?)\s*(?:元)?$',
+  );
   static final RegExp _trailingSeparator = RegExp(r'[\s\-−－—:：]+$');
   static final RegExp _spaces = RegExp(r'\s+');
 
@@ -36,6 +39,18 @@ class DiscountSemantics {
     if (normalized.contains('优惠券') ||
         RegExp(r'满\s*\d+(?:\.\d+)?\s*元?\s*(?:减|优惠)').hasMatch(normalized)) {
       return DiscountParseResult(displayText: normalized, amount: null);
+    }
+
+    final labeledNegativeAmount =
+        _labeledNegativeAmountPattern.firstMatch(normalized);
+    if (labeledNegativeAmount != null) {
+      final parsed = double.tryParse(labeledNegativeAmount.group(1)!);
+      if (parsed != null && parsed.isFinite && parsed > 0) {
+        return DiscountParseResult(
+          displayText: '优惠（¥${parsed.toStringAsFixed(2)}）',
+          amount: parsed,
+        );
+      }
     }
 
     final match = _realizedDiscountPattern.firstMatch(normalized);

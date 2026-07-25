@@ -16,6 +16,10 @@ void main() {
     final cardDiscount = semantics.parse('银行卡立减优惠0.30元');
     expect(cardDiscount.displayText, '银行卡立减优惠（¥0.30）');
     expect(cardDiscount.amount, 0.30);
+
+    final labeledNegativeAmount = semantics.parse('-0.34');
+    expect(labeledNegativeAmount.displayText, '优惠（¥0.34）');
+    expect(labeledNegativeAmount.amount, 0.34);
   });
 
   test('非金额优惠只保留详情证据且不参与统计', () {
