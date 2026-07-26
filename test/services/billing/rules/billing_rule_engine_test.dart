@@ -650,11 +650,20 @@ void main() {
       );
 
       final remainingText = result.details?['remaining_text'] as String?;
-      expect(remainingText, contains('原价'));
-      expect(remainingText, contains('￥19.80'));
-      expect(remainingText, contains('银行卡多笔立减优惠0.30'));
-      expect(remainingText, contains('9223292424251435949411772872'));
-      expect(remainingText, contains('XP9250027811994856890233755142'));
+      expect(
+        result.details?['additional_fields'],
+        [
+          {'label': '原价', 'value': '￥19.80'},
+          {'label': '优惠', 'value': '银行卡多笔立减优惠0.30'},
+          {'label': '交易单号', 'value': '9223292424251435949411772872'},
+          {'label': '商户单号', 'value': 'XP9250027811994856890233755142'},
+        ],
+      );
+      expect(remainingText, isNot(contains('原价')));
+      expect(remainingText, isNot(contains('￥19.80')));
+      expect(remainingText, isNot(contains('银行卡多笔立减优惠0.30')));
+      expect(remainingText, isNot(contains('9223292424251435949411772872')));
+      expect(remainingText, isNot(contains('XP9250027811994856890233755142')));
       expect(remainingText, isNot(contains('2026年05月31日 14:27:40')));
       expect(remainingText, isNot(contains('平安银行信用卡(2299)')));
       expect(remainingText, isNot(contains('财付通支付科技有限公司')));
@@ -716,12 +725,19 @@ void main() {
       );
 
       expect(result.details?['reference_no'], '957407753917');
+      expect(
+        result.details?['additional_fields'],
+        [
+          {'label': '优惠信息', 'value': '银联优惠-￥0.08'},
+          {'label': '商户编号', 'value': '972713631844736'},
+        ],
+      );
       final remainingText = result.details?['remaining_text'] as String?;
       expect(remainingText, contains('淘宝平台商户'));
-      expect(remainingText, contains('优惠信息'));
-      expect(remainingText, contains('银联优惠-￥0.08'));
-      expect(remainingText, contains('商户编号'));
-      expect(remainingText, contains('972713631844736'));
+      expect(remainingText, isNot(contains('优惠信息')));
+      expect(remainingText, isNot(contains('银联优惠-￥0.08')));
+      expect(remainingText, isNot(contains('商户编号')));
+      expect(remainingText, isNot(contains('972713631844736')));
       expect(remainingText, isNot(contains('2026-06-14 12:22:17')));
       expect(remainingText, isNot(contains('957407753917')));
     });

@@ -489,6 +489,23 @@ bool _valuesEqual(Object? expected, Object? actual) {
   if (expected is double && actual is double) {
     return (expected - actual).abs() < 0.0001;
   }
+  if (expected is List && actual is List) {
+    if (expected.length != actual.length) return false;
+    for (var index = 0; index < expected.length; index++) {
+      if (!_valuesEqual(expected[index], actual[index])) return false;
+    }
+    return true;
+  }
+  if (expected is Map && actual is Map) {
+    if (expected.length != actual.length) return false;
+    for (final entry in expected.entries) {
+      if (!actual.containsKey(entry.key) ||
+          !_valuesEqual(entry.value, actual[entry.key])) {
+        return false;
+      }
+    }
+    return true;
+  }
   return expected == actual;
 }
 

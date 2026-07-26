@@ -8,7 +8,7 @@
 
 schemaVersion = 1
 rulePackageVersion = 2
-rulesVersion = "2026.07.25.3"
+rulesVersion = "2026.07.26.1"
 normalizationVersion = 1
 
 # ---------------------------------------------------------------------------
@@ -278,6 +278,20 @@ type = "regex"
 pattern = '(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}至\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})'
 confidence = 0.75
 
+[[templates.extract]]
+field = "details.order_no"
+type = "labelNextLine"
+label = "订单号"
+pattern = '\d{20,}'
+confidence = 0.86
+
+[[templates.extract]]
+field = "details.merchant_order_no"
+type = "labelNextLine"
+label = "商家订单号"
+pattern = '[A-Za-z0-9][A-Za-z0-9_-]{7,}'
+confidence = 0.84
+
 [[templates]]
 id = "alipay_merchant_payment_detail_v1"
 enabled = true
@@ -389,6 +403,20 @@ type = "labelNextLine"
 label = "订单号"
 pattern = '\d{20,}'
 confidence = 0.86
+
+[[templates.extract]]
+field = "details.merchant_order_no"
+type = "labelNextLine"
+label = "商家订单号"
+pattern = '[A-Za-z0-9][A-Za-z0-9_-]{7,}'
+confidence = 0.84
+
+[[templates.extract]]
+field = "details.additional_fields"
+type = "remainingLabelValues"
+parser = "raw"
+confidence = 0.68
+options = { excludeLabels = ["闪购", "三餐"], excludePatterns = ["计入收支"] }
 
 # ---------------------------------------------------------------------------
 # Douyin payment detail templates

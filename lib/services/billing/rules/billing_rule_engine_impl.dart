@@ -69,11 +69,17 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
     String? acquirer;
     final lines = _splitLines(ocrText);
     final remainingExtractors = <BillingFieldExtractorRule>[];
+    final remainingLabelValueExtractors = <BillingFieldExtractorRule>[];
     final extractedLabelLineIndexes = <int>{};
 
     for (final extractorRule in selected.extractors) {
       if (extractorRule.type == BillingRuleExtractorTypes.remainingLines) {
         remainingExtractors.add(extractorRule);
+        continue;
+      }
+      if (extractorRule.type ==
+          BillingRuleExtractorTypes.remainingLabelValues) {
+        remainingLabelValueExtractors.add(extractorRule);
         continue;
       }
       final extraction = BillingRuleExtractors.extract(
@@ -177,6 +183,44 @@ class BillingRuleEngineImpl implements BillingRuleEngine {
             }
           }
           break;
+      }
+    }
+
+    final effectiveRemainingLabelValueExtractors =
+        remainingLabelValueExtractors.isEmpty
+            ? const [
+                BillingFieldExtractorRule(
+                  field: 'details.additional_fields',
+                  type: BillingRuleExtractorTypes.remainingLabelValues,
+                  parser: BillingRuleParserTypes.raw,
+                  confidence: 0.68,
+                ),
+              ]
+            : remainingLabelValueExtractors;
+    for (final extractorRule in effectiveRemainingLabelValueExtractors) {
+      final extraction = _extractRemainingLabelValues(
+        rule: extractorRule,
+        lines: lines,
+        fieldEvidence: fieldEvidence,
+        extraUsedLineIndexes: extractedLabelLineIndexes,
+        templateId: selected.id,
+      );
+      if (extraction != null) {
+        fields[extractorRule.field] = BillingRuleFieldResult(
+          field: extractorRule.field,
+          value: extraction.values,
+          confidence: extraction.confidence,
+          extractorType: extractorRule.type,
+          extractorId: extractorRule.resolvedId(selected.id),
+          source: extraction.source,
+          evidence: extraction.evidence,
+        );
+        fieldEvidence[extractorRule.field] = extraction.evidence;
+        _writeDetailsValue(
+          details,
+          extractorRule.field,
+          extraction.values,
+        );
       }
     }
 
@@ -539,23 +583,11 @@ BillingRuleExtraction? _extractRemainingLines({
   Set<int> extraUsedLineIndexes = const {},
   required String templateId,
 }) {
-  final usedLineIndexes = <int>{...extraUsedLineIndexes};
-  for (final evidences in fieldEvidence.values) {
-    for (final evidence in evidences) {
-      final index = evidence.lineIndex;
-      if (index == null) continue;
-      usedLineIndexes.add(index);
-      final end = evidence.end;
-      if (evidence.start == null &&
-          end != null &&
-          end > index &&
-          end <= lines.length) {
-        for (var i = index; i < end; i++) {
-          usedLineIndexes.add(i);
-        }
-      }
-    }
-  }
+  final usedLineIndexes = _collectUsedLineIndexes(
+    fieldEvidence: fieldEvidence,
+    extraUsedLineIndexes: extraUsedLineIndexes,
+    lineCount: lines.length,
+  );
 
   final excludeLabels = _stringOptionList(rule.options['excludeLabels']);
   final excludePatterns = _regexOptionList(rule.options['excludePatterns']);
@@ -585,6 +617,166 @@ BillingRuleExtraction? _extractRemainingLines({
     confidence: rule.confidence,
     evidence: evidences,
   );
+}
+
+_RemainingLabelValuesExtraction? _extractRemainingLabelValues({
+  required BillingFieldExtractorRule rule,
+  required List<String> lines,
+  required Map<String, List<BillingRuleFieldEvidence>> fieldEvidence,
+  Set<int> extraUsedLineIndexes = const {},
+  required String templateId,
+}) {
+  final usedLineIndexes = _collectUsedLineIndexes(
+    fieldEvidence: fieldEvidence,
+    extraUsedLineIndexes: extraUsedLineIndexes,
+    lineCount: lines.length,
+  );
+
+  final values = <Map<String, String>>[];
+  final evidences = <BillingRuleFieldEvidence>[];
+  final excludedLabels = {
+    ..._excludedAdditionalDetailLabels,
+    ..._stringOptionList(rule.options['excludeLabels']),
+  };
+  final excludedValuePatterns = [
+    ..._excludedAdditionalDetailValuePatterns,
+    ..._regexOptionList(rule.options['excludePatterns']),
+  ];
+  for (var index = 0; index < lines.length - 1; index++) {
+    if (usedLineIndexes.contains(index) ||
+        usedLineIndexes.contains(index + 1)) {
+      continue;
+    }
+    final label = lines[index].trim();
+    final rawValue = lines[index + 1].trim();
+    final value = _cleanAdditionalDetailValue(rawValue);
+    if (!_isAdditionalDetailLabel(label, excludedLabels) ||
+        value == null ||
+        !_isAdditionalDetailValue(
+          value,
+          excludedLabels,
+          excludedValuePatterns,
+        )) {
+      continue;
+    }
+    values.add({'label': label, 'value': value});
+    evidences.add(
+      BillingRuleFieldEvidence(
+        type: rule.type,
+        text: '$label\n$rawValue',
+        lineIndex: index,
+        end: index + 2,
+        ruleId: templateId,
+      ),
+    );
+    usedLineIndexes
+      ..add(index)
+      ..add(index + 1);
+    index++;
+  }
+
+  if (values.isEmpty) return null;
+  return _RemainingLabelValuesExtraction(
+    values: values,
+    source:
+        values.map((item) => '${item['label']}：${item['value']}').join('\n'),
+    confidence: rule.confidence,
+    evidence: evidences,
+  );
+}
+
+Set<int> _collectUsedLineIndexes({
+  required Map<String, List<BillingRuleFieldEvidence>> fieldEvidence,
+  required Set<int> extraUsedLineIndexes,
+  required int lineCount,
+}) {
+  final usedLineIndexes = <int>{...extraUsedLineIndexes};
+  for (final evidences in fieldEvidence.values) {
+    for (final evidence in evidences) {
+      final index = evidence.lineIndex;
+      if (index == null) continue;
+      usedLineIndexes.add(index);
+      final end = evidence.end;
+      if (evidence.start == null &&
+          end != null &&
+          end > index &&
+          end <= lineCount) {
+        for (var i = index; i < end; i++) {
+          usedLineIndexes.add(i);
+        }
+      }
+    }
+  }
+  return usedLineIndexes;
+}
+
+bool _isAdditionalDetailLabel(
+  String value,
+  Set<String> excludedLabels,
+) {
+  if (value.length < 2 || value.length > 12) return false;
+  if (!RegExp(r'^[\u3400-\u9FFFＡ-Ｚａ-ｚA-Za-z\s]+$').hasMatch(value)) {
+    return false;
+  }
+  if (!_additionalDetailLabelPattern.hasMatch(value)) return false;
+  return !excludedLabels.any(value.contains);
+}
+
+String? _cleanAdditionalDetailValue(String value) {
+  final cleaned = value.replaceFirst(RegExp(r'\s*[>＞〉》]+\s*$'), '').trim();
+  return cleaned.isEmpty ? null : cleaned;
+}
+
+bool _isAdditionalDetailValue(
+  String value,
+  Set<String> excludedLabels,
+  List<RegExp> excludedValuePatterns,
+) {
+  if (value.isEmpty || value.length > 100) return false;
+  if (excludedLabels.any(value.contains)) return false;
+  return !excludedValuePatterns.any(
+    (pattern) => pattern.hasMatch(value),
+  );
+}
+
+const _excludedAdditionalDetailLabels = {
+  '账单详情',
+  '全部账单',
+  '交易成功',
+  '支付成功',
+  '当前状态',
+  '推荐服务',
+  '为您推荐',
+  '账单管理',
+  '账单分类',
+  '标签',
+  '常见问题',
+  '订单详情',
+};
+
+final _excludedAdditionalDetailValuePatterns = [
+  RegExp(r'^(?:复制|去查看|请选择|收起|更多|查看)$'),
+  RegExp(r'(?:点击查看|可扫码退款|查询交易|解锁了|贴纸)'),
+  RegExp(r'^(?:暂无|无|[-—]+)$'),
+];
+
+final _additionalDetailLabelPattern = RegExp(
+  r'(?:信息|机构|编号|单号|时间|方式|金额|类型|渠道|场景|平台|说明|奖励|全称|'
+  r'状态|分类|原价|优惠|商品|商户|收款方)$',
+);
+
+class _RemainingLabelValuesExtraction {
+  final List<Map<String, String>> values;
+  final String source;
+  final double confidence;
+  final List<BillingRuleFieldEvidence> evidence;
+
+  const _RemainingLabelValuesExtraction({
+    required this.values,
+    required this.source,
+    required this.confidence,
+    required this.evidence,
+  });
 }
 
 int? _findLabelLine(List<String> lines, String? label) {

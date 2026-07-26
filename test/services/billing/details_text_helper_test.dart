@@ -38,6 +38,25 @@ void main() {
 
       expect(text, isNull);
     });
+
+    test('显式明细在前，通用标签值按截图顺序追加', () {
+      final text = detailsMapToText({
+        'order_no': '9569805267061115767991919176',
+        'merchant_order_no': 'sub2_202607260bofXWQU',
+        'additional_fields': [
+          {'label': '支付奖励', 'value': '已领取3积分'},
+          {'label': '支付渠道', 'value': '支付宝'},
+        ],
+      });
+
+      expect(
+        text,
+        '订单号: 9569805267061115767991919176\n'
+        '商户单号: sub2_202607260bofXWQU\n'
+        '支付奖励：已领取3积分\n'
+        '支付渠道：支付宝',
+      );
+    });
   });
 
   group('mergeDetailsTextParts', () {

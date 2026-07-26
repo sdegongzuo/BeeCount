@@ -189,6 +189,7 @@ class TomlBillingRuleRepository implements BillingRuleRepository {
     'betweenLabels',
     'nearKeyword',
     'remainingLines',
+    'remainingLabelValues',
   };
 
   static const allowedParsers = {

@@ -14,6 +14,18 @@ String? detailsMapToText(Map<String, dynamic>? details) {
     if (_isInternalDetailKey(key)) continue;
     final value = entry.value;
     if (value == null) continue;
+    if (key == 'additional_fields') {
+      if (value is List) {
+        for (final item in value) {
+          if (item is! Map) continue;
+          final itemLabel = item['label']?.toString().trim() ?? '';
+          final itemValue = item['value']?.toString().trim() ?? '';
+          if (itemLabel.isEmpty || itemValue.isEmpty) continue;
+          lines.add('$itemLabel：$itemValue');
+        }
+      }
+      continue;
+    }
     final label = _detailLabel(key);
 
     if (value is Map) {

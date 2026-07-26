@@ -9,6 +9,7 @@ class BillingRuleExtractorTypes {
   static const betweenLabels = 'betweenLabels';
   static const nearKeyword = 'nearKeyword';
   static const remainingLines = 'remainingLines';
+  static const remainingLabelValues = 'remainingLabelValues';
 }
 
 class BillingRuleExtraction {
