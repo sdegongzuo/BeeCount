@@ -247,6 +247,7 @@ class _PendingTransactionClassificationPageState
       currentCategoryId: _selectedCategory?.id,
       title: '选择分类',
       showManageEntry: true,
+      showAddSubcategoryEntry: true,
     );
     if (picked != null) {
       _selectCategory(picked);

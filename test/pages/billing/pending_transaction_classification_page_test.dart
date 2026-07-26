@@ -4,6 +4,7 @@ import 'package:beecount/data/repositories/base_repository.dart';
 import 'package:beecount/data/repositories/local/local_repository.dart';
 import 'package:beecount/l10n/app_localizations.dart';
 import 'package:beecount/pages/billing/pending_transaction_classification_page.dart';
+import 'package:beecount/pages/category/category_edit_page.dart';
 import 'package:beecount/pages/category/category_manage_page.dart';
 import 'package:beecount/providers.dart';
 import 'package:beecount/services/billing/pending_transaction_classification_service.dart';
@@ -312,6 +313,79 @@ void main() {
     final updated = await repository.getTransactionById(transactionId);
     expect(updated!.categoryId, childCategoryId);
     expect(updated.needsClassification, isFalse);
+    await tester.pump(const Duration(seconds: 3));
+  });
+
+  testWidgets('展开二级分类后可直接新增并在返回时刷新', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(412, 915));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    SharedPreferences.setMockInitialValues({});
+    final db = BeeDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repository = LocalRepository(db, changeTracker: ChangeTracker(db));
+    final ledgerId = await repository.createLedger(name: '日常');
+    await repository.createCategory(name: '其他', kind: 'expense');
+    final parentCategoryId =
+        await repository.createCategory(name: '餐饮', kind: 'expense');
+    await repository.createSubCategory(
+      parentId: parentCategoryId,
+      name: '早餐',
+      kind: 'expense',
+    );
+    final transactionId = await repository.addTransaction(
+      ledgerId: ledgerId,
+      type: 'expense',
+      amount: 15,
+      happenedAt: DateTime(2026, 7, 16, 8),
+      note: '商户：早餐店',
+      needsClassification: true,
+    );
+
+    await tester.pumpWidget(_buildApp(
+      PendingTransactionClassificationPage(
+        ledgerId: ledgerId,
+        transactionId: transactionId,
+        service: PendingTransactionClassificationService(repository),
+        resolveAttachmentPath: (_) async => '/unused',
+      ),
+      repository: repository,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('点击选择分类'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('餐饮'));
+    await tester.pumpAndSettle();
+
+    final addEntry = find.byKey(
+      ValueKey('categorySelector-addSubcategory-$parentCategoryId'),
+    );
+    expect(addEntry, findsOneWidget);
+    expect(
+      tester.getTopLeft(addEntry).dy,
+      greaterThan(tester.getTopLeft(find.text('早餐')).dy),
+    );
+
+    await tester.tap(addEntry);
+    await tester.pumpAndSettle();
+
+    final editPage = tester.widget<CategoryEditPage>(
+      find.byType(CategoryEditPage),
+    );
+    expect(editPage.parentCategory?.id, parentCategoryId);
+    expect(find.text('餐饮'), findsOneWidget);
+
+    await repository.createSubCategory(
+      parentId: parentCategoryId,
+      name: '午餐',
+      kind: 'expense',
+    );
+    Navigator.of(tester.element(find.byType(CategoryEditPage))).pop();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CategorySelectorDialog), findsOneWidget);
+    expect(find.text('午餐'), findsOneWidget);
+    expect(addEntry, findsOneWidget);
     await tester.pump(const Duration(seconds: 3));
   });
 

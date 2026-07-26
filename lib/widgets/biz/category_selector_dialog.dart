@@ -4,6 +4,7 @@ import '../../data/db.dart';
 import '../../providers.dart';
 import '../../styles/tokens.dart';
 import '../../l10n/app_localizations.dart';
+import '../../pages/category/category_edit_page.dart';
 import '../../pages/category/category_manage_page.dart';
 import '../../utils/category_utils.dart';
 import '../category_icon.dart';
@@ -26,6 +27,7 @@ typedef CategoryFilterCallback = Future<bool> Function(Category category);
 /// [categoryFilter] 自定义过滤器，决定分类是否可选
 /// [title] 自定义标题
 /// [showManageEntry] 是否显示分类管理入口
+/// [showAddSubcategoryEntry] 是否在展开的二级分类末尾显示新建入口
 Future<Category?> showCategorySelector(
   BuildContext context, {
   required String type,
@@ -40,6 +42,7 @@ Future<Category?> showCategorySelector(
   CategoryFilterCallback? categoryFilter,
   String? title,
   bool showManageEntry = false,
+  bool showAddSubcategoryEntry = false,
 }) {
   return showDialog<Category>(
     context: context,
@@ -56,6 +59,7 @@ Future<Category?> showCategorySelector(
       categoryFilter: categoryFilter,
       title: title,
       showManageEntry: showManageEntry,
+      showAddSubcategoryEntry: showAddSubcategoryEntry,
     ),
   );
 }
@@ -73,6 +77,7 @@ class CategorySelectorDialog extends ConsumerStatefulWidget {
   final CategoryFilterCallback? categoryFilter;
   final String? title;
   final bool showManageEntry;
+  final bool showAddSubcategoryEntry;
 
   const CategorySelectorDialog({
     super.key,
@@ -88,6 +93,7 @@ class CategorySelectorDialog extends ConsumerStatefulWidget {
     this.categoryFilter,
     this.title,
     this.showManageEntry = false,
+    this.showAddSubcategoryEntry = false,
   });
 
   @override
@@ -438,8 +444,22 @@ class _CategorySelectorDialogState
                         showTransactionCount: widget.showTransactionCount,
                         transactionCounts: _transactionCounts,
                         primaryColor: ref.watch(primaryColorProvider),
+                        showAddSubcategoryEntry: widget.showAddSubcategoryEntry,
                         onCategorySelected: (category) {
                           Navigator.pop(context, category);
+                        },
+                        onAddSubcategory: (parent) async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute<bool>(
+                              builder: (_) => CategoryEditPage(
+                                kind: parent.kind,
+                                parentCategory: parent,
+                              ),
+                            ),
+                          );
+                          if (mounted) {
+                            setState(() {});
+                          }
                         },
                       );
                     },
@@ -521,7 +541,9 @@ class _CategoryGroupItem extends StatefulWidget {
   final bool showTransactionCount;
   final Map<int, int> transactionCounts;
   final Color primaryColor;
+  final bool showAddSubcategoryEntry;
   final Function(Category) onCategorySelected;
+  final Future<void> Function(Category) onAddSubcategory;
 
   const _CategoryGroupItem({
     required this.group,
@@ -529,7 +551,9 @@ class _CategoryGroupItem extends StatefulWidget {
     required this.showTransactionCount,
     required this.transactionCounts,
     required this.primaryColor,
+    required this.showAddSubcategoryEntry,
     required this.onCategorySelected,
+    required this.onAddSubcategory,
   });
 
   @override
@@ -590,6 +614,50 @@ class _CategoryGroupItemState extends State<_CategoryGroupItem> {
               },
             );
           }),
+        if (hasChildren && _isExpanded && widget.showAddSubcategoryEntry)
+          InkWell(
+            key: ValueKey(
+              'categorySelector-addSubcategory-${widget.group.parent.id}',
+            ),
+            onTap: () => widget.onAddSubcategory(widget.group.parent),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: BeeTokens.divider(context),
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(56, 12, 16, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: widget.primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.add,
+                      size: 24,
+                      color: widget.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    AppLocalizations.of(context).categoryNew,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: widget.primaryColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
