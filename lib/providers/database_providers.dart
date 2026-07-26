@@ -2,7 +2,9 @@ import 'package:flutter_cloud_sync/flutter_cloud_sync.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/db.dart';
+import '../data/repositories/billing_case_repository.dart';
 import '../data/repositories/billing_job_repository.dart';
+import '../data/repositories/local/local_billing_case_repository.dart';
 import '../data/repositories/local/local_billing_job_repository.dart';
 import '../data/repositories/local/local_repository.dart';
 import '../data/repositories/base_repository.dart';
@@ -164,4 +166,11 @@ final accountByIdProvider =
 final billingJobRepositoryProvider = Provider<BillingJobRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return LocalBillingJobRepository(db);
+});
+
+// V2 Billing Case Repository Provider（分享图片记账工作流 V2）。
+// 与旧 Billing Job 运行时共存，Issue #12 仅建立持久化基础，不切换生产入口。
+final billingCaseRepositoryProvider = Provider<BillingCaseRepository>((ref) {
+  final db = ref.watch(databaseProvider);
+  return LocalBillingCaseRepository(db);
 });

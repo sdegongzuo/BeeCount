@@ -268,6 +268,130 @@ class BillingJobs extends Table {
   DateTimeColumn get completedAt => dateTime().nullable()();
 }
 
+// --- V2 分享图片记账工作流表 ---
+//
+// V2 把一次分享图片记账建模为 Billing Case 与多条工作队列记录，与旧 BillingJobs
+// 运行时共存：新表只在本设备使用，不进入同步载荷。字段语义见
+// docs/specs/share-image-billing-workflow-v2.md §6。
+
+/// 一次分享图片记账的唯一业务事实来源（V2）。宏观状态与交易引用在此持有，
+/// worker 执行细节由 Automation/User Task 承载。见规格 §4.1 / §6.1。
+class BillingCases extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get requestId => text().customConstraint('UNIQUE NOT NULL')();
+  IntColumn get ledgerId => integer().nullable()();
+  TextColumn get sourceImagePath => text()();
+  TextColumn get sourceInfoJson => text().nullable()();
+  TextColumn get state => text().withDefault(const Constant('accepted'))();
+  IntColumn get version =>
+      integer().withDefault(const Constant(1))();
+  // 加密的 OCR 全文、文本块、坐标与候选证据。见规格 §17。
+  TextColumn get encryptedOcrEvidence => text().nullable()();
+  TextColumn get extractionResultJson => text().nullable()();
+  IntColumn get transactionId => integer().nullable()();
+  // 同步门禁：待分类完成前 false，禁止上传临时兜底分类。见规格 §15。
+  BoolColumn get syncAllowed =>
+      boolean().withDefault(const Constant(false))();
+  DateTimeColumn get evidencePurgeAfter => dateTime().nullable()();
+  DateTimeColumn get workflowDeleteAfter => dateTime().nullable()();
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+}
+
+/// 机器可抢占、可重试的本地工作。每条任务持有独立 generation lease，
+/// 所有副作用提交必须匹配 generation 且 lease 未过期。见规格 §4.2 / §6.2。
+class BillingAutomationTasks extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get caseId => integer()();
+  TextColumn get kind => text()();
+  TextColumn get state => text().withDefault(const Constant('ready'))();
+  DateTimeColumn get availableAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  IntColumn get attempt => integer().withDefault(const Constant(0))();
+  TextColumn get leaseOwner => text().nullable()();
+  IntColumn get leaseGeneration =>
+      integer().withDefault(const Constant(0))();
+  DateTimeColumn get leaseUntil => dateTime().nullable()();
+  TextColumn get lastErrorCode => text().nullable()();
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt =>
+      dateTime().withDefault(currentDateAndTime)();
+}
+
+/// 等待本设备用户裁决的持久工作，不使用后台 lease。见规格 §4.3 / §6.3。
+class BillingUserTasks extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get caseId => integer()();
+  TextColumn get kind => text()();
+  TextColumn get state => text().withDefault(const Constant('open'))();
+  IntColumn get transactionId => integer().nullable()();
+  TextColumn get draftJson => text().nullable()();
+  TextColumn get resolutionJson => text().nullable()();
+  // 乐观并发控制版本号。
+  IntColumn get version => integer().withDefault(const Constant(1))();
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get resolvedAt => dateTime().nullable()();
+  DateTimeColumn get expiresAt => dateTime().nullable()();
+}
+
+/// 已完成格式转换与解码验证、但可能尚未绑定交易的附件候选。独立于 OCR 与
+/// 交易创建。见规格 §4.4 / §6.4。
+class BillingPreparedAttachments extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get caseId => integer().customConstraint('UNIQUE NOT NULL')();
+  TextColumn get sourcePath => text()();
+  TextColumn get preparedPath => text().nullable()();
+  TextColumn get contentHash => text().nullable()();
+  TextColumn get mimeType => text().nullable()();
+  IntColumn get byteLength => integer().nullable()();
+  IntColumn get width => integer().nullable()();
+  IntColumn get height => integer().nullable()();
+  TextColumn get state => text().withDefault(const Constant('pending'))();
+  TextColumn get errorCode => text().nullable()();
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get preparedAt => dateTime().nullable()();
+  DateTimeColumn get publishedAt => dateTime().nullable()();
+}
+
+/// 业务状态已提交、等待本地外部交付的事件（通知与 App 内入口刷新）。
+/// 只负责可靠交付，不保存业务真值。见规格 §4.5 / §6.5。
+class BillingOutbox extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get caseId => integer()();
+  IntColumn get userTaskId => integer().nullable()();
+  TextColumn get eventType => text()();
+  TextColumn get payloadJson => text().nullable()();
+  TextColumn get state => text().withDefault(const Constant('pending'))();
+  IntColumn get attempt => integer().withDefault(const Constant(0))();
+  DateTimeColumn get availableAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get deliveredAt => dateTime().nullable()();
+}
+
+/// 文件级清理的唯一事实来源。源图、Prepared 文件和中间文件各自一条记录，
+/// 每条独立持有 delete_after，不依赖 Case 级时间戳解释文件语义。见规格 §6.6。
+class BillingCaseArtifacts extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get caseId => integer()();
+  TextColumn get kind => text()(); // source_image / prepared / intermediate
+  TextColumn get privatePath => text()();
+  TextColumn get state => text().withDefault(const Constant('active'))();
+  DateTimeColumn get deleteAfter => dateTime().nullable()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt =>
+      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt =>
+      dateTime().withDefault(currentDateAndTime)();
+}
+
 @DriftDatabase(tables: [
   Ledgers,
   Accounts,
@@ -283,6 +407,13 @@ class BillingJobs extends Table {
   LocalChanges,
   SyncState,
   BillingJobs,
+  // V2 分享图片记账工作流表（本设备专用，不进入同步载荷）。
+  BillingCases,
+  BillingAutomationTasks,
+  BillingUserTasks,
+  BillingPreparedAttachments,
+  BillingOutbox,
+  BillingCaseArtifacts,
 ])
 class BeeDatabase extends _$BeeDatabase {
   static const _billingAttachmentOriginKeyIndexSql = '''
@@ -290,6 +421,26 @@ class BeeDatabase extends _$BeeDatabase {
     ON transaction_attachments(origin_key)
     WHERE origin_key IS NOT NULL;
   ''';
+
+  /// V2 Billing Case 与工作队列索引。beforeOpen 与 v34 onUpgrade 共用。
+  static const _billingCaseIndexSql = <String>[
+    'CREATE UNIQUE INDEX IF NOT EXISTS ux_billing_cases_request_id '
+        'ON billing_cases(request_id);',
+    'CREATE UNIQUE INDEX IF NOT EXISTS ux_billing_cases_transaction_id '
+        'ON billing_cases(transaction_id) WHERE transaction_id IS NOT NULL;',
+    'CREATE UNIQUE INDEX IF NOT EXISTS ux_billing_automation_case_kind '
+        'ON billing_automation_tasks(case_id, kind);',
+    'CREATE UNIQUE INDEX IF NOT EXISTS ux_billing_user_tasks_case_kind '
+        'ON billing_user_tasks(case_id, kind);',
+    'CREATE INDEX IF NOT EXISTS idx_billing_automation_claim '
+        'ON billing_automation_tasks(state, available_at);',
+    'CREATE INDEX IF NOT EXISTS idx_billing_user_tasks_state_created '
+        'ON billing_user_tasks(state, created_at);',
+    'CREATE INDEX IF NOT EXISTS idx_billing_outbox_state_available '
+        'ON billing_outbox(state, available_at);',
+    'CREATE INDEX IF NOT EXISTS idx_billing_artifacts_delete_after '
+        'ON billing_case_artifacts(delete_after) WHERE delete_after IS NOT NULL;',
+  ];
 
   BeeDatabase() : super(_openConnection());
 
@@ -299,7 +450,7 @@ class BeeDatabase extends _$BeeDatabase {
   BeeDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 33; // v33: 交易结构化优惠金额
+  int get schemaVersion => 34; // v34: V2 Billing Case 与工作队列持久化基础
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1041,9 +1192,28 @@ class BeeDatabase extends _$BeeDatabase {
               );
             }
           }
+          if (from < 34) {
+            // v34: 建立 V2 Billing Case 与工作队列持久化基础。新旧运行时共存，
+            // 新表只在本设备使用，不迁移旧 Billing Job 数据。见规格 §6 / §19。
+            await migrator.createTable(billingCases);
+            await migrator.createTable(billingAutomationTasks);
+            await migrator.createTable(billingUserTasks);
+            await migrator.createTable(billingPreparedAttachments);
+            await migrator.createTable(billingOutbox);
+            await migrator.createTable(billingCaseArtifacts);
+            // 索引由 beforeOpen 与此处共用，确保升级路径立即创建。
+            for (final stmt in _billingCaseIndexSql) {
+              await customStatement(stmt);
+            }
+          }
         },
         beforeOpen: (_) async {
           await customStatement(_billingAttachmentOriginKeyIndexSql);
+          // V2 Billing Case 与工作队列索引。beforeOpen 保证全新数据库与升级
+          // 数据库都创建索引；onUpgrade 中的等价语句对升级路径立即生效。
+          for (final stmt in _billingCaseIndexSql) {
+            await customStatement(stmt);
+          }
         },
       );
 

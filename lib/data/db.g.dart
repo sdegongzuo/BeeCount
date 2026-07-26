@@ -7792,6 +7792,3609 @@ class BillingJobsCompanion extends UpdateCompanion<BillingJob> {
   }
 }
 
+class $BillingCasesTable extends BillingCases
+    with TableInfo<$BillingCasesTable, BillingCase> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BillingCasesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _requestIdMeta =
+      const VerificationMeta('requestId');
+  @override
+  late final GeneratedColumn<String> requestId = GeneratedColumn<String>(
+      'request_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      $customConstraints: 'UNIQUE NOT NULL');
+  static const VerificationMeta _ledgerIdMeta =
+      const VerificationMeta('ledgerId');
+  @override
+  late final GeneratedColumn<int> ledgerId = GeneratedColumn<int>(
+      'ledger_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _sourceImagePathMeta =
+      const VerificationMeta('sourceImagePath');
+  @override
+  late final GeneratedColumn<String> sourceImagePath = GeneratedColumn<String>(
+      'source_image_path', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _sourceInfoJsonMeta =
+      const VerificationMeta('sourceInfoJson');
+  @override
+  late final GeneratedColumn<String> sourceInfoJson = GeneratedColumn<String>(
+      'source_info_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+      'state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('accepted'));
+  static const VerificationMeta _versionMeta =
+      const VerificationMeta('version');
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+      'version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _encryptedOcrEvidenceMeta =
+      const VerificationMeta('encryptedOcrEvidence');
+  @override
+  late final GeneratedColumn<String> encryptedOcrEvidence =
+      GeneratedColumn<String>('encrypted_ocr_evidence', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _extractionResultJsonMeta =
+      const VerificationMeta('extractionResultJson');
+  @override
+  late final GeneratedColumn<String> extractionResultJson =
+      GeneratedColumn<String>('extraction_result_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _transactionIdMeta =
+      const VerificationMeta('transactionId');
+  @override
+  late final GeneratedColumn<int> transactionId = GeneratedColumn<int>(
+      'transaction_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _syncAllowedMeta =
+      const VerificationMeta('syncAllowed');
+  @override
+  late final GeneratedColumn<bool> syncAllowed = GeneratedColumn<bool>(
+      'sync_allowed', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("sync_allowed" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _evidencePurgeAfterMeta =
+      const VerificationMeta('evidencePurgeAfter');
+  @override
+  late final GeneratedColumn<DateTime> evidencePurgeAfter =
+      GeneratedColumn<DateTime>('evidence_purge_after', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _workflowDeleteAfterMeta =
+      const VerificationMeta('workflowDeleteAfter');
+  @override
+  late final GeneratedColumn<DateTime> workflowDeleteAfter =
+      GeneratedColumn<DateTime>('workflow_delete_after', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _completedAtMeta =
+      const VerificationMeta('completedAt');
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+      'completed_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        requestId,
+        ledgerId,
+        sourceImagePath,
+        sourceInfoJson,
+        state,
+        version,
+        encryptedOcrEvidence,
+        extractionResultJson,
+        transactionId,
+        syncAllowed,
+        evidencePurgeAfter,
+        workflowDeleteAfter,
+        createdAt,
+        updatedAt,
+        completedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'billing_cases';
+  @override
+  VerificationContext validateIntegrity(Insertable<BillingCase> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('request_id')) {
+      context.handle(_requestIdMeta,
+          requestId.isAcceptableOrUnknown(data['request_id']!, _requestIdMeta));
+    } else if (isInserting) {
+      context.missing(_requestIdMeta);
+    }
+    if (data.containsKey('ledger_id')) {
+      context.handle(_ledgerIdMeta,
+          ledgerId.isAcceptableOrUnknown(data['ledger_id']!, _ledgerIdMeta));
+    }
+    if (data.containsKey('source_image_path')) {
+      context.handle(
+          _sourceImagePathMeta,
+          sourceImagePath.isAcceptableOrUnknown(
+              data['source_image_path']!, _sourceImagePathMeta));
+    } else if (isInserting) {
+      context.missing(_sourceImagePathMeta);
+    }
+    if (data.containsKey('source_info_json')) {
+      context.handle(
+          _sourceInfoJsonMeta,
+          sourceInfoJson.isAcceptableOrUnknown(
+              data['source_info_json']!, _sourceInfoJsonMeta));
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+          _stateMeta, state.isAcceptableOrUnknown(data['state']!, _stateMeta));
+    }
+    if (data.containsKey('version')) {
+      context.handle(_versionMeta,
+          version.isAcceptableOrUnknown(data['version']!, _versionMeta));
+    }
+    if (data.containsKey('encrypted_ocr_evidence')) {
+      context.handle(
+          _encryptedOcrEvidenceMeta,
+          encryptedOcrEvidence.isAcceptableOrUnknown(
+              data['encrypted_ocr_evidence']!, _encryptedOcrEvidenceMeta));
+    }
+    if (data.containsKey('extraction_result_json')) {
+      context.handle(
+          _extractionResultJsonMeta,
+          extractionResultJson.isAcceptableOrUnknown(
+              data['extraction_result_json']!, _extractionResultJsonMeta));
+    }
+    if (data.containsKey('transaction_id')) {
+      context.handle(
+          _transactionIdMeta,
+          transactionId.isAcceptableOrUnknown(
+              data['transaction_id']!, _transactionIdMeta));
+    }
+    if (data.containsKey('sync_allowed')) {
+      context.handle(
+          _syncAllowedMeta,
+          syncAllowed.isAcceptableOrUnknown(
+              data['sync_allowed']!, _syncAllowedMeta));
+    }
+    if (data.containsKey('evidence_purge_after')) {
+      context.handle(
+          _evidencePurgeAfterMeta,
+          evidencePurgeAfter.isAcceptableOrUnknown(
+              data['evidence_purge_after']!, _evidencePurgeAfterMeta));
+    }
+    if (data.containsKey('workflow_delete_after')) {
+      context.handle(
+          _workflowDeleteAfterMeta,
+          workflowDeleteAfter.isAcceptableOrUnknown(
+              data['workflow_delete_after']!, _workflowDeleteAfterMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+          _completedAtMeta,
+          completedAt.isAcceptableOrUnknown(
+              data['completed_at']!, _completedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BillingCase map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BillingCase(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      requestId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}request_id'])!,
+      ledgerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}ledger_id']),
+      sourceImagePath: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}source_image_path'])!,
+      sourceInfoJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}source_info_json']),
+      state: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}state'])!,
+      version: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}version'])!,
+      encryptedOcrEvidence: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}encrypted_ocr_evidence']),
+      extractionResultJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}extraction_result_json']),
+      transactionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}transaction_id']),
+      syncAllowed: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}sync_allowed'])!,
+      evidencePurgeAfter: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}evidence_purge_after']),
+      workflowDeleteAfter: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}workflow_delete_after']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      completedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}completed_at']),
+    );
+  }
+
+  @override
+  $BillingCasesTable createAlias(String alias) {
+    return $BillingCasesTable(attachedDatabase, alias);
+  }
+}
+
+class BillingCase extends DataClass implements Insertable<BillingCase> {
+  final int id;
+  final String requestId;
+  final int? ledgerId;
+  final String sourceImagePath;
+  final String? sourceInfoJson;
+  final String state;
+  final int version;
+  final String? encryptedOcrEvidence;
+  final String? extractionResultJson;
+  final int? transactionId;
+  final bool syncAllowed;
+  final DateTime? evidencePurgeAfter;
+  final DateTime? workflowDeleteAfter;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? completedAt;
+  const BillingCase(
+      {required this.id,
+      required this.requestId,
+      this.ledgerId,
+      required this.sourceImagePath,
+      this.sourceInfoJson,
+      required this.state,
+      required this.version,
+      this.encryptedOcrEvidence,
+      this.extractionResultJson,
+      this.transactionId,
+      required this.syncAllowed,
+      this.evidencePurgeAfter,
+      this.workflowDeleteAfter,
+      required this.createdAt,
+      required this.updatedAt,
+      this.completedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['request_id'] = Variable<String>(requestId);
+    if (!nullToAbsent || ledgerId != null) {
+      map['ledger_id'] = Variable<int>(ledgerId);
+    }
+    map['source_image_path'] = Variable<String>(sourceImagePath);
+    if (!nullToAbsent || sourceInfoJson != null) {
+      map['source_info_json'] = Variable<String>(sourceInfoJson);
+    }
+    map['state'] = Variable<String>(state);
+    map['version'] = Variable<int>(version);
+    if (!nullToAbsent || encryptedOcrEvidence != null) {
+      map['encrypted_ocr_evidence'] = Variable<String>(encryptedOcrEvidence);
+    }
+    if (!nullToAbsent || extractionResultJson != null) {
+      map['extraction_result_json'] = Variable<String>(extractionResultJson);
+    }
+    if (!nullToAbsent || transactionId != null) {
+      map['transaction_id'] = Variable<int>(transactionId);
+    }
+    map['sync_allowed'] = Variable<bool>(syncAllowed);
+    if (!nullToAbsent || evidencePurgeAfter != null) {
+      map['evidence_purge_after'] = Variable<DateTime>(evidencePurgeAfter);
+    }
+    if (!nullToAbsent || workflowDeleteAfter != null) {
+      map['workflow_delete_after'] = Variable<DateTime>(workflowDeleteAfter);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    return map;
+  }
+
+  BillingCasesCompanion toCompanion(bool nullToAbsent) {
+    return BillingCasesCompanion(
+      id: Value(id),
+      requestId: Value(requestId),
+      ledgerId: ledgerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ledgerId),
+      sourceImagePath: Value(sourceImagePath),
+      sourceInfoJson: sourceInfoJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceInfoJson),
+      state: Value(state),
+      version: Value(version),
+      encryptedOcrEvidence: encryptedOcrEvidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(encryptedOcrEvidence),
+      extractionResultJson: extractionResultJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(extractionResultJson),
+      transactionId: transactionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transactionId),
+      syncAllowed: Value(syncAllowed),
+      evidencePurgeAfter: evidencePurgeAfter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(evidencePurgeAfter),
+      workflowDeleteAfter: workflowDeleteAfter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(workflowDeleteAfter),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+    );
+  }
+
+  factory BillingCase.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BillingCase(
+      id: serializer.fromJson<int>(json['id']),
+      requestId: serializer.fromJson<String>(json['requestId']),
+      ledgerId: serializer.fromJson<int?>(json['ledgerId']),
+      sourceImagePath: serializer.fromJson<String>(json['sourceImagePath']),
+      sourceInfoJson: serializer.fromJson<String?>(json['sourceInfoJson']),
+      state: serializer.fromJson<String>(json['state']),
+      version: serializer.fromJson<int>(json['version']),
+      encryptedOcrEvidence:
+          serializer.fromJson<String?>(json['encryptedOcrEvidence']),
+      extractionResultJson:
+          serializer.fromJson<String?>(json['extractionResultJson']),
+      transactionId: serializer.fromJson<int?>(json['transactionId']),
+      syncAllowed: serializer.fromJson<bool>(json['syncAllowed']),
+      evidencePurgeAfter:
+          serializer.fromJson<DateTime?>(json['evidencePurgeAfter']),
+      workflowDeleteAfter:
+          serializer.fromJson<DateTime?>(json['workflowDeleteAfter']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'requestId': serializer.toJson<String>(requestId),
+      'ledgerId': serializer.toJson<int?>(ledgerId),
+      'sourceImagePath': serializer.toJson<String>(sourceImagePath),
+      'sourceInfoJson': serializer.toJson<String?>(sourceInfoJson),
+      'state': serializer.toJson<String>(state),
+      'version': serializer.toJson<int>(version),
+      'encryptedOcrEvidence': serializer.toJson<String?>(encryptedOcrEvidence),
+      'extractionResultJson': serializer.toJson<String?>(extractionResultJson),
+      'transactionId': serializer.toJson<int?>(transactionId),
+      'syncAllowed': serializer.toJson<bool>(syncAllowed),
+      'evidencePurgeAfter': serializer.toJson<DateTime?>(evidencePurgeAfter),
+      'workflowDeleteAfter': serializer.toJson<DateTime?>(workflowDeleteAfter),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+    };
+  }
+
+  BillingCase copyWith(
+          {int? id,
+          String? requestId,
+          Value<int?> ledgerId = const Value.absent(),
+          String? sourceImagePath,
+          Value<String?> sourceInfoJson = const Value.absent(),
+          String? state,
+          int? version,
+          Value<String?> encryptedOcrEvidence = const Value.absent(),
+          Value<String?> extractionResultJson = const Value.absent(),
+          Value<int?> transactionId = const Value.absent(),
+          bool? syncAllowed,
+          Value<DateTime?> evidencePurgeAfter = const Value.absent(),
+          Value<DateTime?> workflowDeleteAfter = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt,
+          Value<DateTime?> completedAt = const Value.absent()}) =>
+      BillingCase(
+        id: id ?? this.id,
+        requestId: requestId ?? this.requestId,
+        ledgerId: ledgerId.present ? ledgerId.value : this.ledgerId,
+        sourceImagePath: sourceImagePath ?? this.sourceImagePath,
+        sourceInfoJson:
+            sourceInfoJson.present ? sourceInfoJson.value : this.sourceInfoJson,
+        state: state ?? this.state,
+        version: version ?? this.version,
+        encryptedOcrEvidence: encryptedOcrEvidence.present
+            ? encryptedOcrEvidence.value
+            : this.encryptedOcrEvidence,
+        extractionResultJson: extractionResultJson.present
+            ? extractionResultJson.value
+            : this.extractionResultJson,
+        transactionId:
+            transactionId.present ? transactionId.value : this.transactionId,
+        syncAllowed: syncAllowed ?? this.syncAllowed,
+        evidencePurgeAfter: evidencePurgeAfter.present
+            ? evidencePurgeAfter.value
+            : this.evidencePurgeAfter,
+        workflowDeleteAfter: workflowDeleteAfter.present
+            ? workflowDeleteAfter.value
+            : this.workflowDeleteAfter,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        completedAt: completedAt.present ? completedAt.value : this.completedAt,
+      );
+  BillingCase copyWithCompanion(BillingCasesCompanion data) {
+    return BillingCase(
+      id: data.id.present ? data.id.value : this.id,
+      requestId: data.requestId.present ? data.requestId.value : this.requestId,
+      ledgerId: data.ledgerId.present ? data.ledgerId.value : this.ledgerId,
+      sourceImagePath: data.sourceImagePath.present
+          ? data.sourceImagePath.value
+          : this.sourceImagePath,
+      sourceInfoJson: data.sourceInfoJson.present
+          ? data.sourceInfoJson.value
+          : this.sourceInfoJson,
+      state: data.state.present ? data.state.value : this.state,
+      version: data.version.present ? data.version.value : this.version,
+      encryptedOcrEvidence: data.encryptedOcrEvidence.present
+          ? data.encryptedOcrEvidence.value
+          : this.encryptedOcrEvidence,
+      extractionResultJson: data.extractionResultJson.present
+          ? data.extractionResultJson.value
+          : this.extractionResultJson,
+      transactionId: data.transactionId.present
+          ? data.transactionId.value
+          : this.transactionId,
+      syncAllowed:
+          data.syncAllowed.present ? data.syncAllowed.value : this.syncAllowed,
+      evidencePurgeAfter: data.evidencePurgeAfter.present
+          ? data.evidencePurgeAfter.value
+          : this.evidencePurgeAfter,
+      workflowDeleteAfter: data.workflowDeleteAfter.present
+          ? data.workflowDeleteAfter.value
+          : this.workflowDeleteAfter,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      completedAt:
+          data.completedAt.present ? data.completedAt.value : this.completedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingCase(')
+          ..write('id: $id, ')
+          ..write('requestId: $requestId, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('sourceImagePath: $sourceImagePath, ')
+          ..write('sourceInfoJson: $sourceInfoJson, ')
+          ..write('state: $state, ')
+          ..write('version: $version, ')
+          ..write('encryptedOcrEvidence: $encryptedOcrEvidence, ')
+          ..write('extractionResultJson: $extractionResultJson, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('syncAllowed: $syncAllowed, ')
+          ..write('evidencePurgeAfter: $evidencePurgeAfter, ')
+          ..write('workflowDeleteAfter: $workflowDeleteAfter, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('completedAt: $completedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      requestId,
+      ledgerId,
+      sourceImagePath,
+      sourceInfoJson,
+      state,
+      version,
+      encryptedOcrEvidence,
+      extractionResultJson,
+      transactionId,
+      syncAllowed,
+      evidencePurgeAfter,
+      workflowDeleteAfter,
+      createdAt,
+      updatedAt,
+      completedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BillingCase &&
+          other.id == this.id &&
+          other.requestId == this.requestId &&
+          other.ledgerId == this.ledgerId &&
+          other.sourceImagePath == this.sourceImagePath &&
+          other.sourceInfoJson == this.sourceInfoJson &&
+          other.state == this.state &&
+          other.version == this.version &&
+          other.encryptedOcrEvidence == this.encryptedOcrEvidence &&
+          other.extractionResultJson == this.extractionResultJson &&
+          other.transactionId == this.transactionId &&
+          other.syncAllowed == this.syncAllowed &&
+          other.evidencePurgeAfter == this.evidencePurgeAfter &&
+          other.workflowDeleteAfter == this.workflowDeleteAfter &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.completedAt == this.completedAt);
+}
+
+class BillingCasesCompanion extends UpdateCompanion<BillingCase> {
+  final Value<int> id;
+  final Value<String> requestId;
+  final Value<int?> ledgerId;
+  final Value<String> sourceImagePath;
+  final Value<String?> sourceInfoJson;
+  final Value<String> state;
+  final Value<int> version;
+  final Value<String?> encryptedOcrEvidence;
+  final Value<String?> extractionResultJson;
+  final Value<int?> transactionId;
+  final Value<bool> syncAllowed;
+  final Value<DateTime?> evidencePurgeAfter;
+  final Value<DateTime?> workflowDeleteAfter;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> completedAt;
+  const BillingCasesCompanion({
+    this.id = const Value.absent(),
+    this.requestId = const Value.absent(),
+    this.ledgerId = const Value.absent(),
+    this.sourceImagePath = const Value.absent(),
+    this.sourceInfoJson = const Value.absent(),
+    this.state = const Value.absent(),
+    this.version = const Value.absent(),
+    this.encryptedOcrEvidence = const Value.absent(),
+    this.extractionResultJson = const Value.absent(),
+    this.transactionId = const Value.absent(),
+    this.syncAllowed = const Value.absent(),
+    this.evidencePurgeAfter = const Value.absent(),
+    this.workflowDeleteAfter = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.completedAt = const Value.absent(),
+  });
+  BillingCasesCompanion.insert({
+    this.id = const Value.absent(),
+    required String requestId,
+    this.ledgerId = const Value.absent(),
+    required String sourceImagePath,
+    this.sourceInfoJson = const Value.absent(),
+    this.state = const Value.absent(),
+    this.version = const Value.absent(),
+    this.encryptedOcrEvidence = const Value.absent(),
+    this.extractionResultJson = const Value.absent(),
+    this.transactionId = const Value.absent(),
+    this.syncAllowed = const Value.absent(),
+    this.evidencePurgeAfter = const Value.absent(),
+    this.workflowDeleteAfter = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.completedAt = const Value.absent(),
+  })  : requestId = Value(requestId),
+        sourceImagePath = Value(sourceImagePath);
+  static Insertable<BillingCase> custom({
+    Expression<int>? id,
+    Expression<String>? requestId,
+    Expression<int>? ledgerId,
+    Expression<String>? sourceImagePath,
+    Expression<String>? sourceInfoJson,
+    Expression<String>? state,
+    Expression<int>? version,
+    Expression<String>? encryptedOcrEvidence,
+    Expression<String>? extractionResultJson,
+    Expression<int>? transactionId,
+    Expression<bool>? syncAllowed,
+    Expression<DateTime>? evidencePurgeAfter,
+    Expression<DateTime>? workflowDeleteAfter,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? completedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (requestId != null) 'request_id': requestId,
+      if (ledgerId != null) 'ledger_id': ledgerId,
+      if (sourceImagePath != null) 'source_image_path': sourceImagePath,
+      if (sourceInfoJson != null) 'source_info_json': sourceInfoJson,
+      if (state != null) 'state': state,
+      if (version != null) 'version': version,
+      if (encryptedOcrEvidence != null)
+        'encrypted_ocr_evidence': encryptedOcrEvidence,
+      if (extractionResultJson != null)
+        'extraction_result_json': extractionResultJson,
+      if (transactionId != null) 'transaction_id': transactionId,
+      if (syncAllowed != null) 'sync_allowed': syncAllowed,
+      if (evidencePurgeAfter != null)
+        'evidence_purge_after': evidencePurgeAfter,
+      if (workflowDeleteAfter != null)
+        'workflow_delete_after': workflowDeleteAfter,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (completedAt != null) 'completed_at': completedAt,
+    });
+  }
+
+  BillingCasesCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? requestId,
+      Value<int?>? ledgerId,
+      Value<String>? sourceImagePath,
+      Value<String?>? sourceInfoJson,
+      Value<String>? state,
+      Value<int>? version,
+      Value<String?>? encryptedOcrEvidence,
+      Value<String?>? extractionResultJson,
+      Value<int?>? transactionId,
+      Value<bool>? syncAllowed,
+      Value<DateTime?>? evidencePurgeAfter,
+      Value<DateTime?>? workflowDeleteAfter,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt,
+      Value<DateTime?>? completedAt}) {
+    return BillingCasesCompanion(
+      id: id ?? this.id,
+      requestId: requestId ?? this.requestId,
+      ledgerId: ledgerId ?? this.ledgerId,
+      sourceImagePath: sourceImagePath ?? this.sourceImagePath,
+      sourceInfoJson: sourceInfoJson ?? this.sourceInfoJson,
+      state: state ?? this.state,
+      version: version ?? this.version,
+      encryptedOcrEvidence: encryptedOcrEvidence ?? this.encryptedOcrEvidence,
+      extractionResultJson: extractionResultJson ?? this.extractionResultJson,
+      transactionId: transactionId ?? this.transactionId,
+      syncAllowed: syncAllowed ?? this.syncAllowed,
+      evidencePurgeAfter: evidencePurgeAfter ?? this.evidencePurgeAfter,
+      workflowDeleteAfter: workflowDeleteAfter ?? this.workflowDeleteAfter,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      completedAt: completedAt ?? this.completedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (requestId.present) {
+      map['request_id'] = Variable<String>(requestId.value);
+    }
+    if (ledgerId.present) {
+      map['ledger_id'] = Variable<int>(ledgerId.value);
+    }
+    if (sourceImagePath.present) {
+      map['source_image_path'] = Variable<String>(sourceImagePath.value);
+    }
+    if (sourceInfoJson.present) {
+      map['source_info_json'] = Variable<String>(sourceInfoJson.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (encryptedOcrEvidence.present) {
+      map['encrypted_ocr_evidence'] =
+          Variable<String>(encryptedOcrEvidence.value);
+    }
+    if (extractionResultJson.present) {
+      map['extraction_result_json'] =
+          Variable<String>(extractionResultJson.value);
+    }
+    if (transactionId.present) {
+      map['transaction_id'] = Variable<int>(transactionId.value);
+    }
+    if (syncAllowed.present) {
+      map['sync_allowed'] = Variable<bool>(syncAllowed.value);
+    }
+    if (evidencePurgeAfter.present) {
+      map['evidence_purge_after'] =
+          Variable<DateTime>(evidencePurgeAfter.value);
+    }
+    if (workflowDeleteAfter.present) {
+      map['workflow_delete_after'] =
+          Variable<DateTime>(workflowDeleteAfter.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingCasesCompanion(')
+          ..write('id: $id, ')
+          ..write('requestId: $requestId, ')
+          ..write('ledgerId: $ledgerId, ')
+          ..write('sourceImagePath: $sourceImagePath, ')
+          ..write('sourceInfoJson: $sourceInfoJson, ')
+          ..write('state: $state, ')
+          ..write('version: $version, ')
+          ..write('encryptedOcrEvidence: $encryptedOcrEvidence, ')
+          ..write('extractionResultJson: $extractionResultJson, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('syncAllowed: $syncAllowed, ')
+          ..write('evidencePurgeAfter: $evidencePurgeAfter, ')
+          ..write('workflowDeleteAfter: $workflowDeleteAfter, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('completedAt: $completedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BillingAutomationTasksTable extends BillingAutomationTasks
+    with TableInfo<$BillingAutomationTasksTable, BillingAutomationTask> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BillingAutomationTasksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _caseIdMeta = const VerificationMeta('caseId');
+  @override
+  late final GeneratedColumn<int> caseId = GeneratedColumn<int>(
+      'case_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+      'state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('ready'));
+  static const VerificationMeta _availableAtMeta =
+      const VerificationMeta('availableAt');
+  @override
+  late final GeneratedColumn<DateTime> availableAt = GeneratedColumn<DateTime>(
+      'available_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _attemptMeta =
+      const VerificationMeta('attempt');
+  @override
+  late final GeneratedColumn<int> attempt = GeneratedColumn<int>(
+      'attempt', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _leaseOwnerMeta =
+      const VerificationMeta('leaseOwner');
+  @override
+  late final GeneratedColumn<String> leaseOwner = GeneratedColumn<String>(
+      'lease_owner', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _leaseGenerationMeta =
+      const VerificationMeta('leaseGeneration');
+  @override
+  late final GeneratedColumn<int> leaseGeneration = GeneratedColumn<int>(
+      'lease_generation', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _leaseUntilMeta =
+      const VerificationMeta('leaseUntil');
+  @override
+  late final GeneratedColumn<DateTime> leaseUntil = GeneratedColumn<DateTime>(
+      'lease_until', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _lastErrorCodeMeta =
+      const VerificationMeta('lastErrorCode');
+  @override
+  late final GeneratedColumn<String> lastErrorCode = GeneratedColumn<String>(
+      'last_error_code', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        caseId,
+        kind,
+        state,
+        availableAt,
+        attempt,
+        leaseOwner,
+        leaseGeneration,
+        leaseUntil,
+        lastErrorCode,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'billing_automation_tasks';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<BillingAutomationTask> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('case_id')) {
+      context.handle(_caseIdMeta,
+          caseId.isAcceptableOrUnknown(data['case_id']!, _caseIdMeta));
+    } else if (isInserting) {
+      context.missing(_caseIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+          _stateMeta, state.isAcceptableOrUnknown(data['state']!, _stateMeta));
+    }
+    if (data.containsKey('available_at')) {
+      context.handle(
+          _availableAtMeta,
+          availableAt.isAcceptableOrUnknown(
+              data['available_at']!, _availableAtMeta));
+    }
+    if (data.containsKey('attempt')) {
+      context.handle(_attemptMeta,
+          attempt.isAcceptableOrUnknown(data['attempt']!, _attemptMeta));
+    }
+    if (data.containsKey('lease_owner')) {
+      context.handle(
+          _leaseOwnerMeta,
+          leaseOwner.isAcceptableOrUnknown(
+              data['lease_owner']!, _leaseOwnerMeta));
+    }
+    if (data.containsKey('lease_generation')) {
+      context.handle(
+          _leaseGenerationMeta,
+          leaseGeneration.isAcceptableOrUnknown(
+              data['lease_generation']!, _leaseGenerationMeta));
+    }
+    if (data.containsKey('lease_until')) {
+      context.handle(
+          _leaseUntilMeta,
+          leaseUntil.isAcceptableOrUnknown(
+              data['lease_until']!, _leaseUntilMeta));
+    }
+    if (data.containsKey('last_error_code')) {
+      context.handle(
+          _lastErrorCodeMeta,
+          lastErrorCode.isAcceptableOrUnknown(
+              data['last_error_code']!, _lastErrorCodeMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BillingAutomationTask map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BillingAutomationTask(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      caseId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}case_id'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      state: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}state'])!,
+      availableAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}available_at'])!,
+      attempt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}attempt'])!,
+      leaseOwner: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}lease_owner']),
+      leaseGeneration: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}lease_generation'])!,
+      leaseUntil: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}lease_until']),
+      lastErrorCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error_code']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $BillingAutomationTasksTable createAlias(String alias) {
+    return $BillingAutomationTasksTable(attachedDatabase, alias);
+  }
+}
+
+class BillingAutomationTask extends DataClass
+    implements Insertable<BillingAutomationTask> {
+  final int id;
+  final int caseId;
+  final String kind;
+  final String state;
+  final DateTime availableAt;
+  final int attempt;
+  final String? leaseOwner;
+  final int leaseGeneration;
+  final DateTime? leaseUntil;
+  final String? lastErrorCode;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const BillingAutomationTask(
+      {required this.id,
+      required this.caseId,
+      required this.kind,
+      required this.state,
+      required this.availableAt,
+      required this.attempt,
+      this.leaseOwner,
+      required this.leaseGeneration,
+      this.leaseUntil,
+      this.lastErrorCode,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['case_id'] = Variable<int>(caseId);
+    map['kind'] = Variable<String>(kind);
+    map['state'] = Variable<String>(state);
+    map['available_at'] = Variable<DateTime>(availableAt);
+    map['attempt'] = Variable<int>(attempt);
+    if (!nullToAbsent || leaseOwner != null) {
+      map['lease_owner'] = Variable<String>(leaseOwner);
+    }
+    map['lease_generation'] = Variable<int>(leaseGeneration);
+    if (!nullToAbsent || leaseUntil != null) {
+      map['lease_until'] = Variable<DateTime>(leaseUntil);
+    }
+    if (!nullToAbsent || lastErrorCode != null) {
+      map['last_error_code'] = Variable<String>(lastErrorCode);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  BillingAutomationTasksCompanion toCompanion(bool nullToAbsent) {
+    return BillingAutomationTasksCompanion(
+      id: Value(id),
+      caseId: Value(caseId),
+      kind: Value(kind),
+      state: Value(state),
+      availableAt: Value(availableAt),
+      attempt: Value(attempt),
+      leaseOwner: leaseOwner == null && nullToAbsent
+          ? const Value.absent()
+          : Value(leaseOwner),
+      leaseGeneration: Value(leaseGeneration),
+      leaseUntil: leaseUntil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(leaseUntil),
+      lastErrorCode: lastErrorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastErrorCode),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory BillingAutomationTask.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BillingAutomationTask(
+      id: serializer.fromJson<int>(json['id']),
+      caseId: serializer.fromJson<int>(json['caseId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      state: serializer.fromJson<String>(json['state']),
+      availableAt: serializer.fromJson<DateTime>(json['availableAt']),
+      attempt: serializer.fromJson<int>(json['attempt']),
+      leaseOwner: serializer.fromJson<String?>(json['leaseOwner']),
+      leaseGeneration: serializer.fromJson<int>(json['leaseGeneration']),
+      leaseUntil: serializer.fromJson<DateTime?>(json['leaseUntil']),
+      lastErrorCode: serializer.fromJson<String?>(json['lastErrorCode']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'caseId': serializer.toJson<int>(caseId),
+      'kind': serializer.toJson<String>(kind),
+      'state': serializer.toJson<String>(state),
+      'availableAt': serializer.toJson<DateTime>(availableAt),
+      'attempt': serializer.toJson<int>(attempt),
+      'leaseOwner': serializer.toJson<String?>(leaseOwner),
+      'leaseGeneration': serializer.toJson<int>(leaseGeneration),
+      'leaseUntil': serializer.toJson<DateTime?>(leaseUntil),
+      'lastErrorCode': serializer.toJson<String?>(lastErrorCode),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  BillingAutomationTask copyWith(
+          {int? id,
+          int? caseId,
+          String? kind,
+          String? state,
+          DateTime? availableAt,
+          int? attempt,
+          Value<String?> leaseOwner = const Value.absent(),
+          int? leaseGeneration,
+          Value<DateTime?> leaseUntil = const Value.absent(),
+          Value<String?> lastErrorCode = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      BillingAutomationTask(
+        id: id ?? this.id,
+        caseId: caseId ?? this.caseId,
+        kind: kind ?? this.kind,
+        state: state ?? this.state,
+        availableAt: availableAt ?? this.availableAt,
+        attempt: attempt ?? this.attempt,
+        leaseOwner: leaseOwner.present ? leaseOwner.value : this.leaseOwner,
+        leaseGeneration: leaseGeneration ?? this.leaseGeneration,
+        leaseUntil: leaseUntil.present ? leaseUntil.value : this.leaseUntil,
+        lastErrorCode:
+            lastErrorCode.present ? lastErrorCode.value : this.lastErrorCode,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  BillingAutomationTask copyWithCompanion(
+      BillingAutomationTasksCompanion data) {
+    return BillingAutomationTask(
+      id: data.id.present ? data.id.value : this.id,
+      caseId: data.caseId.present ? data.caseId.value : this.caseId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      state: data.state.present ? data.state.value : this.state,
+      availableAt:
+          data.availableAt.present ? data.availableAt.value : this.availableAt,
+      attempt: data.attempt.present ? data.attempt.value : this.attempt,
+      leaseOwner:
+          data.leaseOwner.present ? data.leaseOwner.value : this.leaseOwner,
+      leaseGeneration: data.leaseGeneration.present
+          ? data.leaseGeneration.value
+          : this.leaseGeneration,
+      leaseUntil:
+          data.leaseUntil.present ? data.leaseUntil.value : this.leaseUntil,
+      lastErrorCode: data.lastErrorCode.present
+          ? data.lastErrorCode.value
+          : this.lastErrorCode,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingAutomationTask(')
+          ..write('id: $id, ')
+          ..write('caseId: $caseId, ')
+          ..write('kind: $kind, ')
+          ..write('state: $state, ')
+          ..write('availableAt: $availableAt, ')
+          ..write('attempt: $attempt, ')
+          ..write('leaseOwner: $leaseOwner, ')
+          ..write('leaseGeneration: $leaseGeneration, ')
+          ..write('leaseUntil: $leaseUntil, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      caseId,
+      kind,
+      state,
+      availableAt,
+      attempt,
+      leaseOwner,
+      leaseGeneration,
+      leaseUntil,
+      lastErrorCode,
+      createdAt,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BillingAutomationTask &&
+          other.id == this.id &&
+          other.caseId == this.caseId &&
+          other.kind == this.kind &&
+          other.state == this.state &&
+          other.availableAt == this.availableAt &&
+          other.attempt == this.attempt &&
+          other.leaseOwner == this.leaseOwner &&
+          other.leaseGeneration == this.leaseGeneration &&
+          other.leaseUntil == this.leaseUntil &&
+          other.lastErrorCode == this.lastErrorCode &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class BillingAutomationTasksCompanion
+    extends UpdateCompanion<BillingAutomationTask> {
+  final Value<int> id;
+  final Value<int> caseId;
+  final Value<String> kind;
+  final Value<String> state;
+  final Value<DateTime> availableAt;
+  final Value<int> attempt;
+  final Value<String?> leaseOwner;
+  final Value<int> leaseGeneration;
+  final Value<DateTime?> leaseUntil;
+  final Value<String?> lastErrorCode;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const BillingAutomationTasksCompanion({
+    this.id = const Value.absent(),
+    this.caseId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.state = const Value.absent(),
+    this.availableAt = const Value.absent(),
+    this.attempt = const Value.absent(),
+    this.leaseOwner = const Value.absent(),
+    this.leaseGeneration = const Value.absent(),
+    this.leaseUntil = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  BillingAutomationTasksCompanion.insert({
+    this.id = const Value.absent(),
+    required int caseId,
+    required String kind,
+    this.state = const Value.absent(),
+    this.availableAt = const Value.absent(),
+    this.attempt = const Value.absent(),
+    this.leaseOwner = const Value.absent(),
+    this.leaseGeneration = const Value.absent(),
+    this.leaseUntil = const Value.absent(),
+    this.lastErrorCode = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  })  : caseId = Value(caseId),
+        kind = Value(kind);
+  static Insertable<BillingAutomationTask> custom({
+    Expression<int>? id,
+    Expression<int>? caseId,
+    Expression<String>? kind,
+    Expression<String>? state,
+    Expression<DateTime>? availableAt,
+    Expression<int>? attempt,
+    Expression<String>? leaseOwner,
+    Expression<int>? leaseGeneration,
+    Expression<DateTime>? leaseUntil,
+    Expression<String>? lastErrorCode,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (caseId != null) 'case_id': caseId,
+      if (kind != null) 'kind': kind,
+      if (state != null) 'state': state,
+      if (availableAt != null) 'available_at': availableAt,
+      if (attempt != null) 'attempt': attempt,
+      if (leaseOwner != null) 'lease_owner': leaseOwner,
+      if (leaseGeneration != null) 'lease_generation': leaseGeneration,
+      if (leaseUntil != null) 'lease_until': leaseUntil,
+      if (lastErrorCode != null) 'last_error_code': lastErrorCode,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  BillingAutomationTasksCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? caseId,
+      Value<String>? kind,
+      Value<String>? state,
+      Value<DateTime>? availableAt,
+      Value<int>? attempt,
+      Value<String?>? leaseOwner,
+      Value<int>? leaseGeneration,
+      Value<DateTime?>? leaseUntil,
+      Value<String?>? lastErrorCode,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt}) {
+    return BillingAutomationTasksCompanion(
+      id: id ?? this.id,
+      caseId: caseId ?? this.caseId,
+      kind: kind ?? this.kind,
+      state: state ?? this.state,
+      availableAt: availableAt ?? this.availableAt,
+      attempt: attempt ?? this.attempt,
+      leaseOwner: leaseOwner ?? this.leaseOwner,
+      leaseGeneration: leaseGeneration ?? this.leaseGeneration,
+      leaseUntil: leaseUntil ?? this.leaseUntil,
+      lastErrorCode: lastErrorCode ?? this.lastErrorCode,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (caseId.present) {
+      map['case_id'] = Variable<int>(caseId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (availableAt.present) {
+      map['available_at'] = Variable<DateTime>(availableAt.value);
+    }
+    if (attempt.present) {
+      map['attempt'] = Variable<int>(attempt.value);
+    }
+    if (leaseOwner.present) {
+      map['lease_owner'] = Variable<String>(leaseOwner.value);
+    }
+    if (leaseGeneration.present) {
+      map['lease_generation'] = Variable<int>(leaseGeneration.value);
+    }
+    if (leaseUntil.present) {
+      map['lease_until'] = Variable<DateTime>(leaseUntil.value);
+    }
+    if (lastErrorCode.present) {
+      map['last_error_code'] = Variable<String>(lastErrorCode.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingAutomationTasksCompanion(')
+          ..write('id: $id, ')
+          ..write('caseId: $caseId, ')
+          ..write('kind: $kind, ')
+          ..write('state: $state, ')
+          ..write('availableAt: $availableAt, ')
+          ..write('attempt: $attempt, ')
+          ..write('leaseOwner: $leaseOwner, ')
+          ..write('leaseGeneration: $leaseGeneration, ')
+          ..write('leaseUntil: $leaseUntil, ')
+          ..write('lastErrorCode: $lastErrorCode, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BillingUserTasksTable extends BillingUserTasks
+    with TableInfo<$BillingUserTasksTable, BillingUserTask> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BillingUserTasksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _caseIdMeta = const VerificationMeta('caseId');
+  @override
+  late final GeneratedColumn<int> caseId = GeneratedColumn<int>(
+      'case_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+      'state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('open'));
+  static const VerificationMeta _transactionIdMeta =
+      const VerificationMeta('transactionId');
+  @override
+  late final GeneratedColumn<int> transactionId = GeneratedColumn<int>(
+      'transaction_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _draftJsonMeta =
+      const VerificationMeta('draftJson');
+  @override
+  late final GeneratedColumn<String> draftJson = GeneratedColumn<String>(
+      'draft_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _resolutionJsonMeta =
+      const VerificationMeta('resolutionJson');
+  @override
+  late final GeneratedColumn<String> resolutionJson = GeneratedColumn<String>(
+      'resolution_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _versionMeta =
+      const VerificationMeta('version');
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+      'version', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _resolvedAtMeta =
+      const VerificationMeta('resolvedAt');
+  @override
+  late final GeneratedColumn<DateTime> resolvedAt = GeneratedColumn<DateTime>(
+      'resolved_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _expiresAtMeta =
+      const VerificationMeta('expiresAt');
+  @override
+  late final GeneratedColumn<DateTime> expiresAt = GeneratedColumn<DateTime>(
+      'expires_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        caseId,
+        kind,
+        state,
+        transactionId,
+        draftJson,
+        resolutionJson,
+        version,
+        createdAt,
+        resolvedAt,
+        expiresAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'billing_user_tasks';
+  @override
+  VerificationContext validateIntegrity(Insertable<BillingUserTask> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('case_id')) {
+      context.handle(_caseIdMeta,
+          caseId.isAcceptableOrUnknown(data['case_id']!, _caseIdMeta));
+    } else if (isInserting) {
+      context.missing(_caseIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+          _stateMeta, state.isAcceptableOrUnknown(data['state']!, _stateMeta));
+    }
+    if (data.containsKey('transaction_id')) {
+      context.handle(
+          _transactionIdMeta,
+          transactionId.isAcceptableOrUnknown(
+              data['transaction_id']!, _transactionIdMeta));
+    }
+    if (data.containsKey('draft_json')) {
+      context.handle(_draftJsonMeta,
+          draftJson.isAcceptableOrUnknown(data['draft_json']!, _draftJsonMeta));
+    }
+    if (data.containsKey('resolution_json')) {
+      context.handle(
+          _resolutionJsonMeta,
+          resolutionJson.isAcceptableOrUnknown(
+              data['resolution_json']!, _resolutionJsonMeta));
+    }
+    if (data.containsKey('version')) {
+      context.handle(_versionMeta,
+          version.isAcceptableOrUnknown(data['version']!, _versionMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('resolved_at')) {
+      context.handle(
+          _resolvedAtMeta,
+          resolvedAt.isAcceptableOrUnknown(
+              data['resolved_at']!, _resolvedAtMeta));
+    }
+    if (data.containsKey('expires_at')) {
+      context.handle(_expiresAtMeta,
+          expiresAt.isAcceptableOrUnknown(data['expires_at']!, _expiresAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BillingUserTask map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BillingUserTask(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      caseId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}case_id'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      state: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}state'])!,
+      transactionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}transaction_id']),
+      draftJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}draft_json']),
+      resolutionJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}resolution_json']),
+      version: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}version'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      resolvedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}resolved_at']),
+      expiresAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}expires_at']),
+    );
+  }
+
+  @override
+  $BillingUserTasksTable createAlias(String alias) {
+    return $BillingUserTasksTable(attachedDatabase, alias);
+  }
+}
+
+class BillingUserTask extends DataClass implements Insertable<BillingUserTask> {
+  final int id;
+  final int caseId;
+  final String kind;
+  final String state;
+  final int? transactionId;
+  final String? draftJson;
+  final String? resolutionJson;
+  final int version;
+  final DateTime createdAt;
+  final DateTime? resolvedAt;
+  final DateTime? expiresAt;
+  const BillingUserTask(
+      {required this.id,
+      required this.caseId,
+      required this.kind,
+      required this.state,
+      this.transactionId,
+      this.draftJson,
+      this.resolutionJson,
+      required this.version,
+      required this.createdAt,
+      this.resolvedAt,
+      this.expiresAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['case_id'] = Variable<int>(caseId);
+    map['kind'] = Variable<String>(kind);
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || transactionId != null) {
+      map['transaction_id'] = Variable<int>(transactionId);
+    }
+    if (!nullToAbsent || draftJson != null) {
+      map['draft_json'] = Variable<String>(draftJson);
+    }
+    if (!nullToAbsent || resolutionJson != null) {
+      map['resolution_json'] = Variable<String>(resolutionJson);
+    }
+    map['version'] = Variable<int>(version);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || resolvedAt != null) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt);
+    }
+    if (!nullToAbsent || expiresAt != null) {
+      map['expires_at'] = Variable<DateTime>(expiresAt);
+    }
+    return map;
+  }
+
+  BillingUserTasksCompanion toCompanion(bool nullToAbsent) {
+    return BillingUserTasksCompanion(
+      id: Value(id),
+      caseId: Value(caseId),
+      kind: Value(kind),
+      state: Value(state),
+      transactionId: transactionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transactionId),
+      draftJson: draftJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(draftJson),
+      resolutionJson: resolutionJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolutionJson),
+      version: Value(version),
+      createdAt: Value(createdAt),
+      resolvedAt: resolvedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resolvedAt),
+      expiresAt: expiresAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expiresAt),
+    );
+  }
+
+  factory BillingUserTask.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BillingUserTask(
+      id: serializer.fromJson<int>(json['id']),
+      caseId: serializer.fromJson<int>(json['caseId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      state: serializer.fromJson<String>(json['state']),
+      transactionId: serializer.fromJson<int?>(json['transactionId']),
+      draftJson: serializer.fromJson<String?>(json['draftJson']),
+      resolutionJson: serializer.fromJson<String?>(json['resolutionJson']),
+      version: serializer.fromJson<int>(json['version']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      resolvedAt: serializer.fromJson<DateTime?>(json['resolvedAt']),
+      expiresAt: serializer.fromJson<DateTime?>(json['expiresAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'caseId': serializer.toJson<int>(caseId),
+      'kind': serializer.toJson<String>(kind),
+      'state': serializer.toJson<String>(state),
+      'transactionId': serializer.toJson<int?>(transactionId),
+      'draftJson': serializer.toJson<String?>(draftJson),
+      'resolutionJson': serializer.toJson<String?>(resolutionJson),
+      'version': serializer.toJson<int>(version),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'resolvedAt': serializer.toJson<DateTime?>(resolvedAt),
+      'expiresAt': serializer.toJson<DateTime?>(expiresAt),
+    };
+  }
+
+  BillingUserTask copyWith(
+          {int? id,
+          int? caseId,
+          String? kind,
+          String? state,
+          Value<int?> transactionId = const Value.absent(),
+          Value<String?> draftJson = const Value.absent(),
+          Value<String?> resolutionJson = const Value.absent(),
+          int? version,
+          DateTime? createdAt,
+          Value<DateTime?> resolvedAt = const Value.absent(),
+          Value<DateTime?> expiresAt = const Value.absent()}) =>
+      BillingUserTask(
+        id: id ?? this.id,
+        caseId: caseId ?? this.caseId,
+        kind: kind ?? this.kind,
+        state: state ?? this.state,
+        transactionId:
+            transactionId.present ? transactionId.value : this.transactionId,
+        draftJson: draftJson.present ? draftJson.value : this.draftJson,
+        resolutionJson:
+            resolutionJson.present ? resolutionJson.value : this.resolutionJson,
+        version: version ?? this.version,
+        createdAt: createdAt ?? this.createdAt,
+        resolvedAt: resolvedAt.present ? resolvedAt.value : this.resolvedAt,
+        expiresAt: expiresAt.present ? expiresAt.value : this.expiresAt,
+      );
+  BillingUserTask copyWithCompanion(BillingUserTasksCompanion data) {
+    return BillingUserTask(
+      id: data.id.present ? data.id.value : this.id,
+      caseId: data.caseId.present ? data.caseId.value : this.caseId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      state: data.state.present ? data.state.value : this.state,
+      transactionId: data.transactionId.present
+          ? data.transactionId.value
+          : this.transactionId,
+      draftJson: data.draftJson.present ? data.draftJson.value : this.draftJson,
+      resolutionJson: data.resolutionJson.present
+          ? data.resolutionJson.value
+          : this.resolutionJson,
+      version: data.version.present ? data.version.value : this.version,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      resolvedAt:
+          data.resolvedAt.present ? data.resolvedAt.value : this.resolvedAt,
+      expiresAt: data.expiresAt.present ? data.expiresAt.value : this.expiresAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingUserTask(')
+          ..write('id: $id, ')
+          ..write('caseId: $caseId, ')
+          ..write('kind: $kind, ')
+          ..write('state: $state, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('draftJson: $draftJson, ')
+          ..write('resolutionJson: $resolutionJson, ')
+          ..write('version: $version, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('expiresAt: $expiresAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, caseId, kind, state, transactionId,
+      draftJson, resolutionJson, version, createdAt, resolvedAt, expiresAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BillingUserTask &&
+          other.id == this.id &&
+          other.caseId == this.caseId &&
+          other.kind == this.kind &&
+          other.state == this.state &&
+          other.transactionId == this.transactionId &&
+          other.draftJson == this.draftJson &&
+          other.resolutionJson == this.resolutionJson &&
+          other.version == this.version &&
+          other.createdAt == this.createdAt &&
+          other.resolvedAt == this.resolvedAt &&
+          other.expiresAt == this.expiresAt);
+}
+
+class BillingUserTasksCompanion extends UpdateCompanion<BillingUserTask> {
+  final Value<int> id;
+  final Value<int> caseId;
+  final Value<String> kind;
+  final Value<String> state;
+  final Value<int?> transactionId;
+  final Value<String?> draftJson;
+  final Value<String?> resolutionJson;
+  final Value<int> version;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> resolvedAt;
+  final Value<DateTime?> expiresAt;
+  const BillingUserTasksCompanion({
+    this.id = const Value.absent(),
+    this.caseId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.state = const Value.absent(),
+    this.transactionId = const Value.absent(),
+    this.draftJson = const Value.absent(),
+    this.resolutionJson = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+  });
+  BillingUserTasksCompanion.insert({
+    this.id = const Value.absent(),
+    required int caseId,
+    required String kind,
+    this.state = const Value.absent(),
+    this.transactionId = const Value.absent(),
+    this.draftJson = const Value.absent(),
+    this.resolutionJson = const Value.absent(),
+    this.version = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.resolvedAt = const Value.absent(),
+    this.expiresAt = const Value.absent(),
+  })  : caseId = Value(caseId),
+        kind = Value(kind);
+  static Insertable<BillingUserTask> custom({
+    Expression<int>? id,
+    Expression<int>? caseId,
+    Expression<String>? kind,
+    Expression<String>? state,
+    Expression<int>? transactionId,
+    Expression<String>? draftJson,
+    Expression<String>? resolutionJson,
+    Expression<int>? version,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? resolvedAt,
+    Expression<DateTime>? expiresAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (caseId != null) 'case_id': caseId,
+      if (kind != null) 'kind': kind,
+      if (state != null) 'state': state,
+      if (transactionId != null) 'transaction_id': transactionId,
+      if (draftJson != null) 'draft_json': draftJson,
+      if (resolutionJson != null) 'resolution_json': resolutionJson,
+      if (version != null) 'version': version,
+      if (createdAt != null) 'created_at': createdAt,
+      if (resolvedAt != null) 'resolved_at': resolvedAt,
+      if (expiresAt != null) 'expires_at': expiresAt,
+    });
+  }
+
+  BillingUserTasksCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? caseId,
+      Value<String>? kind,
+      Value<String>? state,
+      Value<int?>? transactionId,
+      Value<String?>? draftJson,
+      Value<String?>? resolutionJson,
+      Value<int>? version,
+      Value<DateTime>? createdAt,
+      Value<DateTime?>? resolvedAt,
+      Value<DateTime?>? expiresAt}) {
+    return BillingUserTasksCompanion(
+      id: id ?? this.id,
+      caseId: caseId ?? this.caseId,
+      kind: kind ?? this.kind,
+      state: state ?? this.state,
+      transactionId: transactionId ?? this.transactionId,
+      draftJson: draftJson ?? this.draftJson,
+      resolutionJson: resolutionJson ?? this.resolutionJson,
+      version: version ?? this.version,
+      createdAt: createdAt ?? this.createdAt,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+      expiresAt: expiresAt ?? this.expiresAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (caseId.present) {
+      map['case_id'] = Variable<int>(caseId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (transactionId.present) {
+      map['transaction_id'] = Variable<int>(transactionId.value);
+    }
+    if (draftJson.present) {
+      map['draft_json'] = Variable<String>(draftJson.value);
+    }
+    if (resolutionJson.present) {
+      map['resolution_json'] = Variable<String>(resolutionJson.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (resolvedAt.present) {
+      map['resolved_at'] = Variable<DateTime>(resolvedAt.value);
+    }
+    if (expiresAt.present) {
+      map['expires_at'] = Variable<DateTime>(expiresAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingUserTasksCompanion(')
+          ..write('id: $id, ')
+          ..write('caseId: $caseId, ')
+          ..write('kind: $kind, ')
+          ..write('state: $state, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('draftJson: $draftJson, ')
+          ..write('resolutionJson: $resolutionJson, ')
+          ..write('version: $version, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('resolvedAt: $resolvedAt, ')
+          ..write('expiresAt: $expiresAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BillingPreparedAttachmentsTable extends BillingPreparedAttachments
+    with
+        TableInfo<$BillingPreparedAttachmentsTable, BillingPreparedAttachment> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BillingPreparedAttachmentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _caseIdMeta = const VerificationMeta('caseId');
+  @override
+  late final GeneratedColumn<int> caseId = GeneratedColumn<int>(
+      'case_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: true,
+      $customConstraints: 'UNIQUE NOT NULL');
+  static const VerificationMeta _sourcePathMeta =
+      const VerificationMeta('sourcePath');
+  @override
+  late final GeneratedColumn<String> sourcePath = GeneratedColumn<String>(
+      'source_path', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _preparedPathMeta =
+      const VerificationMeta('preparedPath');
+  @override
+  late final GeneratedColumn<String> preparedPath = GeneratedColumn<String>(
+      'prepared_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _contentHashMeta =
+      const VerificationMeta('contentHash');
+  @override
+  late final GeneratedColumn<String> contentHash = GeneratedColumn<String>(
+      'content_hash', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _mimeTypeMeta =
+      const VerificationMeta('mimeType');
+  @override
+  late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
+      'mime_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _byteLengthMeta =
+      const VerificationMeta('byteLength');
+  @override
+  late final GeneratedColumn<int> byteLength = GeneratedColumn<int>(
+      'byte_length', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _widthMeta = const VerificationMeta('width');
+  @override
+  late final GeneratedColumn<int> width = GeneratedColumn<int>(
+      'width', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _heightMeta = const VerificationMeta('height');
+  @override
+  late final GeneratedColumn<int> height = GeneratedColumn<int>(
+      'height', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+      'state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
+  static const VerificationMeta _errorCodeMeta =
+      const VerificationMeta('errorCode');
+  @override
+  late final GeneratedColumn<String> errorCode = GeneratedColumn<String>(
+      'error_code', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _preparedAtMeta =
+      const VerificationMeta('preparedAt');
+  @override
+  late final GeneratedColumn<DateTime> preparedAt = GeneratedColumn<DateTime>(
+      'prepared_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _publishedAtMeta =
+      const VerificationMeta('publishedAt');
+  @override
+  late final GeneratedColumn<DateTime> publishedAt = GeneratedColumn<DateTime>(
+      'published_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        caseId,
+        sourcePath,
+        preparedPath,
+        contentHash,
+        mimeType,
+        byteLength,
+        width,
+        height,
+        state,
+        errorCode,
+        createdAt,
+        preparedAt,
+        publishedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'billing_prepared_attachments';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<BillingPreparedAttachment> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('case_id')) {
+      context.handle(_caseIdMeta,
+          caseId.isAcceptableOrUnknown(data['case_id']!, _caseIdMeta));
+    } else if (isInserting) {
+      context.missing(_caseIdMeta);
+    }
+    if (data.containsKey('source_path')) {
+      context.handle(
+          _sourcePathMeta,
+          sourcePath.isAcceptableOrUnknown(
+              data['source_path']!, _sourcePathMeta));
+    } else if (isInserting) {
+      context.missing(_sourcePathMeta);
+    }
+    if (data.containsKey('prepared_path')) {
+      context.handle(
+          _preparedPathMeta,
+          preparedPath.isAcceptableOrUnknown(
+              data['prepared_path']!, _preparedPathMeta));
+    }
+    if (data.containsKey('content_hash')) {
+      context.handle(
+          _contentHashMeta,
+          contentHash.isAcceptableOrUnknown(
+              data['content_hash']!, _contentHashMeta));
+    }
+    if (data.containsKey('mime_type')) {
+      context.handle(_mimeTypeMeta,
+          mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta));
+    }
+    if (data.containsKey('byte_length')) {
+      context.handle(
+          _byteLengthMeta,
+          byteLength.isAcceptableOrUnknown(
+              data['byte_length']!, _byteLengthMeta));
+    }
+    if (data.containsKey('width')) {
+      context.handle(
+          _widthMeta, width.isAcceptableOrUnknown(data['width']!, _widthMeta));
+    }
+    if (data.containsKey('height')) {
+      context.handle(_heightMeta,
+          height.isAcceptableOrUnknown(data['height']!, _heightMeta));
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+          _stateMeta, state.isAcceptableOrUnknown(data['state']!, _stateMeta));
+    }
+    if (data.containsKey('error_code')) {
+      context.handle(_errorCodeMeta,
+          errorCode.isAcceptableOrUnknown(data['error_code']!, _errorCodeMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('prepared_at')) {
+      context.handle(
+          _preparedAtMeta,
+          preparedAt.isAcceptableOrUnknown(
+              data['prepared_at']!, _preparedAtMeta));
+    }
+    if (data.containsKey('published_at')) {
+      context.handle(
+          _publishedAtMeta,
+          publishedAt.isAcceptableOrUnknown(
+              data['published_at']!, _publishedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BillingPreparedAttachment map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BillingPreparedAttachment(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      caseId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}case_id'])!,
+      sourcePath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source_path'])!,
+      preparedPath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}prepared_path']),
+      contentHash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}content_hash']),
+      mimeType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mime_type']),
+      byteLength: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}byte_length']),
+      width: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}width']),
+      height: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}height']),
+      state: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}state'])!,
+      errorCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}error_code']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      preparedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}prepared_at']),
+      publishedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}published_at']),
+    );
+  }
+
+  @override
+  $BillingPreparedAttachmentsTable createAlias(String alias) {
+    return $BillingPreparedAttachmentsTable(attachedDatabase, alias);
+  }
+}
+
+class BillingPreparedAttachment extends DataClass
+    implements Insertable<BillingPreparedAttachment> {
+  final int id;
+  final int caseId;
+  final String sourcePath;
+  final String? preparedPath;
+  final String? contentHash;
+  final String? mimeType;
+  final int? byteLength;
+  final int? width;
+  final int? height;
+  final String state;
+  final String? errorCode;
+  final DateTime createdAt;
+  final DateTime? preparedAt;
+  final DateTime? publishedAt;
+  const BillingPreparedAttachment(
+      {required this.id,
+      required this.caseId,
+      required this.sourcePath,
+      this.preparedPath,
+      this.contentHash,
+      this.mimeType,
+      this.byteLength,
+      this.width,
+      this.height,
+      required this.state,
+      this.errorCode,
+      required this.createdAt,
+      this.preparedAt,
+      this.publishedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['case_id'] = Variable<int>(caseId);
+    map['source_path'] = Variable<String>(sourcePath);
+    if (!nullToAbsent || preparedPath != null) {
+      map['prepared_path'] = Variable<String>(preparedPath);
+    }
+    if (!nullToAbsent || contentHash != null) {
+      map['content_hash'] = Variable<String>(contentHash);
+    }
+    if (!nullToAbsent || mimeType != null) {
+      map['mime_type'] = Variable<String>(mimeType);
+    }
+    if (!nullToAbsent || byteLength != null) {
+      map['byte_length'] = Variable<int>(byteLength);
+    }
+    if (!nullToAbsent || width != null) {
+      map['width'] = Variable<int>(width);
+    }
+    if (!nullToAbsent || height != null) {
+      map['height'] = Variable<int>(height);
+    }
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || errorCode != null) {
+      map['error_code'] = Variable<String>(errorCode);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || preparedAt != null) {
+      map['prepared_at'] = Variable<DateTime>(preparedAt);
+    }
+    if (!nullToAbsent || publishedAt != null) {
+      map['published_at'] = Variable<DateTime>(publishedAt);
+    }
+    return map;
+  }
+
+  BillingPreparedAttachmentsCompanion toCompanion(bool nullToAbsent) {
+    return BillingPreparedAttachmentsCompanion(
+      id: Value(id),
+      caseId: Value(caseId),
+      sourcePath: Value(sourcePath),
+      preparedPath: preparedPath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(preparedPath),
+      contentHash: contentHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(contentHash),
+      mimeType: mimeType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mimeType),
+      byteLength: byteLength == null && nullToAbsent
+          ? const Value.absent()
+          : Value(byteLength),
+      width:
+          width == null && nullToAbsent ? const Value.absent() : Value(width),
+      height:
+          height == null && nullToAbsent ? const Value.absent() : Value(height),
+      state: Value(state),
+      errorCode: errorCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorCode),
+      createdAt: Value(createdAt),
+      preparedAt: preparedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(preparedAt),
+      publishedAt: publishedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(publishedAt),
+    );
+  }
+
+  factory BillingPreparedAttachment.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BillingPreparedAttachment(
+      id: serializer.fromJson<int>(json['id']),
+      caseId: serializer.fromJson<int>(json['caseId']),
+      sourcePath: serializer.fromJson<String>(json['sourcePath']),
+      preparedPath: serializer.fromJson<String?>(json['preparedPath']),
+      contentHash: serializer.fromJson<String?>(json['contentHash']),
+      mimeType: serializer.fromJson<String?>(json['mimeType']),
+      byteLength: serializer.fromJson<int?>(json['byteLength']),
+      width: serializer.fromJson<int?>(json['width']),
+      height: serializer.fromJson<int?>(json['height']),
+      state: serializer.fromJson<String>(json['state']),
+      errorCode: serializer.fromJson<String?>(json['errorCode']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      preparedAt: serializer.fromJson<DateTime?>(json['preparedAt']),
+      publishedAt: serializer.fromJson<DateTime?>(json['publishedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'caseId': serializer.toJson<int>(caseId),
+      'sourcePath': serializer.toJson<String>(sourcePath),
+      'preparedPath': serializer.toJson<String?>(preparedPath),
+      'contentHash': serializer.toJson<String?>(contentHash),
+      'mimeType': serializer.toJson<String?>(mimeType),
+      'byteLength': serializer.toJson<int?>(byteLength),
+      'width': serializer.toJson<int?>(width),
+      'height': serializer.toJson<int?>(height),
+      'state': serializer.toJson<String>(state),
+      'errorCode': serializer.toJson<String?>(errorCode),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'preparedAt': serializer.toJson<DateTime?>(preparedAt),
+      'publishedAt': serializer.toJson<DateTime?>(publishedAt),
+    };
+  }
+
+  BillingPreparedAttachment copyWith(
+          {int? id,
+          int? caseId,
+          String? sourcePath,
+          Value<String?> preparedPath = const Value.absent(),
+          Value<String?> contentHash = const Value.absent(),
+          Value<String?> mimeType = const Value.absent(),
+          Value<int?> byteLength = const Value.absent(),
+          Value<int?> width = const Value.absent(),
+          Value<int?> height = const Value.absent(),
+          String? state,
+          Value<String?> errorCode = const Value.absent(),
+          DateTime? createdAt,
+          Value<DateTime?> preparedAt = const Value.absent(),
+          Value<DateTime?> publishedAt = const Value.absent()}) =>
+      BillingPreparedAttachment(
+        id: id ?? this.id,
+        caseId: caseId ?? this.caseId,
+        sourcePath: sourcePath ?? this.sourcePath,
+        preparedPath:
+            preparedPath.present ? preparedPath.value : this.preparedPath,
+        contentHash: contentHash.present ? contentHash.value : this.contentHash,
+        mimeType: mimeType.present ? mimeType.value : this.mimeType,
+        byteLength: byteLength.present ? byteLength.value : this.byteLength,
+        width: width.present ? width.value : this.width,
+        height: height.present ? height.value : this.height,
+        state: state ?? this.state,
+        errorCode: errorCode.present ? errorCode.value : this.errorCode,
+        createdAt: createdAt ?? this.createdAt,
+        preparedAt: preparedAt.present ? preparedAt.value : this.preparedAt,
+        publishedAt: publishedAt.present ? publishedAt.value : this.publishedAt,
+      );
+  BillingPreparedAttachment copyWithCompanion(
+      BillingPreparedAttachmentsCompanion data) {
+    return BillingPreparedAttachment(
+      id: data.id.present ? data.id.value : this.id,
+      caseId: data.caseId.present ? data.caseId.value : this.caseId,
+      sourcePath:
+          data.sourcePath.present ? data.sourcePath.value : this.sourcePath,
+      preparedPath: data.preparedPath.present
+          ? data.preparedPath.value
+          : this.preparedPath,
+      contentHash:
+          data.contentHash.present ? data.contentHash.value : this.contentHash,
+      mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
+      byteLength:
+          data.byteLength.present ? data.byteLength.value : this.byteLength,
+      width: data.width.present ? data.width.value : this.width,
+      height: data.height.present ? data.height.value : this.height,
+      state: data.state.present ? data.state.value : this.state,
+      errorCode: data.errorCode.present ? data.errorCode.value : this.errorCode,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      preparedAt:
+          data.preparedAt.present ? data.preparedAt.value : this.preparedAt,
+      publishedAt:
+          data.publishedAt.present ? data.publishedAt.value : this.publishedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingPreparedAttachment(')
+          ..write('id: $id, ')
+          ..write('caseId: $caseId, ')
+          ..write('sourcePath: $sourcePath, ')
+          ..write('preparedPath: $preparedPath, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('byteLength: $byteLength, ')
+          ..write('width: $width, ')
+          ..write('height: $height, ')
+          ..write('state: $state, ')
+          ..write('errorCode: $errorCode, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('preparedAt: $preparedAt, ')
+          ..write('publishedAt: $publishedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      caseId,
+      sourcePath,
+      preparedPath,
+      contentHash,
+      mimeType,
+      byteLength,
+      width,
+      height,
+      state,
+      errorCode,
+      createdAt,
+      preparedAt,
+      publishedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BillingPreparedAttachment &&
+          other.id == this.id &&
+          other.caseId == this.caseId &&
+          other.sourcePath == this.sourcePath &&
+          other.preparedPath == this.preparedPath &&
+          other.contentHash == this.contentHash &&
+          other.mimeType == this.mimeType &&
+          other.byteLength == this.byteLength &&
+          other.width == this.width &&
+          other.height == this.height &&
+          other.state == this.state &&
+          other.errorCode == this.errorCode &&
+          other.createdAt == this.createdAt &&
+          other.preparedAt == this.preparedAt &&
+          other.publishedAt == this.publishedAt);
+}
+
+class BillingPreparedAttachmentsCompanion
+    extends UpdateCompanion<BillingPreparedAttachment> {
+  final Value<int> id;
+  final Value<int> caseId;
+  final Value<String> sourcePath;
+  final Value<String?> preparedPath;
+  final Value<String?> contentHash;
+  final Value<String?> mimeType;
+  final Value<int?> byteLength;
+  final Value<int?> width;
+  final Value<int?> height;
+  final Value<String> state;
+  final Value<String?> errorCode;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> preparedAt;
+  final Value<DateTime?> publishedAt;
+  const BillingPreparedAttachmentsCompanion({
+    this.id = const Value.absent(),
+    this.caseId = const Value.absent(),
+    this.sourcePath = const Value.absent(),
+    this.preparedPath = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.byteLength = const Value.absent(),
+    this.width = const Value.absent(),
+    this.height = const Value.absent(),
+    this.state = const Value.absent(),
+    this.errorCode = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.preparedAt = const Value.absent(),
+    this.publishedAt = const Value.absent(),
+  });
+  BillingPreparedAttachmentsCompanion.insert({
+    this.id = const Value.absent(),
+    required int caseId,
+    required String sourcePath,
+    this.preparedPath = const Value.absent(),
+    this.contentHash = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.byteLength = const Value.absent(),
+    this.width = const Value.absent(),
+    this.height = const Value.absent(),
+    this.state = const Value.absent(),
+    this.errorCode = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.preparedAt = const Value.absent(),
+    this.publishedAt = const Value.absent(),
+  })  : caseId = Value(caseId),
+        sourcePath = Value(sourcePath);
+  static Insertable<BillingPreparedAttachment> custom({
+    Expression<int>? id,
+    Expression<int>? caseId,
+    Expression<String>? sourcePath,
+    Expression<String>? preparedPath,
+    Expression<String>? contentHash,
+    Expression<String>? mimeType,
+    Expression<int>? byteLength,
+    Expression<int>? width,
+    Expression<int>? height,
+    Expression<String>? state,
+    Expression<String>? errorCode,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? preparedAt,
+    Expression<DateTime>? publishedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (caseId != null) 'case_id': caseId,
+      if (sourcePath != null) 'source_path': sourcePath,
+      if (preparedPath != null) 'prepared_path': preparedPath,
+      if (contentHash != null) 'content_hash': contentHash,
+      if (mimeType != null) 'mime_type': mimeType,
+      if (byteLength != null) 'byte_length': byteLength,
+      if (width != null) 'width': width,
+      if (height != null) 'height': height,
+      if (state != null) 'state': state,
+      if (errorCode != null) 'error_code': errorCode,
+      if (createdAt != null) 'created_at': createdAt,
+      if (preparedAt != null) 'prepared_at': preparedAt,
+      if (publishedAt != null) 'published_at': publishedAt,
+    });
+  }
+
+  BillingPreparedAttachmentsCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? caseId,
+      Value<String>? sourcePath,
+      Value<String?>? preparedPath,
+      Value<String?>? contentHash,
+      Value<String?>? mimeType,
+      Value<int?>? byteLength,
+      Value<int?>? width,
+      Value<int?>? height,
+      Value<String>? state,
+      Value<String?>? errorCode,
+      Value<DateTime>? createdAt,
+      Value<DateTime?>? preparedAt,
+      Value<DateTime?>? publishedAt}) {
+    return BillingPreparedAttachmentsCompanion(
+      id: id ?? this.id,
+      caseId: caseId ?? this.caseId,
+      sourcePath: sourcePath ?? this.sourcePath,
+      preparedPath: preparedPath ?? this.preparedPath,
+      contentHash: contentHash ?? this.contentHash,
+      mimeType: mimeType ?? this.mimeType,
+      byteLength: byteLength ?? this.byteLength,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      state: state ?? this.state,
+      errorCode: errorCode ?? this.errorCode,
+      createdAt: createdAt ?? this.createdAt,
+      preparedAt: preparedAt ?? this.preparedAt,
+      publishedAt: publishedAt ?? this.publishedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (caseId.present) {
+      map['case_id'] = Variable<int>(caseId.value);
+    }
+    if (sourcePath.present) {
+      map['source_path'] = Variable<String>(sourcePath.value);
+    }
+    if (preparedPath.present) {
+      map['prepared_path'] = Variable<String>(preparedPath.value);
+    }
+    if (contentHash.present) {
+      map['content_hash'] = Variable<String>(contentHash.value);
+    }
+    if (mimeType.present) {
+      map['mime_type'] = Variable<String>(mimeType.value);
+    }
+    if (byteLength.present) {
+      map['byte_length'] = Variable<int>(byteLength.value);
+    }
+    if (width.present) {
+      map['width'] = Variable<int>(width.value);
+    }
+    if (height.present) {
+      map['height'] = Variable<int>(height.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (errorCode.present) {
+      map['error_code'] = Variable<String>(errorCode.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (preparedAt.present) {
+      map['prepared_at'] = Variable<DateTime>(preparedAt.value);
+    }
+    if (publishedAt.present) {
+      map['published_at'] = Variable<DateTime>(publishedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingPreparedAttachmentsCompanion(')
+          ..write('id: $id, ')
+          ..write('caseId: $caseId, ')
+          ..write('sourcePath: $sourcePath, ')
+          ..write('preparedPath: $preparedPath, ')
+          ..write('contentHash: $contentHash, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('byteLength: $byteLength, ')
+          ..write('width: $width, ')
+          ..write('height: $height, ')
+          ..write('state: $state, ')
+          ..write('errorCode: $errorCode, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('preparedAt: $preparedAt, ')
+          ..write('publishedAt: $publishedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BillingOutboxTable extends BillingOutbox
+    with TableInfo<$BillingOutboxTable, BillingOutboxData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BillingOutboxTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _caseIdMeta = const VerificationMeta('caseId');
+  @override
+  late final GeneratedColumn<int> caseId = GeneratedColumn<int>(
+      'case_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _userTaskIdMeta =
+      const VerificationMeta('userTaskId');
+  @override
+  late final GeneratedColumn<int> userTaskId = GeneratedColumn<int>(
+      'user_task_id', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _eventTypeMeta =
+      const VerificationMeta('eventType');
+  @override
+  late final GeneratedColumn<String> eventType = GeneratedColumn<String>(
+      'event_type', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _payloadJsonMeta =
+      const VerificationMeta('payloadJson');
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+      'payload_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+      'state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
+  static const VerificationMeta _attemptMeta =
+      const VerificationMeta('attempt');
+  @override
+  late final GeneratedColumn<int> attempt = GeneratedColumn<int>(
+      'attempt', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _availableAtMeta =
+      const VerificationMeta('availableAt');
+  @override
+  late final GeneratedColumn<DateTime> availableAt = GeneratedColumn<DateTime>(
+      'available_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _deliveredAtMeta =
+      const VerificationMeta('deliveredAt');
+  @override
+  late final GeneratedColumn<DateTime> deliveredAt = GeneratedColumn<DateTime>(
+      'delivered_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        caseId,
+        userTaskId,
+        eventType,
+        payloadJson,
+        state,
+        attempt,
+        availableAt,
+        createdAt,
+        deliveredAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'billing_outbox';
+  @override
+  VerificationContext validateIntegrity(Insertable<BillingOutboxData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('case_id')) {
+      context.handle(_caseIdMeta,
+          caseId.isAcceptableOrUnknown(data['case_id']!, _caseIdMeta));
+    } else if (isInserting) {
+      context.missing(_caseIdMeta);
+    }
+    if (data.containsKey('user_task_id')) {
+      context.handle(
+          _userTaskIdMeta,
+          userTaskId.isAcceptableOrUnknown(
+              data['user_task_id']!, _userTaskIdMeta));
+    }
+    if (data.containsKey('event_type')) {
+      context.handle(_eventTypeMeta,
+          eventType.isAcceptableOrUnknown(data['event_type']!, _eventTypeMeta));
+    } else if (isInserting) {
+      context.missing(_eventTypeMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+          _payloadJsonMeta,
+          payloadJson.isAcceptableOrUnknown(
+              data['payload_json']!, _payloadJsonMeta));
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+          _stateMeta, state.isAcceptableOrUnknown(data['state']!, _stateMeta));
+    }
+    if (data.containsKey('attempt')) {
+      context.handle(_attemptMeta,
+          attempt.isAcceptableOrUnknown(data['attempt']!, _attemptMeta));
+    }
+    if (data.containsKey('available_at')) {
+      context.handle(
+          _availableAtMeta,
+          availableAt.isAcceptableOrUnknown(
+              data['available_at']!, _availableAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('delivered_at')) {
+      context.handle(
+          _deliveredAtMeta,
+          deliveredAt.isAcceptableOrUnknown(
+              data['delivered_at']!, _deliveredAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BillingOutboxData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BillingOutboxData(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      caseId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}case_id'])!,
+      userTaskId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}user_task_id']),
+      eventType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}event_type'])!,
+      payloadJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}payload_json']),
+      state: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}state'])!,
+      attempt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}attempt'])!,
+      availableAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}available_at'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      deliveredAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}delivered_at']),
+    );
+  }
+
+  @override
+  $BillingOutboxTable createAlias(String alias) {
+    return $BillingOutboxTable(attachedDatabase, alias);
+  }
+}
+
+class BillingOutboxData extends DataClass
+    implements Insertable<BillingOutboxData> {
+  final int id;
+  final int caseId;
+  final int? userTaskId;
+  final String eventType;
+  final String? payloadJson;
+  final String state;
+  final int attempt;
+  final DateTime availableAt;
+  final DateTime createdAt;
+  final DateTime? deliveredAt;
+  const BillingOutboxData(
+      {required this.id,
+      required this.caseId,
+      this.userTaskId,
+      required this.eventType,
+      this.payloadJson,
+      required this.state,
+      required this.attempt,
+      required this.availableAt,
+      required this.createdAt,
+      this.deliveredAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['case_id'] = Variable<int>(caseId);
+    if (!nullToAbsent || userTaskId != null) {
+      map['user_task_id'] = Variable<int>(userTaskId);
+    }
+    map['event_type'] = Variable<String>(eventType);
+    if (!nullToAbsent || payloadJson != null) {
+      map['payload_json'] = Variable<String>(payloadJson);
+    }
+    map['state'] = Variable<String>(state);
+    map['attempt'] = Variable<int>(attempt);
+    map['available_at'] = Variable<DateTime>(availableAt);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || deliveredAt != null) {
+      map['delivered_at'] = Variable<DateTime>(deliveredAt);
+    }
+    return map;
+  }
+
+  BillingOutboxCompanion toCompanion(bool nullToAbsent) {
+    return BillingOutboxCompanion(
+      id: Value(id),
+      caseId: Value(caseId),
+      userTaskId: userTaskId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userTaskId),
+      eventType: Value(eventType),
+      payloadJson: payloadJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(payloadJson),
+      state: Value(state),
+      attempt: Value(attempt),
+      availableAt: Value(availableAt),
+      createdAt: Value(createdAt),
+      deliveredAt: deliveredAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deliveredAt),
+    );
+  }
+
+  factory BillingOutboxData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BillingOutboxData(
+      id: serializer.fromJson<int>(json['id']),
+      caseId: serializer.fromJson<int>(json['caseId']),
+      userTaskId: serializer.fromJson<int?>(json['userTaskId']),
+      eventType: serializer.fromJson<String>(json['eventType']),
+      payloadJson: serializer.fromJson<String?>(json['payloadJson']),
+      state: serializer.fromJson<String>(json['state']),
+      attempt: serializer.fromJson<int>(json['attempt']),
+      availableAt: serializer.fromJson<DateTime>(json['availableAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      deliveredAt: serializer.fromJson<DateTime?>(json['deliveredAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'caseId': serializer.toJson<int>(caseId),
+      'userTaskId': serializer.toJson<int?>(userTaskId),
+      'eventType': serializer.toJson<String>(eventType),
+      'payloadJson': serializer.toJson<String?>(payloadJson),
+      'state': serializer.toJson<String>(state),
+      'attempt': serializer.toJson<int>(attempt),
+      'availableAt': serializer.toJson<DateTime>(availableAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'deliveredAt': serializer.toJson<DateTime?>(deliveredAt),
+    };
+  }
+
+  BillingOutboxData copyWith(
+          {int? id,
+          int? caseId,
+          Value<int?> userTaskId = const Value.absent(),
+          String? eventType,
+          Value<String?> payloadJson = const Value.absent(),
+          String? state,
+          int? attempt,
+          DateTime? availableAt,
+          DateTime? createdAt,
+          Value<DateTime?> deliveredAt = const Value.absent()}) =>
+      BillingOutboxData(
+        id: id ?? this.id,
+        caseId: caseId ?? this.caseId,
+        userTaskId: userTaskId.present ? userTaskId.value : this.userTaskId,
+        eventType: eventType ?? this.eventType,
+        payloadJson: payloadJson.present ? payloadJson.value : this.payloadJson,
+        state: state ?? this.state,
+        attempt: attempt ?? this.attempt,
+        availableAt: availableAt ?? this.availableAt,
+        createdAt: createdAt ?? this.createdAt,
+        deliveredAt: deliveredAt.present ? deliveredAt.value : this.deliveredAt,
+      );
+  BillingOutboxData copyWithCompanion(BillingOutboxCompanion data) {
+    return BillingOutboxData(
+      id: data.id.present ? data.id.value : this.id,
+      caseId: data.caseId.present ? data.caseId.value : this.caseId,
+      userTaskId:
+          data.userTaskId.present ? data.userTaskId.value : this.userTaskId,
+      eventType: data.eventType.present ? data.eventType.value : this.eventType,
+      payloadJson:
+          data.payloadJson.present ? data.payloadJson.value : this.payloadJson,
+      state: data.state.present ? data.state.value : this.state,
+      attempt: data.attempt.present ? data.attempt.value : this.attempt,
+      availableAt:
+          data.availableAt.present ? data.availableAt.value : this.availableAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      deliveredAt:
+          data.deliveredAt.present ? data.deliveredAt.value : this.deliveredAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingOutboxData(')
+          ..write('id: $id, ')
+          ..write('caseId: $caseId, ')
+          ..write('userTaskId: $userTaskId, ')
+          ..write('eventType: $eventType, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('state: $state, ')
+          ..write('attempt: $attempt, ')
+          ..write('availableAt: $availableAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('deliveredAt: $deliveredAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, caseId, userTaskId, eventType,
+      payloadJson, state, attempt, availableAt, createdAt, deliveredAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BillingOutboxData &&
+          other.id == this.id &&
+          other.caseId == this.caseId &&
+          other.userTaskId == this.userTaskId &&
+          other.eventType == this.eventType &&
+          other.payloadJson == this.payloadJson &&
+          other.state == this.state &&
+          other.attempt == this.attempt &&
+          other.availableAt == this.availableAt &&
+          other.createdAt == this.createdAt &&
+          other.deliveredAt == this.deliveredAt);
+}
+
+class BillingOutboxCompanion extends UpdateCompanion<BillingOutboxData> {
+  final Value<int> id;
+  final Value<int> caseId;
+  final Value<int?> userTaskId;
+  final Value<String> eventType;
+  final Value<String?> payloadJson;
+  final Value<String> state;
+  final Value<int> attempt;
+  final Value<DateTime> availableAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime?> deliveredAt;
+  const BillingOutboxCompanion({
+    this.id = const Value.absent(),
+    this.caseId = const Value.absent(),
+    this.userTaskId = const Value.absent(),
+    this.eventType = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.state = const Value.absent(),
+    this.attempt = const Value.absent(),
+    this.availableAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.deliveredAt = const Value.absent(),
+  });
+  BillingOutboxCompanion.insert({
+    this.id = const Value.absent(),
+    required int caseId,
+    this.userTaskId = const Value.absent(),
+    required String eventType,
+    this.payloadJson = const Value.absent(),
+    this.state = const Value.absent(),
+    this.attempt = const Value.absent(),
+    this.availableAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.deliveredAt = const Value.absent(),
+  })  : caseId = Value(caseId),
+        eventType = Value(eventType);
+  static Insertable<BillingOutboxData> custom({
+    Expression<int>? id,
+    Expression<int>? caseId,
+    Expression<int>? userTaskId,
+    Expression<String>? eventType,
+    Expression<String>? payloadJson,
+    Expression<String>? state,
+    Expression<int>? attempt,
+    Expression<DateTime>? availableAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? deliveredAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (caseId != null) 'case_id': caseId,
+      if (userTaskId != null) 'user_task_id': userTaskId,
+      if (eventType != null) 'event_type': eventType,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (state != null) 'state': state,
+      if (attempt != null) 'attempt': attempt,
+      if (availableAt != null) 'available_at': availableAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (deliveredAt != null) 'delivered_at': deliveredAt,
+    });
+  }
+
+  BillingOutboxCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? caseId,
+      Value<int?>? userTaskId,
+      Value<String>? eventType,
+      Value<String?>? payloadJson,
+      Value<String>? state,
+      Value<int>? attempt,
+      Value<DateTime>? availableAt,
+      Value<DateTime>? createdAt,
+      Value<DateTime?>? deliveredAt}) {
+    return BillingOutboxCompanion(
+      id: id ?? this.id,
+      caseId: caseId ?? this.caseId,
+      userTaskId: userTaskId ?? this.userTaskId,
+      eventType: eventType ?? this.eventType,
+      payloadJson: payloadJson ?? this.payloadJson,
+      state: state ?? this.state,
+      attempt: attempt ?? this.attempt,
+      availableAt: availableAt ?? this.availableAt,
+      createdAt: createdAt ?? this.createdAt,
+      deliveredAt: deliveredAt ?? this.deliveredAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (caseId.present) {
+      map['case_id'] = Variable<int>(caseId.value);
+    }
+    if (userTaskId.present) {
+      map['user_task_id'] = Variable<int>(userTaskId.value);
+    }
+    if (eventType.present) {
+      map['event_type'] = Variable<String>(eventType.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (attempt.present) {
+      map['attempt'] = Variable<int>(attempt.value);
+    }
+    if (availableAt.present) {
+      map['available_at'] = Variable<DateTime>(availableAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (deliveredAt.present) {
+      map['delivered_at'] = Variable<DateTime>(deliveredAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingOutboxCompanion(')
+          ..write('id: $id, ')
+          ..write('caseId: $caseId, ')
+          ..write('userTaskId: $userTaskId, ')
+          ..write('eventType: $eventType, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('state: $state, ')
+          ..write('attempt: $attempt, ')
+          ..write('availableAt: $availableAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('deliveredAt: $deliveredAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BillingCaseArtifactsTable extends BillingCaseArtifacts
+    with TableInfo<$BillingCaseArtifactsTable, BillingCaseArtifact> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BillingCaseArtifactsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _caseIdMeta = const VerificationMeta('caseId');
+  @override
+  late final GeneratedColumn<int> caseId = GeneratedColumn<int>(
+      'case_id', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _privatePathMeta =
+      const VerificationMeta('privatePath');
+  @override
+  late final GeneratedColumn<String> privatePath = GeneratedColumn<String>(
+      'private_path', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+      'state', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('active'));
+  static const VerificationMeta _deleteAfterMeta =
+      const VerificationMeta('deleteAfter');
+  @override
+  late final GeneratedColumn<DateTime> deleteAfter = GeneratedColumn<DateTime>(
+      'delete_after', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _deletedAtMeta =
+      const VerificationMeta('deletedAt');
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+      'deleted_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        caseId,
+        kind,
+        privatePath,
+        state,
+        deleteAfter,
+        deletedAt,
+        createdAt,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'billing_case_artifacts';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<BillingCaseArtifact> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('case_id')) {
+      context.handle(_caseIdMeta,
+          caseId.isAcceptableOrUnknown(data['case_id']!, _caseIdMeta));
+    } else if (isInserting) {
+      context.missing(_caseIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('private_path')) {
+      context.handle(
+          _privatePathMeta,
+          privatePath.isAcceptableOrUnknown(
+              data['private_path']!, _privatePathMeta));
+    } else if (isInserting) {
+      context.missing(_privatePathMeta);
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+          _stateMeta, state.isAcceptableOrUnknown(data['state']!, _stateMeta));
+    }
+    if (data.containsKey('delete_after')) {
+      context.handle(
+          _deleteAfterMeta,
+          deleteAfter.isAcceptableOrUnknown(
+              data['delete_after']!, _deleteAfterMeta));
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(_deletedAtMeta,
+          deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BillingCaseArtifact map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BillingCaseArtifact(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      caseId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}case_id'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      privatePath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}private_path'])!,
+      state: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}state'])!,
+      deleteAfter: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}delete_after']),
+      deletedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}deleted_at']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $BillingCaseArtifactsTable createAlias(String alias) {
+    return $BillingCaseArtifactsTable(attachedDatabase, alias);
+  }
+}
+
+class BillingCaseArtifact extends DataClass
+    implements Insertable<BillingCaseArtifact> {
+  final int id;
+  final int caseId;
+  final String kind;
+  final String privatePath;
+  final String state;
+  final DateTime? deleteAfter;
+  final DateTime? deletedAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const BillingCaseArtifact(
+      {required this.id,
+      required this.caseId,
+      required this.kind,
+      required this.privatePath,
+      required this.state,
+      this.deleteAfter,
+      this.deletedAt,
+      required this.createdAt,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['case_id'] = Variable<int>(caseId);
+    map['kind'] = Variable<String>(kind);
+    map['private_path'] = Variable<String>(privatePath);
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || deleteAfter != null) {
+      map['delete_after'] = Variable<DateTime>(deleteAfter);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  BillingCaseArtifactsCompanion toCompanion(bool nullToAbsent) {
+    return BillingCaseArtifactsCompanion(
+      id: Value(id),
+      caseId: Value(caseId),
+      kind: Value(kind),
+      privatePath: Value(privatePath),
+      state: Value(state),
+      deleteAfter: deleteAfter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deleteAfter),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory BillingCaseArtifact.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BillingCaseArtifact(
+      id: serializer.fromJson<int>(json['id']),
+      caseId: serializer.fromJson<int>(json['caseId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      privatePath: serializer.fromJson<String>(json['privatePath']),
+      state: serializer.fromJson<String>(json['state']),
+      deleteAfter: serializer.fromJson<DateTime?>(json['deleteAfter']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'caseId': serializer.toJson<int>(caseId),
+      'kind': serializer.toJson<String>(kind),
+      'privatePath': serializer.toJson<String>(privatePath),
+      'state': serializer.toJson<String>(state),
+      'deleteAfter': serializer.toJson<DateTime?>(deleteAfter),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  BillingCaseArtifact copyWith(
+          {int? id,
+          int? caseId,
+          String? kind,
+          String? privatePath,
+          String? state,
+          Value<DateTime?> deleteAfter = const Value.absent(),
+          Value<DateTime?> deletedAt = const Value.absent(),
+          DateTime? createdAt,
+          DateTime? updatedAt}) =>
+      BillingCaseArtifact(
+        id: id ?? this.id,
+        caseId: caseId ?? this.caseId,
+        kind: kind ?? this.kind,
+        privatePath: privatePath ?? this.privatePath,
+        state: state ?? this.state,
+        deleteAfter: deleteAfter.present ? deleteAfter.value : this.deleteAfter,
+        deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  BillingCaseArtifact copyWithCompanion(BillingCaseArtifactsCompanion data) {
+    return BillingCaseArtifact(
+      id: data.id.present ? data.id.value : this.id,
+      caseId: data.caseId.present ? data.caseId.value : this.caseId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      privatePath:
+          data.privatePath.present ? data.privatePath.value : this.privatePath,
+      state: data.state.present ? data.state.value : this.state,
+      deleteAfter:
+          data.deleteAfter.present ? data.deleteAfter.value : this.deleteAfter,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingCaseArtifact(')
+          ..write('id: $id, ')
+          ..write('caseId: $caseId, ')
+          ..write('kind: $kind, ')
+          ..write('privatePath: $privatePath, ')
+          ..write('state: $state, ')
+          ..write('deleteAfter: $deleteAfter, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, caseId, kind, privatePath, state,
+      deleteAfter, deletedAt, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BillingCaseArtifact &&
+          other.id == this.id &&
+          other.caseId == this.caseId &&
+          other.kind == this.kind &&
+          other.privatePath == this.privatePath &&
+          other.state == this.state &&
+          other.deleteAfter == this.deleteAfter &&
+          other.deletedAt == this.deletedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class BillingCaseArtifactsCompanion
+    extends UpdateCompanion<BillingCaseArtifact> {
+  final Value<int> id;
+  final Value<int> caseId;
+  final Value<String> kind;
+  final Value<String> privatePath;
+  final Value<String> state;
+  final Value<DateTime?> deleteAfter;
+  final Value<DateTime?> deletedAt;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const BillingCaseArtifactsCompanion({
+    this.id = const Value.absent(),
+    this.caseId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.privatePath = const Value.absent(),
+    this.state = const Value.absent(),
+    this.deleteAfter = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  BillingCaseArtifactsCompanion.insert({
+    this.id = const Value.absent(),
+    required int caseId,
+    required String kind,
+    required String privatePath,
+    this.state = const Value.absent(),
+    this.deleteAfter = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  })  : caseId = Value(caseId),
+        kind = Value(kind),
+        privatePath = Value(privatePath);
+  static Insertable<BillingCaseArtifact> custom({
+    Expression<int>? id,
+    Expression<int>? caseId,
+    Expression<String>? kind,
+    Expression<String>? privatePath,
+    Expression<String>? state,
+    Expression<DateTime>? deleteAfter,
+    Expression<DateTime>? deletedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (caseId != null) 'case_id': caseId,
+      if (kind != null) 'kind': kind,
+      if (privatePath != null) 'private_path': privatePath,
+      if (state != null) 'state': state,
+      if (deleteAfter != null) 'delete_after': deleteAfter,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  BillingCaseArtifactsCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? caseId,
+      Value<String>? kind,
+      Value<String>? privatePath,
+      Value<String>? state,
+      Value<DateTime?>? deleteAfter,
+      Value<DateTime?>? deletedAt,
+      Value<DateTime>? createdAt,
+      Value<DateTime>? updatedAt}) {
+    return BillingCaseArtifactsCompanion(
+      id: id ?? this.id,
+      caseId: caseId ?? this.caseId,
+      kind: kind ?? this.kind,
+      privatePath: privatePath ?? this.privatePath,
+      state: state ?? this.state,
+      deleteAfter: deleteAfter ?? this.deleteAfter,
+      deletedAt: deletedAt ?? this.deletedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (caseId.present) {
+      map['case_id'] = Variable<int>(caseId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (privatePath.present) {
+      map['private_path'] = Variable<String>(privatePath.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (deleteAfter.present) {
+      map['delete_after'] = Variable<DateTime>(deleteAfter.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BillingCaseArtifactsCompanion(')
+          ..write('id: $id, ')
+          ..write('caseId: $caseId, ')
+          ..write('kind: $kind, ')
+          ..write('privatePath: $privatePath, ')
+          ..write('state: $state, ')
+          ..write('deleteAfter: $deleteAfter, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$BeeDatabase extends GeneratedDatabase {
   _$BeeDatabase(QueryExecutor e) : super(e);
   $BeeDatabaseManager get managers => $BeeDatabaseManager(this);
@@ -7812,6 +11415,16 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
   late final $LocalChangesTable localChanges = $LocalChangesTable(this);
   late final $SyncStateTable syncState = $SyncStateTable(this);
   late final $BillingJobsTable billingJobs = $BillingJobsTable(this);
+  late final $BillingCasesTable billingCases = $BillingCasesTable(this);
+  late final $BillingAutomationTasksTable billingAutomationTasks =
+      $BillingAutomationTasksTable(this);
+  late final $BillingUserTasksTable billingUserTasks =
+      $BillingUserTasksTable(this);
+  late final $BillingPreparedAttachmentsTable billingPreparedAttachments =
+      $BillingPreparedAttachmentsTable(this);
+  late final $BillingOutboxTable billingOutbox = $BillingOutboxTable(this);
+  late final $BillingCaseArtifactsTable billingCaseArtifacts =
+      $BillingCaseArtifactsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -7830,7 +11443,13 @@ abstract class _$BeeDatabase extends GeneratedDatabase {
         transactionAttachments,
         localChanges,
         syncState,
-        billingJobs
+        billingJobs,
+        billingCases,
+        billingAutomationTasks,
+        billingUserTasks,
+        billingPreparedAttachments,
+        billingOutbox,
+        billingCaseArtifacts
       ];
 }
 
@@ -11452,6 +15071,1679 @@ typedef $$BillingJobsTableProcessedTableManager = ProcessedTableManager<
     (BillingJob, BaseReferences<_$BeeDatabase, $BillingJobsTable, BillingJob>),
     BillingJob,
     PrefetchHooks Function()>;
+typedef $$BillingCasesTableCreateCompanionBuilder = BillingCasesCompanion
+    Function({
+  Value<int> id,
+  required String requestId,
+  Value<int?> ledgerId,
+  required String sourceImagePath,
+  Value<String?> sourceInfoJson,
+  Value<String> state,
+  Value<int> version,
+  Value<String?> encryptedOcrEvidence,
+  Value<String?> extractionResultJson,
+  Value<int?> transactionId,
+  Value<bool> syncAllowed,
+  Value<DateTime?> evidencePurgeAfter,
+  Value<DateTime?> workflowDeleteAfter,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<DateTime?> completedAt,
+});
+typedef $$BillingCasesTableUpdateCompanionBuilder = BillingCasesCompanion
+    Function({
+  Value<int> id,
+  Value<String> requestId,
+  Value<int?> ledgerId,
+  Value<String> sourceImagePath,
+  Value<String?> sourceInfoJson,
+  Value<String> state,
+  Value<int> version,
+  Value<String?> encryptedOcrEvidence,
+  Value<String?> extractionResultJson,
+  Value<int?> transactionId,
+  Value<bool> syncAllowed,
+  Value<DateTime?> evidencePurgeAfter,
+  Value<DateTime?> workflowDeleteAfter,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<DateTime?> completedAt,
+});
+
+class $$BillingCasesTableFilterComposer
+    extends Composer<_$BeeDatabase, $BillingCasesTable> {
+  $$BillingCasesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get requestId => $composableBuilder(
+      column: $table.requestId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceImagePath => $composableBuilder(
+      column: $table.sourceImagePath,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourceInfoJson => $composableBuilder(
+      column: $table.sourceInfoJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get encryptedOcrEvidence => $composableBuilder(
+      column: $table.encryptedOcrEvidence,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get extractionResultJson => $composableBuilder(
+      column: $table.extractionResultJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get transactionId => $composableBuilder(
+      column: $table.transactionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get syncAllowed => $composableBuilder(
+      column: $table.syncAllowed, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get evidencePurgeAfter => $composableBuilder(
+      column: $table.evidencePurgeAfter,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get workflowDeleteAfter => $composableBuilder(
+      column: $table.workflowDeleteAfter,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$BillingCasesTableOrderingComposer
+    extends Composer<_$BeeDatabase, $BillingCasesTable> {
+  $$BillingCasesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get requestId => $composableBuilder(
+      column: $table.requestId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get ledgerId => $composableBuilder(
+      column: $table.ledgerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceImagePath => $composableBuilder(
+      column: $table.sourceImagePath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourceInfoJson => $composableBuilder(
+      column: $table.sourceInfoJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get encryptedOcrEvidence => $composableBuilder(
+      column: $table.encryptedOcrEvidence,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get extractionResultJson => $composableBuilder(
+      column: $table.extractionResultJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get transactionId => $composableBuilder(
+      column: $table.transactionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get syncAllowed => $composableBuilder(
+      column: $table.syncAllowed, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get evidencePurgeAfter => $composableBuilder(
+      column: $table.evidencePurgeAfter,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get workflowDeleteAfter => $composableBuilder(
+      column: $table.workflowDeleteAfter,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$BillingCasesTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $BillingCasesTable> {
+  $$BillingCasesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get requestId =>
+      $composableBuilder(column: $table.requestId, builder: (column) => column);
+
+  GeneratedColumn<int> get ledgerId =>
+      $composableBuilder(column: $table.ledgerId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceImagePath => $composableBuilder(
+      column: $table.sourceImagePath, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceInfoJson => $composableBuilder(
+      column: $table.sourceInfoJson, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get encryptedOcrEvidence => $composableBuilder(
+      column: $table.encryptedOcrEvidence, builder: (column) => column);
+
+  GeneratedColumn<String> get extractionResultJson => $composableBuilder(
+      column: $table.extractionResultJson, builder: (column) => column);
+
+  GeneratedColumn<int> get transactionId => $composableBuilder(
+      column: $table.transactionId, builder: (column) => column);
+
+  GeneratedColumn<bool> get syncAllowed => $composableBuilder(
+      column: $table.syncAllowed, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get evidencePurgeAfter => $composableBuilder(
+      column: $table.evidencePurgeAfter, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get workflowDeleteAfter => $composableBuilder(
+      column: $table.workflowDeleteAfter, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+      column: $table.completedAt, builder: (column) => column);
+}
+
+class $$BillingCasesTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $BillingCasesTable,
+    BillingCase,
+    $$BillingCasesTableFilterComposer,
+    $$BillingCasesTableOrderingComposer,
+    $$BillingCasesTableAnnotationComposer,
+    $$BillingCasesTableCreateCompanionBuilder,
+    $$BillingCasesTableUpdateCompanionBuilder,
+    (
+      BillingCase,
+      BaseReferences<_$BeeDatabase, $BillingCasesTable, BillingCase>
+    ),
+    BillingCase,
+    PrefetchHooks Function()> {
+  $$BillingCasesTableTableManager(_$BeeDatabase db, $BillingCasesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BillingCasesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BillingCasesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BillingCasesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> requestId = const Value.absent(),
+            Value<int?> ledgerId = const Value.absent(),
+            Value<String> sourceImagePath = const Value.absent(),
+            Value<String?> sourceInfoJson = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String?> encryptedOcrEvidence = const Value.absent(),
+            Value<String?> extractionResultJson = const Value.absent(),
+            Value<int?> transactionId = const Value.absent(),
+            Value<bool> syncAllowed = const Value.absent(),
+            Value<DateTime?> evidencePurgeAfter = const Value.absent(),
+            Value<DateTime?> workflowDeleteAfter = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> completedAt = const Value.absent(),
+          }) =>
+              BillingCasesCompanion(
+            id: id,
+            requestId: requestId,
+            ledgerId: ledgerId,
+            sourceImagePath: sourceImagePath,
+            sourceInfoJson: sourceInfoJson,
+            state: state,
+            version: version,
+            encryptedOcrEvidence: encryptedOcrEvidence,
+            extractionResultJson: extractionResultJson,
+            transactionId: transactionId,
+            syncAllowed: syncAllowed,
+            evidencePurgeAfter: evidencePurgeAfter,
+            workflowDeleteAfter: workflowDeleteAfter,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            completedAt: completedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String requestId,
+            Value<int?> ledgerId = const Value.absent(),
+            required String sourceImagePath,
+            Value<String?> sourceInfoJson = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<String?> encryptedOcrEvidence = const Value.absent(),
+            Value<String?> extractionResultJson = const Value.absent(),
+            Value<int?> transactionId = const Value.absent(),
+            Value<bool> syncAllowed = const Value.absent(),
+            Value<DateTime?> evidencePurgeAfter = const Value.absent(),
+            Value<DateTime?> workflowDeleteAfter = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> completedAt = const Value.absent(),
+          }) =>
+              BillingCasesCompanion.insert(
+            id: id,
+            requestId: requestId,
+            ledgerId: ledgerId,
+            sourceImagePath: sourceImagePath,
+            sourceInfoJson: sourceInfoJson,
+            state: state,
+            version: version,
+            encryptedOcrEvidence: encryptedOcrEvidence,
+            extractionResultJson: extractionResultJson,
+            transactionId: transactionId,
+            syncAllowed: syncAllowed,
+            evidencePurgeAfter: evidencePurgeAfter,
+            workflowDeleteAfter: workflowDeleteAfter,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            completedAt: completedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$BillingCasesTableProcessedTableManager = ProcessedTableManager<
+    _$BeeDatabase,
+    $BillingCasesTable,
+    BillingCase,
+    $$BillingCasesTableFilterComposer,
+    $$BillingCasesTableOrderingComposer,
+    $$BillingCasesTableAnnotationComposer,
+    $$BillingCasesTableCreateCompanionBuilder,
+    $$BillingCasesTableUpdateCompanionBuilder,
+    (
+      BillingCase,
+      BaseReferences<_$BeeDatabase, $BillingCasesTable, BillingCase>
+    ),
+    BillingCase,
+    PrefetchHooks Function()>;
+typedef $$BillingAutomationTasksTableCreateCompanionBuilder
+    = BillingAutomationTasksCompanion Function({
+  Value<int> id,
+  required int caseId,
+  required String kind,
+  Value<String> state,
+  Value<DateTime> availableAt,
+  Value<int> attempt,
+  Value<String?> leaseOwner,
+  Value<int> leaseGeneration,
+  Value<DateTime?> leaseUntil,
+  Value<String?> lastErrorCode,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+typedef $$BillingAutomationTasksTableUpdateCompanionBuilder
+    = BillingAutomationTasksCompanion Function({
+  Value<int> id,
+  Value<int> caseId,
+  Value<String> kind,
+  Value<String> state,
+  Value<DateTime> availableAt,
+  Value<int> attempt,
+  Value<String?> leaseOwner,
+  Value<int> leaseGeneration,
+  Value<DateTime?> leaseUntil,
+  Value<String?> lastErrorCode,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+
+class $$BillingAutomationTasksTableFilterComposer
+    extends Composer<_$BeeDatabase, $BillingAutomationTasksTable> {
+  $$BillingAutomationTasksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get caseId => $composableBuilder(
+      column: $table.caseId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get availableAt => $composableBuilder(
+      column: $table.availableAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get attempt => $composableBuilder(
+      column: $table.attempt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get leaseOwner => $composableBuilder(
+      column: $table.leaseOwner, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get leaseGeneration => $composableBuilder(
+      column: $table.leaseGeneration,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get leaseUntil => $composableBuilder(
+      column: $table.leaseUntil, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$BillingAutomationTasksTableOrderingComposer
+    extends Composer<_$BeeDatabase, $BillingAutomationTasksTable> {
+  $$BillingAutomationTasksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get caseId => $composableBuilder(
+      column: $table.caseId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get availableAt => $composableBuilder(
+      column: $table.availableAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get attempt => $composableBuilder(
+      column: $table.attempt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get leaseOwner => $composableBuilder(
+      column: $table.leaseOwner, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get leaseGeneration => $composableBuilder(
+      column: $table.leaseGeneration,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get leaseUntil => $composableBuilder(
+      column: $table.leaseUntil, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$BillingAutomationTasksTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $BillingAutomationTasksTable> {
+  $$BillingAutomationTasksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get caseId =>
+      $composableBuilder(column: $table.caseId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get availableAt => $composableBuilder(
+      column: $table.availableAt, builder: (column) => column);
+
+  GeneratedColumn<int> get attempt =>
+      $composableBuilder(column: $table.attempt, builder: (column) => column);
+
+  GeneratedColumn<String> get leaseOwner => $composableBuilder(
+      column: $table.leaseOwner, builder: (column) => column);
+
+  GeneratedColumn<int> get leaseGeneration => $composableBuilder(
+      column: $table.leaseGeneration, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get leaseUntil => $composableBuilder(
+      column: $table.leaseUntil, builder: (column) => column);
+
+  GeneratedColumn<String> get lastErrorCode => $composableBuilder(
+      column: $table.lastErrorCode, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$BillingAutomationTasksTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $BillingAutomationTasksTable,
+    BillingAutomationTask,
+    $$BillingAutomationTasksTableFilterComposer,
+    $$BillingAutomationTasksTableOrderingComposer,
+    $$BillingAutomationTasksTableAnnotationComposer,
+    $$BillingAutomationTasksTableCreateCompanionBuilder,
+    $$BillingAutomationTasksTableUpdateCompanionBuilder,
+    (
+      BillingAutomationTask,
+      BaseReferences<_$BeeDatabase, $BillingAutomationTasksTable,
+          BillingAutomationTask>
+    ),
+    BillingAutomationTask,
+    PrefetchHooks Function()> {
+  $$BillingAutomationTasksTableTableManager(
+      _$BeeDatabase db, $BillingAutomationTasksTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BillingAutomationTasksTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BillingAutomationTasksTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BillingAutomationTasksTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> caseId = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<DateTime> availableAt = const Value.absent(),
+            Value<int> attempt = const Value.absent(),
+            Value<String?> leaseOwner = const Value.absent(),
+            Value<int> leaseGeneration = const Value.absent(),
+            Value<DateTime?> leaseUntil = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              BillingAutomationTasksCompanion(
+            id: id,
+            caseId: caseId,
+            kind: kind,
+            state: state,
+            availableAt: availableAt,
+            attempt: attempt,
+            leaseOwner: leaseOwner,
+            leaseGeneration: leaseGeneration,
+            leaseUntil: leaseUntil,
+            lastErrorCode: lastErrorCode,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int caseId,
+            required String kind,
+            Value<String> state = const Value.absent(),
+            Value<DateTime> availableAt = const Value.absent(),
+            Value<int> attempt = const Value.absent(),
+            Value<String?> leaseOwner = const Value.absent(),
+            Value<int> leaseGeneration = const Value.absent(),
+            Value<DateTime?> leaseUntil = const Value.absent(),
+            Value<String?> lastErrorCode = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              BillingAutomationTasksCompanion.insert(
+            id: id,
+            caseId: caseId,
+            kind: kind,
+            state: state,
+            availableAt: availableAt,
+            attempt: attempt,
+            leaseOwner: leaseOwner,
+            leaseGeneration: leaseGeneration,
+            leaseUntil: leaseUntil,
+            lastErrorCode: lastErrorCode,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$BillingAutomationTasksTableProcessedTableManager
+    = ProcessedTableManager<
+        _$BeeDatabase,
+        $BillingAutomationTasksTable,
+        BillingAutomationTask,
+        $$BillingAutomationTasksTableFilterComposer,
+        $$BillingAutomationTasksTableOrderingComposer,
+        $$BillingAutomationTasksTableAnnotationComposer,
+        $$BillingAutomationTasksTableCreateCompanionBuilder,
+        $$BillingAutomationTasksTableUpdateCompanionBuilder,
+        (
+          BillingAutomationTask,
+          BaseReferences<_$BeeDatabase, $BillingAutomationTasksTable,
+              BillingAutomationTask>
+        ),
+        BillingAutomationTask,
+        PrefetchHooks Function()>;
+typedef $$BillingUserTasksTableCreateCompanionBuilder
+    = BillingUserTasksCompanion Function({
+  Value<int> id,
+  required int caseId,
+  required String kind,
+  Value<String> state,
+  Value<int?> transactionId,
+  Value<String?> draftJson,
+  Value<String?> resolutionJson,
+  Value<int> version,
+  Value<DateTime> createdAt,
+  Value<DateTime?> resolvedAt,
+  Value<DateTime?> expiresAt,
+});
+typedef $$BillingUserTasksTableUpdateCompanionBuilder
+    = BillingUserTasksCompanion Function({
+  Value<int> id,
+  Value<int> caseId,
+  Value<String> kind,
+  Value<String> state,
+  Value<int?> transactionId,
+  Value<String?> draftJson,
+  Value<String?> resolutionJson,
+  Value<int> version,
+  Value<DateTime> createdAt,
+  Value<DateTime?> resolvedAt,
+  Value<DateTime?> expiresAt,
+});
+
+class $$BillingUserTasksTableFilterComposer
+    extends Composer<_$BeeDatabase, $BillingUserTasksTable> {
+  $$BillingUserTasksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get caseId => $composableBuilder(
+      column: $table.caseId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get transactionId => $composableBuilder(
+      column: $table.transactionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get draftJson => $composableBuilder(
+      column: $table.draftJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get resolutionJson => $composableBuilder(
+      column: $table.resolutionJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get resolvedAt => $composableBuilder(
+      column: $table.resolvedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get expiresAt => $composableBuilder(
+      column: $table.expiresAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$BillingUserTasksTableOrderingComposer
+    extends Composer<_$BeeDatabase, $BillingUserTasksTable> {
+  $$BillingUserTasksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get caseId => $composableBuilder(
+      column: $table.caseId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get transactionId => $composableBuilder(
+      column: $table.transactionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get draftJson => $composableBuilder(
+      column: $table.draftJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get resolutionJson => $composableBuilder(
+      column: $table.resolutionJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get version => $composableBuilder(
+      column: $table.version, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get resolvedAt => $composableBuilder(
+      column: $table.resolvedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get expiresAt => $composableBuilder(
+      column: $table.expiresAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$BillingUserTasksTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $BillingUserTasksTable> {
+  $$BillingUserTasksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get caseId =>
+      $composableBuilder(column: $table.caseId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<int> get transactionId => $composableBuilder(
+      column: $table.transactionId, builder: (column) => column);
+
+  GeneratedColumn<String> get draftJson =>
+      $composableBuilder(column: $table.draftJson, builder: (column) => column);
+
+  GeneratedColumn<String> get resolutionJson => $composableBuilder(
+      column: $table.resolutionJson, builder: (column) => column);
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get resolvedAt => $composableBuilder(
+      column: $table.resolvedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get expiresAt =>
+      $composableBuilder(column: $table.expiresAt, builder: (column) => column);
+}
+
+class $$BillingUserTasksTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $BillingUserTasksTable,
+    BillingUserTask,
+    $$BillingUserTasksTableFilterComposer,
+    $$BillingUserTasksTableOrderingComposer,
+    $$BillingUserTasksTableAnnotationComposer,
+    $$BillingUserTasksTableCreateCompanionBuilder,
+    $$BillingUserTasksTableUpdateCompanionBuilder,
+    (
+      BillingUserTask,
+      BaseReferences<_$BeeDatabase, $BillingUserTasksTable, BillingUserTask>
+    ),
+    BillingUserTask,
+    PrefetchHooks Function()> {
+  $$BillingUserTasksTableTableManager(
+      _$BeeDatabase db, $BillingUserTasksTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BillingUserTasksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BillingUserTasksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BillingUserTasksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> caseId = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<int?> transactionId = const Value.absent(),
+            Value<String?> draftJson = const Value.absent(),
+            Value<String?> resolutionJson = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> resolvedAt = const Value.absent(),
+            Value<DateTime?> expiresAt = const Value.absent(),
+          }) =>
+              BillingUserTasksCompanion(
+            id: id,
+            caseId: caseId,
+            kind: kind,
+            state: state,
+            transactionId: transactionId,
+            draftJson: draftJson,
+            resolutionJson: resolutionJson,
+            version: version,
+            createdAt: createdAt,
+            resolvedAt: resolvedAt,
+            expiresAt: expiresAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int caseId,
+            required String kind,
+            Value<String> state = const Value.absent(),
+            Value<int?> transactionId = const Value.absent(),
+            Value<String?> draftJson = const Value.absent(),
+            Value<String?> resolutionJson = const Value.absent(),
+            Value<int> version = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> resolvedAt = const Value.absent(),
+            Value<DateTime?> expiresAt = const Value.absent(),
+          }) =>
+              BillingUserTasksCompanion.insert(
+            id: id,
+            caseId: caseId,
+            kind: kind,
+            state: state,
+            transactionId: transactionId,
+            draftJson: draftJson,
+            resolutionJson: resolutionJson,
+            version: version,
+            createdAt: createdAt,
+            resolvedAt: resolvedAt,
+            expiresAt: expiresAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$BillingUserTasksTableProcessedTableManager = ProcessedTableManager<
+    _$BeeDatabase,
+    $BillingUserTasksTable,
+    BillingUserTask,
+    $$BillingUserTasksTableFilterComposer,
+    $$BillingUserTasksTableOrderingComposer,
+    $$BillingUserTasksTableAnnotationComposer,
+    $$BillingUserTasksTableCreateCompanionBuilder,
+    $$BillingUserTasksTableUpdateCompanionBuilder,
+    (
+      BillingUserTask,
+      BaseReferences<_$BeeDatabase, $BillingUserTasksTable, BillingUserTask>
+    ),
+    BillingUserTask,
+    PrefetchHooks Function()>;
+typedef $$BillingPreparedAttachmentsTableCreateCompanionBuilder
+    = BillingPreparedAttachmentsCompanion Function({
+  Value<int> id,
+  required int caseId,
+  required String sourcePath,
+  Value<String?> preparedPath,
+  Value<String?> contentHash,
+  Value<String?> mimeType,
+  Value<int?> byteLength,
+  Value<int?> width,
+  Value<int?> height,
+  Value<String> state,
+  Value<String?> errorCode,
+  Value<DateTime> createdAt,
+  Value<DateTime?> preparedAt,
+  Value<DateTime?> publishedAt,
+});
+typedef $$BillingPreparedAttachmentsTableUpdateCompanionBuilder
+    = BillingPreparedAttachmentsCompanion Function({
+  Value<int> id,
+  Value<int> caseId,
+  Value<String> sourcePath,
+  Value<String?> preparedPath,
+  Value<String?> contentHash,
+  Value<String?> mimeType,
+  Value<int?> byteLength,
+  Value<int?> width,
+  Value<int?> height,
+  Value<String> state,
+  Value<String?> errorCode,
+  Value<DateTime> createdAt,
+  Value<DateTime?> preparedAt,
+  Value<DateTime?> publishedAt,
+});
+
+class $$BillingPreparedAttachmentsTableFilterComposer
+    extends Composer<_$BeeDatabase, $BillingPreparedAttachmentsTable> {
+  $$BillingPreparedAttachmentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get caseId => $composableBuilder(
+      column: $table.caseId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sourcePath => $composableBuilder(
+      column: $table.sourcePath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get preparedPath => $composableBuilder(
+      column: $table.preparedPath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get mimeType => $composableBuilder(
+      column: $table.mimeType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get byteLength => $composableBuilder(
+      column: $table.byteLength, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get width => $composableBuilder(
+      column: $table.width, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get height => $composableBuilder(
+      column: $table.height, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get errorCode => $composableBuilder(
+      column: $table.errorCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get preparedAt => $composableBuilder(
+      column: $table.preparedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get publishedAt => $composableBuilder(
+      column: $table.publishedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$BillingPreparedAttachmentsTableOrderingComposer
+    extends Composer<_$BeeDatabase, $BillingPreparedAttachmentsTable> {
+  $$BillingPreparedAttachmentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get caseId => $composableBuilder(
+      column: $table.caseId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sourcePath => $composableBuilder(
+      column: $table.sourcePath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get preparedPath => $composableBuilder(
+      column: $table.preparedPath,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get mimeType => $composableBuilder(
+      column: $table.mimeType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get byteLength => $composableBuilder(
+      column: $table.byteLength, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get width => $composableBuilder(
+      column: $table.width, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get height => $composableBuilder(
+      column: $table.height, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get errorCode => $composableBuilder(
+      column: $table.errorCode, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get preparedAt => $composableBuilder(
+      column: $table.preparedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get publishedAt => $composableBuilder(
+      column: $table.publishedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$BillingPreparedAttachmentsTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $BillingPreparedAttachmentsTable> {
+  $$BillingPreparedAttachmentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get caseId =>
+      $composableBuilder(column: $table.caseId, builder: (column) => column);
+
+  GeneratedColumn<String> get sourcePath => $composableBuilder(
+      column: $table.sourcePath, builder: (column) => column);
+
+  GeneratedColumn<String> get preparedPath => $composableBuilder(
+      column: $table.preparedPath, builder: (column) => column);
+
+  GeneratedColumn<String> get contentHash => $composableBuilder(
+      column: $table.contentHash, builder: (column) => column);
+
+  GeneratedColumn<String> get mimeType =>
+      $composableBuilder(column: $table.mimeType, builder: (column) => column);
+
+  GeneratedColumn<int> get byteLength => $composableBuilder(
+      column: $table.byteLength, builder: (column) => column);
+
+  GeneratedColumn<int> get width =>
+      $composableBuilder(column: $table.width, builder: (column) => column);
+
+  GeneratedColumn<int> get height =>
+      $composableBuilder(column: $table.height, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get errorCode =>
+      $composableBuilder(column: $table.errorCode, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get preparedAt => $composableBuilder(
+      column: $table.preparedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get publishedAt => $composableBuilder(
+      column: $table.publishedAt, builder: (column) => column);
+}
+
+class $$BillingPreparedAttachmentsTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $BillingPreparedAttachmentsTable,
+    BillingPreparedAttachment,
+    $$BillingPreparedAttachmentsTableFilterComposer,
+    $$BillingPreparedAttachmentsTableOrderingComposer,
+    $$BillingPreparedAttachmentsTableAnnotationComposer,
+    $$BillingPreparedAttachmentsTableCreateCompanionBuilder,
+    $$BillingPreparedAttachmentsTableUpdateCompanionBuilder,
+    (
+      BillingPreparedAttachment,
+      BaseReferences<_$BeeDatabase, $BillingPreparedAttachmentsTable,
+          BillingPreparedAttachment>
+    ),
+    BillingPreparedAttachment,
+    PrefetchHooks Function()> {
+  $$BillingPreparedAttachmentsTableTableManager(
+      _$BeeDatabase db, $BillingPreparedAttachmentsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BillingPreparedAttachmentsTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BillingPreparedAttachmentsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BillingPreparedAttachmentsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> caseId = const Value.absent(),
+            Value<String> sourcePath = const Value.absent(),
+            Value<String?> preparedPath = const Value.absent(),
+            Value<String?> contentHash = const Value.absent(),
+            Value<String?> mimeType = const Value.absent(),
+            Value<int?> byteLength = const Value.absent(),
+            Value<int?> width = const Value.absent(),
+            Value<int?> height = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<String?> errorCode = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> preparedAt = const Value.absent(),
+            Value<DateTime?> publishedAt = const Value.absent(),
+          }) =>
+              BillingPreparedAttachmentsCompanion(
+            id: id,
+            caseId: caseId,
+            sourcePath: sourcePath,
+            preparedPath: preparedPath,
+            contentHash: contentHash,
+            mimeType: mimeType,
+            byteLength: byteLength,
+            width: width,
+            height: height,
+            state: state,
+            errorCode: errorCode,
+            createdAt: createdAt,
+            preparedAt: preparedAt,
+            publishedAt: publishedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int caseId,
+            required String sourcePath,
+            Value<String?> preparedPath = const Value.absent(),
+            Value<String?> contentHash = const Value.absent(),
+            Value<String?> mimeType = const Value.absent(),
+            Value<int?> byteLength = const Value.absent(),
+            Value<int?> width = const Value.absent(),
+            Value<int?> height = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<String?> errorCode = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> preparedAt = const Value.absent(),
+            Value<DateTime?> publishedAt = const Value.absent(),
+          }) =>
+              BillingPreparedAttachmentsCompanion.insert(
+            id: id,
+            caseId: caseId,
+            sourcePath: sourcePath,
+            preparedPath: preparedPath,
+            contentHash: contentHash,
+            mimeType: mimeType,
+            byteLength: byteLength,
+            width: width,
+            height: height,
+            state: state,
+            errorCode: errorCode,
+            createdAt: createdAt,
+            preparedAt: preparedAt,
+            publishedAt: publishedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$BillingPreparedAttachmentsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$BeeDatabase,
+        $BillingPreparedAttachmentsTable,
+        BillingPreparedAttachment,
+        $$BillingPreparedAttachmentsTableFilterComposer,
+        $$BillingPreparedAttachmentsTableOrderingComposer,
+        $$BillingPreparedAttachmentsTableAnnotationComposer,
+        $$BillingPreparedAttachmentsTableCreateCompanionBuilder,
+        $$BillingPreparedAttachmentsTableUpdateCompanionBuilder,
+        (
+          BillingPreparedAttachment,
+          BaseReferences<_$BeeDatabase, $BillingPreparedAttachmentsTable,
+              BillingPreparedAttachment>
+        ),
+        BillingPreparedAttachment,
+        PrefetchHooks Function()>;
+typedef $$BillingOutboxTableCreateCompanionBuilder = BillingOutboxCompanion
+    Function({
+  Value<int> id,
+  required int caseId,
+  Value<int?> userTaskId,
+  required String eventType,
+  Value<String?> payloadJson,
+  Value<String> state,
+  Value<int> attempt,
+  Value<DateTime> availableAt,
+  Value<DateTime> createdAt,
+  Value<DateTime?> deliveredAt,
+});
+typedef $$BillingOutboxTableUpdateCompanionBuilder = BillingOutboxCompanion
+    Function({
+  Value<int> id,
+  Value<int> caseId,
+  Value<int?> userTaskId,
+  Value<String> eventType,
+  Value<String?> payloadJson,
+  Value<String> state,
+  Value<int> attempt,
+  Value<DateTime> availableAt,
+  Value<DateTime> createdAt,
+  Value<DateTime?> deliveredAt,
+});
+
+class $$BillingOutboxTableFilterComposer
+    extends Composer<_$BeeDatabase, $BillingOutboxTable> {
+  $$BillingOutboxTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get caseId => $composableBuilder(
+      column: $table.caseId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get userTaskId => $composableBuilder(
+      column: $table.userTaskId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get eventType => $composableBuilder(
+      column: $table.eventType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get attempt => $composableBuilder(
+      column: $table.attempt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get availableAt => $composableBuilder(
+      column: $table.availableAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get deliveredAt => $composableBuilder(
+      column: $table.deliveredAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$BillingOutboxTableOrderingComposer
+    extends Composer<_$BeeDatabase, $BillingOutboxTable> {
+  $$BillingOutboxTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get caseId => $composableBuilder(
+      column: $table.caseId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get userTaskId => $composableBuilder(
+      column: $table.userTaskId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get eventType => $composableBuilder(
+      column: $table.eventType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get attempt => $composableBuilder(
+      column: $table.attempt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get availableAt => $composableBuilder(
+      column: $table.availableAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get deliveredAt => $composableBuilder(
+      column: $table.deliveredAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$BillingOutboxTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $BillingOutboxTable> {
+  $$BillingOutboxTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get caseId =>
+      $composableBuilder(column: $table.caseId, builder: (column) => column);
+
+  GeneratedColumn<int> get userTaskId => $composableBuilder(
+      column: $table.userTaskId, builder: (column) => column);
+
+  GeneratedColumn<String> get eventType =>
+      $composableBuilder(column: $table.eventType, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+      column: $table.payloadJson, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<int> get attempt =>
+      $composableBuilder(column: $table.attempt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get availableAt => $composableBuilder(
+      column: $table.availableAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deliveredAt => $composableBuilder(
+      column: $table.deliveredAt, builder: (column) => column);
+}
+
+class $$BillingOutboxTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $BillingOutboxTable,
+    BillingOutboxData,
+    $$BillingOutboxTableFilterComposer,
+    $$BillingOutboxTableOrderingComposer,
+    $$BillingOutboxTableAnnotationComposer,
+    $$BillingOutboxTableCreateCompanionBuilder,
+    $$BillingOutboxTableUpdateCompanionBuilder,
+    (
+      BillingOutboxData,
+      BaseReferences<_$BeeDatabase, $BillingOutboxTable, BillingOutboxData>
+    ),
+    BillingOutboxData,
+    PrefetchHooks Function()> {
+  $$BillingOutboxTableTableManager(_$BeeDatabase db, $BillingOutboxTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BillingOutboxTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BillingOutboxTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BillingOutboxTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> caseId = const Value.absent(),
+            Value<int?> userTaskId = const Value.absent(),
+            Value<String> eventType = const Value.absent(),
+            Value<String?> payloadJson = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<int> attempt = const Value.absent(),
+            Value<DateTime> availableAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> deliveredAt = const Value.absent(),
+          }) =>
+              BillingOutboxCompanion(
+            id: id,
+            caseId: caseId,
+            userTaskId: userTaskId,
+            eventType: eventType,
+            payloadJson: payloadJson,
+            state: state,
+            attempt: attempt,
+            availableAt: availableAt,
+            createdAt: createdAt,
+            deliveredAt: deliveredAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int caseId,
+            Value<int?> userTaskId = const Value.absent(),
+            required String eventType,
+            Value<String?> payloadJson = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<int> attempt = const Value.absent(),
+            Value<DateTime> availableAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime?> deliveredAt = const Value.absent(),
+          }) =>
+              BillingOutboxCompanion.insert(
+            id: id,
+            caseId: caseId,
+            userTaskId: userTaskId,
+            eventType: eventType,
+            payloadJson: payloadJson,
+            state: state,
+            attempt: attempt,
+            availableAt: availableAt,
+            createdAt: createdAt,
+            deliveredAt: deliveredAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$BillingOutboxTableProcessedTableManager = ProcessedTableManager<
+    _$BeeDatabase,
+    $BillingOutboxTable,
+    BillingOutboxData,
+    $$BillingOutboxTableFilterComposer,
+    $$BillingOutboxTableOrderingComposer,
+    $$BillingOutboxTableAnnotationComposer,
+    $$BillingOutboxTableCreateCompanionBuilder,
+    $$BillingOutboxTableUpdateCompanionBuilder,
+    (
+      BillingOutboxData,
+      BaseReferences<_$BeeDatabase, $BillingOutboxTable, BillingOutboxData>
+    ),
+    BillingOutboxData,
+    PrefetchHooks Function()>;
+typedef $$BillingCaseArtifactsTableCreateCompanionBuilder
+    = BillingCaseArtifactsCompanion Function({
+  Value<int> id,
+  required int caseId,
+  required String kind,
+  required String privatePath,
+  Value<String> state,
+  Value<DateTime?> deleteAfter,
+  Value<DateTime?> deletedAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+typedef $$BillingCaseArtifactsTableUpdateCompanionBuilder
+    = BillingCaseArtifactsCompanion Function({
+  Value<int> id,
+  Value<int> caseId,
+  Value<String> kind,
+  Value<String> privatePath,
+  Value<String> state,
+  Value<DateTime?> deleteAfter,
+  Value<DateTime?> deletedAt,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+});
+
+class $$BillingCaseArtifactsTableFilterComposer
+    extends Composer<_$BeeDatabase, $BillingCaseArtifactsTable> {
+  $$BillingCaseArtifactsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get caseId => $composableBuilder(
+      column: $table.caseId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get privatePath => $composableBuilder(
+      column: $table.privatePath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get deleteAfter => $composableBuilder(
+      column: $table.deleteAfter, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$BillingCaseArtifactsTableOrderingComposer
+    extends Composer<_$BeeDatabase, $BillingCaseArtifactsTable> {
+  $$BillingCaseArtifactsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get caseId => $composableBuilder(
+      column: $table.caseId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get privatePath => $composableBuilder(
+      column: $table.privatePath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get state => $composableBuilder(
+      column: $table.state, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get deleteAfter => $composableBuilder(
+      column: $table.deleteAfter, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+      column: $table.deletedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$BillingCaseArtifactsTableAnnotationComposer
+    extends Composer<_$BeeDatabase, $BillingCaseArtifactsTable> {
+  $$BillingCaseArtifactsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get caseId =>
+      $composableBuilder(column: $table.caseId, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get privatePath => $composableBuilder(
+      column: $table.privatePath, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deleteAfter => $composableBuilder(
+      column: $table.deleteAfter, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$BillingCaseArtifactsTableTableManager extends RootTableManager<
+    _$BeeDatabase,
+    $BillingCaseArtifactsTable,
+    BillingCaseArtifact,
+    $$BillingCaseArtifactsTableFilterComposer,
+    $$BillingCaseArtifactsTableOrderingComposer,
+    $$BillingCaseArtifactsTableAnnotationComposer,
+    $$BillingCaseArtifactsTableCreateCompanionBuilder,
+    $$BillingCaseArtifactsTableUpdateCompanionBuilder,
+    (
+      BillingCaseArtifact,
+      BaseReferences<_$BeeDatabase, $BillingCaseArtifactsTable,
+          BillingCaseArtifact>
+    ),
+    BillingCaseArtifact,
+    PrefetchHooks Function()> {
+  $$BillingCaseArtifactsTableTableManager(
+      _$BeeDatabase db, $BillingCaseArtifactsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BillingCaseArtifactsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BillingCaseArtifactsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BillingCaseArtifactsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> caseId = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> privatePath = const Value.absent(),
+            Value<String> state = const Value.absent(),
+            Value<DateTime?> deleteAfter = const Value.absent(),
+            Value<DateTime?> deletedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              BillingCaseArtifactsCompanion(
+            id: id,
+            caseId: caseId,
+            kind: kind,
+            privatePath: privatePath,
+            state: state,
+            deleteAfter: deleteAfter,
+            deletedAt: deletedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int caseId,
+            required String kind,
+            required String privatePath,
+            Value<String> state = const Value.absent(),
+            Value<DateTime?> deleteAfter = const Value.absent(),
+            Value<DateTime?> deletedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+          }) =>
+              BillingCaseArtifactsCompanion.insert(
+            id: id,
+            caseId: caseId,
+            kind: kind,
+            privatePath: privatePath,
+            state: state,
+            deleteAfter: deleteAfter,
+            deletedAt: deletedAt,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$BillingCaseArtifactsTableProcessedTableManager
+    = ProcessedTableManager<
+        _$BeeDatabase,
+        $BillingCaseArtifactsTable,
+        BillingCaseArtifact,
+        $$BillingCaseArtifactsTableFilterComposer,
+        $$BillingCaseArtifactsTableOrderingComposer,
+        $$BillingCaseArtifactsTableAnnotationComposer,
+        $$BillingCaseArtifactsTableCreateCompanionBuilder,
+        $$BillingCaseArtifactsTableUpdateCompanionBuilder,
+        (
+          BillingCaseArtifact,
+          BaseReferences<_$BeeDatabase, $BillingCaseArtifactsTable,
+              BillingCaseArtifact>
+        ),
+        BillingCaseArtifact,
+        PrefetchHooks Function()>;
 
 class $BeeDatabaseManager {
   final _$BeeDatabase _db;
@@ -11484,4 +16776,19 @@ class $BeeDatabaseManager {
       $$SyncStateTableTableManager(_db, _db.syncState);
   $$BillingJobsTableTableManager get billingJobs =>
       $$BillingJobsTableTableManager(_db, _db.billingJobs);
+  $$BillingCasesTableTableManager get billingCases =>
+      $$BillingCasesTableTableManager(_db, _db.billingCases);
+  $$BillingAutomationTasksTableTableManager get billingAutomationTasks =>
+      $$BillingAutomationTasksTableTableManager(
+          _db, _db.billingAutomationTasks);
+  $$BillingUserTasksTableTableManager get billingUserTasks =>
+      $$BillingUserTasksTableTableManager(_db, _db.billingUserTasks);
+  $$BillingPreparedAttachmentsTableTableManager
+      get billingPreparedAttachments =>
+          $$BillingPreparedAttachmentsTableTableManager(
+              _db, _db.billingPreparedAttachments);
+  $$BillingOutboxTableTableManager get billingOutbox =>
+      $$BillingOutboxTableTableManager(_db, _db.billingOutbox);
+  $$BillingCaseArtifactsTableTableManager get billingCaseArtifacts =>
+      $$BillingCaseArtifactsTableTableManager(_db, _db.billingCaseArtifacts);
 }
