@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +22,31 @@ void main() {
       final paymentSample = report.samples.firstWhere(
         (sample) => sample.paymentMethodReport != null,
       );
+      final linkedImageSamples = report.samples.where(
+        (sample) => sample.imagePath != null,
+      );
+      expect(linkedImageSamples, isNotEmpty);
+      final imageGolden =
+          jsonDecode(File('tool/image_billing_golden.json').readAsStringSync())
+              as Map<String, dynamic>;
+      final goldenImageById = {
+        for (final item in imageGolden['cases'] as List<dynamic>)
+          (item as Map<String, dynamic>)['id'] as String:
+              item['image'] as String,
+      };
+      for (final sample in linkedImageSamples) {
+        expect(
+          File(sample.imagePath!).existsSync(),
+          isTrue,
+          reason: '${sample.id} should reference an existing evaluation image',
+        );
+        expect(
+          goldenImageById[sample.id]?.replaceAll('\\', '/'),
+          sample.imagePath!.replaceAll('\\', '/'),
+          reason:
+              '${sample.id} should use the same image in both evaluations',
+        );
+      }
       final paymentReport =
           paymentSample.toJson()['paymentMethod'] as Map<String, dynamic>;
       expect(

@@ -113,6 +113,7 @@ Future<RuleEvalReport> evaluateBillingRules({
 
     samples.add(RuleEvalSampleResult(
       id: sample.id,
+      imagePath: sample.imagePath,
       sourcePackage: sample.sourcePackage,
       matchedTemplateId: result.matchedTemplateId,
       elapsedMicros: stopwatch.elapsedMicroseconds,
@@ -244,6 +245,7 @@ class RuleEvalReport {
 
 class RuleEvalSampleResult {
   final String id;
+  final String? imagePath;
   final String? sourcePackage;
   final String? matchedTemplateId;
   final int elapsedMicros;
@@ -254,6 +256,7 @@ class RuleEvalSampleResult {
 
   const RuleEvalSampleResult({
     required this.id,
+    this.imagePath,
     required this.sourcePackage,
     required this.matchedTemplateId,
     required this.elapsedMicros,
@@ -269,6 +272,7 @@ class RuleEvalSampleResult {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        if (imagePath != null) 'image_path': imagePath,
         'source_package': sourcePackage,
         'matched_template_id': matchedTemplateId,
         'elapsed_ms': elapsedMilliseconds,
@@ -331,6 +335,7 @@ class RuleEvalFieldDiff {
 
 class RuleEvalSample {
   final String id;
+  final String? imagePath;
   final String? sourcePackage;
   final String ocrText;
   final Map<String, Object?> expected;
@@ -338,6 +343,7 @@ class RuleEvalSample {
   const RuleEvalSample({
     required this.id,
     required this.ocrText,
+    this.imagePath,
     this.sourcePackage,
     this.expected = const {},
   });
@@ -345,6 +351,7 @@ class RuleEvalSample {
   factory RuleEvalSample.fromJson(Map<String, dynamic> json) {
     return RuleEvalSample(
       id: _requiredString(json, 'id'),
+      imagePath: json['imagePath']?.toString(),
       sourcePackage: json['sourcePackage']?.toString(),
       ocrText: _requiredString(json, 'ocrText'),
       expected: _objectMap(json['expected']),
