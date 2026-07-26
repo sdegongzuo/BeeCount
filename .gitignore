@@ -78,3 +78,9 @@ temp*.db
 # Current local-only workspace files
 /.mimocode/
 /.superpowers/
+
+.omp/
+.agents/
+.trellis/
+.zcode/
+.codex/
