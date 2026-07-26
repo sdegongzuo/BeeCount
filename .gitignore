@@ -18,6 +18,10 @@ PROJECT_IMPROVEMENTS.md
 assets/config.json
 /marketing/
 
+# Local-only real transaction OCR fixtures and source images
+/tool/rule_eval/samples/
+/image/单条/
+
 
 # IntelliJ related
 *.iml
