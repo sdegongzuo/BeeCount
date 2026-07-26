@@ -150,7 +150,7 @@ void main() {
     expect(txService.called, isTrue);
   });
 
-  test('同步提取冲突即使金额时间完整也保存待确认草稿', () async {
+  test('同步提取冲突不阻断金额时间完整的账单创建', () async {
     final txService = FakeTransactionCreationService();
     final processor =
         TransactionStageProcessor(txService: txService, repo: repo);
@@ -170,12 +170,10 @@ void main() {
       PipelineContext(),
     );
 
-    expect(result.awaitingConfirmation, isTrue);
-    expect(txService.called, isFalse);
-    expect(
-      (await repo.findById(job.id))!.status,
-      BillingJobStatus.awaitingConfirmation,
-    );
+    expect(result.success, isTrue);
+    expect(result.awaitingConfirmation, isFalse);
+    expect(txService.called, isTrue);
+    expect((await repo.findById(job.id))!.transactionId, 42);
   });
 
   test('missing critical field saves a recoverable confirmation draft',
