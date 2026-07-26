@@ -116,6 +116,18 @@ label = "支付方式"
 confidence = 0.85
 
 [[templates.extract]]
+field = "note"
+type = "regex"
+pattern = '^((?!(?:交易详情|支付详情|支付成功|付款成功|交易成功|当前状态|淘宝平台商户)\s*$)(?!.*(?:优惠|立减|[¥￥]|\d+\.\d{1,2})\s*$)[^\n]{2,40})\n当前状态\s*$'
+confidence = 0.86
+
+[[templates.extract]]
+field = "counterparty"
+type = "regex"
+pattern = '^((?!(?:交易详情|支付详情|支付成功|付款成功|交易成功|当前状态|淘宝平台商户)\s*$)(?!.*(?:优惠|立减|[¥￥]|\d+\.\d{1,2})\s*$)[^\n]{2,40})\n当前状态\s*$'
+confidence = 0.86
+
+[[templates.extract]]
 field = "counterparty"
 type = "regex"
 pattern = '^((?!(?:交易详情|支付详情|支付成功|付款成功|交易成功|当前状态|淘宝平台商户)\s*$)[^\n]{2,40})\n\s*[-−]\s*\d{1,6}\.\d{1,2}\s*$'

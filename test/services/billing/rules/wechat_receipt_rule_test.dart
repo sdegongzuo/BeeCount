@@ -48,4 +48,30 @@ void main() {
       '9422548327273593242578194027',
     );
   });
+
+  test('built-in WeChat rule extracts an arbitrary merchant before status',
+      () async {
+    final ruleSet = await TomlBillingRuleRepository().loadBuiltInRuleSet();
+    final result = await BillingRuleEngineImpl().evaluate(
+      ruleSet: ruleSet,
+      sourcePackage: 'com.tencent.mm',
+      ocrText: [
+        '交易详情',
+        '-18.46',
+        '天津海河测试餐厅寅',
+        '当前状态',
+        '支付成功',
+        '支付时间',
+        '2026年6月18日 10:24:36',
+        '支付方式',
+        '中国银行信用卡(2853)',
+        '交易单号',
+        '9223292424251435949411772872',
+      ].join('\n'),
+    );
+
+    expect(result.matchedTemplateId, 'wechat_payment_detail_v1');
+    expect(result.note, '天津海河测试餐厅寅');
+    expect(result.counterparty, '天津海河测试餐厅寅');
+  });
 }
