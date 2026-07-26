@@ -147,7 +147,10 @@ void main() {
         time: DateTime(2026, 7, 12),
         note: '天津海河测试餐厅甲',
         merchantFullName: '天津海河测试餐厅甲',
-        details: const {'product_summary': '海河测试饮品甲', 'store_name': '天津和平测试门店甲'},
+        details: const {
+          'product_summary': '海河测试饮品甲',
+          'store_name': '天津和平测试门店甲'
+        },
         aiCategoryName: '交通',
         allNumbers: const ['28'],
       ),

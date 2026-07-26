@@ -196,6 +196,10 @@ flutter {
     source = "../.."
 }
 
+// 修复 Flutter 将 dev_dependencies 中的 integration_test 和 patrol 注册到
+// GeneratedPluginRegistrant.java 导致 release 构建编译失败的问题。
+// 使用 stub 类提供空实现，release minify 会自动移除未使用的类。
+
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar", "*.aar"])
 

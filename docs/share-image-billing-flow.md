@@ -3,6 +3,10 @@
 > 更新日期：2026-07-26  
 > 范围：Android 系统分享图片进入 BeeCount，直到账单创建、待确认/待分类补正、附件恢复和个人规则学习。  
 > 本文描述当前代码的真实行为；架构决策以 `docs/adr/` 和 `CONTEXT.md` 为准。
+>
+> 本文保留为旧运行时的实现与审查记录。目标重构方案见
+> `docs/specs/share-image-billing-workflow-v2.md`，架构决策见
+> `docs/adr/0005-local-billing-case-and-work-queues.md`。
 
 ## 1. 核心术语
 

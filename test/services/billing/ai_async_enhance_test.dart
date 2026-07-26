@@ -190,7 +190,8 @@ void main() {
 
   test('skips vision rule audit by default', () async {
     final txId = await _insertBaseTransaction(repo, ledgerId);
-    final image = File('${Directory.systemTemp.path}/bee_audit_default_off.jpg');
+    final image =
+        File('${Directory.systemTemp.path}/bee_audit_default_off.jpg');
     await image.writeAsBytes(const [1, 2, 3]);
     addTearDown(() async {
       if (await image.exists()) {

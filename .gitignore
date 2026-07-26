@@ -18,9 +18,10 @@ PROJECT_IMPROVEMENTS.md
 assets/config.json
 /marketing/
 
-# Local-only real transaction OCR fixtures and source images
-/tool/rule_eval/samples/
-/image/单条/
+# Local-only real transaction OCR fixtures, derived data, and source images
+/tool/rule_eval/
+/tool/image_billing_golden.json
+/image/
 
 
 # IntelliJ related
@@ -69,6 +70,11 @@ tmp
 
 # Local diagnostics and transient build artifacts
 .codex_tmp_*.txt
+.codex_tmp/
 .gradle-prod-build/
 *.hprof
 temp*.db
+
+# Current local-only workspace files
+/.mimocode/
+/.superpowers/

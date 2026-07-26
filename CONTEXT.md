@@ -70,16 +70,25 @@ _Avoid_：AI 分类、公共分类规则
 **待分类账单**：关键交易字段已经足以创建交易，但分类尚不可靠、等待用户轻量确认的账单。
 _Avoid_：分类失败、待确认账单
 
-**待确认账单**：关键交易字段尚不足以安全创建交易、等待用户校正的账单草稿。
-_Avoid_：失败账单、待分类账单
+**待确认账单**：金额或时间尚不足以安全创建交易、等待用户从 OCR 证据选择候选或编辑最终值的本地账单工作。
+_Avoid_：失败账单、空白手工记账、待分类账单
 
-### Billing Job
+### 分享记账工作流
 
-**Billing Job**：一次图片分享记账请求从接收到完成的完整生命周期记录。
-_Avoid_：任务、job（在非 Billing Job 语境下）
+**Billing Case**：一次图片分享记账从可靠接收到完成、取消或失败的本地业务工作流。
+_Avoid_：Billing Job、Stage、分享任务
 
-**Stage**：Billing Job 主流程已经完成到哪一步的进度状态。值为 received、ocr_done、rule_done、transaction_created 和 completed；附件完成状态独立于主流程。
-_Avoid_：步骤、phase、ai_done
+**自动任务**：由系统领取、可以重试并从持久状态恢复的 Billing Case 工作。
+_Avoid_：用户任务、Stage、后台 Future
 
-**Retryable Failed**：Billing Job 当前处理失败但可以从既有进度恢复的状态。
-_Avoid_：永久失败、重新开始
+**用户任务**：等待本设备用户完成候选字段裁决或交易分类的持久工作。
+_Avoid_：自动任务、通知、页面状态
+
+**候选字段裁决**：用户根据原图、OCR 文本块和候选列表选择金额或时间，并可继续编辑最终值的确认过程。
+_Avoid_：空白手工录入、自动猜测、分类确认
+
+**Prepared Attachment**：已经完成格式转换和完整验证、等待绑定或发布到交易的本地附件候选。
+_Avoid_：原始分享图片、正式交易附件、OCR 输入
+
+**Billing Outbox Event**：Billing Case 状态已经提交、等待通知或本地界面可靠感知的事件。
+_Avoid_：业务状态、用户任务、同步事件

@@ -145,7 +145,7 @@ class BillingRuleParsers {
 }
 
 String _normalizeInstitutionName(String input) {
-  return input.trim().replaceAll('料技', '科技').replaceAll('適', '通');
+  return input.trim();
 }
 
 BillingRuleParseResult _parsePaymentMethod(String input) {

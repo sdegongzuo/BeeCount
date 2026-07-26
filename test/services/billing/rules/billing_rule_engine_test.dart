@@ -538,7 +538,7 @@ void main() {
                 BillingFieldExtractorRule(
                   field: 'paymentMethod',
                   type: BillingRuleExtractorTypes.regex,
-                  pattern: r'(中国银行银联信用卡\[3610\])',
+                  pattern: r'(中国银行银联信用卡\[2853\])',
                   parser: BillingRuleParserTypes.paymentMethod,
                   confidence: 0.8,
                 ),
@@ -789,7 +789,7 @@ void main() {
       expect(result.amount, -27.82);
       expect(result.time, DateTime(2026, 6, 14, 12, 22, 17));
       expect(result.paymentChannel, '云闪付');
-      expect(result.paymentMethod, '工商银行信用卡(1044)');
+      expect(result.paymentMethod, '工商银行信用卡(2454)');
       expect(result.counterparty, '天津滨海测试家居有限公司庚');
       expect(result.note, '天津滨海测试家居有限公司庚');
       expect(result.acquirer, '支付宝(中国)网络技术有限公司');
@@ -854,11 +854,11 @@ void main() {
       );
     });
 
-    test('normalizes common OCR mistakes in institution names', () {
+    test('institution name parser trims surrounding whitespace', () {
       expect(
         BillingRuleParsers.parse(
           BillingRuleParserTypes.institutionName,
-          '财付通支付科技有限公司',
+          '  财付通支付科技有限公司  ',
         ).value,
         '财付通支付科技有限公司',
       );
