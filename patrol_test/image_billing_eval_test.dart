@@ -17,16 +17,37 @@ import 'package:beecount/services/ai/ai_provider_manager.dart';
 const _goldenAssetPath = 'tool/image_billing_golden.json';
 const _strictGolden =
     bool.fromEnvironment('IMAGE_BILLING_EVAL_STRICT', defaultValue: false);
+const _caseIds = String.fromEnvironment('IMAGE_BILLING_EVAL_CASE_IDS');
+const _ocrOnly =
+    bool.fromEnvironment('IMAGE_BILLING_EVAL_OCR_ONLY', defaultValue: false);
 
 void main() {
   patrolTest('image billing golden samples run on Android', ($) async {
     await $.pumpWidget(const SizedBox.shrink());
-    await _expectVisionProviderConfigured();
+    if (!_ocrOnly) {
+      await _expectVisionProviderConfigured();
+    }
 
     final goldenText = await rootBundle.loadString(_goldenAssetPath);
     final goldenJson = jsonDecode(goldenText) as Map<String, dynamic>;
+    final requestedCaseIds = _caseIds
+        .split(',')
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
     final cases = ((goldenJson['cases'] as List?) ?? const [])
-        .cast<Map<String, dynamic>>();
+        .cast<Map<String, dynamic>>()
+        .where(
+          (item) =>
+              requestedCaseIds.isEmpty ||
+              requestedCaseIds.contains(item['id'] as String),
+        )
+        .toList(growable: false);
+    expect(
+      cases.length,
+      requestedCaseIds.isEmpty ? greaterThan(0) : requestedCaseIds.length,
+      reason: 'Every requested image billing case must exist in the golden.',
+    );
 
     final stamp = DateTime.now().millisecondsSinceEpoch.toString();
     final tempRoot = await getTemporaryDirectory();
@@ -51,6 +72,7 @@ void main() {
     final result = await ImageBillingEvalRunner.run(
       inputDirPath: inputDir.path,
       outputDirPath: outputDir.path,
+      enableAiEnhancement: !_ocrOnly,
     );
 
     expect(result.total, cases.length);
@@ -60,8 +82,18 @@ void main() {
     expect(await actualFile.exists(), isTrue);
 
     final actualText = await actualFile.readAsString();
+    final persistentOutputDir = Directory(
+      await ImageBillingEvalRunner.getDefaultOutputDirPath(),
+    );
+    await persistentOutputDir.create(recursive: true);
+    await File(
+      p.join(persistentOutputDir.path, 'latest_actual.json'),
+    ).writeAsString(actualText, flush: true);
     final summary = eval.evaluateImageBillingPayload(
-      goldenJsonText: goldenText,
+      goldenJsonText: jsonEncode({
+        ...goldenJson,
+        'cases': cases,
+      }),
       actualJsonText: actualText,
     );
 

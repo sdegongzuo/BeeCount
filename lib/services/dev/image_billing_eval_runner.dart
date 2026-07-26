@@ -45,6 +45,7 @@ class ImageBillingEvalRunner {
     BaseRepository? repo,
     String? inputDirPath,
     String? outputDirPath,
+    bool enableAiEnhancement = true,
   }) async {
     final root = inputDirPath == null || outputDirPath == null
         ? await _getEvalRootDirectory()
@@ -74,6 +75,7 @@ class ImageBillingEvalRunner {
           file,
           repo: repo,
           traceSink: traces.add,
+          enableAiEnhancement: enableAiEnhancement,
         );
         succeeded++;
         cases.add(_buildCaseJson(
@@ -226,6 +228,17 @@ class ImageBillingEvalRunner {
       'unionpay_pinduoduo_single.jpg' => 'unionpay_pinduoduo_single',
       'unionpay_kfc_single.jpg' => 'unionpay_kfc_single',
       'unionpay_ele_single.jpg' => 'unionpay_ele_single',
+      '云闪付-银联优惠-单条.jpg' => 'unionpay_cafacoffee_discount_single',
+      '美团-天津测试超市优惠-单条.jpg' =>
+        'meituan_xiaoxiang_icbc_discount_single',
+      '支付宝-沙沙百货优惠-单条.jpg' => 'alipay_shasha_discount_single',
+      '支付宝-友门鹿优惠-单条.jpg' => 'alipay_youmenlu_discount_single',
+      '微信-滴滴充电优惠-单条.jpg' => 'wechat_didi_charging_discount_single',
+      '微信-抖音生活服务优惠-单条.jpg' =>
+        'wechat_douyin_service_discount_single',
+      '美团-隆江猪脚饭-单条.jpg' => 'meituan_longjiang_takeout_single',
+      '支付宝-MinT商家订单号-单条.jpg' =>
+        'alipay_min_t_merchant_order_single',
       '支付宝-单条.jpg' => 'alipay_etc_single',
       '支付宝-单条2.jpg' => 'alipay_mimo_token_single',
       '支付宝-单条3.jpg' => 'alipay_taobao_flash_single',
@@ -269,6 +282,15 @@ class ImageBillingEvalRunner {
       'unionpay_pinduoduo_single.jpg' => '云闪付-单条2.jpg',
       'unionpay_kfc_single.jpg' => '云闪付-单条3.jpg',
       'unionpay_ele_single.jpg' => '云闪付-单条4.jpg',
+      '云闪付-银联优惠-单条.jpg' => '云闪付-银联优惠-单条.jpg',
+      '美团-天津测试超市优惠-单条.jpg' => '美团-天津测试超市优惠-单条.jpg',
+      '支付宝-沙沙百货优惠-单条.jpg' => '支付宝-沙沙百货优惠-单条.jpg',
+      '支付宝-友门鹿优惠-单条.jpg' => '支付宝-友门鹿优惠-单条.jpg',
+      '微信-滴滴充电优惠-单条.jpg' => '微信-滴滴充电优惠-单条.jpg',
+      '微信-抖音生活服务优惠-单条.jpg' => '微信-抖音生活服务优惠-单条.jpg',
+      '美团-隆江猪脚饭-单条.jpg' => '美团-隆江猪脚饭-单条.jpg',
+      '支付宝-MinT商家订单号-单条.jpg' =>
+        '支付宝-MinT商家订单号-单条.jpg',
       _ => name,
     };
     return 'image/单条/$goldenName';
