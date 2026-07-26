@@ -229,6 +229,8 @@ class ImageBillingEvalRunner {
       'unionpay_kfc_single.jpg' => 'unionpay_kfc_single',
       'unionpay_ele_single.jpg' => 'unionpay_ele_single',
       '云闪付-银联优惠-单条.jpg' => 'unionpay_cafacoffee_discount_single',
+      '云闪付-银联优惠8.90-单条.jpg' =>
+        'unionpay_cafacoffee_discount_890_single',
       '美团-天津测试超市优惠-单条.jpg' =>
         'meituan_xiaoxiang_icbc_discount_single',
       '支付宝-沙沙百货优惠-单条.jpg' => 'alipay_shasha_discount_single',
@@ -283,6 +285,7 @@ class ImageBillingEvalRunner {
       'unionpay_kfc_single.jpg' => '云闪付-单条3.jpg',
       'unionpay_ele_single.jpg' => '云闪付-单条4.jpg',
       '云闪付-银联优惠-单条.jpg' => '云闪付-银联优惠-单条.jpg',
+      '云闪付-银联优惠8.90-单条.jpg' => '云闪付-银联优惠8.90-单条.jpg',
       '美团-天津测试超市优惠-单条.jpg' => '美团-天津测试超市优惠-单条.jpg',
       '支付宝-沙沙百货优惠-单条.jpg' => '支付宝-沙沙百货优惠-单条.jpg',
       '支付宝-友门鹿优惠-单条.jpg' => '支付宝-友门鹿优惠-单条.jpg',
