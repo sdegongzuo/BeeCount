@@ -123,6 +123,27 @@ Billing Outbox Event 是业务状态已提交、等待本地外部交付的事�
 - `billing_failed`
 - `attachment_failed`
 
+### 4.6 可靠性判断模块
+
+ExtractionDecision 与 ClassificationDecision 是无 Android 依赖的纯判断模块，分别裁决
+§5 中 E3（金额、时间）与 E6（分类）两个分支。两者都不创建交易、不写数据库、不持有 lease，
+只依据 OCR 证据和规则阶段产物返回可靠或不可靠结论，供 BillingAutomation 与 BillingUserWork
+在工作流事务内复用。
+
+职责边界：
+
+- ExtractionDecision：判定金额、时间是否完整可靠；不可靠时产出金额/时间候选与原因。
+  不负责分类。
+- ClassificationDecision：只裁决规则阶段给出的 categoryId 是否可靠。
+  `classify(extraction, ledgerCategories, personalRules) -> reliable(categoryId, evidence)
+  | unreliable(fallbackCategoryId, reason)`。商户关键词、页面配置等规则匹配仍属规则阶段
+  （extract_bill）职责，不在本模块内重复实现 matchCategory 全链；本模块只判定规则阶段
+  给出的结果是否可靠。
+
+判断规则在 V2 中只有一个实现位置：这两个纯模块。BillCreationService 不再隐式决定工作流
+分支；它只接收已经过裁决的金额、时间和分类，负责交易创建本身。自动线与用户确认线都先
+调用纯模块裁决，再在工作流短事务内完成建账、User Task 创建、同步门禁和 Case 状态转换。
+
 ## 5. 总体架构
 
 ```mermaid
@@ -184,7 +205,8 @@ flowchart TD
 - `extraction_result_json`
 - `transaction_id`
 - `sync_allowed`
-- `cleanup_after`
+- `evidence_purge_after`
+- `workflow_delete_after`
 - `created_at`
 - `updated_at`
 - `completed_at`
@@ -196,6 +218,8 @@ flowchart TD
 - `waiting_classification` 必须存在 `transaction_id`。
 - `waiting_confirmation` 不得存在已完成的 `confirm_bill`。
 - `completed` 不得存在 open User Task。
+- `evidence_purge_after` 是敏感 OCR 证据脱敏清空截止；`workflow_delete_after` 是 Case 及其
+  终态任务、delivered Outbox 删除截止。二者不随文件清理写入，详见 §18 与 §6.6。
 
 ### 6.2 `billing_automation_tasks`
 
@@ -262,6 +286,33 @@ flowchart TD
 - `prepared_at`
 - `published_at`
 
+### 6.6 `billing_case_artifacts`
+
+文件级清理的唯一事实来源。源图、Prepared 文件和中间文件各自一条记录，每条独立持有
+`delete_after`，不依赖 Case 级时间戳解释文件语义。Prepared Attachment 仍负责附件转换/发布
+工作流状态，不承担源图和中间文件的生命周期；`billing_cases.source_image_path` 保留引用，
+但不作为清理队列。
+
+建议字段：
+
+- `id`
+- `case_id`
+- `kind`：`source_image` / `prepared` / `intermediate`
+- `private_path`：精确应用私有路径
+- `state`
+- `delete_after`
+- `deleted_at`
+- `created_at`
+- `updated_at`
+
+约束：
+
+- `(case_id, kind, private_path)` 唯一。
+- `runDueCleanup` 只删除 `delete_after <= now` 且未删除的记录对应的文件，删除后回填
+  `deleted_at`；文件级截止不写回 `billing_cases`。
+- 失败后重试成功时，artifact 的 `delete_after` 随最新业务事实重算为「发布成功后 24h」，
+  不沿用旧的失败截止。
+
 ### 6.5 `billing_outbox`
 
 建议字段：
@@ -310,6 +361,8 @@ Implementation 隐藏：
 - claim、renew、generation fencing；
 - OCR、规则和附件 Adapter；
 - 重试分类；
+- 金额/时间与分类可靠性由 §4.6 的纯判断模块裁决，调用 BillCreationService 创建交易本身，
+  不在 BillingAutomation 内联 matchCategory 全链；
 - 后续任务创建；
 - Case 状态转换；
 - Outbox 写入。
@@ -330,6 +383,7 @@ Implementation 隐藏：
 - 待确认与待分类差异；
 - OCR 证据解密；
 - 交易创建和分类更新；
+- 用户确认后的分类可靠性复用 §4.6 纯判断模块裁决，与自动线同一实现位置；
 - 同步门禁；
 - 个人规则学习任务；
 - 附件发布唤醒；
@@ -344,6 +398,8 @@ runDueCleanup(now) -> CleanupSummary
 ```
 
 Implementation 只处理数据库中记录的精确应用私有路径，不扫描任意目录、不使用通配符。
+三类清理各查权威表：文件查 `billing_case_artifacts.delete_after`（§6.6），敏感证据查
+`billing_cases.evidence_purge_after`，工作流记录查 `billing_cases.workflow_delete_after`。
 
 ## 8. Ingress 与原生交付
 
@@ -567,14 +623,23 @@ AND Billing Case.transactionId != null
 - 待分类已经创建交易，不提供放弃工作流；用户可以完成分类或进入交易详情处理交易。
 - 关闭页面不等于取消。
 
-保留周期：
+保留周期（按被清理资源分配权威字段，不共用单一时间戳）：
 
-- 成功且正式附件已发布：临时源图和 Prepared 文件保留24小时。
-- 用户主动放弃：临时文件保留24小时。
-- 处理失败：原图和中间文件保留3天，期间允许重试。
-- 完成的 Case、任务、已解决 User Task 和 delivered Outbox 保留10天。
-- 10天后删除 OCR 证据、候选、坐标和内部诊断，仅保留必要业务数据。
-- 个人规则回归样本不受10天策略影响。
+- 文件级（源图、Prepared 文件、中间文件）：写入 `billing_case_artifacts.delete_after`
+  （§6.6），每条文件独立。
+  - 成功且正式附件已发布：相关临时文件 `delete_after = published_at + 24h`。
+  - 用户主动放弃：相关临时文件 `delete_after = cancelled_at + 24h`。
+  - 处理失败：相关临时文件 `delete_after = permanent_failure_at + 3d`，期间允许重试。
+- 证据级（OCR 全文、候选、坐标、内部诊断）：`evidence_purge_after = terminal_at + 10d`。
+  到期先脱敏清空证据字段，不删除 Case 记录本身。
+- 工作流级（Case、终态 Automation Task、已解决 User Task、delivered Outbox）：
+  `workflow_delete_after = terminal_at + 10d`。删除时从到期 Case 出发，在确认不存在 open
+  User Task、未完成附件任务或规则学习引用后，一并清理其终态任务和 delivered Outbox。
+- 个人规则回归样本不受上述策略影响。
+
+证据级与工作流级为同一 10 天锚点，但保留两字段：Case 删除可能因活动引用推迟，而敏感证据
+必须在 10 天时先脱敏，不能因非敏感记录仍被引用而无限保留。失败后重试成功时，artifact 的
+保留策略随最新业务事实重算为「发布成功后 24h」，不沿用旧的失败截止。
 
 清理规则：
 
